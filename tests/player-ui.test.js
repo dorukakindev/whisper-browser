@@ -366,7 +366,8 @@ test('geciken tarayıcı görünümü oynatıcı modunun üzerine geri açılam�
   assert(/const workspaceSeq = \+\+player\.browserWorkspaceSeq/.test(show)
     && /workspaceSeq === player\.browserWorkspaceSeq/.test(show),
   'tarayıcı görünümü hazırlama isteğinin kuşak kontrolü yok');
-  assert(/player\.workspaceMode !== 'browser'[\s\S]{0,100}hideBrowser/.test(show),
+  assert(/const workspaceVisible = \(\) => player\.workspaceMode === 'browser'/.test(show)
+    && /if \(!stillCurrent\(\)\) \{\s*if \(!workspaceVisible\(\)\) window\.api\.hideBrowser/.test(show),
     'geciken görünüm oynatıcı modunda ana süreçten tekrar gizlenmiyor');
   assert(/mode !== previousMode\) player\.browserWorkspaceSeq \+= 1/.test(mode),
     'çalışma alanı değişimi bekleyen görünüm isteğini geçersiz kılmıyor');
@@ -461,7 +462,7 @@ test('yerel oynatma sırası önceki/sonraki düğmelerine ve ended olayına ba�
   assert(/playerNextMedia['"]\)\.addEventListener\('click'/.test(js), 'sonraki video düğmesi bağlı değil');
   const ended = js.indexOf("video.addEventListener('ended'");
   assert(ended > 0, 'video ended dinleyicisi yok');
-  const body = js.slice(ended, ended + 300);
+  const body = js.slice(ended, js.indexOf("video.addEventListener('error'", ended));
   assert(/player\.autoNext/.test(body) && /playPlaylistDelta\(1\)/.test(body), 'otomatik sonraki video çağrısı yok');
 });
 
@@ -828,9 +829,16 @@ test('sohbet geçmişi KOPYA olarak gönderiliyor', () => {
   const i = js.indexOf('opts.chat = {');
   assert(i > 0, 'sohbet yuku olusturulmuyor');
   const body = js.slice(js.indexOf('async function aiChatSend'), i + 220);
-  assert(/const history=\(player\.chatHistory\|\|\[\]\)\.slice\(-8\)\.map/.test(body),
-    'gecmis referansla gonderiliyor — asagida ayni diziye soru eklenince '
-    + 'soru modele IKI KEZ gider');
+  const expression = body.slice(body.indexOf('const history=') + 'const history='.length,
+    body.indexOf(';', body.indexOf('const history=')));
+  const vm = require('node:vm');
+  const original=[{role:'user',content:'Earlier question'}];
+  const history=vm.runInNewContext(expression,{bounded:false,player:{chatHistory:original}});
+  history[0].content='Changed copy';
+  history.push({role:'assistant',content:'Later answer'});
+  assert(original.length===1 && original[0].content==='Earlier question','geçmiş ve satırları kopyalanmalı');
+  const bounded=vm.runInNewContext(expression,{bounded:true,player:{chatHistory:original}});
+  assert(bounded.length===0,'sınırlı kanıt isteği eski sohbeti taşımamalı');
 });
 
 test('başarısız sohbet turu kalıcı konuşma geçmişini kirletmiyor', () => {
@@ -1096,7 +1104,14 @@ test('altyazı izi bulunamadığında Canlı Whisper önerisi eyleme bağlanır'
   assert(/scheduleBrowserNoTrackSuggestion/.test(js), 'iz bulunamadı öneri zamanlayıcısı yok');
   assert(/Canlı Whisper[’']ı deneyin/.test(js), 'Whisper önerisi Türkçe görünür değil');
   assert(/actionName === 'live-asr'/.test(js), 'sinyal eylemi Canlı Whisper modunu desteklemiyor');
-  assert(/player\.browserSignalState\?\.action === 'live-asr'/.test(js), 'öneri düğmesi canlı Whisper eylemine bağlı değil');
+  const start=js.indexOf("if ($('browserSignalTranslateAction'))");
+  const end=js.indexOf("if ($('browserTrackTranslateAll'))",start);
+  const vm=require('node:vm'),calls=[];
+  const context={player:{browserSignalState:{action:'live-asr'}},
+    $:()=>({addEventListener:(_event,callback)=>callback()}),
+    toggleBrowserLiveAsr:()=>calls.push('live'),useBrowserTrack:()=>calls.push('translate')};
+  vm.runInNewContext(js.slice(start,end),context);
+  assert(calls.join(',')==='live','öneri mevcut canlı Whisper girişini çağırmalı');
 });
 
 test('tarayıcı araç çubuğu ve ayrıntılar yeniden boyutlanan paneli izliyor', () => {
@@ -1329,7 +1344,29 @@ test('AI sayfa kaynakları tıklanınca ilgili paragrafa gidiyor', () => {
   const end = js.indexOf('function aiChatAdd', start);
   const block = js.slice(start, end);
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf-8');
-  assert(block.includes('\\[((?:S|T|U)\\d{1,5})\\]'), 'AI kaynak kimliği ayrıştırılmıyor');
+  const vm=require('node:vm');
+  const declaration=block.match(/const re = (\/.+\/g);/);
+  assert(declaration,'AI kaynak ayrıştırıcısı yok');
+  const pattern=vm.runInNewContext(declaration[1]);
+  const ids=[...'[S1] [T2] [U3] [F0123456789abcdef] [R0123456789abcdef]'.matchAll(pattern)].map(match=>match[3]);
+  assert(ids.join(',')==='S1,T2,U3,F0123456789abcdef,R0123456789abcdef','desteklenen kaynak kimlikleri ayrıştırılmalı');
+  const { JSDOM }=require('jsdom'),dom=new JSDOM('<div id="reply"></div>');
+  const document=dom.window.document,reply=document.getElementById('reply'),requests=[];
+  let generation=1;
+  reply._sourceScope='active';
+  reply._chatContext={page:{source:{tabId:'one',pageUrl:'https://page.invalid/',generation:1},blocks:[{id:'S1',text:'Actual source'}]}};
+  const context={document,player:{workspaceMode:'browser',browserActiveTabId:'one',browserPageUrl:'https://page.invalid/'},
+    aiSourceScope:()=>'active',browserTabState:()=>({generation}),setBrowserSignal(){},
+    window:{api:{revealBrowserPageContext:async(...args)=>{requests.push(args);return {ok:true};}}}};
+  vm.runInNewContext(block,context);
+  context.renderAiText(reply,'A claim [S1], an unverified reference [S2].');
+  assert(reply.querySelectorAll('button').length===1,'kanıtsız kaynak düğme olmamalı');
+  reply.querySelector('button').click();
+  assert(requests.length===1 && requests[0].join(',')==='one,S1','gerçek kaynak doğru sekmede açılmalı');
+  generation++;
+  reply.querySelector('button').click();
+  assert(requests.length===1,'eski sayfa sürümündeki alıntı yeni sayfaya uygulanmamalı');
+  dom.window.close();
   assert(/className = [^\n]*'ai-source-link'/.test(block), 'AI kaynak düğmesi üretilmiyor');
   assert(/revealBrowserPageContext\(tabId, sourceId\)/.test(block), 'kaynak paragraf IPC çağrısı yok');
   assert(/\.ai-source-link/.test(css), 'AI kaynak bağlantısı stili yok');
@@ -1923,8 +1960,21 @@ test('dar pencerede yan panel içerik alanını erişilebilir biçimde devralıy
     'dar panelden videoya dönüş kontrolü yok');
   const responsive = js.slice(js.indexOf('function responsivePanelTakeoverActive'),
     js.indexOf('function setViewMode'));
-  assert(/matchMedia\('\(max-width: 1020px\)'\)/.test(responsive),
-    'desteklenen dar pencere eşiği JavaScript yerleşiminde yok');
+  const functionStart=js.indexOf('function responsivePanelTakeoverActive');
+  const functionEnd=js.indexOf('function syncResponsivePlayerLayout',functionStart);
+  const vm=require('node:vm');
+  let width=1080,stage=false,settings=false;
+  const context={player:{workspaceMode:'browser',narrowPanelTakeover:true},
+    $:()=>({classList:{contains:()=>stage}}),
+    window:{matchMedia:query=>({matches:width<=Number(query.match(/\d+/)[0])})},
+    browserSettingsSurfaceVisible:()=>settings,drawerIsOpen:()=>true,sidebarIsVisible:()=>true};
+  vm.createContext(context);vm.runInContext(js.slice(functionStart,functionEnd),context);
+  assert(context.responsivePanelTakeoverActive(),'1080px Browser paneli devralmalı');
+  context.player.workspaceMode='player';
+  assert(!context.responsivePanelTakeoverActive(),'1080px yerel oynatıcı paneli devralmamalı');
+  width=1000;assert(context.responsivePanelTakeoverActive(),'1000px yerel oynatıcı paneli devralmalı');
+  stage=true;assert(!context.responsivePanelTakeoverActive(),'ortak Sahne kendi dar düzenini kullanmalı');
+  stage=false;settings=true;assert(!context.responsivePanelTakeoverActive(),'ayar sayfası ayrı sahibinde kalmalı');
   assert(/classList\.toggle\('narrow-panel-takeover', takeover\)/.test(responsive),
     'tam alan panel durumu oyuncu katmanına uygulanmıyor');
   assert(/player\.workspaceMode === 'browser' && browserSettingsSurfaceVisible\(\)/.test(responsive)

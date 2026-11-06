@@ -15,9 +15,16 @@
     classic: 'M4 5h16v14H4z|M15 5v14', chat: 'M20 11a8 8 0 0 1-8 8H4l1.8-4A8 8 0 1 1 20 11Z|M9 9h6|M9 13h4', search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z|m15.5 15.5 4 4', swap: 'M7 7h13l-3-3|M17 17H4l3 3', chev: 'm15 5-7 7 7 7',
     volume: 'M11 5 6 9H3v6h3l5 4V5Z|M15 8a6 6 0 0 1 0 8|M18 5a10 10 0 0 1 0 14', mic: 'M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 6 0Z|M6 11a6 6 0 0 0 12 0|M12 17v4', tools: 'M4 7h10|M18 7h2|M4 17h2|M10 17h10|M14 4v6|M6 14v6', down: 'M12 5v14|m6 13 6 6 6-6'
   };
+  P.volumeZero = 'M11 5 6 9H3v6h3l5 4V5Z|m15 10 5 5|m20 10-5 5';
   const FILLED = new Set(['play', 'pause']);
   const ic = (n) => `<svg class="i${FILLED.has(n) ? ' f' : ''}" viewBox="0 0 24 24" aria-hidden="true">${P[n].split('|').map((d) => `<path d="${d}"/>`).join('')}</svg>`;
   const fmt = (v) => { const s = Math.max(0, Math.floor((Number(v) || 0)+.001)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
+  function captionStamp(time, precise) {
+    const position = Math.max(0, Math.round(time * 1000));
+    const milliseconds = position % 1000;
+    return fmt(Math.floor(position / 1000)) + (precise && milliseconds
+      ? T(',', '.') + String(milliseconds).padStart(3, '0').replace(/0+$/, '') : '');
+  }
   const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const T = (tr, en) => ((root.UiLocale && root.UiLocale.get && root.UiLocale.get() === 'en') || root.__SAHNE_LANG === 'en') ? en : tr;
   const RATES = [1, 1.25, 1.5, 1.75, 2, .75], SLEEP = [0, 15, 30, 60], BARS = 84;
@@ -34,30 +41,38 @@
     constructor(host, adapter, opts = {}) {
       this.host = host; this.a = adapter; this.o = Object.assign({ mode: 'podcast', intro: true }, opts); this.caps = adapter.caps || {};
       const prefs = opts.prefs || {};
+      this.readingSize = ['small','large'].includes(prefs.readingSize) ? prefs.readingSize : 'normal';
       const reading = prefs.reading?.identity && prefs.reading.identity === adapter.identity?.() ? prefs.reading : null;
+      this.lastAudibleVolume = reading?.lastAudibleVolume;
       this.s = {
         focus: !!prefs.focus, disp: prefs.disp || 'both', follow: reading?.follow ?? true,
-        sleep: reading?.sleep || 0, sleepAt: reading?.sleepAt || 0,
+        sleep: reading?.sleep || 0, sleepAt: reading?.sleepAt || 0, transcript: !!reading?.transcript,
         loop: false, loopRow: -1, idx: -2, key: '', panel: false, psig: ''
       };
       this.lines = []; this.rows = []; this.dead = false; this.id0 = undefined;
       this.build();
       const search = this.q('[data-r=q]');
       if (reading && search) search.value = reading.query;
+      const chapters = this.q('[data-r=chapterSearch]');
+      if (reading && chapters) chapters.value = reading.chapterQuery || '';
       this.readingScroll = reading && !reading.follow ? reading : null;
       this.tick();
+      if (reading?.chapters && !this.q('.sh-chapter-entry')?.hidden) this.showReading(true);
       this.timer = setInterval(() => this.tick(), 120); this.raf = 0;
     }
     el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
     q(sel) { return this.root.querySelector(sel); }
     prefs(preserveReading = false) {
       const { focus, disp, follow, sleep, sleepAt } = this.s;
-      const prefs = { focus, disp };
+      const prefs = { focus, disp, readingSize: this.readingSize };
       if (preserveReading && this.id0) {
         prefs.reading = {
-          identity: this.id0, follow, sleep, sleepAt,
+          identity: this.id0, follow, sleep, sleepAt, lastAudibleVolume: this.lastAudibleVolume,
+          transcript: !!this.s.transcript, chapters: this.root.classList.contains('sh-chapters-open'),
           query: this.q('[data-r=q]')?.value || '',
-          scrollTop: this.readingScroll?.scrollTop ?? this.q('[data-r=scroll]')?.scrollTop ?? 0
+          chapterQuery: this.q('[data-r=chapterSearch]')?.value || '',
+          scrollTop: this.readingScroll?.scrollTop ?? (this.root.classList.contains('sh-chapters-open')
+            ? this.transcriptScroll : this.q('[data-r=scroll]')?.scrollTop) ?? 0
         };
       }
       return prefs;
@@ -133,22 +148,100 @@
 
     bind() {
       const r = this.root, a = this.a;
+      r.addEventListener('error', event => {
+        if (event.target.matches?.('[data-r=cover] img')) event.target.replaceWith(this.coverInitials());
+      }, true);
+      const jumpForm = this.q('[data-r=jumpForm]');
+      jumpForm?.addEventListener('submit', event => {
+        event.preventDefault();
+        void this.seekTypedTime();
+      });
+      this.fullscreenChanged = () => this.paintFullscreen();
+      document.addEventListener('fullscreenchange', this.fullscreenChanged);
+      const chapterSearch = this.q('[data-r=chapterSearch]');
+      chapterSearch?.addEventListener('input', () => this.filterChapters());
+      const size = this.q('[data-r=readingSize]');
+      if (size) {
+        size.value = this.readingSize;
+        r.dataset.readingSize = size.value;
+        size.onchange = () => {
+          this.readingSize = size.value;
+          r.dataset.readingSize = size.value;
+          this.followAfterLayout();
+        };
+      }
+      const sleep = this.q('[data-r=sleep]');
+      if (sleep) {
+        sleep.append(...SLEEP.map(minutes => new Option(minutes ? `${minutes} ${T('dk','min')}` : T('Uyku','Sleep'), minutes)));
+        sleep.onchange = () => this.setSleep(Number(sleep.value));
+      }
+      const rate = this.q('[data-r=rate]');
+      if (rate) {
+        const format = new Intl.NumberFormat(T('tr', 'en'), { maximumFractionDigits: 3 });
+        const option = value => new Option(format.format(value) + '×', value);
+        rate.append(...[...RATES].sort((a,b) => a-b).map(option));
+        rate.onchange = async () => {
+          const value = Number(rate.value);
+          if (rate.hasAttribute('aria-busy') || !RATES.includes(value)) {
+            this.syncRate();
+            return;
+          }
+          rate.setAttribute('aria-busy', 'true');
+          this.syncRate();
+          try { await this.run('rate', value); }
+          finally {
+            rate.removeAttribute('aria-busy');
+            if (!this.dead) this.tick();
+          }
+        };
+        this.rateOption = option;
+      }
       r.addEventListener('click', (e) => {
         const b = e.target.closest('[data-a],[role="tab"][data-mode],[data-d],.sh-chap,[data-i],[data-act],[data-task]'); if (!b || !r.contains(b)) return;
         if (b.dataset.task) { this.startTask(b.dataset.task); return; }
         if (b.dataset.act) { e.stopPropagation(); this.act(b.dataset.act, +b.closest('[data-i]').dataset.i,b); return; }
-        if (b.dataset.i !== undefined && !b.dataset.a) { const row = this.rows[+b.dataset.i]; if (row && row.timed && this.canSeek) this.run('seekCue', +b.dataset.i); return; }
+        if (b.dataset.i !== undefined && !b.dataset.a) { const row = this.rows[+b.dataset.i]; if (this.o.mode === 'cinema' && row?.timed && this.canSeek) this.run('seekCue', +b.dataset.i); return; }
         if (b.classList.contains('sh-chap')) { if(this.canSeek&&b.dataset.t!==undefined)this.run('seek', Number(b.dataset.t)); return; }
         if (b.dataset.mode) { if (b.dataset.mode !== this.o.mode) this.o.onMode?.(b.dataset.mode, this.prefs(true)); return; }
         if (b.dataset.d) {
-          this.s.disp = b.dataset.d; this.applyDisp(); this.filterRows();
-          this.run('display', this.displayMode());
+          this.s.disp = b.dataset.d; this.applyDisp(); this.filterRows(true);
+          const display = this.displayMode();
+          if (this.a.info().webVideo) this.lastDisplay = display;
+          this.run('display', display);
+          if (this.o.mode !== 'cinema') this.tick();
           if(this.s.follow)this.scrollToActive(true);
           return;
         }
         switch (b.dataset.a) {
+          case 'jump': this.toggleJump(); break;
+          case 'mute': {
+            const input = this.q('.sh-local-volume');
+            if (!input || !Number.isFinite(this.st?.volume)) break;
+            input.value = Number(input.value) > 0 ? 0 : (this.lastAudibleVolume || 1);
+            input.oninput();
+            break;
+          }
+          case 'matchPrev': this.moveMatch(-1); break;
+          case 'matchNext': this.moveMatch(1); break;
+          case 'currentChapter': {
+            if (!this.q('[data-r=chaps] [aria-current=true]')) break;
+            chapterSearch.value = '';
+            this.filterChapters();
+            this.q('[data-r=chaps] [aria-current=true]').focus();
+            break;
+          }
+          case 'cueSeek': {
+            const index = Number(b.closest('[data-i]').dataset.i);
+            if (this.canSeek && this.rows[index]?.timed) this.run(this.usesTranslationTime(this.rows[index]) ? 'seekTranslation' : 'seekCue', index);
+            break;
+          }
+          case 'translationSeek': {
+            const row = Number(b.closest('[data-i]').dataset.i);
+            if (this.canSeek) this.run('seekTranslation', { row, part: Number(b.dataset.part) });
+            break;
+          }
           case 'clearSearch': {
-            const query=this.q('[data-r=q]');if(query){query.value='';this.filterRows();query.focus({preventScroll:true});}break;
+            const query=this.q('[data-r=q]');if(query){query.value='';this.filterRows(true);query.focus({preventScroll:true});}break;
           }
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
@@ -156,27 +249,46 @@
           case 'dub':this.run('dub');break;
           case 'noteClose':this.closeNote();break;
           case 'noteSave':void this.saveNote();break;
-          case 'noteSeek':if(this.s.note)this.run('seekCue',this.s.note.row,this.s.note.rev);break;
+          case 'noteSeek':if(this.s.note && this.canSeek)this.run('seekCue',this.s.note.row,this.s.note.rev);break;
           case 'advanced':this.run('advanced');break;
           case 'display':{const modes=['both','src','tr'];this.s.disp=modes[(modes.indexOf(this.s.disp)+1)%3];this.applyDisp();break;}
           case 'queue':this.run('openQueued',Number(b.dataset.index));break;
           case 'wordClose':this.closeWord();break;
-          case 'wordLookup':case 'wordSave':{const word=this.s.word;if(word)this.run(b.dataset.a,{row:word.row,word:word.word,cueId:word.cueId},word.rev).then(result=>{if(!this.dead&&result?.ok&&this.s.word===word){this.s.word={...word,...result};this.drawWord();}});break;}
-          case 'toggle': this.run('toggle'); break; case 'prev': this.run('prevCue'); break; case 'next': this.run('nextCue'); break; case 'replay': this.run('replay'); break;
+          case 'wordLookup': case 'wordSave': void this.runWordAction(b); break;
+          case 'toggle': this.run('toggle'); break; case 'prev': this.navigateSentence('prevCue'); break; case 'next': this.navigateSentence('nextCue'); break; case 'replay': this.navigateSentence('replay'); break;
           case 'back': this.run('seekBy', -10); break; case 'fwd': this.run('seekBy', 10); break;
           case 'rate': { const cur = Number(a.state().rate) || 1, i = RATES.indexOf(cur); this.run('rate', RATES[(i + 1) % RATES.length]); break; }
           case 'loop': this.toggleLoop(); break;
           case 'focus': this.s.focus = !this.s.focus; this.paint(); break;
-          case 'sleep': { const i = SLEEP.indexOf(this.s.sleep); this.s.sleep = SLEEP[(i + 1) % SLEEP.length]; this.s.sleepAt = this.s.sleep ? Date.now() + this.s.sleep * 60000 : 0; this.paint(); break; }
+          case 'sleep': this.setSleep(SLEEP[(SLEEP.indexOf(this.s.sleep) + 1) % SLEEP.length]); break;
           case 'follow': {
+            this.followBeforeFullSentence = undefined;
             if (this.o.mode !== 'cinema' && this.s.follow) { this.s.follow = false; this.paint(); break; }
             const query = this.q('[data-r=q]'); if (query) query.value = '';
-            this.filterRows(); this.s.follow = true; this.scrollToActive(true); this.paint(); break;
+            this.filterRows();
+            this.s.follow = true;
+            this.tick();
+            this.scrollToActive(true);
+            break;
           }
-          case 'transcript': this.toggleTranscript(b);break;
+          case 'transcript':
+            if (b.classList.contains('sh-transcript-toggle')) this.showReading(false);
+            this.toggleTranscript(b);
+            break;
+          case 'readCurrent': this.readCurrentSentence(b); break;
+          case 'retryCaptions': void this.runStatusAction(b, () => this.run('retryCaptions')); break;
+          case 'reading': this.showReading(false); break;
+          case 'chapters': {
+            this.showReading(true);
+            if (!b.classList.contains('sh-chapter-entry')) break;
+            if (this.usesTranscriptDrawer() && !this.s.transcript) this.toggleTranscript(b);
+            else this.chapterFocusTarget().focus();
+            break;
+          }
           case 'panel': this.togglePanel(b); break;
-          case 'jobcancel': this.a.panel?.().job?.cancel?.(); break; case 'jobretry': this.a.panel?.().job?.retry?.(); break;
-          case 'playbackRetry': void this.a.recovery?.()?.run(); break;
+          case 'jobcancel': void this.runStatusAction(b, this.a.panel?.().job?.cancel); break;
+          case 'jobretry': void this.runStatusAction(b, this.a.panel?.().job?.retry); break;
+          case 'playbackRetry': void this.runStatusAction(b, this.a.recovery?.()?.run); break;
         }
       });
       const wave = this.q('[data-r=wave]');
@@ -186,7 +298,8 @@
         if (this.drag) this.dragR = position;
         const time = position * duration;
         const row = this.rows[this.cueAt(time)];
-        const translation = row?.trs.join(' ');
+        const tracks = this.st?.captionTracks;
+        const translation = tracks ? this.liveCueAt(tracks[1], time)?.text : row?.trs.join(' ');
         const display = this.displayMode();
         const excerpt = display === 'tr' ? translation : display === 'src' ? row?.src : row?.src || translation;
         const tip = this.q('[data-r=tip]');
@@ -226,32 +339,79 @@
         else return;
         e.preventDefault();
       });
-      const sc = this.q('[data-r=scroll]'); const manual = () => { if (this.s.follow) { this.s.follow = false; this.paint(); } };
+      const sc = this.q('[data-r=scroll]');
+      const manual = () => {
+        if (!this.s.follow) return;
+        this.s.follow = false;
+        cancelAnimationFrame(this.followRaf);
+        sc.scrollTo({ top: sc.scrollTop, behavior: 'instant' });
+        this.paint();
+      };
       sc.addEventListener('wheel', manual, { passive: true }); sc.addEventListener('touchmove', manual, { passive: true });
       sc.addEventListener('pointerdown', (e) => { if (e.target === sc) manual(); });
-      sc.addEventListener('keydown', (e) => { if (['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown'].includes(e.key)) manual(); });
+      sc.addEventListener('keydown', (e) => {
+        if (['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown'].includes(e.key)) manual();
+        if (!['cueSeek', 'translationSeek'].includes(e.target.dataset.a) || !['ArrowUp', 'ArrowDown'].includes(e.key)) return;
+        const step = e.key === 'ArrowUp' ? -1 : 1;
+        const controls = this.lines.flatMap(line => line.hidden ? [] : this.sentenceSeekControls(line));
+        const target = controls[controls.indexOf(e.target) + step];
+        if (target && controls.includes(e.target)) {
+          e.preventDefault();
+          target.focus();
+        }
+      });
       const cover = this.q('.sh-cover'); if (cover) { cover.addEventListener('pointermove', (e) => { const b = cover.getBoundingClientRect(), x = (e.clientX - b.left) / b.width - .5, y = (e.clientY - b.top) / b.height - .5; cover.style.setProperty('--ry', (x * 14) + 'deg'); cover.style.setProperty('--rx', (-y * 14) + 'deg'); }); cover.addEventListener('pointerleave', () => { cover.style.setProperty('--ry', '0deg'); cover.style.setProperty('--rx', '0deg'); }); }
-      const q = this.q('[data-r=q]'); if (q) q.addEventListener('input', () => { this.s.follow = false; this.filterRows(); this.paint(); });
+      const q = this.q('[data-r=q]');
+      if (q) {
+        q.addEventListener('input', () => { this.s.follow = false; this.filterRows(true); this.paint(); });
+        q.addEventListener('keydown', event => {
+          if (this.o.mode === 'cinema' || event.key !== 'Enter' || event.isComposing || !q.value.trim()) return;
+          if (this.moveMatch(event.shiftKey ? -1 : 1, true)) event.preventDefault();
+        });
+      }
       this.keys = e => {
         if(e.defaultPrevented||e.isComposing||document.querySelector('dialog[open]')||!r.isConnected||e.ctrlKey||e.metaKey||e.altKey)return;
         const within=r.contains(e.target);
         if(!within&&e.target!==document.body)return;
         const target=e.target,k=e.key.toLowerCase();
         if(k==='escape'){
+          if ((target === q || target === chapterSearch) && target.value) {
+            target.value = '';
+            if (target === q) this.filterRows(true);
+            else this.filterChapters();
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+          }
           if(target.closest?.('.sh-scope-fields'))return;
-          if(this.s.note)this.closeNote();
+          const shortcuts = target.closest?.('.sh-key-guide[open]');
+          if (shortcuts) {
+            shortcuts.open = false;
+            shortcuts.querySelector('summary').focus();
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+          }
+          if(jumpForm && !jumpForm.hidden) this.toggleJump();
+          else if(this.s.note)this.closeNote();
           else if(this.s.word)this.closeWord();
           else if(this.s.panel)this.togglePanel();
-          else if(this.s.transcript)this.toggleTranscript();
+          else if(this.s.transcript && (this.o.mode === 'cinema' || this.usesTranscriptDrawer()))this.toggleTranscript();
           else if(document.fullscreenElement)void document.exitFullscreen?.();
           else this.o.onClose?.();
         }else{
           if(target.isContentEditable||target.closest?.('input,textarea,select,button,a,summary,[data-i],.sh-note-excerpt,[contenteditable]:not([contenteditable=false]),[role=button]'))return;
+          if (e.repeat && [' ','l','f'].includes(k)) return;
           if(k===' ')this.run('toggle');
-          else if(k==='j'){if(!this.q('[data-a=prev]')?.disabled)this.run('prevCue');}
-          else if(k==='k'){if(!this.q('[data-a=next]')?.disabled)this.run('nextCue');}
+          else if(k==='j'){if(!this.q('[data-a=prev]')?.disabled)this.navigateSentence('prevCue');}
+          else if(k==='k'){if(!this.q('[data-a=next]')?.disabled)this.navigateSentence('nextCue');}
           else if(k==='l'&&this.caps.loop){if(!this.q('[data-a=loop]')?.disabled)this.toggleLoop();}
           else if(k==='f'){this.s.focus=!this.s.focus;this.paint();}
+          else if(k==='/' && q && !q.closest('.bp-flow[hidden]')){
+            this.showReading(false);
+            if(this.usesTranscriptDrawer() && !this.s.transcript) this.toggleTranscript(this.q('.sh-transcript-toggle'));
+            q.focus();
+          }
           else return;
         }
         e.preventDefault();
@@ -268,11 +428,21 @@
         tabs[next]?.click();
       });
       document.addEventListener('keydown', this.keys, true);
-      this.followResize=()=>this.followAfterLayout();root.addEventListener('resize',this.followResize);
+      this.followResize = () => {
+        this.paint();
+        this.followAfterLayout();
+      };
+      root.addEventListener('resize', this.followResize);
       r.addEventListener('dblclick',e=>{if(!(this.caps.cinema||this.caps.word)||!e.target.closest('.src,[data-r=s]'))return;const word=String(root.getSelection?.()||'').trim();const row=e.target.closest('[data-i]');if(word)this.openWord(row?Number(row.dataset.i):this.cur,word);});
       this.reveal=()=>{r.classList.remove('controls-idle');clearTimeout(this.idleTimer);if(this.o.mode==='cinema'&&!this.st?.paused&&!this.a.info().native)this.idleTimer=setTimeout(()=>{if(!this.dead&&!this.s.panel&&!this.s.transcript&&!this.s.word&&!r.contains(document.activeElement))r.classList.add('controls-idle');},2400);};
       r.addEventListener('pointermove',this.reveal);r.addEventListener('pointerdown',this.reveal);r.addEventListener('focusin',this.reveal);
-      const volume=this.q('.sh-local-volume');if(volume)volume.oninput=()=>{this.run('volume',Number(volume.value));const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(Number(volume.value)*100)+'%';};
+      const volume = this.q('.sh-local-volume');
+      if (volume) volume.oninput = () => {
+        const value = Number(volume.value);
+        this.paintVolume(volume, value);
+        this.nextVolume = value;
+        if (!this.volumePending) void this.flushVolume();
+      };
     }
     buildScope(){
       const bar=this.q('[data-r=workbar]');if(!bar||!root.PodcastTaskScope)return;
@@ -302,23 +472,51 @@
       if (processing) {
         processing.hidden = !html;
         if (html && !this.processingInitialized && this.st) {
-          processing.open = !this.st.rows.length;
+          processing.open = !this.st.rows.length && !this.captionTrackCount;
+          this.processingStartedEmpty = processing.open;
           this.processingInitialized = true;
         }
+        if (this.processingStartedEmpty && (this.st?.rows.length || this.captionTrackCount)) {
+          this.processingStartedEmpty = false;
+          if (!processing.contains(document.activeElement)) processing.open = false;
+        }
       }
-      if (html !== this.taskHTML) { this.taskHTML = html; bar.innerHTML = html; bar.hidden = !html; }
+      if (html !== this.taskHTML) {
+        const focused = bar.contains(document.activeElement) ? document.activeElement.dataset.task : null;
+        const summary = processing?.querySelector('summary');
+        if (focused && this.taskPending) this.taskReturnFocus = focused;
+        const returning = !this.taskPending && document.activeElement === summary ? this.taskReturnFocus : null;
+        this.taskHTML = html;
+        bar.innerHTML = html;
+        bar.hidden = !html;
+        if (!this.taskPending) this.taskReturnFocus = null;
+        if (focused || returning) {
+          const next = [...bar.querySelectorAll('button:not(:disabled)')].find(button => button.dataset.task === (focused || returning));
+          (next || (html && summary) || this.q('.sh-top [data-a=panel]'))?.focus({preventScroll:true});
+        }
+      }
     }
     async startTask(id) {
       if (this.taskPending) return;
+      const identity = this.a.identity?.();
+      if ((identity ?? '') !== this.id0) return;
       const action = (this.a.actions?.() || []).find(item => item.id === id);
       if (!action || action.disabled) return;
       this.taskPending = true; this.drawTasks();
-      try { const range=['transcribe','transcribe-translate'].includes(id)?this.scopeRange():null;if(this.scopeBox)this.scopeBox.querySelector('.sh-scope-fields').hidden=true;const result = await action.run({range}); if (!this.dead && result?.queued) this.toast(T('İşlem kuyruğa eklendi. İlerlemeyi İşlemler’den izleyebilirsiniz.', 'Task queued. Follow progress in Tasks.')); }
-      catch (error) { if (!this.dead) this.toast(error?.message || T('İşlem başlatılamadı.', 'Could not start task.')); }
+      try {
+        const range = ['transcribe','transcribe-translate'].includes(id) ? this.scopeRange() : null;
+        if(this.scopeBox)this.scopeBox.querySelector('.sh-scope-fields').hidden=true;
+        const result = await action.run({range});
+        if (result?.ok === false) throw new Error(result.message || T('İşlem başlatılamadı.', 'Could not start task.'));
+        if (!this.dead && identity === this.a.identity?.() && result?.queued) {
+          this.toast(T('İşlem kuyruğa eklendi. İlerlemeyi İşlemler’den izleyebilirsiniz.', 'Task queued. Follow progress in Tasks.'));
+        }
+      }
+      catch (error) { if (!this.dead && identity === this.a.identity?.()) this.toast(error?.message || T('İşlem başlatılamadı.', 'Could not start task.')); }
       finally { this.taskPending = false; if (!this.dead) this.drawTasks(); }
     }
     toggleLoop() {
-      if (!this.caps.loop) return; const on = !this.s.loop, idx = this.s.idx >= 0 ? this.s.idx : this.cur;
+      if (!this.caps.loop) return; const on = !this.s.loop, idx = this.playbackIndex ?? this.cur;
       if (on && !(idx >= 0 && this.rows[idx]?.timed)) { this.toast(T('Döngü için önce zamanlı bir cümle çalmalı.', 'Play a timed sentence first to loop it.')); return; }
       void this.setSentenceLoop(on, idx);
     }
@@ -360,20 +558,69 @@
       }
       else if (kind === 'save') this.openNote(i,opener);
     }
-    filterRows() {
-      const query = this.q('[data-r=q]')?.value.trim().toLocaleLowerCase() || '';
+    filterRows(resetScroll = false) {
+      const normalize = text => text.normalize('NFC').trim().replace(/\s+/g, ' ');
+      const query = normalize(this.q('[data-r=q]')?.value || '');
+      const folded = query.toLowerCase(), turkish = query.toLocaleLowerCase('tr');
       const display = this.displayMode();
       let visible=0;
       this.lines.forEach((line, index) => {
         const row = this.rows[index], translations = [...row.trs, ...(row.unc || [])];
-        const shown = display === 'src' ? row.src : display === 'tr' ? translations.join(' ') : [row.src, ...translations].join(' ');
-        line.hidden = !shown.trim() || (!!query && !shown.toLocaleLowerCase().includes(query));
+        const shown = display === 'src' ? [row.src] : display === 'tr' ? translations : [row.src, ...translations];
+        line.hidden = !shown.some(text => {
+          const value = normalize(text);
+          return value && (!query || value.toLowerCase().includes(folded) || value.toLocaleLowerCase('tr').includes(turkish));
+        });
         if(!line.hidden)visible++;
       });
+      if (resetScroll && this.o.mode !== 'cinema') this.q('[data-r=scroll]').scrollTop = 0;
       const count=this.q('[data-r=searchCount]'),empty=this.q('[data-r=searchEmpty]'),clear=this.q('[data-r=clearSearch]');
+      if (resetScroll || !query || this.matchLine?.hidden || !this.matchLine?.isConnected) this.matchLine = null;
+      const navigation = this.q('[data-r=searchNav]');
+      if (navigation) {
+        navigation.hidden = !query || !this.rows.length;
+        this.paintMatches();
+      }
       if(clear)clear.hidden=!query;
-      if(count){const text=T(`${visible} satır gösteriliyor · seçili dilde`,`${visible} rows shown · selected language`);count.hidden=!query||!this.rows.length;if(count.textContent!==text)count.textContent=text;}
-      if(empty){empty.hidden=!this.rows.length||visible>0;empty.textContent=query?T('Seçili dilde eşleşme yok. Farklı bir sözcük deneyin veya aramayı temizleyin.','No matches in the selected language. Try another word or clear the search.'):T('Bu görünümde gösterilecek metin yok. Kaynak veya İkisi görünümünü deneyin.','No text in this view. Try Source or Both.');}
+      if(count)count.hidden=!query||!this.rows.length;
+      if (empty) {
+        empty.hidden = !this.rows.length || visible > 0;
+        empty.querySelector('strong').textContent = query ? T('Eşleşme yok', 'No matches') : T('Görünür metin yok', 'No visible text');
+        empty.querySelector('span').textContent = query
+          ? T('Başka bir ifade deneyin veya transkript dilini değiştirin.', 'Try a different phrase or change the transcript language.')
+          : T('Diğer transkript dilini seçin.', 'Select the other transcript language.');
+      }
+    }
+    paintMatches() {
+      const visible = this.lines.filter(line => !line.hidden);
+      const index = visible.indexOf(this.matchLine);
+      const count = this.q('[data-r=searchCount]');
+      const text = index >= 0 ? `${index + 1} / ${visible.length}`
+        : T(`${visible.length} satır`, visible.length === 1 ? '1 row' : `${visible.length} rows`);
+      if (count.textContent !== text) count.textContent = text;
+      this.q('[data-a=matchPrev]').setAttribute('aria-disabled', String(!visible.length || index === 0));
+      this.q('[data-a=matchNext]').setAttribute('aria-disabled', String(!visible.length || index === visible.length - 1));
+      this.lines.forEach(line => line.classList.toggle('sh-query-match', line === this.matchLine));
+    }
+    moveMatch(direction, focus = false) {
+      const visible = this.lines.filter(line => !line.hidden);
+      const index = visible.indexOf(this.matchLine);
+      const line = visible[index < 0 ? (direction > 0 ? 0 : visible.length - 1) : index + direction];
+      if (!line) return false;
+      this.matchLine = line;
+      this.s.follow = false;
+      this.paintMatches();
+      this.paint();
+      line.scrollIntoView?.({block:'nearest'});
+      if (focus) (this.sentenceSeekControls(line)[0] || line.querySelector('[data-act=copy]'))?.focus();
+      return true;
+    }
+    sentenceSeekControls(line) {
+      const display = this.displayMode();
+      const parts = [...line.querySelectorAll('[data-a=translationSeek]')];
+      const original = line.querySelector('[data-a=cueSeek]');
+      const controls = display === 'src' ? [original] : display === 'tr' && parts.length ? parts : [original, ...parts];
+      return controls.filter(button => button && !button.disabled);
     }
     displayMode() {
       if (this.root.classList.contains('sh-translation-only')) return 'tr';
@@ -381,10 +628,105 @@
       return this.s.disp;
     }
     applyDisp() { const d = this.displayMode(), seg = this.q('[data-r=disp]'); if (!seg) return; seg.style.setProperty('--i', ['src', 'both', 'tr'].indexOf(d)); seg.querySelectorAll('button').forEach((b) => { b.setAttribute('aria-selected', String(b.dataset.d === d)); if (this.o.mode !== 'cinema') b.setAttribute('aria-pressed', String(b.dataset.d === d)); }); this.root.classList.toggle('hide-src', d === 'tr'); this.root.classList.toggle('hide-tr', d === 'src'); }
+    syncRate() {
+      const select = this.q('[data-r=rate]');
+      if (!select || !this.rateOption) return;
+      const value = Number(this.st?.rate) || 1;
+      if (!RATES.includes(value) && select.lastElementChild?.value !== String(value)) {
+        select.querySelector('[data-current-rate]')?.remove();
+        const option = this.rateOption(value);
+        option.dataset.currentRate = '';
+        option.disabled = true;
+        select.append(option);
+      } else if (RATES.includes(value)) {
+        select.querySelector('[data-current-rate]')?.remove();
+      }
+      if (select.value !== String(value)) select.value = String(value);
+    }
+    setSleep(minutes) {
+      if (!SLEEP.includes(minutes)) return;
+      this.s.sleep = minutes;
+      this.s.sleepAt = minutes ? Date.now() + minutes * 60000 : 0;
+      this.paint();
+    }
+    toggleJump() {
+      const form = this.q('[data-r=jumpForm]');
+      const opener = this.q('.sh-times [data-a=jump]');
+      if (form.hidden && !this.canSeek) return;
+      this.jumpGeneration = (this.jumpGeneration || 0) + 1;
+      form.hidden = !form.hidden;
+      opener.setAttribute('aria-expanded', String(!form.hidden));
+      const input = this.q('[data-r=jumpTime]');
+      this.q('[data-r=jumpError]').hidden = true;
+      input.removeAttribute('aria-invalid');
+      if (form.hidden) opener.focus({preventScroll:true});
+      else {
+        input.value = fmt(this.st.time);
+        input.focus();
+        input.select();
+      }
+    }
+    async seekTypedTime() {
+      const form = this.q('[data-r=jumpForm]'), input = this.q('[data-r=jumpTime]');
+      if (form.hidden || this.jumpPending) return;
+      const value = input.value.trim();
+      const parts = value.split(':');
+      const valid = /^\d+(?::[0-5]\d){0,2}$/.test(value);
+      const time = parts.reduce((seconds, part) => seconds * 60 + Number(part), 0);
+      const error = this.q('[data-r=jumpError]');
+      const latest = this.a.state();
+      if ((this.a.identity?.() ?? '') !== this.id0) return;
+      if (!valid || !Number.isSafeInteger(time) || !this.canSeek || latest.canSeek === false || !(time <= latest.duration)) {
+        error.textContent = T('Saniye, dd:ss veya ss:dd:ss biçiminde medya süresi içinde bir zaman girin.', 'Enter seconds, mm:ss, or hh:mm:ss within the media duration.');
+        error.hidden = false;
+        input.setAttribute('aria-invalid','true');
+        input.focus();
+        return;
+      }
+      const identity = this.a.identity?.(), generation = this.jumpGeneration;
+      this.jumpPending = true;
+      form.setAttribute('aria-busy','true');
+      try {
+        const result = await this.run('seek', time);
+        if (!this.dead && !form.hidden && generation === this.jumpGeneration && identity === this.a.identity?.() && result?.ok !== false) this.toggleJump();
+      } finally {
+        this.jumpPending = false;
+        form.removeAttribute('aria-busy');
+      }
+    }
+    paintFullscreen() {
+      const button = this.q('.browser-study-transport [data-a=fullscreen]');
+      if (!button) return;
+      const active = !!document.fullscreenElement?.contains(this.root);
+      const label = active ? T('Tam ekrandan çık','Exit fullscreen') : T('Tam ekran','Fullscreen');
+      if (button.title === label && button.hasAttribute('aria-pressed')) return;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-pressed', String(active));
+      button.querySelector('span').textContent = label;
+    }
     paint() {
       const r = this.root, s = this.s, st = this.st || this.a.state();
       r.classList.toggle('sh-focus', s.focus); r.classList.toggle('sh-playing', !st.paused);if(st.paused)r.classList.remove('controls-idle');
-      for (const b of r.querySelectorAll('[data-a=loop]')) { b.setAttribute('aria-pressed', String(s.loop)); b.lastChild.textContent = s.loop && s.loopRow >= 0 && this.rows[s.loopRow] ? ` ${T('Döngü', 'Loop')} · ${fmt(this.rows[s.loopRow].start)}` : T('Cümle döngüsü', 'Loop sentence'); }
+      const sourceLoop = this.displayMode() === 'tr' && !!this.st?.translationTargets && this.rows.some(row => row.timed && row.src);
+      for (const b of r.querySelectorAll('[data-a=loop]')) {
+        b.setAttribute('aria-pressed', String(s.loop));
+        const label = sourceLoop ? T('Özgün döngü', 'Original loop') : T('Cümle döngüsü', 'Loop sentence');
+        b.setAttribute('aria-label', label);
+        b.title = label;
+        b.lastChild.textContent = s.loop && s.loopRow >= 0 && this.rows[s.loopRow]
+          ? ` ${sourceLoop ? label : T('Döngü', 'Loop')} · ${fmt(this.rows[s.loopRow].start)}` : label;
+      }
+      const range = this.q('[data-r=loopRange]'), loopCue = s.loop ? this.rows[s.loopRow] : null;
+      if (range) {
+        const start = Math.max(0, loopCue?.start ?? 0);
+        const end = Math.min(Number(st.duration) || 0, loopCue?.end ?? 0);
+        range.hidden = !loopCue?.timed || !(end > start);
+        if (!range.hidden) {
+          range.style.left = start / st.duration * 100 + '%';
+          range.style.width = (end - start) / st.duration * 100 + '%';
+        }
+      }
       const loopButton = s.loop ? this.lines[s.loopRow]?.querySelector('[data-act=loop]') : null;
       if (this.activeLoopButton !== loopButton) {
         this.activeLoopButton?.setAttribute('aria-pressed', 'false');
@@ -393,10 +735,26 @@
       }
       for (const b of r.querySelectorAll('[data-a=focus]')) b.setAttribute('aria-pressed', String(s.focus));
       const sl = r.querySelector('[data-a=sleep]'); if (sl) { sl.setAttribute('aria-pressed', String(!!s.sleep)); const label = s.sleep ? `${Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000))} ${T('dk', 'min')}` : T('Uyku', 'Sleep'); r.querySelector('[data-r=sleeplbl]').textContent = label; sl.setAttribute('aria-label', s.sleep ? T('Uyku zamanlayıcısı', 'Sleep timer') + ' · ' + label : T('Uyku zamanlayıcısı', 'Sleep timer')); }
+      const sleep = this.q('[data-r=sleep]');
+      if (sleep) {
+        const active = Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000));
+        for (const option of sleep.options) {
+          const minutes = Number(option.value);
+          const text = minutes === 0 ? (s.sleep ? T('Kapat','Turn off') : T('Uyku','Sleep'))
+            : minutes === s.sleep ? `${active} ${T('dk kaldı','min left')}`
+            : `${minutes} ${T('dk','min')}`;
+          if (option.textContent !== text) option.textContent = text;
+        }
+        if (sleep.value !== String(s.sleep)) sleep.value = String(s.sleep);
+        sleep.parentElement.classList.toggle('active', !!s.sleep);
+      }
       for (const b of r.querySelectorAll('[data-a=rate]')) b.textContent = (Number(st.rate) || 1) + '×';
+      this.syncRate();
+      this.paintFullscreen();
       for (const b of r.querySelectorAll('[data-a=toggle]')) { const want = st.paused ? 'play' : 'pause'; if (b.dataset.ic !== want) { b.dataset.ic = want; b.innerHTML = ic(want); b.title = st.paused ? T('Oynat', 'Play') : T('Duraklat', 'Pause'); b.setAttribute('aria-label', b.title); } }
       r.classList.toggle('transcript-open',!!s.transcript);r.querySelectorAll('[data-a=transcript]').forEach(button=>button.setAttribute('aria-expanded',String(!!s.transcript)));
-      const overlay = this.o.mode==='podcast' || !!s.panel || !!s.word || !!s.note || (!r.classList.contains('sh-audio') && !!s.transcript && window.innerWidth < 1100);
+      const compactReading = s.transcript && this.usesTranscriptDrawer() && window.innerWidth < 780;
+      const overlay = this.o.mode==='podcast' || !!s.panel || !!s.word || !!s.note || !!compactReading;
       if(r.hasAttribute('data-pw-occludes-native')!==overlay){if(overlay)r.setAttribute('data-pw-occludes-native','true');else r.removeAttribute('data-pw-occludes-native');root.syncBrowserOcclusion?.();}
       const f = r.querySelector('[data-a=follow]'); if (f) {
         if (this.o.mode === 'cinema') f.hidden = s.follow || this.cur < 0 || !this.rows[this.cur]?.timed;
@@ -409,44 +767,115 @@
       let src = esc(c.src);
       if (c.words && c.words.length) { let out = '', at = 0; const text = String(c.src); c.words.forEach((w, k) => { out += esc(text.slice(at, w.s)) + `<span class="w" data-k="${k}">${esc(text.slice(w.s, w.e))}</span>`; at = w.e; }); out += esc(text.slice(at)); src = out; }
       const shared = this.o.mode !== 'cinema';
-      const trs = c.trs.map((t) => `<span class="tr${shared ? ' cue-card-tr' : ''}">${esc(t)}</span>`).join('');
+      const trs = c.trs.map((t, part) => {
+        const start = c.translationStarts?.[part];
+        const time = Number.isFinite(start) ? captionStamp(start, true) : '';
+        const button = shared && c.timed && c.trs.length > 1 && time
+          ? `<button class="cue-card-time sh-part-time" type="button" data-a="translationSeek" data-part="${part}" aria-label="${time} · ${T('Çeviri cümlesine git', 'Go to translation sentence')}">${time}</button>` : '';
+        return `<span class="tr${shared ? ' cue-card-tr' : ''}" data-translation-part="${part}">${button}<span dir="auto">${esc(t)}</span></span>`;
+      }).join('');
       const unc = c.unc && c.unc.length ? `<span class="tr unc"><em>${T('Eşleşme belirsiz', 'Match uncertain')}</em>${c.unc.map((t) => `<span>${esc(t)}</span>`).join('')}</span>` : '';
       const copyLabel = shared ? T('Görünen metni kopyala', 'Copy visible text') : T('Kopyala', 'Copy');
       const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" aria-pressed="false" title="${T('Cümle döngüsü', 'Loop sentence')}" aria-label="${T('Cümle döngüsü', 'Loop sentence')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${copyLabel}" aria-label="${copyLabel}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
       const review=c.translationReview?`<small class="sh-translation-review">${T('Çeviriyi kontrol edin · kaynakla aynı metin veya kalite uyarısı','Review translation · matches source or has a quality warning')}</small>`:'';
-      return `${c.timed ? `<span class="at${shared ? ' cue-card-time' : ''}">${fmt(c.start)}</span>` : ''}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${review}${acts}`;
+      const standalone = c.standaloneTranslation
+        ? `<small class="sh-translation-origin">${T('Bağımsız çeviri satırı', 'Standalone translation line')}</small>` : '';
+      const time = fmt(c.start);
+      const stamp = !c.timed ? '' : shared
+        ? `<button class="at cue-card-time" type="button" data-a="cueSeek" aria-label="${time} · ${T('Cümleye git', 'Go to sentence')}">${ic('play')}<span>${time}</span></button>`
+        : `<span class="at">${time}</span>`;
+      return `${stamp}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${standalone}${review}${acts}`;
     }
     rebuild(st, info) {
       const scroll=this.q('[data-r=scroll]'),study=this.o.mode!=='podcast';
+      const previousScroll = scroll.scrollTop;
+      const matchRow = this.matchLine && this.rows[Number(this.matchLine.dataset.i)];
       const focused=document.activeElement,oldRow=scroll.contains(focused)?focused.closest('[data-i]'):null;
-      const focusedId=oldRow?this.rows[Number(oldRow.dataset.i)]?.id:null;
+      const focusedRow=oldRow?this.rows[Number(oldRow.dataset.i)]:null;
       const focusedAction=focused?.dataset.act;
+      const focusedSeek=focused?.dataset.a === 'cueSeek';
+      const focusedTranslation=focused?.dataset.a === 'translationSeek'
+        ? focusedRow?.translationCueIds?.[Number(focused.dataset.part)] : undefined;
+      const sameRow=(a,b)=>a && b && a.id===b.id && !!a.standaloneTranslation===!!b.standaloneTranslation;
       this.rows=st.rows;scroll.textContent='';this.lines=[];
+      this.translationRowByCue = new Map();
+      this.rows.forEach((row, index) => {
+        for (const id of row.translationCueIds || (!row.src && row.trs.length ? [row.id] : [])) {
+          if (!this.translationRowByCue.has(id)) this.translationRowByCue.set(id, []);
+          this.translationRowByCue.get(id).push(index);
+        }
+      });
       this.root.classList.toggle('sh-translation-only', this.rows.some(row => row.trs.length || row.unc?.length) && !this.rows.some(row => row.src.trim()));
       this.root.classList.toggle('sh-source-only', this.rows.some(row => row.src.trim()) && !this.rows.some(row => row.trs.length || row.unc?.length));
       const display = this.q('.browser-study-display');
       if (display) display.hidden = this.root.classList.contains('sh-translation-only') || this.root.classList.contains('sh-source-only');
       this.applyDisp();
       const frag = document.createDocumentFragment();
-      if(!st.rows.length){const empty=this.el(`<div class="sh-empty">${ic('mic')}<h2>${T('Transkript henüz açık değil','No transcript is open yet')}</h2><p>${T('İşlemler’den mevcut metni açabilir veya Whisper ile döküm oluşturabilirsiniz.','Open an existing transcript or create one with Whisper in Tasks.')}</p><button class="sh-btn" type="button" data-a="panel">${T('İşlemleri aç','Open tasks')}</button></div>`);frag.append(empty);}
+      if (!st.rows.length) {
+        const available = this.o.mode !== 'cinema' && info.captionTrackCount > 0;
+        const youtube = info.youtubeCaptions && !available;
+        const title = available ? T('Bu videoda altyazı var','Captions are available for this video') : T('Transkript henüz açık değil','No transcript is open yet');
+        const hint = available
+          ? T(`${info.captionTrackCount} iz hazır. Okumaya başlamak için kaynak veya ikinci dili seçin.`, `${info.captionTrackCount} tracks available. Choose the source or second language to start reading.`)
+          : youtube ? T('YouTube henüz bir altyazı izi vermediyse Browser’da CC’yi açın ve videoyu oynatın. İz gelince Sahne’den seçebilirsiniz.', 'If no caption track has arrived yet, turn on CC in the browser and play the YouTube video. Choose the track in Stage when it arrives.')
+          : T('İşlemler’den mevcut metni açabilir veya Whisper ile döküm oluşturabilirsiniz.','Open an existing transcript or create one with Whisper in Tasks.');
+        const action = available ? T('Altyazı izi seç','Choose caption track') : T('İşlemleri aç','Open tasks');
+        const browser = youtube ? `<button class="sh-btn" type="button" data-a="retryCaptions" title="${T('Videoyu kaldığınız konumda yeniden yükler; kayıtlı altyazılar korunur.', 'Reloads the video at your position and keeps saved captions.')}">${T('Altyazıyı yeniden dene','Retry captions')}</button><button class="sh-btn" type="button" data-a="close">${T('Browser’da CC’yi aç','Open CC in browser')}</button>` : '';
+        frag.append(this.el(`<div class="sh-empty">${ic(available || youtube ? 'classic' : 'mic')}<h2>${title}</h2><p>${hint}</p>${browser}<button class="sh-btn" type="button" data-a="panel" ${available ? 'data-caption-entry' : ''}>${action}</button></div>`));
+      }
       if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = st.timingNotice || T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); frag.append(n); }
       st.rows.forEach((c, i) => {
         const row = document.createElement('div'); row.className = (this.o.mode !== 'cinema' ? 'sh-card cue-card' : 'sh-card') + (c.timed ? '' : ' is-untimed'); row.dataset.i = i;
-        if (c.timed) { row.tabIndex = 0; row.setAttribute('role', 'button'); row.addEventListener('keydown', (e) => { if (this.canSeek && ['Enter',' '].includes(e.key) && e.target === row) {e.preventDefault();e.stopPropagation();this.run('seekCue', i);} }); }
+        if (c.timed && this.o.mode === 'cinema') { row.tabIndex = 0; row.setAttribute('role', 'button'); row.addEventListener('keydown', (e) => { if (this.canSeek && ['Enter',' '].includes(e.key) && e.target === row) {e.preventDefault();e.stopPropagation();this.run('seekCue', i);} }); }
         row.innerHTML = this.rowHTML(c, i, study); frag.append(row); this.lines.push(row);
       });
-      scroll.append(frag); this.filterRows();
-      if(focusedId!=null){
-        const line=this.lines[this.rows.findIndex(row=>row.id===focusedId)];
-        const action=focusedAction&&line?.querySelector('[data-act="'+focusedAction+'"]');
+      scroll.append(frag);
+      if (matchRow) this.matchLine = this.lines[this.rows.findIndex(row => sameRow(row,matchRow))];
+      this.filterRows();
+      if (!this.s.follow) scroll.scrollTop = previousScroll;
+      if(focusedRow){
+        const index=this.rows.findIndex(row=>sameRow(row,focusedRow)),line=this.lines[index];
+        const part=focusedTranslation===undefined?-1:this.rows[index]?.translationCueIds?.indexOf(focusedTranslation);
+        const action=part>=0 ? line?.querySelector('[data-a=translationSeek][data-part="'+part+'"]')
+          : focusedSeek ? line?.querySelector('[data-a=cueSeek]') : focusedAction&&line?.querySelector('[data-act="'+focusedAction+'"]');
         ((!line?.hidden&&(action||line?.matches('[tabindex]')&&line))||this.q('[data-r=q]'))?.focus({preventScroll:true});
       } this.s.idx = -2; this.drawWave(st, info); this.words = this.lines.map((l, i) => this.rows[i].words ? [...l.querySelectorAll('.w')] : null);
-      const li = info.langs || {}; for (const [k, v, label] of [['ls', li.src], ['lt', li.tr], ['lsb', li.src, T('Kaynak', 'Source')], ['ltb', li.tr, T('Çeviri', 'Translation')]]) { const n = this.q(`[data-r=${k}]`); if (!n) continue; if (label) n.innerHTML = `${v?lang(v):lang('?', '')}${label}`; else n.textContent = v ? String(v).slice(0, 3).toUpperCase() : ''; n.title = v ? String(v).toUpperCase() : T('Dil bilinmiyor','Language unknown'); }
+      const li = info.langs || {}; for (const [k, v, label] of [['ls', li.src], ['lt', li.tr], ['lsb', li.src, T('Kaynak', 'Source')], ['ltb', li.tr, T('Çeviri', 'Translation')]]) { const n = this.q(`[data-r=${k}]`); if (!n) continue; if (label) n.innerHTML = `${v ? lang(v) : ''}${label}`; else n.textContent = v ? String(v).slice(0, 3).toUpperCase() : ''; n.title = v ? String(v).toUpperCase() : T('Dil bilinmiyor','Language unknown'); }
+    }
+    async flushVolume() {
+      const identity = this.a.identity?.();
+      this.volumePending = true;
+      try {
+        while (!this.dead && (identity ?? '') === this.id0 && identity === this.a.identity?.() && this.nextVolume != null) {
+          const value = this.nextVolume;
+          this.nextVolume = null;
+          await this.run('volume', value);
+        }
+      } finally {
+        this.nextVolume = null;
+        this.volumePending = false;
+        if (!this.dead) this.tick();
+      }
+    }
+    paintVolume(input, value) {
+      if (Number(input.value) !== value) input.value = value;
+      const percent = Math.round(value * 100) + '%';
+      input.setAttribute('aria-valuetext', percent);
+      const output = input.parentElement.querySelector('output');
+      if (output && output.textContent !== percent) output.textContent = percent;
+      const icon = this.q('[data-r=volumeIcon]');
+      const glyph = value === 0 ? 'volumeZero' : 'volume';
+      if (icon && icon.dataset.glyph !== glyph) {
+        icon.dataset.glyph = glyph;
+        icon.innerHTML = ic(glyph);
+        icon.setAttribute('aria-pressed', String(value === 0));
+        icon.setAttribute('aria-label', value === 0 ? T('Sesi geri aç','Restore sound') : T('Sesi kapat','Mute'));
+      }
     }
     cueAt(time) {
       let index = -1;
       this.rows.forEach((cue, i) => {
-        if (cue.timed && cue.start <= time && time < cue.end && (index < 0 || cue.start >= this.rows[index].start)) index = i;
+        if (cue.timed && !cue.standaloneTranslation && cue.start <= time && time < cue.end && (index < 0 || cue.start >= this.rows[index].start)) index = i;
       });
       return index;
     }
@@ -465,21 +894,30 @@
       const stamp=JSON.stringify(chapters);
       if(stamp===this.chapterStamp)return;
       this.chapterStamp=stamp;
-      host.hidden=!chapters.length;
+      const navigation = this.q('[data-r=readingNav]');
+      if (navigation) {
+        navigation.hidden = !chapters.length;
+        this.q('.sh-chapter-entry').hidden = !chapters.length;
+        if (!chapters.length) this.showReading(false);
+      } else host.hidden = !chapters.length;
       host.setAttribute('aria-label',T('Bölüm başlıkları','Episode chapters'));
       host.replaceChildren();
-      if(chapters.length){
-        const current=document.createElement('strong');
-        current.className='sh-chapter-current';
-        host.append(current);
-      }
+      if (!navigation && chapters.length) host.append(this.el('<strong class="sh-chapter-current"></strong>'));
       const hasUntimed=chapters.some(chapter=>!Number.isFinite(chapter.t));
       for(const chapter of chapters){
         const timed=Number.isFinite(chapter.t);
         const item=document.createElement(timed?'button':'span');
         item.className='sh-chap';
-        item.textContent=timed?fmt(chapter.t)+' · '+chapter.label:chapter.label;
-        if(timed){item.type='button';item.dataset.t=String(chapter.t);}
+        if(timed){
+          item.type='button';
+          item.dataset.t=String(chapter.t);
+          const stamp = document.createElement('time');
+          stamp.textContent = fmt(chapter.t) + (navigation ? '' : ' · ');
+          item.append(stamp);
+        }
+        const label = document.createElement('span');
+        label.textContent = chapter.label;
+        item.append(label);
         host.append(item);
       }
       if(hasUntimed){
@@ -488,40 +926,102 @@
         note.textContent=T('Zamanı doğrulanmayan başlıklar salt okunur.','Chapters without verified timing are read-only.');
         host.append(note);
       }
+      if (navigation) this.filterChapters();
+    }
+    filterChapters() {
+      const search = this.q('[data-r=chapterSearch]');
+      if (!search) return;
+      const query = search.value.trim().normalize('NFC').toLocaleLowerCase(T('tr','en'));
+      const list = this.q('[data-r=chaps]');
+      let matches = 0;
+      for (const item of list.querySelectorAll('.sh-chap')) {
+        item.hidden = !item.textContent.normalize('NFC').toLocaleLowerCase(T('tr','en')).includes(query);
+        if (!item.hidden) matches++;
+      }
+      const count = this.q('[data-r=chapterCount]');
+      count.hidden = !query;
+      count.textContent = matches ? T(`${matches} başlık`, `${matches} chapters`) : T('Eşleşen başlık yok','No matching chapters');
+      list.scrollTop = 0;
     }
     focusPassage(time) {
       this.tick();
-      const index=this.rows.findIndex(row=>row.timed&&row.start<=time&&time<row.end);
+      const index=this.cueAt(time);
       this.lines.forEach((line,i)=>line.classList.toggle('sh-search-match',i===index));
-      this.lines[index]?.scrollIntoView?.({block:'center'});
+      const line = this.lines[index];
+      if (!line) return;
+      if (this.o.mode !== 'cinema') {
+        this.s.follow = false;
+        this.showReading(false);
+        if (line.hidden) {
+          this.q('[data-r=q]').value = '';
+          this.filterRows();
+          if (line.hidden) this.q('[data-d=both]')?.click();
+        }
+        if (this.usesTranscriptDrawer() && !this.s.transcript) this.toggleTranscript(this.q('.sh-transcript-toggle'));
+      }
+      this.paint();
+      line.scrollIntoView?.({block:'center',inline:'nearest'});
+    }
+    readCurrentSentence(opener) {
+      const line = this.livePart?.closest('[data-i]') || this.activeLine;
+      if (!line) return;
+      if (this.usesTranscriptDrawer() && !this.s.transcript) this.followBeforeFullSentence = this.s.follow;
+      this.s.follow = false;
+      if (line.hidden) {
+        this.q('[data-r=q]').value = '';
+        this.filterRows();
+      }
+      this.showReading(false);
+      if (this.usesTranscriptDrawer() && !this.s.transcript) this.toggleTranscript(opener);
+      this.paint();
+      line.tabIndex = -1;
+      line.focus({ preventScroll: true });
+      requestAnimationFrame(() => {
+        if (!line.isConnected || document.activeElement !== line) return;
+        const scroll = this.q('[data-r=scroll]');
+        const top = line.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
+        const inset = Math.max(0, (scroll.clientHeight - line.offsetHeight) / 2);
+        scroll.scrollTo({ top: Math.max(0, top - inset), behavior: 'instant' });
+      });
     }
     tick() {
-      if(this.dead)return; if(document.hidden){if(this.s.sleep&&Date.now()>=this.s.sleepAt){this.s.sleep=0;this.run('pause');}return;} const a = this.a, s = this.s;
+      if (this.dead) return;
+      const a = this.a, s = this.s;
       const id = a.identity ? a.identity() : ''; if (this.id0 === undefined) this.id0 = id; else if (id !== this.id0) { if (!this.gone) { this.gone = true; this.o.onSource?.(id, this.prefs()); } return; }
+      if (s.sleep && Date.now() >= s.sleepAt) {
+        s.sleep = 0;
+        s.sleepAt = 0;
+        this.run('pause');
+      }
+      if (document.hidden) return;
       const st = this.st = a.state(), info = a.info();if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev)this.closeNote();
+      this.captionTrackCount = info.captionTrackCount || 0;
       this.root.classList.toggle('sh-web-video', !!info.webVideo);
       this.root.classList.toggle('sh-web-source', !!info.webSource);
       const flow = this.q('.bp-flow');
       if (flow) flow.hidden = !st.rows.length;
       if (Number.isInteger(st.loopRow)) { s.loop = st.loopRow >= 0; s.loopRow = st.loopRow; }
       this.canSeek = st.canSeek !== false && Number(st.duration) > 0;
-      const key = `${st.rev}:${st.timingNotice||''}:${st.rows.length}:${Math.round(st.duration || 0)}:${info.title}:${info.cover||''}:${info.sub||''}:${info.eyebrow||''}:${(info.langs || {}).src}:${(info.langs || {}).tr}:${JSON.stringify(info.chapters||[])}`;
+      const key = `${st.rev}:${st.timingNotice||''}:${st.rows.length}:${st.rows.length ? '' : info.captionTrackCount || 0}:${!!info.youtubeCaptions}:${Math.round(st.duration || 0)}:${info.title}:${info.cover||''}:${info.sub||''}:${info.eyebrow||''}:${(info.langs || {}).src}:${(info.langs || {}).tr}:${JSON.stringify(info.chapters||[])}`;
       if (key !== s.key) {
         s.key = key; this.rebuild(st, info); this.setTint(info.tint);
-        const t = this.q('[data-r=title]'); if (t) { t.textContent = info.title || T('Başlıksız bölüm', 'Untitled episode'); this.q('[data-r=eyebrow]').textContent = info.eyebrow || T('Şimdi çalıyor', 'Now playing'); this.q('[data-r=sub]').textContent = info.sub || ''; const c = this.q('[data-r=cover]'); c.innerHTML = info.cover ? `<img src="${esc(info.cover)}" alt="">` : `<span class="sh-initials">${esc(String(info.title||'').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toLocaleUpperCase())}</span>`; this.drawChapters(info.chapters||[]); }
+        const t = this.q('[data-r=title]'); if (t) { t.textContent = info.title || T('Başlıksız bölüm', 'Untitled episode'); this.q('[data-r=eyebrow]').textContent = info.eyebrow || T('Şimdi çalıyor', 'Now playing'); this.q('[data-r=sub]').textContent = info.sub || ''; const c = this.q('[data-r=cover]'); c.replaceChildren(info.cover ? this.el(`<img src="${esc(info.cover)}" alt="">`) : this.coverInitials()); this.drawChapters(info.chapters||[]); }
       }
-      if (s.sleep && Date.now() >= s.sleepAt) { s.sleep = 0; this.run('pause'); }
-      const dur = Number(st.duration) || 0, time = Number(st.time) || 0;
-      const position = this.drag ? this.dragR * dur : time;
+      const dur = Number(st.duration) || 0, observedTime = Number(st.time) || 0;
+      const time = Number.isFinite(st.displayTime) ? st.displayTime : observedTime;
+      const position = this.drag ? this.dragR * dur : dur > 0 ? Math.max(0, Math.min(dur, time)) : Math.max(0, time);
       const p = dur ? Math.min(100, position / dur * 100) : 0;
       const w = this.q('[data-r=wave]'); w.style.setProperty('--p', p + '%'); w.setAttribute('aria-disabled', String(!this.canSeek));
       const t0 = this.q('[data-r=t0]'); if (t0) { t0.textContent = fmt(position); this.q('[data-r=t1]').textContent = dur ? '-' + fmt(Math.max(0, dur - position)) : '--:--'; }
-      w.setAttribute('aria-valuenow', Math.round(position)); w.setAttribute('aria-valuemax', Math.round(dur)); w.setAttribute('aria-valuetext', `${fmt(position)} / ${dur ? fmt(dur) : '--:--'}`);
+      w.tabIndex = this.canSeek ? 0 : -1;
+      w.setAttribute('aria-valuenow', dur > 0 ? Math.round(position) : 0); w.setAttribute('aria-valuemax', Math.round(dur)); w.setAttribute('aria-valuetext', `${fmt(position)} / ${dur ? fmt(dur) : '--:--'}`);
       const chapters=(info.chapters||[]).filter(chapter=>Number.isFinite(chapter.t));
-      const currentChapter=chapters.reduce((best,chapter)=>chapter.t<=time+.001&&(!best||chapter.t>=best.t)?chapter:best,null);
+      const currentChapter=st.adPlaying ? null : chapters.reduce((best,chapter)=>chapter.t<=time+.001&&(!best||chapter.t>=best.t)?chapter:best,null);
       const chapterLabel=this.q('.sh-chapter-current');
       if(chapterLabel){
-        const label=currentChapter?T('Şu an: ','Now: ')+currentChapter.label:T('Bölüm başlıkları','Episode chapters');
+        const label = currentChapter
+          ? (this.o.mode === 'cinema' ? T('Şu an: ', 'Now: ') : fmt(currentChapter.t) + ' · ') + currentChapter.label
+          : this.o.mode === 'cinema' ? T('Bölüm başlıkları','Chapters') : T('Tümünü göster','Show all');
         if(chapterLabel.textContent!==label)chapterLabel.textContent=label;
       }
       for(const button of this.root.querySelectorAll('button.sh-chap')){
@@ -530,11 +1030,28 @@
         if(active)button.setAttribute('aria-current','true');else button.removeAttribute('aria-current');
         button.disabled=!this.canSeek;
       }
-      const idx = this.cueAt(time);
-      this.updateScope();this.time = time; this.cur = idx;this.paintTransport(time, idx);this.root.classList.toggle('sh-audio',!!info.audio);
+      const currentChapterButton = this.q('[data-a=currentChapter]');
+      if (currentChapterButton) currentChapterButton.disabled = !currentChapter || !this.canSeek;
+      const suspended = st.adPlaying || st.seeking;
+      const playbackIndex = suspended ? -1 : this.cueAt(observedTime);
+      this.playbackIndex = playbackIndex;
+      const liveTranslation = suspended ? null : this.liveCueAt(st.captionTracks?.[1], time);
+      const sourceIndex = suspended ? -1 : this.cueAt(time);
+      let idx = sourceIndex;
+      const display = this.displayMode();
+      const translationFocus = this.o.mode !== 'cinema' && st.captionTracks
+        && (display === 'tr' || (display === 'both' && idx < 0));
+      const matchingRows = liveTranslation && display !== 'src' ? this.translationRowByCue.get(liveTranslation.id) : null;
+      const translationRow = matchingRows?.includes(sourceIndex) && !this.lines[sourceIndex]?.hidden ? sourceIndex
+        : matchingRows?.find(index => !this.lines[index]?.hidden) ?? matchingRows?.[0];
+      if (translationFocus) {
+        idx = translationRow ?? -1;
+      }
+      this.updateScope();this.time = time; this.cur = idx;this.paintTransport(observedTime, playbackIndex);this.root.classList.toggle('sh-audio',!!info.audio);
       if (idx !== s.idx || this.activeLine !== this.lines[idx]) {
         const prev = s.idx;
         this.activeLine?.classList.remove('on');
+        this.activeLine?.classList.remove('sh-translation-live');
         this.activeLine?.removeAttribute('aria-current');
         s.idx = idx;
         this.activeLine = this.lines[idx];
@@ -542,56 +1059,139 @@
         this.activeLine?.setAttribute('aria-current', 'true');
         this.onActive(idx, prev);
       }
+      this.activeLine?.classList.toggle('sh-translation-live', !!translationFocus && !!liveTranslation);
+      const translationPart = this.rows[translationRow]?.translationCueIds?.indexOf(liveTranslation?.id);
+      const livePart = translationPart >= 0
+        ? this.lines[translationRow]?.querySelector(`[data-translation-part="${translationPart}"]`) : null;
+      if (this.livePart !== livePart) {
+        this.livePart?.removeAttribute('aria-current');
+        livePart?.setAttribute('aria-current', 'true');
+        this.livePart = livePart;
+        const scroll = this.q('[data-r=scroll]');
+        if (livePart && this.s.follow && this.lines[translationRow]?.offsetHeight > scroll.clientHeight) this.followAfterLayout();
+      }
+      const readCurrent = this.q('[data-a=readCurrent]');
+      if (readCurrent) readCurrent.disabled = !this.activeLine && !livePart;
       if(info.webVideo && this.lastDisplay!==this.displayMode()){this.lastDisplay=this.displayMode();this.run('display',this.lastDisplay);}
-      if(this.o.mode==='cinema')this.drawCinema(info,st);this.wordsTick(); this.drawTasks(); const volume=this.q('.sh-local-volume');if(volume&&Number.isFinite(st.volume)&&document.activeElement!==volume){volume.value=st.volume;const output=volume.parentElement.querySelector('output');if(output)output.textContent=Math.round(st.volume*100)+'%';} const subs=this.q('[data-r=subs]');if(subs)subs.hidden=idx<0||info.webVideo||this.o.mode==='podcast'; this.drawJob(); this.drawPanel(false); this.paint();
+      if(this.o.mode==='cinema')this.drawCinema(info,st);
+      this.wordsTick(translationFocus && liveTranslation
+        ? { start: liveTranslation.start, end: liveTranslation.end, offset: st.captionTracks[1]?.offsetSeconds }
+        : null);
+      this.drawTasks();
+      const volume = this.q('.sh-local-volume');
+      if (volume && Number.isFinite(st.volume) && !this.volumePending) {
+        if (st.volume > 0) this.lastAudibleVolume = st.volume;
+        this.paintVolume(volume, st.volume);
+      }
+      this.paintCaptionVisibility(info, st, time, liveTranslation);
+      this.paintLiveSpeech(st, time, liveTranslation);
+      this.drawJob(); this.drawPanel(false); this.paint();
       this.restoreReadingPosition();
+    }
+    coverInitials() {
+      const initials = this.q('[data-r=title]').textContent.trim().split(/\s+/).slice(0,2).map(word => [...word][0]).join('');
+      return this.el(`<span class="sh-initials">${esc(initials.toLocaleUpperCase(T('tr','en')))}</span>`);
+    }
+    navigateSentence(command) {
+      return this.run(command, this.displayMode() === 'tr' && this.st?.translationTargets ? 'translation' : undefined);
     }
     paintTransport(time, active) {
       const hint = this.q('[data-r=transportHint]');
       if (!hint) return;
-      if (this.transportSeekable !== this.canSeek || this.transportLines !== this.lines) {
+      const display = this.displayMode();
+      if (this.transportSeekable !== this.canSeek || this.transportLines !== this.lines || this.transportDisplay !== display) {
         this.transportSeekable = this.canSeek;
         this.transportLines = this.lines;
+        this.transportDisplay = display;
         this.lines.forEach((line, index) => {
           if (!this.rows[index]?.timed) return;
-          if (this.canSeek) {
-            line.tabIndex = 0;
-            line.setAttribute('role', 'button');
-          } else {
-            line.removeAttribute('tabindex');
-            line.removeAttribute('role');
+          const seek = line.querySelector('[data-a=cueSeek]');
+          if (seek) {
+            const row = this.rows[index], translated = this.usesTranslationTime(row);
+            const start = translated ? row.translationStart : row.start;
+            const valid = Number.isFinite(start) && start < this.st.duration;
+            seek.disabled = !this.canSeek || !valid;
+            const label = translated ? T('Çeviriye git', 'Go to translation') : T('Cümleye git', 'Go to sentence');
+            const stamp = valid ? captionStamp(start, translated) : '—';
+            seek.querySelector('span').textContent = stamp;
+            seek.setAttribute('aria-label', valid ? stamp + ' · ' + label : T('Altyazı zamanı doğrulanamadı','Caption timing is unverified'));
+            seek.title = seek.getAttribute('aria-label');
           }
           const loop = line.querySelector('[data-act=loop]');
           if (loop) loop.disabled = !this.canSeek;
+          for (const button of line.querySelectorAll('[data-a=translationSeek]')) {
+            button.disabled = !this.canSeek || this.rows[index].translationStarts[Number(button.dataset.part)] >= this.st.duration;
+          }
         });
       }
       const hasTimed = this.rows.some(row => row.timed);
       const available = this.canSeek && hasTimed;
       const cue = this.rows[active ?? -1];
-      const next = available && this.rows.some(row => row.timed && row.start > (cue?.start ?? time) + .01);
+      const next = available && this.rows.some(row => row.timed && !row.standaloneTranslation && row.start > (cue?.start ?? time) + .01);
       const enabled = {
-        back: this.canSeek, fwd: this.canSeek, prev: available, next,
+        back: this.canSeek && time > 0, fwd: this.canSeek && time < this.st.duration, prev: available, next,
         replay: available && !!cue, loop: this.s.loop || (available && !!cue)
       };
+      const targets = display === 'tr' ? this.st.translationTargets : undefined;
+      if (targets) {
+        enabled.prev = this.canSeek && Number.isFinite(targets.prevCue);
+        enabled.next = this.canSeek && Number.isFinite(targets.nextCue);
+        enabled.replay = this.canSeek && Number.isFinite(targets.replay);
+      }
+      const jump = this.q('.sh-times [data-a=jump]');
+      if (jump) {
+        if (!this.canSeek && !this.q('[data-r=jumpForm]').hidden) this.toggleJump();
+        if (!this.canSeek && document.activeElement === jump) this.q('[data-a=toggle]')?.focus({preventScroll:true});
+        jump.disabled = !this.canSeek;
+      }
+      const noteSeek = this.q('[data-a=noteSeek]');
+      if (noteSeek) noteSeek.disabled = !this.canSeek;
       for (const button of this.root.querySelectorAll('.browser-study-transport button[data-a]')) {
         const value = enabled[button.dataset.a];
         if (value !== undefined) button.disabled = !value;
       }
-      const message = !this.canSeek
+      if (this.transportTranslationLabels !== !!targets) {
+        this.transportTranslationLabels = !!targets;
+        const labels = targets ? {
+          prev: T('Önceki çeviri satırı', 'Previous translation line'),
+          next: T('Sonraki çeviri satırı', 'Next translation line'),
+          replay: T('Çeviri satırını tekrar dinle', 'Replay translation line')
+        } : {
+          prev: T('Önceki cümle', 'Previous sentence'),
+          next: T('Sonraki cümle', 'Next sentence'),
+          replay: T('Cümleyi tekrar dinle', 'Replay sentence')
+        };
+        for (const [action, label] of Object.entries(labels)) {
+          for (const button of this.root.querySelectorAll(`[data-a=${action}]`)) {
+            button.setAttribute('aria-label', label);
+            button.title = label;
+          }
+        }
+      }
+      const message = this.st.adPlaying
+        ? T('Reklam oynuyor. Konuşma takibi içerik dönünce devam eder.', 'An ad is playing. Transcript follow resumes with the content.')
+        : this.st.seeking ? T('Yeni konum bekleniyor…', 'Waiting for the new position…')
+        : this.st.waiting ? T('Video veri bekliyor…', 'Waiting for video data…')
+        : !this.canSeek
         ? T('Bu kaynakta konuma atlama şu anda kullanılamıyor.', 'Seeking is unavailable for this source right now.')
         : !hasTimed ? T('Cümle kontrolleri için zamanlı transkript gerekli.', 'Sentence controls need a timed transcript.') : '';
       if (hint.textContent !== message) hint.textContent = message;
       hint.hidden = !message;
     }
-    wordsTick() {
+    wordsTick(translation) {
       const idx = this.cur; if (idx < 0) return; const row = this.rows[idx], ws = this.words && this.words[idx]; const c = row; const time = this.time;
       if (ws && row.words) row.words.forEach((w, k) => { const n = ws[k]; if (!n) return; n.classList.toggle('done', time >= w.t1); n.classList.toggle('now', time >= w.t0 && time < w.t1); });
-      const l = this.lines[idx], span = Math.max(.01, c.end - c.start), lp = Math.max(0, Math.min(1, (time - c.start) / span)); if (l) { l.style.setProperty('--lp', (lp * 100).toFixed(1) + '%'); l.style.setProperty('--lpn', lp.toFixed(3)); }
+      const range = translation || c, offset = Number(translation?.offset) || 0;
+      const l = this.lines[idx], span = Math.max(.01, range.end - range.start), lp = Math.max(0, Math.min(1, (time - range.start - offset) / span)); if (l) { l.style.setProperty('--lp', (lp * 100).toFixed(1) + '%'); l.style.setProperty('--lpn', lp.toFixed(3)); }
     }
     motionAllowed(){return !document.hidden && !root.matchMedia?.('(prefers-reduced-motion: reduce)').matches && !['off','reduced'].includes(document.documentElement.dataset.cinemaMotion) && (root.PlayerUiKit?.motionAllowed?.()??true);}
+    usesTranslationTime(row) {
+      return row.standaloneTranslation || (this.displayMode() === 'tr' && Object.hasOwn(row, 'translationStart'));
+    }
     scrollToActive(force) {
-      const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l || l.hidden) return;
-      const top = l.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - (sc.clientHeight - l.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
+      const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l || l.hidden || this.root.classList.contains('sh-chapters-open')) return;
+      const target = l.offsetHeight > sc.clientHeight && l.contains(this.livePart) ? this.livePart : l;
+      const top = target.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - (sc.clientHeight - target.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
     }
     restoreReadingPosition() {
       const reading = this.readingScroll;
@@ -611,24 +1211,79 @@
         if(!this.dead&&this.s.follow&&!this.q('[data-r=scroll]').contains(document.activeElement))this.scrollToActive(true);
       });
     }
+    liveCueAt(track, time) {
+      if (track?.timed === false) return;
+      let active;
+      const trackTime = time - (Number(track?.offsetSeconds) || 0);
+      for (const cue of track?.cues || []) {
+        if (cue.start <= trackTime && trackTime < cue.end && (!active || cue.start >= active.start)) active = cue;
+      }
+      return active;
+    }
+    paintLiveSpeech(state, time, liveTranslation) {
+      const panel = this.q('[data-r=liveSpeech]');
+      if (!panel || this.o.mode !== 'podcast') return;
+      const display = this.displayMode();
+      const row = this.rows[this.cur];
+      const tracks = state.captionTracks;
+      const source = state.adPlaying || state.seeking || display === 'tr' ? '' : tracks ? this.liveCueAt(tracks[0], time)?.text || '' : row?.src || '';
+      const translation = state.adPlaying || state.seeking || display === 'src' ? ''
+        : liveTranslation?.text || (!tracks && row && !row.src ? row.trs.join(' ') : '');
+      panel.hidden = !source.trim() && !translation.trim();
+      for (const [name, text] of [['liveSource', source], ['liveTranslation', translation]]) {
+        const line = this.q('[data-r='+name+']');
+        if (line.textContent !== text) line.textContent = text;
+        line.hidden = !text.trim();
+      }
+    }
+    paintCaptionVisibility(info, state, time, liveTranslation) {
+      const captions = this.q('[data-r=subs]');
+      if (!captions) return;
+      const display = this.displayMode();
+      const independent = this.o.mode === 'study' && !info.webVideo && !!state.captionTracks;
+      if (independent) {
+        const source = this.liveCueAt(state.captionTracks[0], time)?.text || '';
+        const translation = liveTranslation?.text || '';
+        this.writeCaption(captions, source, translation);
+      }
+      const hasSource = display !== 'tr' && !!this.q('[data-r=s]').textContent.trim();
+      const hasTranslation = display !== 'src' && !!this.q('[data-r=t]').textContent.trim();
+      captions.hidden = (!independent && this.cur < 0) || info.webVideo || this.o.mode === 'podcast'
+        || (this.o.mode !== 'cinema' && !hasSource && !hasTranslation);
+    }
+    writeCaption(box, source, translation) {
+      const original = this.q('[data-r=s]'), translated = this.q('[data-r=t]');
+      if (original.textContent === source && translated.textContent === translation) return;
+      original.textContent = source;
+      translated.textContent = translation;
+      box.classList.toggle('long', source.length + translation.length > 150);
+      box.classList.toggle('xlong', source.length + translation.length > 260);
+      box.scrollTop = 0;
+    }
     onActive(idx, prev) {
       const c = this.rows[idx];
       const sb = this.q('[data-r=subs]');
-      if (sb) {
-        const source = c?.src || '', translation = c?.trs.join('  ') || '';
-        this.q('[data-r=s]').textContent = source;
-        this.q('[data-r=t]').textContent = translation;
-        sb.classList.toggle('long', source.length + translation.length > 150);
-        sb.classList.toggle('xlong', source.length + translation.length > 260);
-        sb.scrollTop = 0;
-      }
+      if (sb && !(this.o.mode === 'study' && this.st?.captionTracks)) this.writeCaption(sb, c?.src || '', c?.trs.join('  ') || '');
       if (this.s.follow && !this.q('[data-r=scroll]').contains(document.activeElement)) {
-        this.scrollToActive(prev === -2);
-        this.followAfterLayout();
+        if (prev === -2) this.followAfterLayout();
+        else this.scrollToActive(false);
       }
     }
     recoveryMarkup() {
       return this.el('<div class="sh-job sh-recovery" data-r="recovery" hidden><span role="status"></span><button class="sh-chip" data-a="playbackRetry" type="button"></button></div>');
+    }
+    async runStatusAction(button, action) {
+      if (typeof action !== 'function' || button.disabled) return;
+      const identity = this.a.identity?.();
+      button.disabled = true;
+      try {
+        const result = await action();
+        if (result?.ok === false && result.message) throw new Error(result.message);
+      } catch (error) {
+        if (!this.dead && identity === this.a.identity?.()) this.toast(error?.message || T('İşlem uygulanamadı.', 'The action could not be completed.'));
+      } finally {
+        button.disabled = false;
+      }
     }
     drawJob() {
       const recovery = this.a.recovery?.();
@@ -641,8 +1296,24 @@
       }
       const p = this.a.panel?.(); const j = p && p.job, box = this.q('[data-r=job]'); if (!box) return;
       const show = !!j && (j.state === 'running' || j.state === 'failed'); if (box.hidden === show) box.hidden = !show; if (!show) return;
-      box.dataset.state = j.state; this.q('[data-r=jobt]').textContent = j.text || '';
-      const bar = this.q('[data-r=jobbar]'); bar.hidden = j.state !== 'running'; bar.classList.toggle('ind', j.progress == null); bar.firstElementChild.style.width = j.progress == null ? '' : Math.round(j.progress * 100) + '%';
+      box.dataset.state = j.state;
+      const status = this.q('[data-r=jobt]');
+      const message = j.text || (j.state === 'failed' ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…'));
+      if (status.textContent !== message) status.textContent = message;
+      const running = j.state === 'running';
+      const progress = running && Number.isFinite(j.progress) ? Math.round(Math.max(0, Math.min(1, j.progress)) * 100) : null;
+      const bar = this.q('[data-r=jobbar]');
+      bar.hidden = !running;
+      bar.classList.toggle('ind', running && progress === null);
+      const percent = this.q('[data-r=jobpercent]');
+      const fill = progress === null ? '' : progress + '%';
+      if (bar.firstElementChild.style.width !== fill) bar.firstElementChild.style.width = fill;
+      if (percent) {
+        percent.hidden = progress === null;
+        if (progress === null) bar.removeAttribute('aria-valuenow');
+        else if (bar.getAttribute('aria-valuenow') !== String(progress)) bar.setAttribute('aria-valuenow', progress);
+        if (percent.textContent !== fill) percent.textContent = fill;
+      }
       this.q('[data-a=jobcancel]').hidden = !(j.state === 'running' && j.cancel); this.q('[data-a=jobretry]').hidden = !(j.state === 'failed' && j.retry);
     }
     togglePanel(opener) {
@@ -650,11 +1321,36 @@
       if(this.s.panel){
         this.panelOpener=opener||document.activeElement;
         this.drawPanel(true);
-        this.q('[data-pclose]')?.focus();
+        const target = opener?.hasAttribute('data-caption-entry') ? this.q('[data-caption-section] button:not(:disabled)') : null;
+        (target || this.q('[data-pclose]'))?.focus();
       }else{
         this.drawPanel(true);
         (this.panelOpener?.isConnected?this.panelOpener:this.q('.sh-top [data-a=panel]'))?.focus({preventScroll:true});
       }
+    }
+    usesTranscriptDrawer() {
+      return this.o.mode !== 'cinema' && !this.root.classList.contains('sh-audio') && window.innerWidth < 1100;
+    }
+    showReading(chapters) {
+      const list = this.q('[data-r=chaps]');
+      if (!list || this.o.mode === 'cinema') return;
+      const scroll = this.q('[data-r=scroll]');
+      if (chapters && list.hidden) this.transcriptScroll = scroll.scrollTop;
+      const changed = list.hidden === chapters;
+      list.hidden = !chapters;
+      this.q('[data-r=chapterTools]').hidden = !chapters;
+      this.root.classList.toggle('sh-chapters-open', chapters);
+      this.q('[data-r=readingTitle]').textContent = chapters ? T('Bölüm başlıkları','Chapters') : T('Transkript','Transcript');
+      this.q('[data-a=reading]').setAttribute('aria-pressed', String(!chapters));
+      for (const button of this.root.querySelectorAll('[data-a=chapters]')) button.setAttribute('aria-pressed', String(chapters));
+      if (!chapters && changed) {
+        scroll.scrollTop = this.transcriptScroll || 0;
+        this.followAfterLayout();
+      }
+    }
+    chapterFocusTarget() {
+      const list = this.q('[data-r=chaps]');
+      return list.querySelector('button[aria-current=true]:not(:disabled):not([hidden])') || list.querySelector('button:not(:disabled):not([hidden])') || this.q('[data-r=chapterSearch]');
     }
     toggleTranscript(opener) {
       this.s.transcript=!this.s.transcript;
@@ -662,14 +1358,20 @@
       if(this.s.transcript){
         this.transcriptOpener=opener||document.activeElement;
         const search = this.q('[data-r=q]');
-        const target = search?.closest('.bp-flow[hidden]')
+        const target = this.root.classList.contains('sh-chapters-open') ? this.chapterFocusTarget() : search?.closest('.bp-flow[hidden]')
           ? this.q('.browser-study-transcript-close')
           : search;
         target?.focus({preventScroll:true});
         this.restoreReadingPosition();
         this.followAfterLayout();
       }else{
-        (this.transcriptOpener?.isConnected?this.transcriptOpener:this.q('[data-a=transcript]'))?.focus({preventScroll:true});
+        if (this.followBeforeFullSentence !== undefined) {
+          if (this.followBeforeFullSentence && !this.q('[data-r=q]')?.value) this.s.follow = true;
+          this.followBeforeFullSentence = undefined;
+          this.paint();
+        }
+        (this.transcriptOpener?.isConnected && !this.transcriptOpener.hidden && !this.transcriptOpener.disabled
+          ? this.transcriptOpener : this.q('.sh-transcript-toggle'))?.focus({preventScroll:true});
       }
     }
     drawPanel(force) {
@@ -682,6 +1384,7 @@
       box.querySelector('[data-pclose]').onclick=()=>this.togglePanel();
       p.sections.forEach((sec) => {
         const s = this.el(`<section class="sh-psec"><h3>${esc(sec.title)}</h3></section>`);
+        if (sec.id === 'captions') s.dataset.captionSection = '';
         sec.items.forEach((it, n) => {
           if (it.type === 'note') { s.append(this.el(`<p class="sh-pnote">${esc(it.text)}</p>`)); return; }
           if (it.type === 'offset') {
@@ -737,12 +1440,33 @@
       note.pending=false;button.disabled=false;
       if(result?.ok){this.closeNote();this.toast(T('Araştırma defterine kaydedildi.','Saved to research notebook.'));}
     }
+    async runWordAction(button) {
+      const word = this.s.word;
+      if (!word || word.pending) return;
+      word.pending = true;
+      const action = button.dataset.a;
+      try {
+        const result = await this.run(action, {row:word.row,word:word.word,cueId:word.cueId}, word.rev);
+        if (!this.dead && result?.ok && this.s.word === word) {
+          const focused = document.activeElement === button;
+          this.s.word = {...word,...result,pending:false};
+          this.drawWord();
+          if (focused) this.q('.sh-word-card [data-a="'+action+'"]')?.focus({preventScroll:true});
+        }
+      } finally {
+        word.pending = false;
+      }
+    }
     async openWord(row,word){
       this.closeNote();
-      this.wordOpener=document.activeElement?.closest?.('[data-i]')||this.lines[row];
-      const revision=this.st?.rev,seq=this.wordSeq=(this.wordSeq||0)+1,result=await this.a.cmd('wordInfo',{row,word},revision);
-      if(this.dead||seq!==this.wordSeq||revision!==this.st?.rev||!result?.ok)return;
+      const line = this.lines[row];
+      this.wordOpener = line?.contains(document.activeElement) ? document.activeElement
+        : line?.querySelector('[data-a=cueSeek]:not(:disabled), [data-act=copy]') || this.q('[data-r=q]');
+      const identity = this.a.identity?.(), revision = this.st?.rev, seq = this.wordSeq = (this.wordSeq || 0) + 1;
+      const result = await this.run('wordInfo', {row,word}, revision);
+      if(this.dead||seq!==this.wordSeq||identity!==this.a.identity?.()||revision!==this.a.state().rev||!result?.ok)return;
       this.s.word={...result,row,rev:revision,cueId:this.rows[row]?.id};this.drawWord();this.paint();
+      this.q('.sh-word-card [data-a=wordClose]')?.focus({preventScroll:true});
     }
     closeWord(){this.wordSeq=(this.wordSeq||0)+1;this.s.word=null;const box=this.q('.sh-word-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore)(this.wordOpener?.isConnected?this.wordOpener:this.q('[data-r=q]'))?.focus({preventScroll:true});}
     drawWord(){
@@ -750,7 +1474,7 @@
       box.innerHTML=`<header><h2>${esc(word.word)}</h2><button class="sh-btn" data-a="wordClose" type="button" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><p class="sh-word-context">${esc(word.source)}</p>${word.translations.map(x=>`<p class="sh-word-translation">${esc(x)}</p>`).join('')}<small>${T('Altyazı bağlamı · sözlük tanımı değildir.','Subtitle context · not a dictionary definition.')}</small><footer><button class="sh-btn" data-a="wordLookup" type="button" title="${T('Seçili sözcüğü mevcut sözlük tercihinizle uygulama dışında açar.','Opens the word outside the app with your existing dictionary preference.')}">${T('Sözlükte aç ↗','Open dictionary ↗')}</button><button class="sh-btn" data-a="wordSave" type="button" ${word.canSave?'':`disabled title="${T('Bu iz mevcut sözcük koleksiyonuna kaydedilemiyor.','This track cannot be saved to the existing word collection.')}"`}>${word.saved?T('Kayıtlı · Kaldır','Saved · Remove'):T('Sözcüğü kaydet','Save word')}</button></footer>`;
     }
     frame() { const f = () => { if (this.dead) return; if (this.cur >= 0 && this.st && !this.st.paused) this.wordsTick(); this.raf = requestAnimationFrame(f); }; this.raf = requestAnimationFrame(f); }
-    destroy() { this.dead = true; cancelAnimationFrame(this.followRaf);root.removeEventListener('resize',this.followResize); clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true); if (this.s.loop) { try { this.a.cmd('loop', { on: false }); } catch (_) { /* kaynak gitmiş olabilir */ } } this.a.releaseSlot?.(); this.root.remove(); root.syncBrowserOcclusion?.(); }
+    destroy() { this.dead = true; document.removeEventListener('fullscreenchange', this.fullscreenChanged); cancelAnimationFrame(this.followRaf);root.removeEventListener('resize',this.followResize); clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true); if (this.s.loop) { try { this.a.cmd('loop', { on: false }); } catch (_) { /* kaynak gitmiş olabilir */ } } this.a.releaseSlot?.(); this.root.remove(); root.syncBrowserOcclusion?.(); }
   }
   root.Sahne = Sahne; root.SahneFmt = fmt; root.SahneIcon = ic; root.SahneArt = artSVG;
 })(typeof window !== 'undefined' ? window : globalThis);

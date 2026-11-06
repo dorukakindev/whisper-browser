@@ -47,6 +47,29 @@ for (const study of [false, true]) {
   assert.equal(f.sh.cur,1);
  });
 }
+test('both shared modes select a rate directly and retain the confirmed rate on failure',async t=>{
+ for(const study of [false,true]){
+  const f=mount(t,{study}), select=f.sh.q('[data-r=rate]');
+  const state=f.sh.a.state;
+  let rate=1.1;
+  f.sh.a.state=()=>({...state(),rate});
+  f.sh.a.cmd=(type,value)=>{
+   f.commands.push([type,value]);
+   if(value===2)return {ok:false};
+   rate=value;
+   return {ok:true};
+  };
+  f.sh.tick();
+  assert.equal(select.value,'1.1');
+  for(const [requested,actual] of [['1.5','1.5'],['2','1.5']]){
+   select.value=requested;
+   select.dispatchEvent(new f.w.Event('change'));
+   await new Promise(setImmediate);
+   assert.equal(select.value,actual);
+  }
+  assert.deepEqual(f.commands,[['rate',1.5],['rate',2]]);
+ }
+});
 test('sentence loop discards stale completion and toggles on the selected row',async t=>{
  const f=mount(t,{study:true});
  let finish;
@@ -74,11 +97,245 @@ test('sentence loop discards stale completion and toggles on the selected row',a
  assert.deepEqual(structuredClone(f.commands.at(-1)),['loop',{on:false},'replacement']);
  assert.equal(button().getAttribute('aria-pressed'),'false');
 });
+test('shared exact seek validates bounds, submits once and restores focus',async t=>{
+ for(const study of [false,true]){
+  const f=mount(t,{study}), opener=f.sh.q('.sh-times [data-a=jump]'), input=f.sh.q('[data-r=jumpTime]'), form=f.sh.q('[data-r=jumpForm]');
+  opener.click();
+  assert.equal(f.w.document.activeElement,input);
+  for(const invalid of ['0:99','31','-2','x']){
+   input.value=invalid;await f.sh.seekTypedTime();
+   assert.equal(input.getAttribute('aria-invalid'),'true');
+  }
+  assert.equal(f.commands.length,0);
+  input.value='0:15';
+  await Promise.all([f.sh.seekTypedTime(),f.sh.seekTypedTime()]);
+  assert.deepEqual(f.commands.map(command=>command.slice(0,2)),[['seek',15]]);
+  assert.equal(form.hidden,true);
+  assert.equal(f.w.document.activeElement,opener);
+  const focus=f.sh.q('[data-a=focus]');
+  focus.click();
+  assert.equal(focus.getAttribute('aria-pressed'),'true');
+  assert(f.sh.root.classList.contains('sh-focus'));
+ }
+});
+test('shared volume serializes updates and drops intermediate values',async t=>{
+ const f=mount(t,{study:true}), slider=f.sh.q('.sh-local-volume');
+ const sent=[];
+ let release;
+ f.sh.a.cmd=(name,value)=>{sent.push(value);return new Promise(resolve=>{release=resolve;});};
+ for(const value of ['0.2','0.4','0.8']){
+  slider.value=value;slider.dispatchEvent(new f.w.Event('input'));
+ }
+ assert.deepEqual(sent,[.2]);
+ release({ok:true});await new Promise(setImmediate);
+ assert.deepEqual(sent,[.2,.8]);
+ release({ok:true});await new Promise(setImmediate);
+ assert.equal(f.sh.volumePending,false);
+});
+test('captured tracks replace the empty transcript prompt and open the caption section',t=>{
+ const f=mount(t,{study:true,empty:true,actions:[{id:'whisper',label:'Whisper',run(){}}],sections:[{id:'captions',title:'Altyazı izleri',items:[{type:'button',label:'Mevcut izi yükle',run(){}}]}]});
+ const info=f.sh.a.info;
+ assert.equal(f.sh.q('[data-r=processing]').open,true);
+ f.sh.a.info=()=>({...info(),captionTrackCount:2});
+ f.sh.tick();
+ assert.equal(f.sh.q('[data-r=processing]').open,false);
+ const entry=f.sh.q('[data-caption-entry]');
+ assert.match(entry.textContent,/Altyazı izi seç/);
+ entry.click();
+ assert.equal(f.w.document.activeElement,f.sh.q('[data-caption-section] button'));
+ f.sh.q('[data-pclose]').click();
+ assert.equal(f.w.document.activeElement,entry);
+ assert.equal(f.commands.length,0);
+});
+test('automatically expanded transcript tasks give reading space back when text arrives',t=>{
+ const f=mount(t,{study:true,actions:[{id:'transcribe',label:'Whisper',run(){}}]});
+ const state=f.sh.a.state;
+ let loaded=false;
+ f.sh.a.state=()=>({...state(),rows:loaded?f.rows:[],rev:loaded?'loaded':'empty'});
+ f.sh.processingInitialized=false;
+ f.sh.tick();
+ const panel=f.sh.q('[data-r=processing]');
+ assert.equal(panel.open,true);
+ loaded=true;f.sh.tick();
+ assert.equal(panel.open,false);
+});
+test('local bilingual captions and Podcast speech use both track offsets without timing an untimed track',t=>{
+ for(const study of [false,true]){
+  const f=mount(t,{study}), state=f.sh.a.state;
+  const tracks=[
+   {offsetSeconds:1,cues:[{id:'a',start:0,end:5,text:'Original'}]},
+   {offsetSeconds:3,cues:[{id:'translation',start:0,end:5,text:'Çeviri'}]}
+  ];
+  f.rows[0].end=6;
+  f.rows[0].translationCueIds=['translation'];
+  f.setRevision('local-caption-tracks');
+  f.sh.a.state=()=>({...state(),captionTracks:tracks});
+  const source=f.sh.q(study?'[data-r=s]':'[data-r=liveSource]');
+  const translation=f.sh.q(study?'[data-r=t]':'[data-r=liveTranslation]');
+  f.setTime(2);f.sh.tick();
+  assert.equal(source.textContent,'Original');assert.equal(translation.textContent,'');
+  f.setTime(4);f.sh.tick();
+  assert.equal(source.textContent,'Original');assert.equal(translation.textContent,'Çeviri');
+  f.setTime(7);f.sh.tick();
+  assert.equal(source.textContent,'');assert.equal(translation.textContent,'Çeviri');
+  assert.equal(f.sh.lines[0].getAttribute('aria-current'),'true');
+  assert.equal(f.sh.playbackIndex,-1);
+  tracks[1].timed=false;f.sh.tick();assert.equal(translation.textContent,'');
+ }
+});
+test('Podcast live speech follows independent subtitle times and skips ads',t=>{
+ const f=mount(t), state=f.sh.a.state;
+ let adPlaying=false;
+ f.rows[0].translationCueIds=['t1'];
+ f.setRevision('independent-cues');
+ f.sh.a.state=()=>({...state(),adPlaying,canSeek:!adPlaying,captionTracks:[
+  {cues:[{id:'a',start:0,end:10,text:'A source sentence'}]},
+  {cues:[{id:'t1',start:4,end:12,text:'Canlı çeviri'}]}
+ ]});
+ f.sh.tick();
+ assert.equal(f.sh.q('[data-r=liveSource]').textContent,'A source sentence');
+ assert(f.sh.q('[data-r=liveTranslation]').hidden);
+ f.sh.q('[data-d=tr]').click();
+ f.sh.tick();
+ assert.equal(f.sh.cur,-1);
+ f.setTime(11);f.sh.tick();
+ assert.equal(f.sh.cur,0);
+ assert.equal(f.sh.playbackIndex,1);
+ assert.equal(f.sh.q('[data-r=liveTranslation]').textContent,'Canlı çeviri');
+ adPlaying=true;f.sh.tick();
+ assert.equal(f.sh.cur,-1);
+ assert(f.sh.q('[data-r=liveSpeech]').hidden);
+ assert.match(f.sh.q('[data-r=transportHint]').textContent,/Reklam/);
+ adPlaying=false;f.sh.tick();
+ assert.equal(f.sh.cur,0);
+});
+test('browser presentation time can highlight the next cue before the next sample without changing playback commands',t=>{
+ const f=mount(t), state=f.sh.a.state;
+ f.setTime(9.8);
+ f.sh.a.state=()=>({...state(),displayTime:10.2});
+ f.sh.tick();
+ assert.equal(f.sh.cur,1);
+ assert.equal(f.sh.playbackIndex,0);
+ assert.equal(f.sh.lines[1].getAttribute('aria-current'),'true');
+ f.sh.q('[data-a=loop]').click();
+ assert.equal(f.commands.at(-1)[1].row,0);
+});
+test('a translation spanning two originals follows the currently spoken original card', t => {
+ for (const study of [false, true]) {
+  const f = mount(t, { study, prefs: { disp: 'tr' } }), state = f.sh.a.state;
+  for (const row of f.rows) {
+   row.trs = ['Ortak çeviri'];
+   row.translationCueIds = ['shared'];
+  }
+  f.sh.a.state = () => ({ ...state(), captionTracks: [null, { cues: [{ id: 'shared', start: 5, end: 15, text: 'Ortak çeviri' }] }] });
+  f.setRevision('shared-translation');
+  f.setTime(8);
+  f.sh.tick();
+  assert.equal(f.sh.lines[0].getAttribute('aria-current'), 'true');
+  f.setTime(12);
+  f.sh.tick();
+  assert.equal(f.sh.lines[0].hasAttribute('aria-current'), false);
+  assert.equal(f.sh.lines[1].querySelector('[data-translation-part]').getAttribute('aria-current'), 'true');
+  assert.equal(f.sh.lines[1].getAttribute('aria-current'), 'true');
+ }
+});
+test('paired translation sentences have independent controls and active markers', t => {
+ for (const study of [false, true]) {
+  const f = mount(t, { study, prefs: { disp: 'both' } }), state = f.sh.a.state;
+  Object.assign(f.rows[0], { translationCueIds: ['t1', 't2'], translationStarts: [2, 5] });
+  f.sh.a.state = () => ({ ...state(), captionTracks: [null, { offsetSeconds: 2, cues: [
+   { id: 't1', start: 0, end: 3, text: 'Birinci çeviri' },
+   { id: 't2', start: 3, end: 6, text: 'İkinci çeviri' }
+  ] }] });
+  f.setRevision('paired');
+  f.sh.tick();
+  const parts = f.sh.lines[0].querySelectorAll('[data-translation-part]');
+  f.sh.q('[data-d=tr]').click();
+  const first = parts[0].querySelector('button'), second = parts[1].querySelector('button');
+  first.focus();
+  first.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
+  assert.equal(f.w.document.activeElement, second);
+  assert.equal(parts[0].getAttribute('aria-current'), 'true');
+  f.setTime(6);
+  f.sh.tick();
+  assert.equal(parts[0].hasAttribute('aria-current'), false);
+  assert.equal(parts[1].getAttribute('aria-current'), 'true');
+  parts[1].querySelector('button').click();
+  assert.equal(f.commands.at(-1)[0], 'seekTranslation');
+  assert.equal(f.commands.at(-1)[1].part, 1);
+  f.setCanSeek(false);
+  f.sh.tick();
+  assert.equal(parts[1].querySelector('button').disabled, true);
+ }
+});
+test('independent translation follows its own clock in both shared modes', t => {
+ for (const study of [false, true]) {
+  const f = mount(t, { study, prefs: { disp: 'tr' } }), state = f.sh.a.state;
+  f.rows.push({ id: 'gap', start: 22, end: 26, timed: true, src: '', trs: ['Ayrı çeviri'], unc: [],
+   standaloneTranslation: true, translationCueIds: ['gap'], translationStart: 22 });
+  f.sh.a.state = () => ({ ...state(), captionTracks: [null,
+   { offsetSeconds: 2, cues: [{ id: 'gap', start: 20, end: 24, text: 'Ayrı çeviri' }] }] });
+  f.setTime(23);
+  f.setRevision('standalone');
+  f.sh.tick();
+  const line = f.sh.lines[2];
+  assert.equal(line.getAttribute('aria-current'), 'true');
+  assert.equal(line.style.getPropertyValue('--lp'), '25.0%');
+  assert.match(line.textContent, /Bağımsız çeviri satırı/);
+  line.querySelector('[data-a=cueSeek]').click();
+  assert.deepEqual(f.commands.at(-1), ['seekTranslation', 2, 'standalone']);
+  f.sh.q('[data-d=src]').click();
+  f.sh.tick();
+  assert.equal(line.hidden, true);
+  assert.equal(f.sh.cur, -1);
+ }
+});
+test('translation-only timestamps use the verified translation target in both shared modes',t=>{
+ for(const study of [false,true]){
+  const f=mount(t,{study});
+  f.rows[0].translationStart=4;
+  f.setRevision('translated');f.sh.tick();
+  const button=()=>f.sh.lines[0].querySelector('[data-a=cueSeek]');
+  f.sh.q('[data-d=tr]').click();
+  assert.match(button().textContent,/0:04/);
+  button().click();
+  assert.deepEqual(f.commands.at(-1).slice(0,2),['seekTranslation',0]);
+  f.rows[0].translationStart=null;
+  f.setRevision('unverified');f.sh.tick();
+  assert.equal(button().disabled,true);
+  f.sh.q('[data-d=both]').click();
+  assert.equal(button().disabled,false);
+ }
+});
 test('manual transcript browsing remains stopped; return follows without seeking',t=>{
- const f=mount(t),scroll=f.sh.q('[data-r=scroll]');scroll.dispatchEvent(new f.w.WheelEvent('wheel',{deltaY:-100}));assert.equal(f.sh.s.follow,false);
+ const f=mount(t),scroll=f.sh.q('[data-r=scroll]');
+ let interrupted;
+ scroll.scrollTop=23;
+ scroll.scrollTo=options=>{interrupted=options;};
+ scroll.dispatchEvent(new f.w.WheelEvent('wheel',{deltaY:-100}));
+ assert.equal(interrupted.top,23);
+ assert.equal(interrupted.behavior,'instant');
+ assert.equal(f.sh.s.follow,false);
  f.setTime(12);f.sh.tick();assert.equal(f.sh.s.follow,false);assert.equal(f.sh.cur,1);
  f.sh.q('[data-a=follow]').click();assert.equal(f.sh.s.follow,true);assert.equal(f.commands.length,0);
  assert.equal(f.sh.rows[0].trs.length,2);
+});
+test('bilingual captions collapse when the selected track has no text at the current time',t=>{
+ const f=mount(t,{study:true}), captions=f.sh.q('[data-r=subs]');
+ f.setTime(12);
+ f.sh.tick();
+ assert.equal(captions.hidden,false);
+ f.sh.q('[data-d=tr]').click();
+ assert.equal(captions.hidden,true);
+ f.setTime(2);
+ f.sh.tick();
+ assert.equal(captions.hidden,false);
+ f.setTime(12);
+ f.sh.tick();
+ assert.equal(captions.hidden,true);
+ f.sh.q('[data-d=both]').click();
+ assert.equal(captions.hidden,false);
+ assert.equal(f.commands.some(([type])=>type==='seek'||type==='seekCue'),false);
 });
 test('the active caption refreshes at the same index and clears through a silent gap',t=>{
  const f=mount(t,{study:true});
@@ -142,6 +399,64 @@ test('an open word card is invalidated when its transcript revision changes',asy
  const f=mount(t,{cinema:true});await f.sh.openWord(0,'source');assert.equal(f.sh.q('.sh-word-card').hidden,false);f.setRevision('r2');f.sh.tick();assert.equal(f.sh.q('.sh-word-card').hidden,true);assert.equal(f.sh.s.word,null);
 });
 
+test('shared retry suppresses a second click and shows an async failure',async t=>{
+ const f=mount(t,{study:true});
+ let calls=0, reject;
+ f.sh.a.panel=()=>({sections:[],job:{state:'failed',retry:()=>{calls++;return new Promise((_,fail)=>{reject=fail;});}}});
+ f.sh.tick();
+ const retry=f.sh.q('[data-a=jobretry]');
+ retry.click();retry.click();
+ assert.equal(calls,1);
+ reject(new Error('Kaynak hazır değil'));
+ await new Promise(setImmediate);
+ assert.equal(retry.disabled,false);
+ assert.equal(f.sh.q('[data-r=toast]').textContent,'Kaynak hazır değil');
+});
+test('shared task status distinguishes unknown progress, measured progress and failure',t=>{
+ for(const study of [false,true]){
+  const f=mount(t,{study});
+  const status=f.sh.q('[data-r=jobt]'), bar=f.sh.q('[data-r=jobbar]'), percent=f.sh.q('[data-r=jobpercent]');
+  let job={state:'running',text:'Altyazı hazırlanıyor',progress:null};
+  f.sh.a.panel=()=>({job,sections:[]});
+  f.sh.tick();
+  assert.equal(percent.hidden,true);
+  assert.equal(bar.hasAttribute('aria-valuenow'),false);
+  const node=status.firstChild;
+  job={...job,progress:.42};
+  f.sh.tick();
+  assert.equal(status.firstChild,node);
+  assert.equal(bar.getAttribute('aria-valuenow'),'42');
+  assert.equal(percent.hidden,false);
+  assert.equal(percent.textContent,'42%');
+  job={state:'failed',text:'Kaynağa ulaşılamadı',retry:()=>{}};
+  f.sh.tick();
+  assert.equal(status.textContent,job.text);
+  assert.equal(bar.hidden,true);
+  assert.equal(percent.hidden,true);
+  assert.equal(f.sh.q('[data-a=jobretry]').hidden,false);
+ }
+});
+test('shared volume reconciles a rejected change even while the slider has focus',async t=>{
+ for(const study of [false,true]){
+  const f=mount(t,{study}), input=f.sh.q('.sh-volume input');
+  const state=f.sh.a.state;
+  let volume=0;
+  f.sh.a.state=()=>({...state(),volume});
+  f.sh.a.cmd=()=>({ok:false});
+  input.focus();
+  f.sh.tick();
+  assert.equal(input.value,'0');
+  assert.equal(f.sh.q('[data-r=volumeIcon]').dataset.glyph,'volumeZero');
+  input.value='.7';
+  input.dispatchEvent(new f.w.Event('input'));
+  await new Promise(setImmediate);
+  assert.equal(input.value,'0');
+  volume=.4;
+  f.sh.tick();
+  assert.equal(input.getAttribute('aria-valuetext'),'40%');
+  assert.equal(f.sh.q('.sh-volume output').textContent,'40%');
+ }
+});
 test('audio study retains identity and exposes volume without an empty caption box',t=>{
  const f=mount(t,{audio:true,empty:true,study:true});
  assert.equal(f.sh.q('.sh-audio-summary h1').textContent,'Bölüm');assert(f.sh.root.classList.contains('sh-audio'));
@@ -239,11 +554,61 @@ test('Sahne shortcuts preserve input, task opener and focused transcript row',t=
  const search=f.sh.q('[data-r=q]');assert.equal(f.w.document.activeElement,search);
  key(search,' ');assert.equal(f.commands.length,0);
  key(search,'Escape');assert.equal(f.w.document.activeElement,transcript);
- const row=f.sh.lines[0];row.focus();f.setTime(12);f.sh.tick();assert.equal(f.w.document.activeElement,row);
- f.setRevision('r2');f.sh.tick();assert.equal(f.w.document.activeElement,f.sh.lines[0]);
- key(f.sh.lines[0],' ');assert.equal(f.commands.at(-1)[0],'seekCue');
+ const seek=()=>f.sh.lines[0].querySelector('[data-a=cueSeek]');
+ seek().focus();f.setTime(12);f.sh.tick();assert.equal(f.w.document.activeElement,seek());
+ f.setRevision('r2');f.sh.tick();assert.equal(f.w.document.activeElement,seek());
+ f.sh.lines[0].querySelector('.src').click();assert.equal(f.commands.length,0);
+ key(seek(),'ArrowDown');
+ const next=f.sh.lines[1].querySelector('[data-a=cueSeek]');
+ assert.equal(f.w.document.activeElement,next);assert.equal(f.commands.length,0);
+ next.click();assert.deepEqual(f.commands.at(-1).slice(0,2),['seekCue',1]);
 });
 
+test('chapter navigation preserves transcript filters and restores the narrow drawer opener',t=>{
+ const f=mount(t,{study:true});
+ f.w.innerWidth=900;
+ const entry=f.sh.q('.sh-chapter-entry'), list=f.sh.q('[data-r=chaps]');
+ const search=f.sh.q('[data-r=q]'), scroll=f.sh.q('[data-r=scroll]');
+ search.value='source';
+ search.dispatchEvent(new f.w.Event('input'));
+ scroll.scrollTop=70;
+ entry.click();
+ assert.equal(list.hidden,false);
+ assert.equal(f.w.document.activeElement,list.querySelector('[aria-current=true]'));
+ assert.equal(f.sh.root.hasAttribute('data-pw-occludes-native'),false);
+ f.w.innerWidth=740;
+ f.w.dispatchEvent(new f.w.Event('resize'));
+ assert.equal(f.sh.root.hasAttribute('data-pw-occludes-native'),true);
+ f.w.innerWidth=900;
+ f.w.dispatchEvent(new f.w.Event('resize'));
+ assert.equal(f.sh.root.hasAttribute('data-pw-occludes-native'),false);
+ assert.equal(f.commands.length,0);
+ f.sh.q('[data-a=reading]').click();
+ assert.equal(list.hidden,true);
+ assert.equal(search.value,'source');
+ assert.equal(scroll.scrollTop,70);
+ f.sh.q('.browser-study-transcript-close').click();
+ assert.equal(f.w.document.activeElement,entry);
+ assert.equal(f.sh.root.hasAttribute('data-pw-occludes-native'),false);
+ f.sh.focusPassage(12);
+ assert.equal(f.sh.s.transcript,true);
+ assert.equal(search.value,'');
+ assert.equal(f.sh.lines[1].hidden,false);
+ assert.equal(f.sh.lines[1].classList.contains('sh-search-match'),true);
+ assert.equal(f.sh.s.follow,false);
+ assert.equal(f.commands.length,0);
+});
+test('same-media mode changes preserve the reading pane and chapter view',t=>{
+ const podcast=mount(t);
+ podcast.sh.showReading(true);
+ podcast.sh.s.transcript=true;
+ const prefs=podcast.sh.prefs(true), next=mount(t,{study:true,prefs});
+ assert.equal(next.sh.s.transcript,true);
+ assert(next.sh.root.classList.contains('sh-chapters-open'));
+ const other=mount(t,{study:true,prefs,identity:'other-source'});
+ assert.equal(other.sh.s.transcript,false);
+ assert(!other.sh.root.classList.contains('sh-chapters-open'));
+});
 test('chapter highlights and jumps use timed buttons only',t=>{
  const f=mount(t);f.setTime(12);f.sh.tick();
  const active=f.sh.q('.sh-chap[aria-current=true]');
@@ -267,12 +632,77 @@ test('layout follow respects manual browsing and focused transcript controls',t=
  f.w.requestAnimationFrame=fn=>{callback=fn;return 999;};
  f.sh.scrollToActive=()=>{calls++;};
  f.sh.s.follow=false;f.sh.followAfterLayout();callback();assert.equal(calls,0);
- f.sh.s.follow=true;f.sh.lines[0].focus();f.sh.followAfterLayout();callback();assert.equal(calls,0);
- f.sh.lines[0].blur();f.sh.followAfterLayout();callback();assert.equal(calls,1);
+ const seek=f.sh.lines[0].querySelector('[data-a=cueSeek]');
+ f.sh.s.follow=true;seek.focus();f.sh.followAfterLayout();callback();assert.equal(calls,0);
+ seek.blur();f.sh.followAfterLayout();callback();assert.equal(calls,1);
  f.sh.destroy();callback();assert.equal(calls,1);
 });
 
 
+for (const study of [false,true]) {
+ test(`${study?'Bilingual':'Podcast'} reading controls navigate matches, preserve text size and restore audio`,async t=>{
+  const f=mount(t,{study}), q=f.sh.q('[data-r=q]');
+  q.value='sentence';q.dispatchEvent(new f.w.Event('input'));
+  f.sh.q('[data-a=matchNext]').click();
+  assert.equal(f.sh.q('[data-r=searchCount]').textContent,'1 / 2');
+  assert(f.sh.lines[0].classList.contains('sh-query-match'));
+  f.sh.q('[data-a=matchNext]').click();
+  assert.equal(f.sh.q('[data-r=searchCount]').textContent,'2 / 2');
+  assert.equal(f.sh.q('[data-a=matchNext]').getAttribute('aria-disabled'),'true');
+  f.sh.q('[data-a=matchPrev]').click();
+  assert(f.sh.lines[0].classList.contains('sh-query-match'));
+  assert.equal(f.commands.length,0);
+  const size=f.sh.q('[data-r=readingSize]');
+  size.value='large';size.dispatchEvent(new f.w.Event('change'));
+  assert.equal(f.sh.root.dataset.readingSize,'large');
+  const restored=mount(t,{study:!study,prefs:f.sh.prefs(true)});
+  assert.equal(restored.sh.q('[data-r=readingSize]').value,'large');
+  f.sh.q('.sh-chapter-entry').click();
+  const chapter=f.sh.q('[data-r=chapterSearch]');
+  chapter.value='İkinci';chapter.dispatchEvent(new f.w.Event('input'));
+  assert.equal(f.sh.q('[data-r=chapterCount]').textContent,'1 başlık');
+  assert(f.sh.q('button.sh-chap').hidden);
+  f.sh.q('[data-a=currentChapter]').click();
+  assert.equal(chapter.value,'');
+  assert.equal(f.w.document.activeElement,f.sh.q('button.sh-chap'));
+  assert.equal(f.commands.length,0);
+  const state=f.sh.a.state, cmd=f.sh.a.cmd;
+  let volume=.42;
+  f.sh.a.state=()=>({...state(),volume});
+  f.sh.a.cmd=(...args)=>{if(args[0]==='volume')volume=args[1];return cmd(...args);};
+  const mute=f.sh.q('[data-a=mute]');
+  mute.click();await new Promise(setImmediate);
+  assert.equal(mute.getAttribute('aria-pressed'),'true');
+  mute.click();await new Promise(setImmediate);
+  assert.equal(volume,.42);
+  assert.equal(mute.getAttribute('aria-pressed'),'false');
+ });
+}
+test('shared search matches individual visible texts and starts a new query at the top',t=>{
+ for(const study of [false,true]){
+  const f=mount(t,{study}), input=f.sh.q('[data-r=q]'), scroll=f.sh.q('[data-r=scroll]');
+  const search=value=>{
+   input.value=value;
+   input.dispatchEvent(new f.w.Event('input'));
+  };
+  scroll.scrollTop=150;
+  search('sentence Birinci');
+  assert.equal(scroll.scrollTop,0);
+  assert.equal(f.sh.q('[data-r=searchEmpty]').hidden,false);
+  search('birinci   çeviri');
+  assert.equal(f.sh.lines[0].hidden,false);
+  f.rows[0].trs=['İSTANBUL IŞIK'];
+  f.setRevision('turkish-search');
+  f.sh.tick();
+  search('istanbul ışık');
+  assert.equal(f.sh.lines[0].hidden,false);
+  scroll.scrollTop=44;
+  f.setRevision('same-matches');
+  f.sh.tick();
+  assert.equal(scroll.scrollTop,44);
+  assert.equal(f.commands.length,0);
+ }
+});
 test('transcript search explains language-specific no matches and clears without playback or follow',t=>{
  const f=mount(t,{study:true}),q=f.sh.q('[data-r=q]'),clear=f.sh.q('[data-r=clearSearch]');
  assert.equal(clear.hidden,true);assert.equal(f.sh.q('[data-r=searchCount]').hidden,true);
@@ -329,10 +759,80 @@ test('shared transport enables only usable sentence tools and supports keyboard 
   assert.equal(study.commands.length, 2);
   study.setCanSeek(true);
   study.sh.tick();
-  assert.equal(study.sh.lines[0].tabIndex, 0);
+  assert.equal(study.sh.lines[0].hasAttribute('role'),false);
+  assert(!study.sh.lines[0].querySelector('[data-a=cueSeek]').disabled);
   assert(!study.sh.lines[0].querySelector('[data-act=loop]').disabled);
 });
 
+test('Full sentence opens the current transcript row without issuing a playback command', t => {
+ const f=mount(t,{study:true}), button=f.sh.q('[data-a=readCurrent]');
+ const query=f.sh.q('[data-r=q]');
+ query.value='no matching sentence';
+ query.dispatchEvent(new f.w.Event('input'));
+ assert.equal(f.sh.lines[0].hidden,true);
+ button.click();
+ assert.equal(f.sh.s.transcript,true);
+ assert.equal(f.sh.lines[0].hidden,false);
+ assert.equal(f.w.document.activeElement,f.sh.lines[0]);
+ assert.equal(f.commands.length,0);
+ f.sh.q('.browser-study-transcript-close').click();
+ assert.equal(f.w.document.activeElement,button);
+});
+test('track rebuild preserves focus on the same independent translation when cue ids overlap', t => {
+ const f=mount(t,{study:true,prefs:{disp:'tr'}});
+ f.rows[1]={...f.rows[1],id:f.rows[0].id,src:'',trs:['Independent translation'],
+  standaloneTranslation:true,translationCueIds:['independent'],translationStart:12};
+ f.setRevision('independent-added');f.sh.tick();
+ f.sh.lines[1].querySelector('[data-a=cueSeek]').focus();
+ f.setRevision('new-revision');f.sh.tick();
+ assert.equal(f.w.document.activeElement.closest('[data-i]').dataset.i,'1');
+});
+test('track rebuild preserves a translation sentence button through a part reorder', t => {
+ const f=mount(t,{study:true,prefs:{disp:'tr'}});
+ Object.assign(f.rows[0],{translationCueIds:['one','two'],translationStarts:[1,3]});
+ f.setRevision('parts');f.sh.tick();
+ f.sh.lines[0].querySelector('[data-a=translationSeek][data-part="1"]').focus();
+ const state=f.sh.a.state;
+ const rows=[{...f.rows[0],translationCueIds:['two','one'],translationStarts:[3,1],trs:['Second','First']},...f.rows.slice(1)];
+ f.sh.a.state=()=>({...state(),rows});
+ f.setRevision('reordered');f.sh.tick();
+ assert.equal(f.w.document.activeElement.dataset.a,'translationSeek');
+ assert.equal(f.w.document.activeElement.dataset.part,'0');
+});
+test('closing Full sentence restores follow and resuming from a search uses the current cue', t => {
+ const f=mount(t,{study:true}), button=f.sh.q('[data-a=readCurrent]');
+ button.click();
+ assert.equal(f.sh.s.follow,false);
+ f.setTime(12);
+ f.sh.tick();
+ f.sh.q('.browser-study-transcript-close').click();
+ assert.equal(f.sh.s.follow,true);
+ button.click();
+ const query=f.sh.q('[data-r=q]');
+ query.value='source';
+ query.dispatchEvent(new f.w.Event('input'));
+ assert.equal(f.sh.lines[1].hidden,true);
+ f.sh.q('[data-a=follow]').click();
+ assert.equal(query.value,'');
+ assert.equal(f.sh.s.follow,true);
+ assert.equal(f.sh.cur,1);
+ assert.equal(f.sh.lines[1].hidden,false);
+ assert.equal(f.commands.length,0);
+});
+test('empty YouTube Stage offers the browser CC path until a track arrives', t => {
+ const f=mount(t,{study:true,empty:true}), info=f.sh.a.info;
+ let count=0, closed=0;
+ f.sh.a.info=()=>({...info(),youtubeCaptions:true,captionTrackCount:count});
+ f.sh.o.onClose=()=>closed++;
+ f.sh.tick();
+ f.sh.q('.sh-empty [data-a=close]').click();
+ assert.equal(closed,1);
+ assert.equal(f.commands.length,0);
+ count=1;
+ f.sh.tick();
+ assert.equal(f.sh.q('.sh-empty [data-a=close]'),null);
+ assert(f.sh.q('.sh-empty [data-caption-entry]'));
+});
 test('empty transcript drawer focuses its visible close button and returns to its opener', t => {
   const f = mount(t, { study: true, empty: true });
   const open = f.sh.q('.sh-transcript-toggle');
@@ -346,12 +846,55 @@ test('empty transcript drawer focuses its visible close button and returns to it
   assert.equal(open.getAttribute('aria-expanded'), 'false');
 });
 
+for (const study of [false,true]) {
+ test(`${study?'Bilingual':'Podcast'} timer, search keyboard and seek availability stay bound to the active source`, t=>{
+  const f=mount(t,{study}), sleep=f.sh.q('[data-r=sleep]'), search=f.sh.q('[data-r=q]'), wave=f.sh.q('[data-r=wave]');
+  const choose=value=>{sleep.value=value;sleep.dispatchEvent(new f.w.Event('change'));};
+  const key=(target,key)=>target.dispatchEvent(new f.w.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
+  assert.deepEqual([...sleep.options].map(option=>option.value),['0','15','30','60']);
+  choose('60');
+  assert.match(sleep.selectedOptions[0].textContent,/60 dk kaldı/);
+  assert(sleep.parentElement.classList.contains('active'));
+  choose('0');
+  assert.equal(f.sh.s.sleepAt,0);
+  choose('15');
+  f.sh.s.sleepAt=Date.now()-1;
+  f.sh.tick();
+  assert.equal(sleep.value,'0');
+  assert.equal(f.commands.filter(([name])=>name==='pause').length,1);
+  f.sh.tick();
+  assert.equal(f.commands.filter(([name])=>name==='pause').length,1);
+  search.focus();
+  search.value='next';
+  search.dispatchEvent(new f.w.Event('input'));
+  key(search,'Enter');
+  assert.equal(f.w.document.activeElement,f.sh.lines[1].querySelector('[data-a=cueSeek]'));
+  search.focus();
+  key(search,'Escape');
+  assert.equal(search.value,'');
+  assert.equal(f.w.document.activeElement,search);
+  assert(!f.commands.some(([name])=>name.startsWith('seek')));
+  f.setTime(100);
+  f.sh.tick();
+  assert.equal(wave.getAttribute('aria-valuenow'),'30');
+  f.setCanSeek(false);
+  f.sh.tick();
+  assert.equal(wave.tabIndex,-1);
+  choose('15');
+  f.sh.s.sleepAt=Date.now()-1;
+  f.sh.a.identity=()=> 'other-source';
+  Object.defineProperty(f.w.document,'hidden',{value:true});
+  f.sh.tick();
+  assert.equal(f.commands.filter(([name])=>name==='pause').length,1);
+ });
+}
 test('mode handoff preserves same-source reading and sleep but rejects another media identity', t => {
   const podcast = mount(t);
   const search = podcast.sh.q('[data-r=q]');
   search.value = 'next';
   search.dispatchEvent(new podcast.w.Event('input'));
-  podcast.sh.q('[data-a=sleep]').click();
+  const timer=podcast.sh.q('[data-r=sleep]');
+  timer.value='30';timer.dispatchEvent(new podcast.w.Event('change'));
   podcast.sh.q('[data-r=scroll]').scrollTop = 73;
   const prefs = podcast.sh.prefs(true);
   const study = mount(t, { study:true, prefs });
