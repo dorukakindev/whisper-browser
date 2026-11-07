@@ -1,114 +1,302 @@
-/* Dubbing uses the shared graphite/amber palette and Sora/Plex typography. */
-#dubGeneratorDialog .dub-natural-card { border-inline-start:0; }
-#dubGeneratorDialog .dub-natural-heading { display:flex; align-items:flex-start; gap:24px; }
-#dubGeneratorDialog .dub-natural-heading>div { min-width:0; flex:1; }
-#dubGeneratorDialog .dub-natural-heading h3 { margin:0 0 10px; font-size:19px; line-height:1.4; }
-#dubGeneratorDialog .dub-natural-heading p { margin:0; max-width:58ch; line-height:1.7; color:var(--text-dim); text-wrap:pretty; }
-#dubGeneratorDialog #dubNaturalState { font-size:13px; line-height:1.7; color:var(--text); }
-#dubGeneratorDialog #dubNaturalDelivery { font-size:12px; line-height:1.65; color:var(--text-dim); }
-#dubGeneratorDialog #dubManualSettings { margin-top:18px; border-top:1px solid var(--border); padding-top:8px; }
-#dubGeneratorDialog #dubManualSettings>summary { color:var(--text-dim); }
-#dubGeneratorDialog #dubScopeSettings { margin-top:14px; }
-#dubGeneratorDialog #dubNaturalReview { line-height:1.7; max-width:64ch; }
-#dubGeneratorDialog :is(button,summary,select,input,textarea):focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
-#dubGeneratorDialog #dubGeneratorElapsed,#dubGeneratorDialog #dubGeneratorCount { font-variant-numeric:tabular-nums; }
-#dubGeneratorDialog #dubGeneratorStart { min-width:170px; }
-@media(max-width:700px) {
- #dubGeneratorDialog .dub-natural-heading { gap:14px; }
- #dubGeneratorDialog .dub-natural-heading h3 { font-size:17px; }
- #dubGeneratorDialog #dubNaturalRecommend,#dubGeneratorDialog #dubNaturalReviewOpen { white-space:normal; height:auto; min-height:40px; text-align:start; }
+/* Dublaj stüdyosu — kabuğun ve alt bileşenlerin tek stil sahibi.
+   Renk, yazı tipi ve köşe değerleri theme-palette.css / styles.css değişkenlerinden gelir; yeni bağımsız token yoktur.
+   Kompozisyon: başlık + durum çipi → hazırlık şeridi (altyazı · ses · kapsam) → düz bölümler → çalıştırma çubuğu. */
+
+#dubGeneratorDialog.dub-studio {
+  --dub-row: color-mix(in srgb, var(--text) 6%, transparent);
+  --dub-edge: color-mix(in srgb, var(--accent) 42%, var(--border));
+  --dub-warn: var(--warning, #d9a441);
+  --dub-ease: var(--ui-motion-ease, cubic-bezier(.16, 1, .3, 1));
+  width: min(1040px, calc(100vw - 32px)); max-height: min(920px, 94dvh); margin: auto; padding: 0; overflow: hidden;
+  border: 1px solid var(--border-strong); border-radius: 20px; background: var(--bg-1); color: var(--text);
+  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  box-shadow: 0 36px 100px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .04) inset;
+}
+#dubGeneratorDialog.dub-studio::backdrop { background: rgb(var(--media-scrim-rgb) / .62); backdrop-filter: blur(3px); }
+#dubGeneratorDialog.dub-studio[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; animation: dub-rise 240ms var(--dub-ease); }
+#dubGeneratorDialog :is(h2, h3) { font-family: Sora, 'Segoe UI', sans-serif; text-wrap: balance; }
+#dubGeneratorDialog [hidden], #dubGeneratorDialog .hidden { display: none !important; }
+#dubGeneratorDialog p { white-space: normal; line-height: 1.6; text-wrap: pretty; max-width: 72ch; }
+#dubGeneratorDialog :is(button, summary, select, input, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Başlık ve durum çipi */
+#dubGeneratorDialog .dub-studio-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 28px 16px; }
+#dubGeneratorDialog .dub-title-block { min-width: 0; }
+#dubGeneratorDialog .dub-studio-header h2 { margin: 0; font-size: 23px; line-height: 1.2; font-weight: 650; letter-spacing: -.02em; }
+#dubGeneratorDialog .dub-studio-header p { margin: 6px 0 0; font-size: 13px; color: var(--text-dim); }
+#dubGeneratorDialog .dub-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+#dubGeneratorDialog #dubTextStudio { min-height: 36px; padding: 0 14px; font-size: 12.5px; }
+#dubGeneratorDialog .dub-state {
+  --dot: var(--text-muted);
+  display: inline-flex; align-items: center; gap: 9px; min-height: 30px; padding: 0 13px 0 11px; border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--bg-2); color: var(--text); font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  transition: background-color .18s, border-color .18s;
+}
+#dubGeneratorDialog .dub-state i { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--dot); }
+#dubGeneratorDialog .dub-state[data-state="notready"] i { background: transparent; box-shadow: inset 0 0 0 1.6px var(--dot); }
+#dubGeneratorDialog .dub-state[data-state="ready"] { --dot: var(--accent); border-color: var(--dub-edge); background: var(--accent-soft); }
+#dubGeneratorDialog .dub-state[data-state="preparing"] { --dot: var(--accent); }
+#dubGeneratorDialog .dub-state[data-state="preparing"] i { animation: dub-breathe 1.4s ease-in-out infinite; }
+#dubGeneratorDialog .dub-state[data-state="review"] { --dot: var(--dub-warn); border-color: color-mix(in srgb, var(--dub-warn) 60%, var(--border)); background: color-mix(in srgb, var(--dub-warn) 12%, var(--bg-2)); }
+#dubGeneratorDialog .dub-state[data-state="running"] { --dot: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+#dubGeneratorDialog .dub-state[data-state="running"] i { animation: dub-ring 1.6s var(--dub-ease) infinite; }
+#dubGeneratorDialog .dub-state[data-state="partial"] { --dot: var(--dub-warn); border-color: color-mix(in srgb, var(--dub-warn) 60%, var(--border)); background: color-mix(in srgb, var(--dub-warn) 12%, var(--bg-2)); }
+#dubGeneratorDialog .dub-state[data-state="partial"] i { background: conic-gradient(var(--dot) 0 50%, transparent 0); box-shadow: inset 0 0 0 1.6px var(--dot); }
+#dubGeneratorDialog .dub-state[data-state="done"] { --dot: var(--success); border-color: color-mix(in srgb, var(--success) 55%, var(--border)); background: color-mix(in srgb, var(--success) 12%, var(--bg-2)); }
+#dubGeneratorDialog .dub-state[data-state="failed"] { --dot: var(--danger); border-color: color-mix(in srgb, var(--danger) 60%, var(--border)); background: color-mix(in srgb, var(--danger) 12%, var(--bg-2)); }
+
+/* Hazırlık şeridi: altyazı · ses · kapsam. Her hücre kendi ayarına götüren gerçek düğmedir. */
+#dubGeneratorDialog .dub-slate { position: relative; display: grid; grid-template-columns: 1.3fr 1fr 1fr; border-block: 1px solid var(--border); background: var(--bg-0); }
+#dubGeneratorDialog .dub-slate::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; opacity: .55; pointer-events: none;
+  background: repeating-linear-gradient(115deg, var(--accent) 0 14px, transparent 14px 28px); }
+#dubGeneratorDialog .dub-slate > div { position: relative; min-width: 0; display: grid; }
+#dubGeneratorDialog .dub-slate > div + div { border-inline-start: 1px solid var(--border); }
+#dubGeneratorDialog .dub-slate > div + div::before { content: ''; position: absolute; z-index: 1; left: -5px; top: 50%; width: 9px; height: 9px; translate: 0 -50%; rotate: 45deg;
+  background: var(--bg-0); border-top: 1.5px solid var(--border-strong); border-right: 1.5px solid var(--border-strong); pointer-events: none; }
+#dubGeneratorDialog .dub-readiness-action { position: relative; display: grid; align-content: start; gap: 3px; width: 100%; min-width: 0; padding: 20px 24px 15px 28px;
+  border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; transition: background-color .18s; }
+#dubGeneratorDialog .dub-readiness-action::before { content: ''; position: absolute; left: 12px; top: 50%; width: 4px; height: 26px; translate: 0 -50%; border-radius: 2px; background: var(--accent); opacity: .85; }
+#dubGeneratorDialog .dub-readiness-action:has(strong[data-ready="false"])::before { background: var(--dub-warn); opacity: 1; }
+#dubGeneratorDialog .dub-readiness-action::after { content: ''; position: absolute; left: 28px; right: 24px; bottom: 0; height: 2px; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .24s var(--dub-ease); }
+#dubGeneratorDialog .dub-readiness-action:hover:not(:disabled) { background: var(--dub-row); }
+#dubGeneratorDialog .dub-readiness-action:is(:hover, :focus-visible):not(:disabled)::after { transform: scaleX(1); }
+#dubGeneratorDialog .dub-readiness-action:focus-visible { outline-offset: -3px; }
+#dubGeneratorDialog .dub-readiness-action:disabled { cursor: default; }
+#dubGeneratorDialog .dub-readiness small { display: block; margin: 0; font-size: 11.5px; color: var(--text-muted); }
+#dubGeneratorDialog .dub-readiness strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; line-height: 1.4; }
+#dubGeneratorDialog .dub-readiness strong[data-ready="false"] { color: var(--dub-warn); }
+#dubGeneratorDialog .dub-ready-note { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+#dubGeneratorDialog .dub-ready-note:empty { display: none; }
+
+/* Düz bölümler: kart içinde kart yok; ayrım ince çizgiyle */
+#dubGeneratorDialog .dub-studio-scroll { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 22px 28px 14px; scrollbar-gutter: stable; }
+#dubGeneratorDialog .dub-studio-grid { display: block; }
+#dubGeneratorDialog .dub-studio-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; min-width: 0; }
+#dubGeneratorDialog .dub-studio-main > * { min-width: 0; }
+#dubGeneratorDialog .dub-card { padding: 0; border: 0; border-radius: 0; background: none; }
+#dubGeneratorDialog .dub-source-card { padding-inline-end: 32px; }
+#dubGeneratorDialog .dub-voice-card { padding-inline-start: 32px; border-inline-start: 1px solid var(--border); }
+#dubGeneratorDialog .dub-studio-main > :is(#dubPreviewCard, .dub-natural-card, .dub-edit-card) { grid-column: 1 / -1; }
+#dubGeneratorDialog .dub-natural-card, #dubGeneratorDialog .dub-edit-card { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--border); }
+#dubGeneratorDialog .dub-card-heading { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
+#dubGeneratorDialog .dub-card-heading h3 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.005em; }
+#dubGeneratorDialog .dub-generator-row { gap: 10px; margin-block: 12px; font-size: 13px; }
+#dubGeneratorDialog .dub-card p { margin-block: 8px; font-size: 12.5px; color: var(--text-dim); }
+#dubGeneratorDialog label { font-size: 12.5px; color: var(--text-dim); }
+#dubGeneratorDialog label:has(> input[type="checkbox"]), #dubGeneratorDialog .dub-check { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; color: var(--text); font-size: 13px; }
+#dubGeneratorDialog input[type="checkbox"] { flex: none; width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--accent); }
+#dubGeneratorDialog input[type="range"] { accent-color: var(--accent); }
+
+/* Alanlar */
+#dubGeneratorDialog :is(input[type="text"], input[type="search"], select, textarea) {
+  box-sizing: border-box; max-width: 100%; min-height: 40px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-0); color: var(--text); font: inherit; font-size: 13px; transition: border-color .18s, box-shadow .18s;
+}
+#dubGeneratorDialog :is(select, textarea, input[type="search"]) { width: 100%; }
+#dubGeneratorDialog textarea { line-height: 1.55; resize: none; }
+#dubGeneratorDialog :is(input, select, textarea):hover:not(:disabled) { border-color: var(--border-strong); }
+#dubGeneratorDialog :is(input, select, textarea):disabled { opacity: .55; }
+#dubGeneratorDialog .dub-range-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 12px; align-items: end; }
+#dubGeneratorDialog .dub-range-row input { width: 100%; }
+#dubGeneratorDialog .dub-range-row label:nth-of-type(1) { grid-column: 1; grid-row: 1; }
+#dubGeneratorDialog .dub-range-row label:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+#dubGeneratorDialog .dub-range-row #dubRangeStart { grid-column: 1; grid-row: 2; }
+#dubGeneratorDialog .dub-range-row #dubRangeEnd { grid-column: 2; grid-row: 2; }
+#dubGeneratorDialog .dub-range-row button { grid-column: 1 / -1; justify-self: start; }
+#dubGeneratorDialog .dub-input-notice { margin: 10px 0; padding: 10px 14px; border-inline-start: 3px solid var(--accent); border-radius: 4px 10px 10px 4px; background: color-mix(in srgb, var(--accent) 9%, var(--bg-1)); color: var(--text); font-size: 12.5px; line-height: 1.6; }
+
+/* Podcast kaynağı ve altyazı izi */
+#dubGeneratorDialog .dub-podcast-source { display: grid; gap: 5px; min-width: 0; margin-block: 2px 8px; }
+#dubGeneratorDialog .dub-podcast-eyebrow, #dubGeneratorDialog .dub-podcast-source > label { font-size: 11.5px; color: var(--text-muted); }
+#dubGeneratorDialog .dub-podcast-source > label { margin-top: 8px; }
+#dubGeneratorDialog .dub-podcast-episode { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; line-height: 1.4; font-weight: 600; color: var(--text); }
+#dubGeneratorDialog .dub-podcast-meta { margin: 0; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#dubGeneratorDialog .dub-podcast-meta:empty { display: none; }
+#dubGeneratorDialog .dub-podcast-source .btn { justify-self: start; margin-top: 2px; }
+#dubGeneratorDialog .dub-source-card[data-podcast="on"] { display: flex; flex-direction: column; }
+#dubGeneratorDialog .dub-source-card[data-podcast="on"] > .dub-card-heading { order: -3; }
+#dubGeneratorDialog .dub-source-card[data-podcast="on"] > .dub-podcast-source { order: -2; }
+#dubGeneratorDialog .dub-source-card[data-podcast="on"] #dubSrtName { display: none; }
+#dubGeneratorDialog .dub-source-card[data-podcast="on"] #dubChooseSrt { align-self: flex-start; width: auto; min-height: 32px; padding: 0 4px; border: 0; background: transparent; color: var(--text-dim); font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; }
+#dubGeneratorDialog .dub-source-card[data-podcast="on"] #dubChooseSrt:hover { color: var(--accent); }
+#dubGeneratorDialog #dubSrtName { min-width: 0; font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+
+/* Referans ses */
+#dubGeneratorDialog .dub-active-reference { padding: 0 0 14px; border-bottom: 1px solid var(--border); }
+#dubGeneratorDialog .dub-active-reference small { display: block; margin-bottom: 5px; font-size: 11.5px; color: var(--text-muted); }
+#dubGeneratorDialog .dub-active-reference strong { display: block; overflow-wrap: anywhere; font-size: 15px; font-weight: 600; }
+#dubGeneratorDialog .dub-active-reference p { margin: 7px 0 0; max-width: 48ch; }
+#dubGeneratorDialog .dub-reference-library { border-top: 0; margin-block: 8px; }
+#dubGeneratorDialog .dub-reference-library #voiceReferencePicker { margin: 0 0 8px; display: grid; gap: 8px; }
+#dubGeneratorDialog .voice-reference-count { margin: 0; font-size: 11.5px; }
+#dubGeneratorDialog .dub-voice-card > .dub-generator-row { margin-block: 14px 6px; }
+#dubGeneratorDialog .dub-bg-settings { margin-top: 10px; }
+
+/* Açılır bölümler: sol ok + ince çizgi; açılınca içerik yumuşak belirir */
+#dubGeneratorDialog details { border-top: 1px solid var(--border); }
+#dubGeneratorDialog details > summary { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 2px; list-style: none; cursor: pointer; user-select: none; font-size: 13.5px; font-weight: 600; color: var(--text); transition: color .16s; }
+#dubGeneratorDialog details > summary::-webkit-details-marker { display: none; }
+#dubGeneratorDialog details > summary::before { content: ''; flex: none; width: 7px; height: 7px; margin-inline: 3px 4px; rotate: -45deg; border-right: 1.6px solid var(--text-dim); border-bottom: 1.6px solid var(--text-dim); transition: rotate .16s var(--dub-ease); }
+#dubGeneratorDialog details[open] > summary::before { rotate: 45deg; }
+#dubGeneratorDialog details > summary:hover { color: var(--accent); }
+#dubGeneratorDialog details[open] > :not(summary) { animation: dub-reveal .22s var(--dub-ease) both; }
+#dubGeneratorDialog details[open] { padding-bottom: 10px; }
+#dubGeneratorDialog details details { margin-inline-start: 14px; }
+#dubGeneratorDialog #dubManualSettings { margin-top: 16px; }
+#dubGeneratorDialog #dubManualSettings > summary { color: var(--text-dim); }
+#dubGeneratorDialog #dubQualityResults, #dubGeneratorDialog #dubWorkspacePanel { margin: 0; padding-inline: 0; padding-block: 0; border-inline: 0; border-bottom: 0; border-radius: 0; border-top: 1px solid var(--border); }
+#dubGeneratorDialog #dubQualityResults[open], #dubGeneratorDialog #dubWorkspacePanel[open] { padding-bottom: 10px; }
+#dubGeneratorDialog .dub-edit-card > details:first-of-type { border-top: 0; }
+#dubGeneratorDialog .dub-quality-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+#dubGeneratorDialog .dub-quality-summary > span { padding: 3px 10px; border: 1px solid var(--border-strong); border-radius: 999px; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+#dubGeneratorDialog .dub-quality-summary > [data-state="ready"] { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); }
+#dubGeneratorDialog .dub-quality-summary > [data-state="review"] { border-color: color-mix(in srgb, var(--dub-warn) 60%, var(--border)); }
+#dubGeneratorDialog .dub-quality-summary > [data-state="failed"] { border-color: color-mix(in srgb, var(--danger) 60%, var(--border)); }
+#dubGeneratorDialog .dub-experience { margin: 0 0 18px; }
+
+/* Üretim biçimi: profil seçici segmentli ve her zaman görünür */
+#dubGeneratorDialog .dub-natural-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+#dubGeneratorDialog .dub-natural-heading > div { min-width: 0; flex: 1; }
+#dubGeneratorDialog .dub-natural-heading h3 { margin: 0 0 4px; font-size: 15px; font-weight: 650; }
+#dubGeneratorDialog .dub-natural-heading p { margin: 0; }
+#dubGeneratorDialog .dub-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 14px 0 10px; border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden; background: var(--bg-0); }
+#dubGeneratorDialog .dub-preset { position: relative; padding: 12px 16px; border: 0; background: transparent; color: var(--text); text-align: start; cursor: pointer; transition: background-color .18s; }
+#dubGeneratorDialog .dub-preset + .dub-preset { border-inline-start: 1px solid var(--border); }
+#dubGeneratorDialog .dub-preset strong { display: block; margin-bottom: 3px; font-size: 13.5px; }
+#dubGeneratorDialog .dub-preset small { display: block; font-size: 11.5px; color: var(--text-muted); line-height: 1.4; }
+#dubGeneratorDialog .dub-preset:hover:not(:disabled) { background: var(--dub-row); }
+#dubGeneratorDialog .dub-preset[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+#dubGeneratorDialog .dub-preset[aria-pressed="true"] strong::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-inline-start: 8px; border-radius: 50%; vertical-align: middle; background: var(--accent); }
+#dubGeneratorDialog .dub-preset:disabled { opacity: .55; cursor: default; }
+#dubGeneratorDialog .dub-preset:focus-visible { outline-offset: -3px; }
+#dubGeneratorDialog #dubPresetSummary { margin: 0 0 4px; font-size: 13px; color: var(--text); }
+#dubGeneratorDialog .dub-production-summary { margin: 0 0 4px; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+#dubGeneratorDialog :is(#dubNaturalState, #dubNaturalDelivery):empty { display: none; }
+#dubGeneratorDialog #dubNaturalState, #dubGeneratorDialog #dubNaturalDelivery { margin: 2px 0 0; font-size: 12px; color: var(--text-dim); }
+
+/* Sonuç şeridi ve onay kapısı */
+#dubGeneratorDialog #dubPreviewCard { margin: 0 0 24px; padding: 14px 18px 14px 20px; border: 1px solid color-mix(in srgb, var(--success) 40%, var(--border)); border-inline-start: 4px solid var(--success); border-radius: 4px 14px 14px 4px; background: color-mix(in srgb, var(--success) 6%, var(--bg-1)); animation: dub-arrive .42s var(--dub-ease) both; }
+#dubGeneratorDialog #dubPreviewCard .dub-card-heading { margin-bottom: 6px; }
+#dubGeneratorDialog #dubPreviewCard audio { display: block; width: 100%; margin-top: 10px; }
+#dubGeneratorDialog #dubGeneratedName { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+#dubGeneratorDialog #dubGeneratedName:empty { display: none; }
+#dubGeneratorDialog .dub-generation-gate { display: flex; flex-wrap: wrap; gap: 8px 10px; margin: 0 0 22px; padding: 16px 20px; border: 1px solid color-mix(in srgb, var(--dub-warn) 55%, var(--border)); border-inline-start: 4px solid var(--dub-warn); border-radius: 4px 14px 14px 4px; background: color-mix(in srgb, var(--dub-warn) 9%, var(--bg-1)); animation: dub-arrive .32s var(--dub-ease) both; }
+#dubGeneratorDialog .dub-generation-gate > :is(h3, p) { flex: 1 1 100%; margin: 0; }
+#dubGeneratorDialog .dub-generation-gate > h3 { font-size: 15px; }
+#dubGeneratorDialog .dub-generation-gate > p { color: var(--text); font-size: 13px; }
+#dubGeneratorDialog .dub-generation-gate > button:last-of-type { border-color: transparent; background: var(--accent); color: var(--accent-contrast); }
+#dubGeneratorDialog .dub-generation-gate > button:last-of-type:disabled { background: var(--bg-2); color: var(--text-muted); border-color: var(--border); }
+
+/* Çalıştırma çubuğu: durum + neden/sonraki adım solda, tek ana eylem sağda */
+#dubGeneratorDialog .dub-studio-footer { position: relative; min-width: 0; padding: 14px 28px; border-top: 1px solid var(--border-strong); background: linear-gradient(180deg, var(--bg-1), var(--bg-0)); }
+#dubGeneratorDialog .dub-runbar { display: grid; grid-template-columns: minmax(260px, 1fr) auto; align-items: center; gap: 8px 24px; }
+#dubGeneratorDialog .dub-run-copy { display: grid; gap: 3px; min-width: 0; }
+#dubGeneratorDialog .dub-run-copy p { margin: 0; max-width: none; }
+#dubGeneratorDialog .dub-run-status { font-size: 14px; font-weight: 600; color: var(--text); }
+#dubGeneratorDialog .dub-run-reason { font-size: 12.5px; color: var(--text-dim); }
+#dubGeneratorDialog .dub-run-reason:empty { display: none; }
+#dubGeneratorDialog .dub-run-live { display: flex; flex-wrap: wrap; gap: 4px 12px; max-height: 76px; overflow: auto; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#dubGeneratorDialog .dub-run-live:not(:has(:not(:empty))) { display: none; }
+#dubGeneratorDialog #dubGeneratorActivity { display: flex; flex-wrap: wrap; gap: 6px; }
+#dubGeneratorDialog .dub-run-actions { position: relative; display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: 10px; margin: 0; }
+#dubGeneratorDialog .dub-run-actions .btn { min-height: 42px; white-space: nowrap; }
+#dubGeneratorDialog #dubGeneratorStart { min-width: 184px; font-weight: 650; }
+#dubGeneratorDialog #dubGeneratorStart.btn-primary:not(:disabled) { box-shadow: 0 1px 0 rgb(255 255 255 / .18) inset, 0 10px 26px -12px var(--accent); transition: box-shadow .2s, background-color .18s, scale .1s; }
+#dubGeneratorDialog #dubGeneratorStart.btn-primary:not(:disabled):hover { box-shadow: 0 1px 0 rgb(255 255 255 / .22) inset, 0 14px 34px -10px var(--accent); }
+#dubGeneratorDialog #dubGeneratorStart:disabled { background: transparent; color: var(--text-muted); border: 1px dashed var(--border-strong); box-shadow: none; opacity: 1; }
+#dubGeneratorDialog .dub-run-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-top: 6px; font-size: 12px; color: var(--text-dim); }
+#dubGeneratorDialog .dub-run-meta > p { margin: 0; font-variant-numeric: tabular-nums; }
+#dubGeneratorDialog .dub-run-details { min-width: 0; border-top: 0; font-size: 12px; }
+#dubGeneratorDialog .dub-run-details > summary { min-height: 32px; padding: 0 2px; font-size: 12px; font-weight: 500; color: var(--text-dim); }
+#dubGeneratorDialog .dub-run-details-body { max-height: 120px; overflow: auto; padding: 6px 0; }
+#dubGeneratorDialog .dub-run-details-body p { margin: 4px 0; font-size: 12px; }
+#dubGeneratorDialog .dub-studio-footer:has(.dub-run-details[open]) .dub-run-meta { display: block; }
+#dubGeneratorDialog #dubGeneratorDetails { max-height: 64px; margin: 6px 0 0; overflow: auto; font: inherit; font-size: 12px; line-height: 1.5; color: var(--text-dim); white-space: pre-wrap; overflow-wrap: anywhere; }
+#dubGeneratorDialog #dubGeneratorDetails:empty, #dubGeneratorDialog #dubReferenceQuality:empty { display: none; }
+#dubGeneratorDialog :is(#dubGeneratorElapsed, #dubGeneratorCount) { font-variant-numeric: tabular-nums; }
+
+/* Dosyalar ve kayıt: çalıştırma çubuğundan yukarı açılan menü */
+#dubGeneratorDialog .dub-files-menu { order: -1; position: relative; border-top: 0; padding-bottom: 0; }
+#dubGeneratorDialog .dub-files-menu > summary { min-height: 42px; padding: 0 14px; border-radius: 10px; font-weight: 500; }
+#dubGeneratorDialog .dub-files-menu > summary::before { display: none; }
+#dubGeneratorDialog .dub-files-menu > summary::after { content: ''; width: 6px; height: 6px; margin-inline-start: 8px; rotate: 225deg; border-right: 1.6px solid var(--text-dim); border-bottom: 1.6px solid var(--text-dim); }
+#dubGeneratorDialog .dub-files-panel { position: absolute; z-index: 6; inset-inline-end: 0; bottom: calc(100% + 10px); display: grid; gap: 2px; min-width: 250px; padding: 6px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--bg-2); box-shadow: 0 20px 50px rgb(0 0 0 / .5); animation: dub-pop .16s var(--dub-ease) both; }
+#dubGeneratorDialog .dub-files-panel .btn { justify-content: flex-start; width: 100%; min-height: 38px; border: 0; background: transparent; font-weight: 500; }
+#dubGeneratorDialog .dub-files-panel .btn:hover:not(:disabled) { background: var(--dub-row); }
+
+@keyframes dub-rise { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+@keyframes dub-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+@keyframes dub-reveal { from { opacity: 0; translate: 0 -3px; } }
+@keyframes dub-arrive { 0% { opacity: 0; translate: 0 8px; box-shadow: 0 0 0 0 transparent; } 45% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent); } 100% { opacity: 1; translate: 0 0; box-shadow: 0 0 0 0 transparent; } }
+@keyframes dub-breathe { 50% { opacity: .35; } }
+@keyframes dub-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
+
+@media (max-width: 860px) {
+  #dubGeneratorDialog.dub-studio { width: calc(100vw - 16px); max-height: 97dvh; border-radius: 16px; }
+  #dubGeneratorDialog .dub-studio-header { padding: 16px 16px 12px; align-items: flex-start; }
+  #dubGeneratorDialog .dub-studio-header h2 { font-size: 20px; }
+  #dubGeneratorDialog .dub-studio-scroll { padding: 16px 16px 10px; }
+  #dubGeneratorDialog .dub-studio-main { grid-template-columns: minmax(0, 1fr); }
+  #dubGeneratorDialog .dub-source-card { padding: 0 0 20px; }
+  #dubGeneratorDialog .dub-voice-card { padding: 20px 0 0; border-inline-start: 0; border-top: 1px solid var(--border); }
+  #dubGeneratorDialog .dub-slate { grid-template-columns: minmax(0, 1fr); }
+  #dubGeneratorDialog .dub-slate > div + div { border-inline-start: 0; border-top: 1px solid var(--border); }
+  #dubGeneratorDialog .dub-slate > div + div::before { display: none; }
+  #dubGeneratorDialog .dub-readiness-action { padding: 12px 16px 10px 24px; }
+  #dubGeneratorDialog .dub-studio-footer { padding: 12px 16px; }
+  #dubGeneratorDialog .dub-runbar { grid-template-columns: minmax(0, 1fr); }
+  #dubGeneratorDialog .dub-run-actions { flex-wrap: wrap; justify-content: stretch; }
+  #dubGeneratorDialog #dubGeneratorStart { flex: 1 1 100%; order: -2; }
+  #dubGeneratorDialog .dub-presets { grid-template-columns: minmax(0, 1fr); }
+  #dubGeneratorDialog .dub-preset + .dub-preset { border-inline-start: 0; border-top: 1px solid var(--border); }
+  #dubGeneratorDialog .dub-natural-heading { flex-direction: column; gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #dubGeneratorDialog.dub-studio[open], #dubGeneratorDialog *, #dubGeneratorDialog *::before, #dubGeneratorDialog *::after { animation: none !important; transition: none !important; }
 }
 
-#dubGeneratorDialog.dub-studio[open] { grid-template-rows:auto auto minmax(0,1fr) auto; }
-#dubGeneratorDialog #dubManualSettings .dub-production-summary { padding:8px 0; border:0; }
-/* The subtitle and voice are the first tasks; optional production controls follow. */
-#dubGeneratorDialog .dub-studio-header { padding:12px 20px; gap:16px; }
-#dubGeneratorDialog .dub-studio-header h2 { font-size:20px; margin:0; line-height:1.3; }
-#dubGeneratorDialog .dub-studio-header p { font-size:12px; margin:4px 0 0; line-height:1.5; }
-#dubGeneratorDialog .dub-header-actions { display:flex; align-items:center; gap:10px; }
-#dubGeneratorDialog .dub-readiness { min-height:0; }
-#dubGeneratorDialog .dub-readiness>div { padding:8px 14px; gap:3px; }
-#dubGeneratorDialog .dub-readiness small { font-size:11px; }
-#dubGeneratorDialog .dub-readiness strong { font-size:12px; }
-#dubGeneratorDialog .dub-studio-scroll { padding:14px 20px; }
-#dubGeneratorDialog .dub-studio-grid { display:block; }
-#dubGeneratorDialog .dub-studio-main { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; }
-#dubGeneratorDialog .dub-input-column { display:grid; gap:14px; min-width:0; }
-#dubGeneratorDialog .dub-active-reference { padding:0 0 12px; border-bottom:1px solid var(--border); }
-#dubGeneratorDialog .dub-active-reference small { display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; }
-#dubGeneratorDialog .dub-active-reference strong { display:block; overflow-wrap:anywhere; font-size:14px; font-weight:500; }
-#dubGeneratorDialog .dub-active-reference p { font-size:12px; color:var(--text-dim); line-height:1.6; margin:7px 0 0; max-width:48ch; }
-#dubGeneratorDialog .dub-reference-library { margin-block:12px; }
-#dubGeneratorDialog .dub-reference-library[hidden] { display:none; }
-#dubGeneratorDialog .dub-reference-library>summary { list-style:none; min-height:40px; display:flex; align-items:center; gap:9px; font-size:13px; cursor:pointer; }
-#dubGeneratorDialog .dub-reference-library>summary::-webkit-details-marker { display:none; }
-#dubGeneratorDialog .dub-reference-library>summary::before { content:'›'; color:var(--text-dim); font-size:20px; }
-#dubGeneratorDialog .dub-reference-library[open]>summary::before { transform:rotate(90deg); }
-#dubGeneratorDialog .dub-reference-library #voiceReferencePicker { margin:0; border-top:0; padding-top:0; }
-#dubGeneratorDialog .dub-voice-card>.dub-generator-row { gap:8px; }
-#dubGeneratorDialog .dub-voice-card #voiceReferenceFolder { font-size:12px; }
-#dubGeneratorDialog #dubEngineSettings { border-top:1px solid var(--border); margin-block:12px; padding-top:6px; }
-#dubGeneratorDialog .dub-studio-main>section:not(.dub-source-card):not(.dub-voice-card) { grid-column:1/-1; }
-#dubGeneratorDialog .dub-studio-side { margin-top:14px; }
-#dubGeneratorDialog .dub-card { padding:16px; border-radius:12px; }
-#dubGeneratorDialog .dub-card-heading { gap:10px; margin-bottom:12px; }
-#dubGeneratorDialog .dub-card-heading h3 { font-size:16px; }
-#dubGeneratorDialog .dub-step { width:24px; height:24px; font-size:12px; }
-#dubGeneratorDialog .dub-source-card>p,#dubGeneratorDialog .dub-voice-card>p { margin:8px 0; }
-#dubGeneratorDialog .dub-voice-card #voiceReferencePicker { margin:10px 0; padding-top:10px; }
-#dubGeneratorDialog .dub-voice-card #voiceReferencePicker label { margin:6px 0; font-size:12px; }
-#dubGeneratorDialog .dub-voice-card>.dub-generator-row { margin-top:10px; }
-#dubGeneratorDialog .dub-natural-card { padding:16px 0; border:0; border-top:1px solid var(--border); border-radius:0; background:transparent; }
-#dubGeneratorDialog .dub-natural-heading h3 { font-size:16px; margin-bottom:6px; }
-#dubGeneratorDialog .dub-natural-heading p { font-size:12px; line-height:1.6; }
-#dubGeneratorDialog #dubNaturalState,#dubGeneratorDialog #dubNaturalDelivery { font-size:12px; margin:8px 0; line-height:1.6; }
-#dubGeneratorDialog #dubManualSettings { margin-top:10px; padding-top:4px; }
-#dubGeneratorDialog .dub-studio-footer { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 12px; padding:8px 20px 12px; }
-#dubGeneratorDialog .dub-studio-footer>.dub-job-status { min-width:0; margin:0; }
-#dubGeneratorDialog .dub-studio-footer .dub-job-status p { margin:0; }
-#dubGeneratorDialog .dub-studio-footer>.dub-job-meta { margin:0; min-width:0; }
-#dubGeneratorDialog .dub-studio-footer>.dub-generator-row { grid-column:1/-1; margin:0; }
-#dubGeneratorDialog .dub-studio-footer>progress,#dubGeneratorDialog .dub-studio-footer>pre,#dubGeneratorDialog .dub-studio-footer>#dubStartRequirement { grid-column:1/-1; margin:0; }
-#dubGeneratorDialog .dub-studio-footer>progress { margin:2px 0; }
-#dubGeneratorDialog:not([data-running=true]) .dub-studio-footer>progress { display:none; }
-#dubGeneratorDialog .dub-studio-footer>#dubStartRequirement:empty { display:none; }
-#dubGeneratorDialog .dub-studio-footer #dubGeneratorCancel:disabled { display:none; }
-#dubGeneratorDialog .dub-run-details { position:relative; }
-#dubGeneratorDialog .dub-run-details>summary { min-height:32px; align-content:center; cursor:pointer; }
-#dubGeneratorDialog .dub-run-details-body { position:absolute; z-index:5; right:0; bottom:calc(100% + 12px); width:min(420px,calc(100vw - 76px)); max-height:min(42dvh,320px); overflow:auto; padding:14px; background:var(--bg-1); border:1px solid var(--border-strong); border-radius:10px; }
-#dubGeneratorDialog .dub-studio-footer:has(#dubGeneratorUse:not(.hidden)) #dubGeneratorStart { background:var(--bg-2); color:var(--text); border-color:var(--border-strong); }
-#dubGeneratorDialog #dubGeneratorUse:not(.hidden) { background:var(--accent); color:var(--accent-contrast); border-color:var(--accent); }
-@media(max-width:850px) {
- #dubGeneratorDialog .dub-studio-header { padding:12px 14px; }
- #dubGeneratorDialog .dub-header-actions { gap:8px; }
- #dubGeneratorDialog .dub-studio-header #dubTextStudio { font-size:11px; padding:8px; }
- #dubGeneratorDialog .dub-studio-main { grid-template-columns:minmax(0,1fr); }
- #dubGeneratorDialog .dub-studio-scroll { padding:12px; }
- #dubGeneratorDialog .dub-studio-footer { padding:8px 14px 10px; }
- #dubGeneratorDialog .dub-readiness>div { padding:7px 10px; }
- #dubGeneratorDialog .dub-card { padding:14px; }
-}
-@media(max-width:520px) {
- #dubGeneratorDialog .dub-studio-header { flex-wrap:wrap; }
- #dubGeneratorDialog .dub-header-actions { margin-left:auto; }
- #dubGeneratorDialog .dub-readiness { grid-template-columns:minmax(0,1fr); }
- #dubGeneratorDialog .dub-readiness>div { display:flex; gap:10px; align-items:baseline; }
- #dubGeneratorDialog .dub-studio-footer { grid-template-columns:minmax(0,1fr); }
- #dubGeneratorDialog .dub-studio-footer>.dub-job-meta { justify-self:start; }
-}
-#dubGeneratorDialog .dub-header-actions { flex-direction:row; }
+/* İnceleme ve onarım · ses referansı alma · parça sonuçları · zaman çizelgesi (eski kutu kuralları buraya taşındı) */
+#dubGeneratorDialog .dub-experience { margin: 0 0 6px; border-top: 0; padding-bottom: 0; }
+#dubGeneratorDialog .dub-experience > summary { min-height: 40px; font-size: 13px; color: var(--text-dim); }
+#dubGeneratorDialog .dub-experience-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 2px 0 8px; }
+#dubGeneratorDialog .dub-experience-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#dubGeneratorDialog .dub-experience-tools button { min-height: 34px; padding: 6px 12px; font-size: 12px; }
+#dubGeneratorDialog .dub-experience-status { margin: 4px 0 0; font-size: 12px; color: var(--text-dim); }
+#dubGeneratorDialog .dub-preflight { margin-top: 10px; padding: 2px 0 2px 14px; border: 0; border-inline-start: 2px solid var(--border-strong); }
+#dubGeneratorDialog .dub-preflight-list { display: grid; gap: 8px; margin-top: 10px; }
+#dubGeneratorDialog .dub-preflight-list button { text-align: start; white-space: normal; line-height: 1.6; }
+#dubGeneratorDialog .dub-coverage-note { font-size: 12px; color: var(--text-dim); }
+#dubGeneratorDialog #voiceReferenceRecorder { margin-block: 6px 0; }
+#dubGeneratorDialog #voiceReferenceRecorder :is(audio, textarea) { width: 100%; margin-block: 8px; }
+#dubGeneratorDialog #voiceReferenceRecorder :is(#voiceReferenceStart, #voiceReferenceEnd) { width: 96px; }
+#dubGeneratorDialog #voiceReferenceRecorder #voiceReferenceName { flex: 1 1 220px; width: auto; min-width: 0; }
+#dubGeneratorDialog #voiceReferenceSelect { margin-block: 4px; }
+#dubGeneratorDialog #dubQualityResults select { margin-top: 8px; }
+#dubGeneratorDialog #dubWorkspacePanel progress, #dubGeneratorDialog #dubGeneratedPreview { width: 100%; }
+#dubGeneratorDialog #dubGeneratedPreview { margin-block: 10px; }
+#dubGeneratorDialog .dub-files-menu:not([open]) .dub-files-panel { display: none; }
+#dubGeneratorDialog .dub-files-panel { max-height: min(360px, 50vh); overflow-y: auto; overscroll-behavior: contain; }
+#dubGeneratorDialog .dub-files-panel .btn { white-space: normal; }
+#dubGeneratorDialog #dubGeneratorCancel:disabled { background: transparent; border-color: transparent; }
 
-#dubGeneratorDialog .dub-readiness>div { padding:0; }
-#dubGeneratorDialog .dub-readiness-action { min-height:48px; padding:7px 14px; }
+/* İlerleme: yalnız üretim sürerken; yüzde yalnız gerçek olay geldiğinde, aksi halde kayan şerit */
+#dubGeneratorDialog .dub-studio-footer progress { display: block; appearance: none; width: 100%; height: 4px; margin-top: 10px; border: 0; border-radius: 2px; overflow: hidden; background: var(--border); }
+#dubGeneratorDialog .dub-studio-footer:not([data-phase="running"]) progress { display: none; }
+#dubGeneratorDialog .dub-studio-footer progress::-webkit-progress-bar { background: var(--border); }
+#dubGeneratorDialog .dub-studio-footer progress::-webkit-progress-value { background: var(--accent); border-radius: 2px; transition: width .4s var(--dub-ease); }
+#dubGeneratorDialog .dub-studio-footer progress:indeterminate { background: linear-gradient(90deg, transparent 0 30%, var(--accent) 50%, transparent 70% 100%) 0 0 / 40% 100% no-repeat, var(--border); animation: dub-slide 1.4s linear infinite; }
+@keyframes dub-slide { from { background-position: -40% 0, 0 0; } to { background-position: 140% 0, 0 0; } }
+/* Çubuk iki satır: üstte durum + ana eylem, altta süre/ayrıntı + dosya menüsü; Durdur yalnız üretimde */
+#dubGeneratorDialog .dub-studio-footer:not([data-phase="running"]) #dubGeneratorCancel { display: none; }
+#dubGeneratorDialog .dub-run-meta { justify-content: flex-start; }
+#dubGeneratorDialog .dub-run-meta > .dub-files-menu { order: 9; margin-inline-start: auto; }
+#dubGeneratorDialog .dub-files-menu > summary { min-height: 32px; padding: 0 10px; border-radius: 8px; font-size: 12px; color: var(--text-dim); }
+#dubGeneratorDialog .dub-files-menu > summary:hover { color: var(--text); background: var(--dub-row); }
+/* Sonuç şeridinin tonu faza göre */
+#dubGeneratorDialog #dubPreviewCard { --tone: var(--success); border-color: color-mix(in srgb, var(--tone) 40%, var(--border)); border-inline-start-color: var(--tone); background: color-mix(in srgb, var(--tone) 6%, var(--bg-1)); }
+#dubGeneratorDialog #dubPreviewCard[data-tone="warn"] { --tone: var(--dub-warn); }
+#dubGeneratorDialog #dubPreviewCard[data-tone="neutral"] { --tone: var(--text-muted); }
+#dubGeneratorDialog .dub-run-meta > * { margin-block: 0; margin-inline: 0; flex: 0 0 auto; }
+#dubGeneratorDialog .dub-run-meta > .dub-files-menu { margin-inline-start: auto; }
 
-/* Source and voice form the setup pair; production follows in document order. */
-#dubGeneratorDialog .dub-studio-main>.dub-natural-card { grid-column:1/-1; }
-#dubGeneratorDialog .dub-natural-card #dubNaturalDelivery { max-width:78ch; }
-#dubGeneratorDialog #voiceReferenceRecorder { margin:8px 0 0; padding:0; border:0; border-top:1px solid var(--border); border-radius:0; }
-#dubGeneratorDialog .dub-studio-side>.dub-card { padding:0; border:0; background:transparent; }
-#dubGeneratorDialog .dub-studio-side>.dub-card>details { padding-block:4px; }
-#dubGeneratorDialog .dub-studio-side>.dub-card>details+details { padding-top:8px; }
-#dubGeneratorDialog .dub-studio-main>.dub-card:has(>#dubTextEditor) { padding:0; border:0; border-radius:0; background:transparent; }
-#dubGeneratorDialog .dub-studio-main>.dub-card:has(>#dubTextEditor)>details { margin:0; padding:8px 0; border:0; border-top:1px solid var(--border); border-radius:0; background:transparent; }
-#dubGeneratorDialog .dub-source-card #dubSrtName { min-width:0; overflow-wrap:anywhere; }
-#dubGeneratorDialog .dub-card summary { text-wrap:pretty; }
+#dubGeneratorDialog #dubGeneratorStart.btn-primary:not(:disabled) { background:var(--accent);color:var(--accent-contrast,#17130d);border:1px solid var(--accent);min-height:42px;padding:10px 20px; }

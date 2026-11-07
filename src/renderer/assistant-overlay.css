@@ -333,3 +333,20 @@ header{padding-inline:16px;gap:12px}
 .context-scope-hint{grid-column:1/-1;line-height:1.45;color:var(--muted);font-size:11px;max-width:65ch}
 #suggestions,#panel:has(.empty) #suggestions{flex-wrap:wrap;min-width:0}
 #primarySuggestion>button,#panel:has(.empty) #primarySuggestion>button{flex:1 1 150px;width:auto;min-width:0;white-space:normal;overflow-wrap:anywhere}
+
+/* Same media-workspace surface language, with the conversation kept dominant. */
+#panel { border-color:var(--sy-edge);box-shadow:var(--sy-shadow);background:var(--sy-surface); }
+#panel>header { padding-bottom:14px;border-bottom:1px solid var(--border); }
+#sourceBox { border-radius:12px;background:color-mix(in srgb,var(--accent) 4%,transparent);padding:8px 10px; }
+#scope { border-radius:9px;min-height:34px; }
+.tool-card,.source-card,.action-receipt { border-radius:12px;border:1px solid var(--border);padding:12px; }
+.tool-card[data-state="pending"] { border-color:var(--sy-edge);background:var(--accent-soft); }
+.tool-card[data-state="failed"] { border-left:3px solid var(--danger); }
+.tool-card[data-state="applied"] { border-left:3px solid var(--success); }
+.source-card { background:color-mix(in srgb,var(--text) 3%,transparent); }
+.message.ai { line-height:1.75; }
+#agentProgress:not([hidden]) { border-radius:12px;background:var(--accent-soft);border:1px solid var(--sy-edge); }
+#review { border-radius:12px;border:1px solid var(--sy-edge); }
+#composer { box-shadow:0 1px 0 rgb(255 255 255 / .06) inset; }
+
+:root { --bg-1:var(--surface);--bg-2:var(--raised);--border:var(--line);--border-strong:var(--strong);--text-muted:var(--muted);--accent-soft:color-mix(in srgb,var(--accent) 10%,var(--surface));--danger:var(--theme-danger,#d06b63);--success:var(--theme-success,#69b58b); }

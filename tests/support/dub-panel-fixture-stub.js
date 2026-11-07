@@ -3,6 +3,8 @@
 (() => {
   'use strict';
   const base = window.api, over = {}, fx = window.__dub = { calls: [], over };
+  fx.listeners = []; fx.emit = event => { for (const callback of fx.listeners) callback(event); };
+  over.onDubEvent = callback => { fx.listeners.push(callback); }; // Birden çok modül kaydolur; testler olayı hepsine yayar.
   const VERSION = 'a'.repeat(64), SHA = 'c'.repeat(64);
   window.api = new Proxy({}, { get(_, key) { if (key === 'then') return undefined; return Object.prototype.hasOwnProperty.call(over, key) ? over[key] : base[key]; } });
   const track = (extra = {}) => ({ state: 'timed', format: 'vtt', provenance: 'publisher', status: 'complete', ...extra });
@@ -11,6 +13,8 @@
     longnames: { title: 'Bölüm 214 — Çok uzun bir bölüm başlığı: yapay zekâ, dil öğrenimi ve gündelik konuşmada doğal çeviri üzerine üç saatlik tartışma (uzun sürüm)', workspace: { transcript: track({ provenance: 'asr', coverage: { start: 600, end: 750 }, timeline: { clock: 'absolute-media-seconds', sha256: SHA } }), translation: track({ provenance: 'asr', targetLanguage: 'tr', status: 'partial', coverage: { start: 600, end: 750 }, timeline: { clock: 'absolute-media-seconds', sha256: SHA } }) }, exact: true },
     untimed: { workspace: { transcript: { state: 'untimed', format: 'plain', provenance: 'publisher', status: 'complete' } } },
     unverified: { workspace: { transcript: track({ provenance: 'asr', timeline: { clock: 'absolute-media-seconds', sha256: SHA } }), translation: track({ provenance: 'asr', targetLanguage: 'tr', timeline: { clock: 'absolute-media-seconds', sha256: SHA } }) } },
+    novoice: { workspace: { transcript: track(), translation: track({ provenance: 'user', targetLanguage: 'tr' }) }, noVoice: true },
+    partialsrt: { workspace: { transcript: track(), translation: track({ provenance: 'user', targetLanguage: 'tr' }) }, partialPath: true },
     failed: { workspace: { transcript: track(), translation: track({ provenance: 'user', targetLanguage: 'tr' }) }, materializeError: 'Transcript timing could not be preserved for dubbing / Dublaj için döküm zamanları korunamadı.' },
   };
   fx.scenarios = Object.keys(scenarios);
@@ -29,7 +33,7 @@
   };
   fx.reset = name => {
     const cfg = scenarios[name], layer = document.getElementById('playerLayer'), video = document.getElementById('playerVideo');
-    fx.cfg = cfg; fx.calls.length = 0; fx.revision = 'one';
+    fx.cfg = cfg; fx.calls.length = 0; fx.revision = 'one'; fx.holdPlan = false; fx.started = null;
     layer.classList.remove('hidden'); video.setAttribute('src', 'data:audio/wav;base64,UklGRgAAAABXQVZF');
     document.getElementById('playerTitle').textContent = cfg.title || 'Bölüm 12 — Kısa başlık';
     Object.assign(player, { workspaceMode: 'player', mediaKey: 'rss:ep1', generation: 3, localPath: '', subPath: '', sub2Path: '', sub2Role: '', browserTracks: [],
@@ -37,14 +41,14 @@
     over.feedsRequest = async request => {
       fx.calls.push(request.action + (request.role ? ':' + request.role : ''));
       if (request.action === 'podcast-workspace') return { ok: true, sourceVersion: VERSION, workspace: cfg.workspace };
-      if (request.action === 'podcast-materialize') return cfg.materializeError ? { ok: false, error: cfg.materializeError } : { ok: true, path: `C:/podcast-transcripts/${request.role || 'source'}-dub-${fx.revision}.srt`, derived: true, format: 'srt', role: request.role || 'source', revision: (request.role || 'source') + fx.revision + '0123456789' };
+      if (request.action === 'podcast-materialize') return cfg.materializeError ? { ok: false, error: cfg.materializeError } : { ok: true, path: `C:/podcast-transcripts/${request.role || 'source'}-dub-${fx.revision}${cfg.partialPath ? '.partial' : ''}.srt`, derived: true, format: 'srt', role: request.role || 'source', revision: (request.role || 'source') + fx.revision + '0123456789' };
       if (request.action === 'podcast-exact-audio') return { available: true, sourceVersion: 'copyver' };
       return { ok: false };
     };
-    over.dubConfig = async () => ({ ok: true, ready: true, reference: 'C:/Voices/Anna reference.wav', transcript: 'Referans metni', engine: 'voxcpm2' });
-    over.planDub = async () => ({ ok: true, groups: [{ key: 'g1', seconds: 2.4, text: 'Merhaba, bugünkü bölüme hoş geldiniz.', start: 0, end: 2400 }], sourceHash: 'hash', skipped: 0 });
+    over.dubConfig = async () => cfg.noVoice ? ({ ok: true, ready: false, reference: '', transcript: '', engine: 'voxcpm2' }) : ({ ok: true, ready: true, reference: 'C:/Voices/Anna reference.wav', transcript: 'Referans metni', engine: 'voxcpm2' });
+    over.planDub = async () => { if (fx.holdPlan) await new Promise(resolve => { fx.releasePlan = resolve; }); return ({ ok: true, groups: [{ key: 'g1', seconds: 2.4, text: 'Merhaba, bugünkü bölüme hoş geldiniz.', start: 0, end: 2400 }], sourceHash: 'hash', skipped: 0 }); };
     over.latestDub = async () => ({ ok: true, output: null });
-    over.startDub = async () => ({ ok: true });
+    over.startDub = async payload => { fx.started = payload; fx.calls.push('startDub'); return { ok: true }; };
     window.PlayerSourceCatalogIntegration = { podcastTools() {}, async openPodcastEntry() { return {}; } };
     return true;
   };

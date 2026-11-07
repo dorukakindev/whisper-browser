@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Dublaj stüdyosu, ortak menüler, altyazı araçları, ayarlar ve asistan panelleri grafit/amber yüzey diliyle yenilendi. Gerçek işlem durumları/sonraki adım, bağımsız iz zaman özeti, görev bazlı altyazı grupları, sağlayıcı etki açıklamaları ve açık tema kontrastı tamamlandı. Gecikmiş oynatıcı bağlamı hatası ve menü nedenlerinin otomatik yenilenmesi düzeltildi. [Teslim ve doğrulama](docs/devir/2026-11-07-1115.md).
+
 - Podcast: zamansız yayıncı metni mevcut ±N bağlam ayarıyla çevrilir; paragraf yapısı korunur. Zamanlı VTT özgün zaman/metin doğrulanarak ayrı dublaj SRT’sine hazırlanır. Ortak VoxCPM2 paneli bölümün kayıtlı çeviri/özgün izini, kapsamını ve sürümünü gösterir; gizli oynatıcıyı ödünç almaz. Elle seçilen dosya, değişen iz ve geciken sonuç yarışları korunur; üretim öncesi zaman kaynağı yeniden doğrulanır. [Devir](docs/devir/2026-11-07-1021.md).
 - Browser/Sahne: RSS’ye geçişin kendi medya değişimiyle iptal olması, aynı sayfada farklı doğrudan videoya eski kaymanın taşınması ve geç altyazı geri yüklemesinin kapalı seçimini ezmesi düzeltildi. Açık Shadow DOM’daki site altyazıları uygulama katmanıyla yinelenmez ve kapatınca geri gelir. Podcast asistanında kapsam seçimi görünür, yakındaki kanıt konuşulan satırı kapsar, ilk ve devam “bu ana kadar” istekleri soru anındaki bitmiş bölüm satırlarıyla sınırlıdır. Asistan önerileri taşmadan yerleşir. [Windows Electron ve kontrollü test kanıtı](docs/devir/2026-11-07-1021.md).
 

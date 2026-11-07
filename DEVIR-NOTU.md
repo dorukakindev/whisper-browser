@@ -1,3 +1,4 @@
+Güncel tasarım: [Menü, dublaj, altyazı, ayarlar ve asistan panelleri](docs/devir/2026-11-07-1115.md)
 Güncel entegrasyon: [Podcast çeviri/dublaj, Browser sahipliği ve asistan bağlamı](docs/devir/2026-11-07-1021.md)
 Güncel paket: [Sahne ve Browser/Podcast/Çift dilli — Dilim 2 kısmi inceleme](docs/devir/2026-11-07-0650.md)
 Güncel paket: [Claude Podcast dublaj teslimi (Dilim 1)](docs/devir/2026-11-07-0620.md)

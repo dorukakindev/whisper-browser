@@ -6,6 +6,11 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Menü ve panel tasarımı — 2026-11-07
+
+- CP2 entegrasyonu ve eksik panel bağlantıları tamamlandı. Dal `codex/panel-redesign-completion-20261107`; [teslim ve kanıt](docs/devir/2026-11-07-1115.md). Paket sonrası asistan/Sahne, altyazı gruplama/zaman özeti, EN/TR ve açık tema eksikleri tamamlandı; eski “unit test çalışmadı” durumu güncel değildir.
+- **Kalan canlı kabul:** dublajın gerçek sağlayıcıyla üretim evreleri bu UI turunda yeni ses üretilerek denenmedi. Kesin sonraki adım izole LG profilinde mevcut yetkili sağlayıcıyla kısa aralıkta hazırlık/onay/üretim/sonuç ve mevcut sonucu koruyan hata/yeniden deneme yolunu gözlemek. 3–4 dakika sınırı ve izin kapıları korunur. Kontrollü 16 durum testi canlı üretim değildir.
+
 ## Claude Podcast / Browser / asistan entegrasyonu — 2026-11-07
 
 - **Doğrulanmış ürün tamamlandı:** `3ed735be2ffbc34552cec0a91d6106695e302326`, dal `codex/claude-podcast-context-dub-20261107`, yayın [PR #896](https://github.com/dorukakindev/whisper-browser/pull/896). [Entegrasyon ve kanıt](docs/devir/2026-11-07-1021.md). V5 önceki WIP dilimlerini kapsar; yinelenen ZIP’ler yeniden uygulanmadı. Zamansız çeviri bağlamı, VTT→SRT, ortak dublaj paneli, kaynak/iz yarışları ve ilk/ devam Podcast soru sınırı tamamlandı. Üç eski Podcast test düzeneğinin nedenleri ayrıldı ve düzeltildi; bu dosyalar artık geçiyor.

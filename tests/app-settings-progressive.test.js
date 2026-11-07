@@ -27,3 +27,17 @@ test('Searching an independent assistant option reveals it even while the provid
  const h=await fixture(t),search=h.get('appSettingsSearch');search.value='Flex';search.dispatchEvent(new h.w.Event('input'));search.dispatchEvent(new h.w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
  const detail=h.w.document.querySelector('[data-settings-detail=assistant]');assert.equal(detail.hidden,false);assert.equal(detail.open,true);assert.equal(h.get('assistantEndpointPreset').value,'inherit');assert.equal(h.requests(),0);
 });
+
+test('Shared menus explain disabled actions on real toggle and refresh their state without duplicating notes',async t=>{
+ const dom=new JSDOM('<details><summary>Tools</summary><div class="browser-menu-popover"><button id="exportTranslationBtn" disabled>Export</button></div></details>',{runScripts:'outside-only'});const w=dom.window;t.after(()=>w.close());let locale='en';w.UiLocale={get:()=>locale};w.eval(fs.readFileSync(require.resolve('../src/renderer/panel-system.js'),'utf8'));
+ const menu=w.document.querySelector('details'),button=w.document.querySelector('button');menu.open=true;menu.dispatchEvent(new w.Event('toggle'));
+ assert.match(button.textContent,/translation before exporting/);assert.equal(button.querySelectorAll('.sy-reason').length,1);
+ button.disabled=false;await new Promise(resolve=>setImmediate(resolve));assert.equal(button.querySelector('.sy-reason'),null);
+ locale='tr';button.disabled=true;await new Promise(resolve=>setImmediate(resolve));assert.match(button.textContent,/çeviri/);assert.equal(button.querySelectorAll('.sy-reason').length,1);
+});
+
+test('Subtitle timing overview keeps independent values and opens the existing timing owner',t=>{
+ const dom=new JSDOM('<div class="side-langs"></div><input id="subOffset" value="0.3"><input id="sub2Offset" value="-0.2"><span id="subOffsetVal">0.3</span>',{runScripts:'outside-only'});const w=dom.window;t.after(()=>w.close());w.UiLocale={get:()=> 'en'};w.player={subPath:'a',sub2Path:'b'};let opened=0;w.setSettingsDrawer=()=>opened++;w.eval(fs.readFileSync(require.resolve('../src/renderer/panel-system.js'),'utf8'));
+ const buttons=w.document.querySelectorAll('.sy-timing-overview button');assert.match(buttons[0].textContent,/0.3 s late/);assert.match(buttons[1].textContent,/0.2 s early/);
+ const first=w.document.getElementById('subOffset');first.value='0';first.dispatchEvent(new w.Event('input'));assert.match(buttons[0].textContent,/in sync/);assert.match(buttons[1].textContent,/0.2 s early/);buttons[1].click();assert.equal(opened,1);assert.equal(w.document.activeElement.id,'sub2Offset');
+});

@@ -14,7 +14,7 @@
  window.addEventListener('dub-generator:busy',reviewVisibility);
  $('dubGeneratorDialog').querySelector('.dub-studio-scroll').prepend(host);
  reviewVisibility();
- const files=el('details','dub-files-menu'),fileLabel=el('summary','btn btn-ghost'),filePanel=el('div','dub-files-panel');files.append(fileLabel,filePanel);for(const id of ['dubGeneratorOutput','dubStorageOpen','dubGeneratorLog'])filePanel.append($(id));$('dubGeneratorCancel').parentElement.append(files);
+ const files=el('details','dub-files-menu'),fileLabel=el('summary','btn btn-ghost'),filePanel=el('div','dub-files-panel');files.append(fileLabel,filePanel);for(const id of ['dubGeneratorOutput','dubStorageOpen','dubGeneratorLog'])filePanel.append($(id));($('dubGeneratorDialog').querySelector('.dub-run-meta')||$('dubGeneratorCancel').parentElement).append(files);
  $('dubGeneratorDialog').addEventListener('pointerdown',event=>{if(!files.contains(event.target))files.open=false;});
  $('dubGeneratorDialog').addEventListener('scroll',()=>{files.open=false;},true);
  $('dubGeneratorDialog').addEventListener('close',()=>{files.open=false;});
