@@ -3,15 +3,26 @@
   const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
   const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=String(text);return node;};
   const safe=value=>typeof value==='string'&&value.length<8e6&&/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
-  let dialog,selected,opener,generation=0,item,storyJob,personalView,copyChoice;
+  let dialog,selected,opener,generation=0,item,storyJob,personalView,copyChoice,returnLabel=null,sessionOptions={};
   const originalStories=new Set();
   let activePage=null;const pagePositions=new Map();
-  function createPage(className,{key}={}){
+  // Sayfa kapanınca odak: önce çağıranın verdiği hedef (kart yeniden çizilmiş olabilir), yoksa açan öğe.
+  // Kullanıcı bu arada başka bir kontrole geçtiyse odağı geri çekmez.
+  function restoreFocus(page,origin,returnFocus,host){
+    const active=document.activeElement;
+    if(active&&active!==document.body&&active.isConnected&&!page.contains(active))return;
+    let target=null;try{target=returnFocus?.()||null;}catch{target=null;}
+    const node=target?.isConnected?target:origin?.isConnected?origin:null;
+    if(!node)return;
+    node.focus({preventScroll:true});
+    if(returnFocus&&host){const box=node.getBoundingClientRect(),area=host.getBoundingClientRect();if(box.bottom<area.top||box.top>area.bottom)node.scrollIntoView({block:'center'});}
+  }
+  function createPage(className,{key,returnFocus}={}){
     activePage?.close();
     const host=document.getElementById('mediaHome'),origin=document.activeElement,scroll=host.scrollTop;
     const page=el('section',className+' media-title-page');page.tabIndex=-1;page.open=true;
     page.restorePosition=()=>{if(key&&pagePositions.has(key))requestAnimationFrame(()=>{if(page.open&&activePage===page)host.scrollTop=pagePositions.get(key);});};
-    page.close=()=>{if(!page.open)return;if(key){pagePositions.set(key,host.scrollTop);while(pagePositions.size>100)pagePositions.delete(pagePositions.keys().next().value);}page.open=false;page.dispatchEvent(new Event('close'));page.remove();host.classList.remove('has-title-page');host.removeEventListener('click',navigate,true);document.removeEventListener('keydown',escape);if(activePage===page)activePage=null;host.scrollTop=scroll;if(origin?.isConnected)origin.focus({preventScroll:true});};
+    page.close=()=>{if(!page.open)return;if(key){pagePositions.set(key,host.scrollTop);while(pagePositions.size>100)pagePositions.delete(pagePositions.keys().next().value);}page.open=false;page.dispatchEvent(new Event('close'));page.remove();host.classList.remove('has-title-page');host.removeEventListener('click',navigate,true);document.removeEventListener('keydown',escape);if(activePage===page)activePage=null;host.scrollTop=scroll;restoreFocus(page,origin,returnFocus,host);};
     const navigate=event=>{if(event.target.closest('.mh-header [data-home-page],.mh-header [data-home-mode]'))page.close();};
     const escape=event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]')){event.preventDefault();page.close();}};
     host.addEventListener('click',navigate,true);document.addEventListener('keydown',escape);host.classList.add('has-title-page');host.append(page);host.scrollTop=0;activePage=page;return page;
@@ -38,7 +49,7 @@
     if(translated)section.append(el('small','mtd-story-state',t('Turkish · AI translation','Türkçe · AI çevirisi')));
     main.append(section);
   }
-  function management(metadata=false){const id=selected;close();const run=metadata?window.MediaCatalogUI.openMetadata(id):window.MediaCatalogUI.open({id});void Promise.resolve(run).then(()=>{document.getElementById('mediaCatalogDialog')?.addEventListener('close',()=>void open(id),{once:true});});}
+  function management(metadata=false){const id=selected;close();const run=metadata?window.MediaCatalogUI.openMetadata(id):window.MediaCatalogUI.open({id}),reopenOptions=sessionOptions;void Promise.resolve(run).then(()=>{document.getElementById('mediaCatalogDialog')?.addEventListener('close',()=>void open(id,reopenOptions),{once:true});});}
   async function play(episodeId,voice=false,editionId){
     const current=dialog,id=selected;const result=await request('play',{episodeId,...(editionId===undefined?{}:{editionId})});
     if(current!==dialog||!current?.open||selected!==id)return;
@@ -54,7 +65,7 @@
     const scroll=document.getElementById('mediaHome').scrollTop;const focused=dialog.contains(document.activeElement)?document.activeElement?.dataset.titleAction:null;
     const form=dialog.querySelector('.mtd-personal');const draft=form?.dataset.titleId===item.id?{status:refreshPersonalStatus?undefined:form.querySelector('select').value,rating:form.querySelector('input').value}:null;
     personalView?.dispose();personalView=null;
-    dialog.replaceChildren();const header=el('header','mtd-header');const back=button(document.querySelector('.mhs-dialog[open]')?t('← Back to results','← Sonuçlara dön'):t('← Back to library','← Kütüphaneye dön'),close);back.dataset.titleAction='back';
+    dialog.replaceChildren();const header=el('header','mtd-header');const back=button(returnLabel?.()||(document.querySelector('.mhs-dialog[open]')?t('← Back to results','← Sonuçlara dön'):t('← Back to library','← Kütüphaneye dön')),close);back.dataset.titleAction='back';
     const edit=button(t('Manage title','Yapımı yönet'),()=>management());header.append(back,edit);dialog.append(header);
     const hero=el('section','mtd-hero'),backdrop=el('div','mtd-backdrop');backdrop.setAttribute('aria-hidden','true');hero.append(backdrop);
     if(item.kind!=='film'&&item.backdrop)image('backdrop',backdrop,version);
@@ -222,9 +233,9 @@
     if(focused)dialog.querySelector('[data-title-action="'+focused+'"]')?.focus({preventScroll:true});
   }
   async function open(id){
-    if(dialog?.open&&selected===id&&item?.id===id&&dialog.dataset.titleReady==='true'){dialog.focus();return {ok:true,itemId:id};}if(dialog)close();copyChoice=null;selected=id;item=null;opener=document.activeElement;const mediaCard=opener?.closest?.('[data-home-item]'),mediaOrigin=mediaCard?.dataset.homeItem===id?window.UiMotion?.captureMedia(mediaCard):null;
+    const given=arguments[1];if(dialog?.open&&selected===id&&item?.id===id&&dialog.dataset.titleReady==='true'){dialog.focus();return {ok:true,itemId:id};}if(dialog)close();copyChoice=null;selected=id;item=null;sessionOptions=given&&typeof given==='object'?given:{};returnLabel=typeof sessionOptions.backLabel==='function'?sessionOptions.backLabel:null;opener=document.activeElement;const mediaCard=opener?.closest?.('[data-home-item]'),mediaOrigin=mediaCard?.dataset.homeItem===id?window.UiMotion?.captureMedia(mediaCard):null;
     if(!document.body.classList.contains('media-home-active')||!document.getElementById('playerLayer')?.classList.contains('hidden'))await window.MediaHomeUI.returnHome();
-    const current=createPage('mtd-dialog media-surface',{key:'library:'+id});current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
+    const current=createPage('mtd-dialog media-surface',{key:'library:'+id,returnFocus:sessionOptions.returnFocus});current.id='mediaTitleDialog';current.dataset.uiUntranslated='';current.setAttribute('aria-labelledby','mediaTitleHeading');dialog=current;
     const origin=opener;current.addEventListener('close',()=>{cancelStory(current);current.remove();if(dialog===current){personalView?.dispose();personalView=null;generation++;dialog=null;if(origin?.isConnected)origin.focus({preventScroll:true});}void syncBrowserOcclusion();document.dispatchEvent(new Event('media-library-changed'));});
     void syncBrowserOcclusion();current.append(el('h1','',t('Loading title…','Yapım yükleniyor…')));
     try{await reload();if(dialog!==current||!current.open||selected!==id||item?.id!==id)return {ok:false};window.UiMotion?.mediaTransfer(mediaOrigin,current.querySelector('.cn-film-poster'));window.UiMotion?.reveal(current,'page');current.focus({preventScroll:true});current.restorePosition();current.dataset.titleReady='true';return {ok:true,itemId:id};}catch(error){if(dialog===current&&current.open)current.replaceChildren(el('p','',error.message),button(t('Close','Kapat'),close));return {ok:false};}

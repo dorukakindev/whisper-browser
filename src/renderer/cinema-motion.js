@@ -123,7 +123,7 @@
         const index = section.matches('.film-person-card') ? [...section.parentElement.children].indexOf(section) % 8 : 0;
         reveals.set(section, index); revealObserver.observe(section);
       }
-      for (const button of root.querySelectorAll('.cn-button[data-kind=icon]')) if (button.title) button.dataset.cinemaTooltip = button.title;
+      for (const button of root.querySelectorAll('.cn-button[data-kind=icon]')) if (button.title && button.dataset.cinemaTooltip !== button.title) button.dataset.cinemaTooltip = button.title;
       for (const group of root.querySelectorAll('.cn-status-segments,.cn-watch-views')) segment(group);
       for (const card of root.querySelectorAll('.cn-poster,.md-card')) {
         const art = card.querySelector('.cn-poster-art,.md-card-art');
@@ -139,7 +139,14 @@
     if (!indicator) { indicator = document.createElement('span'); indicator.className = 'cn-sliding-indicator'; indicator.setAttribute('aria-hidden', 'true'); group.append(indicator); }
     indicator.style.width = selected.offsetWidth + 'px'; indicator.style.translate = selected.offsetLeft + 'px 0';
   }
-  function scheduleScan() { if (!scanning && !stopped) { scanning = true; queueMicrotask(scan); } }
+  // Başka bir gözlemciyle karşılıklı tetiklenme mikro görev döngüsüne dönüp renderer'ı ve IPC yanıtlarını bloklayamaz:
+  // sık tekrarda tarama bir sonraki göreve ertelenir.
+  let scanBurst = 0, scanBurstAt = 0;
+  function scheduleScan() {
+    if (scanning || stopped) return; scanning = true;
+    const now = performance.now(); if (now - scanBurstAt > 50) { scanBurst = 0; scanBurstAt = now; }
+    if (++scanBurst > 30) setTimeout(scan, 100); else queueMicrotask(scan);
+  }
   const observer = new MutationObserver(scheduleScan); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] });
   document.addEventListener('load', event => { if (event.target.tagName === 'IMG' && event.target.closest(scope)) imageReady(event.target); }, { capture: true, signal });
   function scroll() {

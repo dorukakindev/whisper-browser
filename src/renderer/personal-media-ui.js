@@ -40,7 +40,14 @@
       if(info?.createPersonalRecord)box.append(el('p','pm-muted',t('A personal library record will be created for this title. No video is downloaded.','Bu yapım için kütüphanede kişisel kayıt oluşturulacak. Video indirilmez.')));
       const actions=el('div','pm-actions');actions.append(button(t('Confirm save','Kaydetmeyi onayla'),async()=>{
         const exact=preview;if(!exact)return;const ticket=++epoch;
-        const result=await api('apply',{token:exact.token,owner});if(!alive()||ticket!==epoch)return;
+        let result;
+        try{result=await api('apply',{token:exact.token,owner});}
+        catch(error){
+          // Servis başarısız denemede önizleme belirtecini tüketir; kutuyu ve hazırlanan seçimi ekranda bırakmak ikinci "Onayla"yı "süresi doldu" hatasına götürür.
+          if(alive()&&ticket===epoch&&preview===exact){preview=null;draw();root.querySelector('.pm-watch select')?.focus({preventScroll:true});}
+          throw Error(error.message+' '+t('Nothing was changed; your previous viewing details were kept. Preview again to retry.','Hiçbir şey değişmedi; önceki izleme bilgilerin korundu. Yeniden denemek için yeniden önizle.'));
+        }
+        if(!alive()||ticket!==epoch)return;
         value=result.item;preview=null;draw();notice(result.networkSync?.ok===false?t('Saved. Taste network could not be updated; your viewing details are safe.','Kaydedildi. Zevk ağı güncellenemedi; izleme bilgilerin korundu.'):t('Viewing details saved.','İzleme bilgilerin kaydedildi.'));
         document.dispatchEvent(new CustomEvent('media-personal-changed',{detail:{identity:value.identity,catalogId:value.catalogId,personalMedia:value}}));
         if(alive())onChanged?.(value);
