@@ -101,3 +101,120 @@ test('empty results retain the submitted query and reset returns focus without c
   assert.equal(h.calls.at(-1).query, '');
   assert.equal(h.w.document.activeElement, h.root.querySelector('input[type=search]'));
 });
+
+// ---- Keşfet liste sürekliliği: kütüphane değişince yüklenmiş sayfalar, imleç ve odak korunur ----
+const PAGES={0:['tt1111111','tt1111112'],100:['tt2222221','tt2222222'],200:['tt3333331']};
+function pagedRespond(members,hidden=new Set()){return input=>{if(input.action==='detail')return {ok:true,item:{...detailItem(input.id),watchStatus:members.has(input.id)?'planned':'unspecified'},catalogId:members.has(input.id)?'cat-'+input.id:null};const skip=input.skip||0;if(input.query)return {ok:true,rows:[row('tt9999999')],nextSkip:null};return {ok:true,rows:(PAGES[skip]||[]).filter(id=>!hidden.has(id)).map(id=>({...row(id),catalogId:members.has(id)?'cat-'+id:null})),nextSkip:skip===0?100:skip===100?200:null};};}
+const cardIds=h=>[...h.root.querySelectorAll('[data-discovery-id]')].map(n=>n.dataset.discoveryId);
+const libraryChanged=h=>h.w.document.dispatchEvent(new h.w.Event('media-library-changed'));
+async function loadTwoPages(h){await tick();h.root.querySelector('.md-more').click();await tick();assert.deepEqual(cardIds(h),['tt1111111','tt1111112','tt2222221','tt2222222']);}
+
+test('library change refreshes every loaded page in place and keeps order, cursor and the focused card',async t=>{
+  const members=new Set(),h=fixture(t,pagedRespond(members));await loadTwoPages(h);
+  const card=[...h.root.querySelectorAll('[data-discovery-id]')].find(n=>n.dataset.discoveryId==='tt2222222');card.focus();
+  members.add('tt2222222');libraryChanged(h);await tick();await tick();
+  assert.deepEqual(cardIds(h),['tt1111111','tt1111112','tt2222221','tt2222222'],'loaded pages are not dropped');
+  assert.deepEqual(h.calls.map(c=>c.skip),[0,100,0,100],'only the loaded range is requested again');
+  const fresh=[...h.root.querySelectorAll('[data-discovery-id]')].find(n=>n.dataset.discoveryId==='tt2222222');
+  assert.match(fresh.querySelector('.cn-poster-meta').textContent,/In library/);
+  assert.equal(h.w.document.activeElement,fresh,'focus follows the title identity to the rebuilt card');
+  assert.equal(h.root.querySelector('.md-more').hidden,false,'the next page cursor is kept');
+});
+
+test('a focused card that leaves the list moves focus to its neighbour, not to the page',async t=>{
+  const hidden=new Set(),h=fixture(t,pagedRespond(new Set(),hidden));await loadTwoPages(h);
+  [...h.root.querySelectorAll('[data-discovery-id]')].find(n=>n.dataset.discoveryId==='tt1111112').focus();
+  hidden.add('tt1111112');libraryChanged(h);await tick();await tick();
+  assert.deepEqual(cardIds(h),['tt1111111','tt2222221','tt2222222']);
+  assert.equal(h.w.document.activeElement.dataset.discoveryId,'tt2222221');
+});
+
+test('focus is not pulled back when the user moved to another control during the refresh',async t=>{
+  const h=fixture(t,pagedRespond(new Set(['tt1111111'])));await loadTwoPages(h);
+  h.root.querySelector('input[type=search]').focus();libraryChanged(h);await tick();await tick();
+  assert.equal(h.w.document.activeElement,h.root.querySelector('input[type=search]'));
+});
+
+for(const order of ['refresh-first','append-first']){
+  test(`stale refresh cannot drop loaded cards or duplicate a title when a third page is requested meanwhile (${order})`,async t=>{
+    const members=new Set(),base=pagedRespond(members);let gate,releaseRefresh,releaseAppend,armed=false,appendGate=false;
+    const h=fixture(t,input=>{if(armed&&!input.skip&&!input.query&&input.action==='list'){armed=false;return new Promise(r=>{releaseRefresh=()=>r(base(input));});}if(appendGate&&input.skip===200){appendGate=false;return new Promise(r=>{releaseAppend=()=>r(base(input));});}return base(input);});
+    await loadTwoPages(h);members.add('tt2222222');armed=true;appendGate=true;libraryChanged(h);await tick();
+    h.root.querySelector('.md-more').click();await tick();
+    if(order==='refresh-first'){releaseRefresh();await tick();releaseAppend();}else{releaseAppend();await tick();releaseRefresh();}
+    await tick();await tick();await tick();
+    const ids=cardIds(h);assert.deepEqual(ids,['tt1111111','tt1111112','tt2222221','tt2222222','tt3333331']);assert.equal(new Set(ids).size,ids.length,'no duplicates');
+    assert.match([...h.root.querySelectorAll('[data-discovery-id]')].find(n=>n.dataset.discoveryId==='tt2222222').querySelector('.cn-poster-meta').textContent,/In library/,'membership is current after the page request');
+    assert.equal(h.root.querySelector('.md-more').hidden,true);
+  });
+}
+
+test('a held membership refresh cannot overwrite a newer search',async t=>{
+  const members=new Set(),base=pagedRespond(members);let release,armed=false;
+  const h=fixture(t,input=>{if(armed&&!input.skip&&!input.query&&input.action==='list'){armed=false;return new Promise(r=>{release=()=>r(base(input));});}return base(input);});
+  await loadTwoPages(h);armed=true;libraryChanged(h);await tick();
+  const search=h.root.querySelector('input[type=search]');search.value='yeni';search.form.dispatchEvent(new h.w.Event('submit',{bubbles:true,cancelable:true}));await tick();
+  assert.deepEqual(cardIds(h),['tt9999999']);
+  release();await tick();await tick();
+  assert.deepEqual(cardIds(h),['tt9999999'],'the late refresh of the old query is discarded');
+  assert.equal(h.root.querySelector('input[type=search]').value,'yeni');
+});
+
+function realTitlePages(h,opened=[]){const w=h.w;w.MediaHomeUI={returnHome:async()=>{w.document.body.classList.add('media-home-active');const n=w.document.createElement('div');n.id='playerLayer';n.className='hidden';w.document.body.append(n);}};
+  w.eval(fs.readFileSync(require.resolve('../src/renderer/media-title.js'),'utf8'));const real=w.MediaTitleUI.createPage;
+  w.MediaTitleUI=Object.freeze({...w.MediaTitleUI,createPage:(cls,options)=>real(cls,options),open:async(id,options)=>{opened.push({id,options});return {ok:true,itemId:id};}});return opened;}
+
+test('closing a detail page returns focus to the same title after a refresh rebuilt its card',async t=>{
+  const members=new Set(),h=fixture(t,pagedRespond(members));realTitlePages(h);await loadTwoPages(h);
+  const card=[...h.root.querySelectorAll('[data-discovery-id]')].find(n=>n.dataset.discoveryId==='tt2222221');card.focus();card.click();await tick();await tick();
+  assert(h.w.document.querySelector('.media-title-page'));
+  members.add('tt2222221');libraryChanged(h);await tick();await tick();
+  const rebuilt=[...h.root.querySelectorAll('[data-discovery-id]')].find(n=>n.dataset.discoveryId==='tt2222221');assert.notEqual(rebuilt,card);assert(!card.isConnected);
+  h.w.document.querySelector('.media-title-page').close();await tick();
+  assert.equal(h.w.document.activeElement,rebuilt);
+});
+
+test('adding from a detail page keeps the page, then Open in library uses the saved record identity and a Discover return path',async t=>{
+  const members=new Set(),opened=[];let addResponse=null;
+  const h=fixture(t,input=>input.action==='add'?addResponse(input):pagedRespond(members)(input));realTitlePages(h,opened);await tick();
+  const card=h.root.querySelector('[data-discovery-id=tt1111111]');card.focus();card.click();await tick();await tick();
+  const page=()=>h.w.document.querySelector('.media-title-page'),primary=()=>page().querySelector('.md-primary-actions button');
+  assert.equal(primary().textContent,'Add to watchlist');
+  addResponse=()=>({ok:true,item:{id:'cat-other',kind:'film',imdbId:'tt0000000',watchStatus:'planned'}});primary().click();await tick();
+  assert.match(page().textContent,/identity could not be verified/);assert.equal(primary().textContent,'Add to watchlist','a mismatched record never changes membership');assert.equal(primary().disabled,false);
+  addResponse=()=>{members.add('tt1111111');return {ok:true,item:{id:'cat-tt1111111',kind:'film',imdbId:'tt1111111',watchStatus:'planned'}};};
+  primary().click();await tick();await tick();
+  assert(page(),'the detail page stays open');assert.equal(opened.length,0);
+  assert.equal(primary().textContent,'Open in library');assert.match(page().querySelector('.md-membership').textContent,/On your watchlist/);assert.match(page().textContent,/Added to your watchlist/);
+  assert.equal(page().querySelector('.md-remove-watchlist').hidden,false);
+  primary().click();await tick();await tick();
+  assert.equal(opened.length,1);assert.equal(opened[0].id,'cat-tt1111111');assert.equal(opened[0].options.backLabel(),'← Back to Discover');
+  assert.equal(opened[0].options.returnFocus().dataset.discoveryId,'tt1111111');
+});
+
+test('a failed add leaves membership and the existing watch state untouched',async t=>{
+  const members=new Set(['tt1111111']),h=fixture(t,input=>input.action==='add'?{ok:false,error:'Disk is full'}:pagedRespond(members)(input));realTitlePages(h);await tick();
+  const card=h.root.querySelector('[data-discovery-id=tt1111112]');card.click();await tick();await tick();
+  const page=h.w.document.querySelector('.media-title-page');page.querySelector('.md-primary-actions button').click();await tick();
+  assert.match(page.textContent,/Disk is full/);assert.match(page.querySelector('.md-membership').textContent,/Not in your library/);assert.doesNotMatch(page.textContent,/Added to your watchlist/);
+});
+
+test('watchlist removal waits for the initial personal read before staging the confirmed change',async t=>{
+  const members=new Set(['tt1111111']),h=fixture(t,pagedRespond(members));realTitlePages(h);
+  h.w.Element.prototype.scrollIntoView=()=>{};
+  let release;const reads=new Promise(resolve=>release=resolve),previews=[];
+  h.w.api.personalMedia=async input=>{
+    if(input.action==='get'){await reads;return {ok:true,item:{watchStatus:'planned'}};}
+    previews.push(input);return {ok:true,token:'removal',preview:{changes:input.changes}};
+  };
+  h.w.eval(fs.readFileSync(require.resolve('../src/renderer/personal-media-ui.js'),'utf8'));
+  await tick();h.root.querySelector('[data-discovery-id=tt1111111]').click();await tick();
+  const page=h.w.document.querySelector('.media-title-page');
+  assert.equal(page.querySelector('.pm-watch select').disabled,true);
+  page.querySelector('.md-remove-watchlist').click();await tick();
+  assert.equal(previews.length,0,'nothing is staged against a loading personal record');
+  release();await new Promise(resolve=>setTimeout(resolve,160));
+  assert.equal(previews.length,1);assert.equal(JSON.stringify(previews[0].changes),'{"watchStatus":"unspecified"}');
+  assert(page.querySelector('.pm-preview'),'removal reaches the existing confirmation surface');
+  assert.equal(members.size,1,'preview does not remove the record');
+});

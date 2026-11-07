@@ -38,3 +38,18 @@ test('a stale image error cannot hide the newly selected slide',async t=>{
   assert.equal(hero.hidden,false);hero.querySelectorAll('.cn-discover-arrow')[1].click();await tick();
   old.dispatchEvent(new h.w.Event('error'));assert.equal(hero.hidden,false);assert.equal(hero.dataset.featureId,'tt2');
 });
+
+test('a library refresh updates featured membership while preserving the selected title',async t=>{
+  const rows=[row('tt1'),row('tt2')],h=fixture(t,rows);
+  h.root.querySelectorAll('.cn-discover-arrow')[1].click();await tick();
+  h.root.querySelectorAll('.cn-discover-arrow')[1].focus();
+  assert.equal(h.root.querySelector('.cn-feature-owned'),null);
+  rows[1]={...rows[1],catalogId:'catalog-2',watchStatus:'planned'};
+  h.w.document.dispatchEvent(new h.w.Event('media-library-changed'));await tick();await tick();
+  assert.equal(h.root.querySelector('.cn-discover-hero').dataset.featureId,'tt2');
+  assert.equal(h.root.querySelector('.cn-feature-owned')?.dataset.state,'planned');
+  assert.equal(h.w.document.activeElement,h.root.querySelectorAll('.cn-discover-arrow')[1]);
+  rows[1]={...rows[1],catalogId:null,watchStatus:'unspecified'};
+  h.w.document.dispatchEvent(new h.w.Event('media-library-changed'));await tick();await tick();
+  assert.equal(h.root.querySelector('.cn-feature-owned'),null);
+});

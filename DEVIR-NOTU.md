@@ -1,3 +1,5 @@
+Güncel yayın: [Claude Keşfet tesliminin GitHub/master yayını](docs/devir/2026-11-07-0815.md)
+Güncel paket: [Claude Keşfet sürekliliği, onay akışı ve görsel entegrasyon](docs/devir/2026-11-07-0808.md)
 Güncel paket: [Claude kümülatif ürün teslimi](docs/devir/2026-11-07-0605.md)
 Güncel paket: [Podcast ve Çift dilli Sahne birikmiş teslimi](docs/devir/2026-11-07-0420.md)
 Güncel kontrol: [Altyazı sürümü, Podcast notu ve Browser dönüşü](docs/devir/2026-11-06-1846.md)

@@ -44,3 +44,20 @@ test('R846-07 explicit exact-episode continuation reopens a completed series; au
  const p=await preview(f,identity,{episode:{season:2,number:4},positionSeconds:900,watchStatus:'watching'});await apply(f,p);const saved=f.catalog.get(series.id);assert.equal(saved.watchStatus,'watching');assert.equal(saved.episodes.find(e=>e.id==='old-episode').watchStatus,'watching','automatic sync updates only its exact old episode');assert.equal(saved.episodes.find(e=>e.season===2&&e.number===4).watchStatus,'watching');
  const rows=daily.continuations([saved],{},f.history);assert.equal(rows.length,1);assert.equal(rows[0].episode.season,2);assert.equal(rows[0].episode.number,4);assert.equal(rows[0].positionSeconds,900);
 });
+
+test('moving a title to Not set changes only its viewing status; rating, favorite, reaction, note and resume stay, and a failed save rolls back with a one-shot token',async t=>{
+ const f=fixture(t),id={catalogId:f.film.id};
+ f.catalog.upsert({id:f.film.id,watchStatus:'planned',favorite:true,ratings:{personal:'8.5'},genres:['Drama']});
+ await apply(f,await preview(f,id,{reaction:'like',note:'Keep this note.'}));
+ const shot=async()=>{const row=f.catalog.get(f.film.id),view=(await f.handle(f.event,{action:'get',identity:id})).item,{watchStatus,revision,...rest}=view;
+  return {status:row.watchStatus,fixed:JSON.stringify({favorite:row.favorite,ratings:row.ratings,genres:row.genres,title:row.title,year:row.year,imdbId:row.imdbId,source:row.source,editions:row.editions,episodes:row.episodes}),feedback:JSON.stringify(M.readFeedback(f.dir).titles[f.film.id]),view:JSON.stringify(rest),reaction:view.reaction,note:view.note};};
+ const before=await shot();assert.equal(before.status,'planned');assert.equal(before.reaction,'like');assert.equal(before.note,'Keep this note.');
+ const read=await preview(f,id,{watchStatus:'unspecified'});assert.deepEqual({...await shot()},before,'a preview is read-only');
+ const original=f.catalog.upsert;f.catalog.upsert=()=>{throw Error('Disk is full');};
+ const bad=await f.handle(f.event,{action:'apply',token:read.token,owner:f.owner});f.catalog.upsert=original;
+ assert.equal(bad.ok,false);assert.match(bad.error,/Disk is full/);assert.deepEqual(await shot(),before,'a failed save keeps status, rating, reaction and note');
+ const reused=await f.handle(f.event,{action:'apply',token:read.token,owner:f.owner});assert.equal(reused.ok,false);assert.match(reused.error,/expired/,'the failed attempt consumed its token');
+ const item=await apply(f,await preview(f,id,{watchStatus:'unspecified'}));assert.equal(item.watchStatus,'unspecified');
+ const after=await shot();assert.equal(after.status,'unspecified');
+ assert.equal(after.fixed,before.fixed,'rating, favorite and metadata are untouched');assert.equal(after.feedback,before.feedback,'reaction and note are untouched');assert.equal(after.view,before.view,'every other personal field is untouched');
+});

@@ -655,7 +655,8 @@
   document.addEventListener('pointerdown',event=>{for(const menu of host.querySelectorAll('.mh-more[open]'))if(!menu.contains(event.target))menu.open=false;});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')for(const menu of host.querySelectorAll('.mh-more[open]'))menu.open=false;});
   document.addEventListener('ui-locale-change', renderShell);
-  document.addEventListener('media-library-changed', event => { if (state.active) void refresh(event.detail?.origin==='discovery-personal'?{metadata:false,preserveDiscovery:true}:{}); });
+  // Keşfet açıkken kendi listesini yerinde yeniler (MediaDiscoveryUI.refreshLoaded); sayfayı baştan kurmak odağı ve konumu düşürür.
+  document.addEventListener('media-library-changed', event => { if (state.active) void refresh(event.detail?.origin==='discovery-personal'?{metadata:false,preserveDiscovery:true}:{preserveDiscovery:true}); });
   // Do not switch workspace or touch saved jobs, captions, tabs or dub state on startup.
   renderShell(); setHome(true);
   window.MediaHomeUI=Object.freeze({openRecallNode:async id=>{await returnHome();page('recall');await recallView?.reload();await recallView?.openNode(id);},openFeedEntry:async id=>{await returnHome();page('feeds');await feedsView?.reload();return await feedsView?.openEntry(id);},currentPage:()=>state.page,emptyState,returnHome,resumeWorkspace,openStudio,navigate:async(value)=>{await returnHome();page(value);}});

@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Keşfet’te kütüphane değişince yüklenmiş sayfalar, filtreler, konum ve kart odağı korunur. İzleneceklere ekleme detayda kalır; çıkarma mevcut önizleme/onay akışını kullanır ve kayıt hatasında önceki bilgiler korunur. Film sayfasının üyelik, devam ve kaynak şeridi ile hero/kart yerleşimi iyileştirildi; bekleyen kişisel işlemlerde gözlemci döngüsü giderildi. [Devir](docs/devir/2026-11-07-0808.md).
+
 - Ana sayfa kaldığın konumu ve diğer devam kayıtlarını gösterir. Letterboxd örnekleri kaynak kimliğini, sayı ve spoiler seçimini gözetir. Boş yenileme önceki örneği korur, gizlenen spoiler mevcut analizde de gösterilmez. Asistan kartlarında işlem durumu ve **Kaynağa git** eylemi görünür. Podcast Sahne gerçek kuyruktan sıradaki bölümü gösterir ve değişen hedefi açmayı reddeder. [Devir](docs/devir/2026-11-07-0605.md).
 
 - Browser altyazı hızlı düzenleyicisi kayıtlı çeviri satırının önceki metin ve zamanlarını saklar; önceki sürüm yeniden açılışta karşılaştırılıp taslağa alınabilir. Podcast aramasında açılamayan pasaj hatayı kartta gösterir ve yeniden denemeye izin verir. Sahne’de etkin zaman düğmesi ve salt okunur transkript görsel olarak ayrışır. [Devir](docs/devir/2026-11-06-1846.md).

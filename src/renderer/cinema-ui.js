@@ -355,7 +355,7 @@
       r.prepend(icon("star"));
       meta.append(r);
     }
-    for (const value of [item.year, item.runtime ? `${Math.floor(item.runtime / 60)} ${t("h", "sa")} ${item.runtime % 60} ${t("min", "dk")}` : "", (item.genres || []).slice(0, 3).map(window.MediaVisual.genre).join(" / ")]) if (value) meta.append(n("span", "", value));
+    for (const value of [item.year, item.runtime >= 60 ? `${Math.floor(item.runtime / 60)} ${t("h", "sa")} ${item.runtime % 60} ${t("min", "dk")}` : item.runtime > 0 ? `${item.runtime} ${t("min", "dk")}` : "", (item.genres || []).slice(0, 3).map(window.MediaVisual.genre).join(" / ")]) if (value) meta.append(n("span", "", value));
     if (isDiscovery && membership) meta.append(membership);
     copy.append(meta);
     const storyText = item.synopsisTr || item.synopsis;

@@ -8,7 +8,7 @@
  const descriptions=()=>({story:t('The story and its impact.','Hikâyenin sende bıraktığı iz.'),characters:t('People and performances.','Karakterler ve oyunculuk.'),emotion:t('The emotional impact.','Seni içine alan duygusal etki.'),pace:t('The rhythm of the narrative.','Anlatının ritmi ve akışı.'),visuals:t('Framing, light and visual storytelling.','Kadraj, ışık ve görsel anlatım.'),sound:t('Music and the sound world.','Müzik ve ses dünyasının etkisi.'),atmosphere:t('The world this film creates.','Filmin kurduğu dünyanın hissi.')});
  function mount(page,body){
   body.classList.add('cf4-viewing');
-  let disposed=false,editor=null,reflection=null,global=null,scope='film',preferenceControls=null;const moreControls=[],syncs=new Map();
+  let disposed=false,editor=null,reflection=null,global=null,scope='film',preferenceControls=null,burst=0,burstAt=0,burstTimer=0;const moreControls=[],syncs=new Map();
   const watch=()=>observer.observe(page,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled','aria-busy']});
   const observer=new MutationObserver(enhance);
   const saved=event=>{const node=event.detail?.kind==='journal'?body.querySelector('.daily-journal .daily-journal-form button'):editor?.querySelector('[data-cf4-save]');if(node&&window.CinemaMotion?.mode!=='off'&&window.CinemaMotion?.mode!=='reduced')node.animate?.([{opacity:.6,transform:'scale(.97)'},{opacity:1,transform:'scale(1)'}],{duration:200,easing:'ease-out'});};
@@ -31,7 +31,7 @@
     b.addEventListener('click',()=>{if(b.disabled)return;select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));sync();updateCount();});
     group.append(b);return b;
    });
-   const sync=()=>{let selected=options.findIndex(o=>o.value===select.value);if(selected<0)selected=0;group.style.setProperty('--at',selected);buttons.forEach((b,i)=>{b.disabled=select.disabled||options[i].disabled;b.setAttribute('aria-checked',String(i===selected));b.tabIndex=i===selected?0:-1;});};
+   const sync=()=>{let selected=options.findIndex(o=>o.value===select.value);if(selected<0)selected=0;group.style.setProperty('--at',selected);buttons.forEach((b,i)=>{const off=!!(select.disabled||options[i].disabled),checked=String(i===selected),tab=i===selected?0:-1;/* Aynı değeri yeniden yazmak da mutasyon kaydı üretir; yalnız değişeni yaz. */if(b.disabled!==off)b.disabled=off;if(b.getAttribute('aria-checked')!==checked)b.setAttribute('aria-checked',checked);if(b.tabIndex!==tab)b.tabIndex=tab;});};
    group.addEventListener('keydown',e=>{const enabled=buttons.filter(b=>!b.disabled),at=enabled.indexOf(document.activeElement);let next;if(e.key==='Home')next=0;else if(e.key==='End')next=enabled.length-1;else if(['ArrowRight','ArrowDown'].includes(e.key))next=(at+1)%enabled.length;else if(['ArrowLeft','ArrowUp'].includes(e.key))next=(at-1+enabled.length)%enabled.length;else return;if(!enabled.length)return;e.preventDefault();enabled[next].click();enabled[next].focus();});
    card.append(heading,description,select,group);syncs.set(select,sync);select.addEventListener('change',sync);sync();return card;
   }
@@ -112,7 +112,7 @@
    accordion(root.querySelector('.fw-handoff'),t('Manage source selection and position','Kaynak seçimini ve devam konumunu yönet'),t('Advanced options','İleri seçenekler'),'link');
   }
   function enhance(){
-   if(disposed)return;observer.disconnect();
+   if(disposed)return;observer.disconnect();{const now=performance.now();if(now-burstAt>50){burst=0;burstAt=now;}}
    const host=body.querySelector(':scope>.fw-workspace'),profile=page.querySelector('.film-decision-profile');
    if(!body.closest('details')?.open&&!profile?.open){watch();return;}
    if(profile){profile.classList.add('cf4-taste-accordion');buildTaste(profile,host?.querySelector(':scope>.fw-reflection'));}
@@ -127,10 +127,14 @@
    for(const source of body.querySelectorAll('.daily-sources'))if(!source.dataset.cf4){source.dataset.cf4='true';const h=source.querySelector(':scope>h2,:scope>h3'),d=el('details','cf4-inline cf4-source-records');d.append(el('summary'));source.before(d);if(h)h.remove();d.append(source);accordion(d,t('Sources for this title','Bu yapıma ait kaynaklar'),t('Notes, links and saved outputs','Notlar, bağlantılar ve kayıtlar'),'folder');}
    for(const [select,sync]of syncs){if(!select.isConnected)syncs.delete(select);else sync();}
    const status=host?.querySelector(':scope>.fw-status');if(editor&&status&&editor.querySelector('.cf4-status').textContent!==status.textContent)editor.querySelector('.cf4-status').textContent=status.textContent;
-   for(const b of body.querySelectorAll('button:disabled')){b.title=t('Link a source and select an available file to enable this action.','Bu işlem için önce kaynak bağla ve kullanılabilir dosyayı seç.');b.dataset.cinemaTooltip=b.title;}
-   if(editor)setScope(scope);watch();
+   const disabledHint=t('Link a source and select an available file to enable this action.','Bu işlem için önce kaynak bağla ve kullanılabilir dosyayı seç.');
+   for(const b of body.querySelectorAll('button:disabled')){if(b.title!==disabledHint)b.title=disabledHint;if(b.dataset.cinemaTooltip!==disabledHint)b.dataset.cinemaTooltip=disabledHint;}
+   if(editor)setScope(scope);
+   // Başka bir gözlemciyle karşılıklı tetiklenme (ör. beklerken devre dışı düğmeler) mikro görev döngüsüne dönüp renderer'ı ve IPC yanıtlarını bloklayamaz: sık tekrarda yeniden izleme bir sonraki göreve ertelenir.
+   // Ertelenen turda gözlemci kapalıdır; kaçan güncelleme olmasın diye zamanlayıcı yeniden izlemeyi değil enhance()'ı çalıştırır (enhance kendisi yeniden izler).
+   if(++burst>12){clearTimeout(burstTimer);burstTimer=setTimeout(()=>{burst=0;burstAt=0;if(!disposed)enhance();},60);}else watch();
   }
-  enhance();return {dispose(){disposed=true;observer.disconnect();syncs.clear();page.removeEventListener('cinema-save-complete',saved);page.removeEventListener('toggle',toggled,true);}};
+  enhance();return {dispose(){disposed=true;clearTimeout(burstTimer);observer.disconnect();syncs.clear();page.removeEventListener('cinema-save-complete',saved);page.removeEventListener('toggle',toggled,true);}};
  }
  window.CinemaFilmRound4=Object.freeze({mount});
 })();

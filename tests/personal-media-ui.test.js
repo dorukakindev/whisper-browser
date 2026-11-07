@@ -37,3 +37,25 @@ test('title personal refresh replaces stale sidebar status while preserving an u
  form=w.document.querySelector('.mtd-personal');assert.equal(form.querySelector('select').value,'completed');assert.equal(form.querySelector('input').value,'9.3');
  w.MediaTitleUI.close();
 });
+
+test('a failed confirm drops the consumed preview, shows the reason and returns controls to the saved status; retry needs a fresh preview',async t=>{
+ const dom=new JSDOM('<main id="host"></main>',{runScripts:'outside-only',url:'https://app.invalid'}),w=dom.window;t.after(()=>w.close());
+ const calls=[],events=[];let value={catalogId:'film-1',identity:{kind:'film',imdbId:'tt1234567'},kind:'film',title:'Fixture film',watchStatus:'planned',reaction:'like',note:'Keep this note',manualResume:null,episodes:[]},tokens=0;
+ w.UiLocale={get:()=>'en'};
+ w.api={personalMedia:async input=>{calls.push(input.action);if(input.action==='get')return {ok:true,item:value};if(input.action==='preview')return {ok:true,token:'tok-'+(++tokens),preview:{title:value.title,changes:input.changes}};
+  if(input.action==='apply'){if(input.token==='tok-1')return {ok:false,error:'Disk is full'};if(input.token!=='tok-2')return {ok:false,error:'Personal update preview expired.'};value={...value,watchStatus:'unspecified'};return {ok:true,item:value};}throw Error('Unexpected action');}};
+ w.document.addEventListener('media-personal-changed',event=>events.push(event.detail));
+ w.eval(fs.readFileSync(require.resolve('../src/renderer/personal-media-ui.js'),'utf8'));
+ const host=w.document.getElementById('host'),select=()=>host.querySelector('.pm-watch select'),button=text=>[...host.querySelectorAll('button')].find(node=>node.textContent===text);
+ w.PersonalMediaUI.mount(host,{item:{id:'film-1',kind:'film'},identity:{catalogId:'film-1'}});await tick();
+ const choose=async()=>{select().value='unspecified';select().dispatchEvent(new w.Event('change',{bubbles:true}));await tick();await tick();};
+ await choose();assert(host.querySelector('.pm-preview'),'first preview is shown');
+ button('Confirm save').click();await tick();await tick();
+ assert.equal(host.querySelector('.pm-preview'),null,'the consumed preview is not left behind');
+ assert.equal(select().value,'planned','controls show the saved status again, not the staged choice');
+ assert.match(host.querySelector('.pm-status').textContent,/Disk is full.*Nothing was changed.*Preview again/);
+ assert.equal(events.length,0,'no saved event for a failed save');assert.equal(host.querySelector('.pm-summary').textContent.includes('Watchlist'),true,'the saved watchlist state is still what the panel shows');
+ await choose();assert(host.querySelector('.pm-preview'),'a fresh second preview works after the failure');
+ button('Confirm save').click();await tick();await tick();
+ assert.equal(value.watchStatus,'unspecified');assert.equal(events.length,1);assert.equal(select().value,'unspecified');assert.deepEqual(calls.filter(a=>a!=='get'),['preview','apply','preview','apply']);
+});
