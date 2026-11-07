@@ -963,7 +963,8 @@
       line.scrollIntoView?.({block:'center',inline:'nearest'});
     }
     readCurrentSentence(opener) {
-      const line = this.livePart?.closest('[data-i]') || this.activeLine;
+      const part = this.livePart;
+      const line = part?.closest('[data-i]') || this.activeLine;
       if (!line) return;
       if (this.usesTranscriptDrawer() && !this.s.transcript) this.followBeforeFullSentence = this.s.follow;
       this.s.follow = false;
@@ -979,8 +980,9 @@
       requestAnimationFrame(() => {
         if (!line.isConnected || document.activeElement !== line) return;
         const scroll = this.q('[data-r=scroll]');
-        const top = line.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
-        const inset = Math.max(0, (scroll.clientHeight - line.offsetHeight) / 2);
+        const target = line.offsetHeight > scroll.clientHeight && line.contains(part) ? part : line;
+        const top = target.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
+        const inset = Math.max(0, (scroll.clientHeight - target.offsetHeight) / 2);
         scroll.scrollTo({ top: Math.max(0, top - inset), behavior: 'instant' });
       });
     }
@@ -1275,6 +1277,8 @@
     async runStatusAction(button, action) {
       if (typeof action !== 'function' || button.disabled) return;
       const identity = this.a.identity?.();
+      const returnToTransport = button.dataset.a === 'playbackRetry' && document.activeElement === button;
+      if (returnToTransport) this.q('[data-a=toggle]')?.focus({preventScroll:true});
       button.disabled = true;
       try {
         const result = await action();
@@ -1283,11 +1287,18 @@
         if (!this.dead && identity === this.a.identity?.()) this.toast(error?.message || T('İşlem uygulanamadı.', 'The action could not be completed.'));
       } finally {
         button.disabled = false;
+        if (returnToTransport && !this.dead && identity === this.a.identity?.()
+            && document.activeElement === document.body) {
+          this.q('[data-a=toggle]')?.focus({preventScroll:true});
+        }
       }
     }
     drawJob() {
       const recovery = this.a.recovery?.();
       const recoveryBox = this.q('[data-r=recovery]');
+      if (!recovery && recoveryBox.contains(document.activeElement)) {
+        this.q('[data-a=toggle]')?.focus({preventScroll:true});
+      }
       recoveryBox.hidden = !recovery;
       if (recovery) {
         const status = recoveryBox.querySelector('span'), button = recoveryBox.querySelector('button');

@@ -164,7 +164,7 @@
   const step=Math.max(1,Math.ceil(eligible.length/3000));const pool=eligible.filter((row,index)=>index%step===0||row.start<=now&&row.end>=now).slice(0,3100).map(row=>({id:row.id,start:row.start,end:row.end,text:String(row.text||'').slice(0,500),translation:String(row.translation||'').slice(0,500)}));
   return {enabled:pool.length>0,time:now,scope,truncated:step>1,rows:pool};
  }
- window.AssistantWorkspace=Object.freeze({key,snapshot,artifact,openArtifact,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,runtime,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,activeId:()=>current()?.id||''});
+ window.AssistantWorkspace=Object.freeze({key,snapshot,artifact,openArtifact,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,runtime,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,activeId:(sourceKey=key())=>cache.get(sourceKey)?.active||''});
  document.addEventListener('media-context-changed',()=>{if(workspaceState())restoreLog();});
  window.addEventListener('pagehide',()=>{const pending=new Set(flushTimers.keys());for(const thread of pending)cancelFlush(thread);for(const state of cache.values())for(const thread of state.threads)if(pending.has(thread)||thread.messages.some(row=>row.status==='streaming'))void persist(thread);});
 })();

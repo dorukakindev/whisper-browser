@@ -68,7 +68,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
     if(epoch!==startEpoch)throw Error('Native playback was superseded.');
     await stop();if(epoch!==startEpoch)throw Error('Native playback was superseded.');const host=new BrowserWindow({parent:owner(),show:false,frame:false,skipTaskbar:true,focusable:false,backgroundColor:'#000000',webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
     const handle=host.getNativeWindowHandle(),wid=(handle.length>=8?handle.readBigUInt64LE():BigInt(handle.readUInt32LE())).toString(),pipe='\\\\.\\pipe\\whisper-mpv-'+randomUUID();
-    const s={host,key:String(input.key||'').slice(0,2048),generation:input.generation,pending:new Map(),state:{time:0,duration:0,paused:true,speed:1,volume:1,muted:false,buffering:false,tracks:[]}};session=s;opened=s;
+    const s={host,key:String(input.key||'').slice(0,2048),generation:input.generation,network:/^https?:\/\//i.test(source),pending:new Map(),state:{time:0,duration:0,paused:true,speed:1,volume:1,muted:false,buffering:false,tracks:[]}};session=s;opened=s;
     s.owner=owner();s.reposition=()=>layout(s,s.bounds||input.bounds||{});s.owner.on('move',s.reposition);s.owner.on('resize',s.reposition);
     const config=path.join(app.getPath('userData'),'native-player-input.conf');fs.writeFileSync(config,'MBTN_LEFT script-message whisper-toggle\nMBTN_LEFT_DBL script-message whisper-fullscreen\n');
     const args=['--no-config','--load-scripts=no','--idle=yes','--terminal=no','--osc=no','--input-default-bindings=no','--input-vo-keyboard=no','--input-conf='+config,'--wid='+wid,'--input-ipc-server='+pipe,'--hwdec=auto','--keep-open=yes','--sub-auto=no','--audio-file-auto=no','--ytdl=no','--osd-level=1','--osd-align-y=bottom','--osd-align-x=center','--osd-font-size=28'];
@@ -77,24 +77,44 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
     if(session!==s){s.socket?.destroy();throw Error('Native playback was superseded.');}
     if(!s.socket){await stop();throw Error('Native player IPC startup timed out. '+error);}
     let buffer='';s.socket.on('error',()=>{});s.socket.on('close',()=>{if(session===s){send(s,'error',{error:'Native player connection closed.'});void stop().catch(()=>{});}});
+    function failPlayback(){
+     if(session!==s||s.loadError)return;
+     s.loadError='Native media could not play.';
+     if(s.ready){send(s,'error',{error:s.loadError});void stop().catch(()=>{});}
+    }
+    function notifyEnd(){
+     if(session!==s||s.endNotified||s.loadError)return;
+     const {time,duration}=s.state;
+     const endTolerance=Math.max(2,Math.min(10,duration*.02));
+     // A truncated HTTP response can produce EOF rather than an mpv error.
+     if(s.network&&s.ready&&time>0&&duration-time>endTolerance){failPlayback();return;}
+     s.endNotified=true;send(s,'ended');
+    }
     s.socket.on('data',chunk=>{buffer+=chunk.toString();if(buffer.length>2_000_000){void stop().catch(()=>{});return;}let line;while((line=buffer.indexOf('\n'))>=0){const text=buffer.slice(0,line);buffer=buffer.slice(line+1);let row;try{row=JSON.parse(text);}catch{continue;}const pending=s.pending.get(row.request_id);if(pending){s.pending.delete(row.request_id);clearTimeout(pending.timer);row.error==='success'?pending.resolve(row.data):pending.reject(Error(pending.name+': '+row.error));}
       if(row.event==='file-loaded')s.loaded=true;
       // keep-open pauses on EOF without unloading the file; end-file need not fire.
       if(row.event==='property-change'&&row.name==='eof-reached'){
         if(row.data===false)s.endNotified=false;
-        else if(row.data===true&&!s.endNotified){s.endNotified=true;send(s,'ended');}
+        else if(row.data===true)notifyEnd();
       }
-      if(row.event==='property-change'){const map={'time-pos':'time','duration':'duration','pause':'paused','speed':'speed','volume':'volume','mute':'muted','paused-for-cache':'buffering','track-list':'tracks'};const key=map[row.name];if(key)s.state[key]=row.name==='volume'?Number(row.data)/100:row.data;}
+      if(row.event==='property-change'){
+       const map={'time-pos':'time','duration':'duration','pause':'paused','speed':'speed','volume':'volume','mute':'muted','paused-for-cache':'buffering','track-list':'tracks'};
+       const key=map[row.name];
+       if(key&&((key!=='time'&&key!=='duration')||Number.isFinite(row.data)))s.state[key]=row.name==='volume'?Number(row.data)/100:row.data;
+      }
       if(row.event==='client-message'&&row.args?.[0]?.startsWith('whisper-'))send(s,'input',{input:row.args[0]});
-      if(row.event==='end-file'&&row.reason==='eof'&&!s.endNotified){s.endNotified=true;send(s,'ended');}
+      if(row.event==='end-file'&&row.reason==='error')failPlayback();
+      if(row.event==='end-file'&&row.reason==='eof')notifyEnd();
     }});
     await command(s,['set_property','http-header-fields',headers]);
     for(const [i,name]of ['time-pos','duration','pause','speed','volume','mute','paused-for-cache','track-list','eof-reached'].entries())await command(s,['observe_property',i+1,name]);
     await command(s,['loadfile',source]);await command(s,['set_property','pause',true]);
-    const readyDeadline=Date.now()+12000;while(!s.loaded&&Date.now()<readyDeadline&&session===s)await new Promise(r=>setTimeout(r,50));
+    const readyDeadline=Date.now()+12000;while(!s.loaded&&!s.loadError&&Date.now()<readyDeadline&&session===s)await new Promise(r=>setTimeout(r,50));
+    if(s.loadError)throw Error(s.loadError);
     if(session!==s||!s.loaded)throw Error('Native media did not become ready.');
     if(Number(input.time)>0)await command(s,['seek',Number(input.time),'absolute']);
-    layout(s,input.bounds||{});host.showInactive();s.pulse=setInterval(()=>send(s),200);send(s,'ready');return {ok:true};
+    if(s.loadError)throw Error(s.loadError);
+    s.ready=true;layout(s,input.bounds||{});host.showInactive();s.pulse=setInterval(()=>send(s),200);send(s,'ready');return {ok:true};
    }
    const s=session;if(!s||s.key!==input.key||s.generation!==input.generation)return {ok:false,error:'Native playback source changed.'};
    if(input.action==='diagnostics'){

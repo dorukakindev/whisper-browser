@@ -241,9 +241,11 @@
     if(saved.sourceVersion===audio.sourceVersion&&(saved.workspace?.transcript?.provenance!=='asr'||audio.exactAudio&&result.timeline?.sha256===audio.sourceBinding?.sha256)&&result.state==='timed'&&result.status!=='partial'){
       const materialized=await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:saved.sourceVersion,role});if(!valid())return;
       await loadSubtitle(materialized.path,role==='translation',{silent:true,select:true,role});if(!valid())return;
-      if(audio.exactAudio&&(role==='translation'?player.sub2Path:player.subPath)!==materialized.path){
+      if((role==='translation'?player.sub2Path:player.subPath)!==materialized.path){
         throw Error(t('Kayıtlı altyazı değişti. Yeniden deneyin.','Saved subtitle selection changed. Try again.'));
       }
+      if(role==='source')delete audio.transcriptText;
+      else delete audio.translationText;
       audio.transcriptState='timed';delete audio.transcriptTimingNotice;
     }else{
       const cues=result.state==='timed'?parseSubtitles(result.text):[];
