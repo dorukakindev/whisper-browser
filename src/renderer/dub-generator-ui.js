@@ -17,6 +17,7 @@
   let timer = null, logPath = null;
   let previousOutput=null,previousMedia=null,previousRangeEnd=null;
   let runtimePhases={},runtimeError='',runtimeMetrics=null,artifactOpenVersion=0;
+  let lastFailure='',outputOwner='',nextStep=null;
   const cacheInfo=document.createElement('p');cacheInfo.id='dubCacheInfo';cacheInfo.dataset.uiUntranslated='';el('dubPhaseSummary').before(cacheInfo);
   const savedRecipe=document.createElement('details');savedRecipe.id='dubSavedRecipe';savedRecipe.className='dub-saved-recipe';savedRecipe.dataset.uiUntranslated='';el('dubPreviewCard').append(savedRecipe);
   const verificationSummary=document.createElement('p');verificationSummary.id='dubVerificationSummary';verificationSummary.className='hint';verificationSummary.dataset.uiUntranslated='';verificationSummary.hidden=true;el('dubNaturalReview').after(verificationSummary);
@@ -73,6 +74,76 @@
   el('translateModel')?.addEventListener('change',editorProviderHint);
   document.addEventListener('ui-locale-change',editorProviderHint);
   const decodingInfo=document.createElement('p');decodingInfo.id='dubPlanDecoding';decodingInfo.className='dub-dictionary-preview';decodingInfo.hidden=true;decodingInfo.dataset.uiUntranslated='';el('dubPlanPrepare').parentElement.after(decodingInfo);
+
+  // ---- Üretim fazı: yalnız gerçek iş verisinden türetilir (current, planning, output, results, lastFailure) ----
+  function phaseCopy(tr,en){return window.UiLocale?.get?.()==='en'?en:tr;}
+  function ownedOutput(){return !!output&&outputOwner===srt;}
+  function dubPhase(){
+    const gate=el('dubGenerationGate');
+    if(current)return 'running';
+    if(gate&&!gate.hidden)return 'review';
+    if(planning||choosing||referenceBusy||workspaceBusy)return 'preparing';
+    if(lastFailure)return 'failed';
+    if(ownedOutput())return output.syncInvalid===true||[...results.values()].some(row=>row.status==='failed')?'partial':'done';
+    return !srt||!cfg?.ready?'notready':'ready';
+  }
+  function startGuide(phase){
+    const slate=kind=>preparationActions.find(item=>item.kind===kind)?.button;
+    const rows=[...results.values()],failed=rows.filter(row=>row.status==='failed').length,review=rows.filter(row=>row.status==='review').length;
+    if(phase==='running')return {reason:phaseCopy('Üretim sürüyor. İptal etmek için Durdur’a basın.','Generation is running. Press Stop to cancel.')};
+    if(phase==='review')return {reason:phaseCopy('Çeviri denetimi onayınızı bekliyor. Uyarıları inceleyip devam edin.','The translation check is waiting for your approval. Review the warnings, then continue.'),
+      next:{label:phaseCopy('Denetime git','Go to the check'),run:()=>{const gate=el('dubGenerationGate');gate?.scrollIntoView?.({block:'center'});gate?.querySelector('button')?.focus();}}};
+    if(phase==='preparing')return {reason:referenceBusy?phaseCopy('Referans ses hazırlanıyor; bitince üretimi başlatabilirsiniz.','The reference voice is being prepared. You can start when it finishes.')
+      :planning?phaseCopy('Metin planı hazırlanıyor; bitince üretimi başlatabilirsiniz.','The text plan is being prepared. You can start when it finishes.')
+      :choosing?phaseCopy('Dosya seçimi açık. Seçimi tamamlayın veya iptal edin.','A file picker is open. Finish or cancel the selection.')
+      :phaseCopy('Dışa aktarma veya proje işlemi sürüyor; bitince üretimi başlatabilirsiniz.','An export or project task is running. You can start when it finishes.')};
+    if(phase==='notready'){
+      const needSource=!srt,needVoice=!cfg?.ready;
+      if(needSource)return {reason:podcast?.notice||(needVoice?phaseCopy('Başlamak için altyazı ve etkin ses seçin.','Choose subtitles and an active voice to begin.'):phaseCopy('Başlamak için altyazı seçin.','Choose subtitles to begin.')),
+        next:{label:podcast?.action==='timed'?phaseCopy('Zamanlı transkript oluştur','Create a timed transcript'):phaseCopy('Altyazı seç','Choose subtitles'),run:()=>{if(podcast?.action&&!el('dubPodcastAction').hidden)el('dubPodcastAction').click();else slate('source')?.click();}}};
+      return {reason:phaseCopy('Başlamak için etkin bir referans ses seçin.','Choose an active reference voice to begin.'),next:{label:phaseCopy('Referans ses seç','Choose a reference voice'),run:()=>slate('voice')?.click()}};
+    }
+    if(phase==='failed')return {reason:phaseCopy('Son üretim tamamlanmadı. Nedeni “Üretim ayrıntıları”nda; ayarları kontrol edip yeniden deneyin.','The last run did not finish. The reason is under “Generation details”; check the settings and try again.')+(ownedOutput()?phaseCopy(' Önceki sonuç korundu.',' Your previous result is kept.'):'')};
+    if(phase==='partial'){
+      if(output?.syncInvalid===true)return {reason:phaseCopy('Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.','The audio file is ready, but its timing map is invalid. Sync with the video cannot be guaranteed.')};
+      return {reason:phaseCopy(`${failed} parça üretilemedi${review?` · ${review} parça inceleme bekliyor`:''}. Üretilen parçalar korunur.`,`${failed} group${failed===1?'':'s'} failed${review?` · ${review} to review`:''}. Finished groups are kept.`),
+        next:{label:phaseCopy('Eksik parçaları tamamla','Complete missing groups'),run:()=>el('dubRetryFailed').click()}};
+    }
+    if(phase==='done'&&review)return {reason:phaseCopy(`${review} parça dinleyerek kontrol edilmeli.`,`${review} group${review===1?'':'s'} should be checked by listening.`),next:{label:phaseCopy('Grupları kontrol et','Review groups'),run:()=>el('dubOpenQuality').click()}};
+    return {};
+  }
+  function scopeNote(submitted){
+    if(submitted?.sample??el('dubSampleOnly').checked)return phaseCopy('Önce temsil edici kısa örnek üretilir','A short representative sample is generated first');
+    return (submitted?(!!submitted.range):el('dubRangeEnabled').checked)?phaseCopy('Aralık dışında özgün ses çalar','Original audio plays outside the range'):phaseCopy('Bütün altyazı seslendirilir','The whole subtitle is voiced');
+  }
+  function renderPhase(){
+    const phase=dubPhase(),chip=el('dubStateChip'),guide=startGuide(phase),en=window.UiLocale?.get?.()==='en';
+    const names={notready:['Hazır değil','Not ready'],ready:['Hazır','Ready'],preparing:['Hazırlanıyor','Preparing'],review:['Onay bekliyor','Awaiting approval'],running:['Üretiliyor','Generating'],partial:['Kısmi','Partial'],done:['Tamamlandı','Done'],failed:['Başarısız','Failed']};
+    modal.dataset.phase=phase;modal.setAttribute('aria-busy',String(phase==='running'||phase==='preparing'));
+    el('dubStateLabel').textContent=names[phase][en?1:0];chip.dataset.state=phase;
+    const footer=modal.querySelector('.dub-studio-footer');if(footer)footer.dataset.phase=phase;
+    const requirement=el('dubStartRequirement');requirement.textContent=guide.reason||'';requirement.hidden=!guide.reason;
+    const next=el('dubStartNext');nextStep=guide.next?.run||null;next.hidden=!guide.next;next.textContent=guide.next?.label||'';
+    const startButton=el('dubGeneratorStart');
+    startButton.textContent=phase==='failed'?phaseCopy('Yeniden dene','Try again'):phase==='partial'||phase==='done'?phaseCopy('Baştan üret','Regenerate'):en?'Start dubbing':'Dublajı başlat';
+    const primary=phase==='ready'||phase==='failed'?'dubGeneratorStart':phase==='partial'||phase==='notready'?'dubStartNext':phase==='done'&&ownedOutput()&&output.sample!==true&&completedRequest?.sample!==true&&output.syncInvalid!==true?'dubGeneratorUse':'';
+    for(const id of ['dubGeneratorStart','dubStartNext','dubGeneratorUse']){const node=el(id);node.classList.toggle('btn-primary',id===primary);node.classList.toggle('btn-secondary',id!==primary);}
+    {const title=el('dubResultTitle'),copy={partial:['Dublaj kısmen hazır','Dubbing partly ready'],failed:['Önceki dublaj korunuyor','Previous dubbing is kept']}[phase]||['Dublaj hazır','Dubbing ready'];title.dataset.tr=copy[0];title.dataset.en=copy[1];title.textContent=en?copy[1]:copy[0];el('dubPreviewCard').dataset.tone=phase==='partial'?'warn':phase==='failed'?'neutral':'ok';}
+    // Slate notları ve “ne hangi sesle üretilecek” özeti
+    const episodeTrack=srtOrigin==='podcast'&&podcast?.tracks.find(row=>row.role===podcast.choice),submitted=current?.settings;
+    const who={publisher:phaseCopy('Yayıncı','Publisher'),asr:'Whisper',user:phaseCopy('Kullanıcı','User')};
+    el('dubReadySourceNote').textContent=!srt?phaseCopy('Seçmek için tıklayın','Click to choose')
+      :episodeTrack?[who[episodeTrack.provenance]||episodeTrack.provenance,episodeTrack.partial?phaseCopy('kısmi','partial'):''].filter(Boolean).join(' · ')
+      :/\.partial\.srt$/i.test(srt)?phaseCopy('Kısmi çeviri dosyası','Partial translation file')
+      :srtOrigin==='manual'?phaseCopy('Elle seçilen dosya','Manually chosen file'):phaseCopy('Açık videonun altyazısı','Subtitle of the open video');
+    const activeVoice=current?.voice||cfg;
+    el('dubReadyVoiceNote').textContent=!activeVoice?.reference?phaseCopy('Seçmek için tıklayın','Click to choose'):cfg?.ready||current?phaseCopy('Bu ses kullanılacak','This voice will be used'):phaseCopy('Ses motoru hazır değil','Voice engine is not ready');
+    el('dubReadyRangeNote').textContent=scopeNote(submitted);
+    const sourceName=el('dubReadySource').textContent,voiceName=el('dubReadyVoice').textContent;
+    el('dubNaturalSummary').textContent=srt&&activeVoice?.reference?phaseCopy(`${sourceName} izi, ${voiceName} sesiyle seslendirilecek · ${el('dubReadyRange').textContent}`,`${sourceName} will be voiced with ${voiceName} · ${el('dubReadyRange').textContent}`):phaseCopy('Altyazı ve ses seçildiğinde neyin hangi sesle üretileceği burada özetlenir.','Once subtitles and a voice are chosen, what will be voiced with which voice is summarized here.');
+  }
+  el('dubStartNext').addEventListener('click',()=>nextStep?.());
+  document.addEventListener('ui-locale-change',renderPhase);
   function naturalOverview() {
     const en=window.UiLocale?.get?.()==='en', submitted=current?.settings;
     for(const node of modal.querySelectorAll('[data-tr][data-en]')){node.dataset.uiUntranslated='';node.textContent=en?node.dataset.en:node.dataset.tr;}
@@ -128,6 +199,7 @@
       : selected === 'Careful' ? 'Ayrıntılı profil: bütün parçalar metin denetiminden geçer; daha uzun sürer.'
       : selected === 'Balanced' ? 'Dengeli profil: akıcı bloklar, 15 adım ve konuşmayı koruyan zamanlama.'
       : 'Özel ayarlar etkin. Hazır profiller sesinizi ve seçili aralığı değiştirmez.');
+    renderPhase();
   }
   const reviewHeadline=document.createElement('p');reviewHeadline.className='dub-review-headline';reviewHeadline.dataset.uiUntranslated='';reviewHeadline.hidden=true;el('dubQualityInfo').after(reviewHeadline);
   const readabilityNote=document.createElement('p');readabilityNote.className='dub-readability-note';readabilityNote.dataset.uiUntranslated='';el('dubPlanText').after(readabilityNote);
@@ -303,10 +375,7 @@
     if(el('dubTranslateGroup'))el('dubTranslateGroup').disabled=locked||!plan;
     if(el('dubSaveRegenerate'))el('dubSaveRegenerate').disabled=locked||!lastRequest||!plan||!cfg?.ready;
     el('dubQualityGroup').disabled = locked || !el('dubQualityGroup').value;
-    el('dubGeneratorStart').disabled = locked || !srt || !cfg?.ready;
-    const requirement=el('dubStartRequirement'),en=window.UiLocale?.get?.()==='en';
-    if(requirement){requirement.hidden=locked||!!srt&&!!cfg?.ready;requirement.textContent=!srt&&!cfg?.ready?(en?'Choose subtitles and an active voice to begin.':'Başlamak için altyazı ve etkin ses seçin.'):!srt?(en?'Choose an SRT subtitle file to begin.':'Başlamak için SRT altyazısı seçin.'):(en?'Choose an active reference voice to begin.':'Başlamak için etkin referans ses seçin.');}
-
+    el('dubGeneratorStart').disabled = locked || !srt || !cfg?.ready || !el('dubGenerationGate')?.hidden;
     el('dubPlanPrepare').disabled = locked || !srt;
     for (const id of ['dubPlanGroup', 'dubPlanText', 'dubPlanShorten', 'dubPlanApply', 'dubPlanReset']) el(id).disabled = locked || !plan;
     el('dubChooseSrt').disabled = locked;
@@ -441,7 +510,7 @@
   function restoreReadyOutput(job) {
     const saved=job?.fallback;
     if(!saved?.output?.url||saved.media!==mediaIdentity()||saved.srt!==srt)return false;
-    output=saved.output;results.clear();for(const row of saved.rows)results.set(row.key,row);
+    output=saved.output;outputOwner=srt;results.clear();for(const row of saved.rows)results.set(row.key,row);
     window.DubWorkspaceUI?.setOutput(output,job.context,job.qualityKey);preview(output);showResults();
     fileName('dubGeneratedName',output.name||basename(output.path||''));
     el('dubGeneratorOutput').classList.remove('hidden');
@@ -467,6 +536,7 @@
     fileName('dubSrtName',basename(candidate)); refreshOverview(); status('Hazır');
   }
   function currentSubtitleSelection() {
+    if (typeof player === 'undefined') return '';
     const context=window.BrowserDubAudioUI?.context();
     if(context?.visible===false||context?.hasMedia===false)return '';
     if(context?.mode!=='browser')return currentSubtitle();
@@ -613,7 +683,7 @@
       if (srt) { try { lookup.srt=srt; lookup.range=selectedRange(); } catch (_) { return; } }
       const r = await window.api.latestDub(lookup).catch(() => null);
       if (openedMedia !== requestIdentity() || requestedSelection !== selection() || current || output || !r?.output) return;
-      output = r.output;runtimeMetrics=output.metrics||null;runInfo();
+      output = r.output;outputOwner=srt;runtimeMetrics=output.metrics||null;runInfo();
       if (!srt) {
         el('dubRangeEnabled').checked=!!output.range;
         if(output.range){const format=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el('dubRangeStart').value=format(output.range.start);el('dubRangeEnd').value=format(output.range.end);}
@@ -743,7 +813,7 @@
   }
   el('dubPlanPrepare').addEventListener('click',()=>void preparePlan());
   function invalidatePlan() {
-    plan = null; edits = {}; lastRequest = null; completedRequest = null; el('dubPlanGroup').replaceChildren(); showGroup(); controls();
+    plan = null; edits = {}; lastRequest = null; completedRequest = null; lastFailure = ''; {const gate=el('dubGenerationGate');if(gate)gate.hidden=true;} el('dubPlanGroup').replaceChildren(); showGroup(); controls();
   }
   for (const [name, settings] of Object.entries(presetSpecs)) el(`dubPreset${name}`).addEventListener('click', () => {
     if (current || planning || choosing || referenceBusy || workspaceBusy) return;
@@ -846,7 +916,7 @@
     const en=window.UiLocale?.get?.()==='en';title.textContent=en?'Review before generating speech':'Ses üretmeden önce kontrol et';copy.textContent=en?`${report.flagged} text warnings · ${report.coverage?.missing.length||0} unmatched source passages. A partial file may still contain untranslated text. Checks do not prove semantic accuracy.`:`${report.flagged} metin uyarısı · ${report.coverage?.missing.length||0} eşleşmeyen kaynak metni. Kısmi dosyada çevrilmemiş satırlar olabilir. Bu kontrol anlam doğruluğunu kanıtlamaz.`;
     review.type=proceed.type='button';review.className=proceed.className='btn btn-secondary';review.textContent=en?'Inspect flagged groups':'İşaretli grupları incele';proceed.textContent=en?'I reviewed it · generate as selected':'Kontrol ettim · seçili metinle üret';
     proceed.disabled=report.rows.some(r=>r.issues.includes('empty'));
-    review.onclick=()=>{window.dispatchEvent(new Event('dub-preflight-ready'));};proceed.onclick=()=>{if(selection!==startSelection()||owner!==requestIdentity()||job.isCancelled?.()||current||planning)return;acceptedPreflight=selection;generationGate.hidden=true;void start(false,[],null,job);};generationGate.append(title,copy,review,proceed);generationGate.scrollIntoView?.({block:'center'});
+    review.onclick=()=>{window.dispatchEvent(new Event('dub-preflight-ready'));};proceed.onclick=()=>{if(selection!==startSelection()||owner!==requestIdentity()||job.isCancelled?.()||current||planning)return;acceptedPreflight=selection;generationGate.hidden=true;void start(false,[],null,job);};generationGate.append(title,copy,review,proceed);generationGate.scrollIntoView?.({block:'center'});refreshOverview();
   }
   async function start(retry = false, forceGroups = [], takeChoices = null, job = {}) {
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
@@ -884,7 +954,7 @@
     el('dubGeneratorTiming').textContent = '';
     el('dubGeneratorProgress').removeAttribute('value');
     runtimePhases={};runtimeError='';runtimeMetrics=null;runInfo();el('dubPhaseSummary').textContent='';
-    status('Motor yükleniyor…'); controls();
+    lastFailure='';status('Motor yükleniyor…'); controls();
     // Narrow retries start from applied text, then add only the requested group's draft.
     const retryText=recipe?.dubText||(plan?{sourceHash:plan.sourceHash,edits:{}}:null);
     const retryEdits={...(retryText?.edits||{})};
@@ -913,7 +983,7 @@
     const r = await window.api.startDub(payload).catch(e => ({ ok:false,error:e.message }));
     if (!r?.ok && current === pending) {
       stopTimer((performance.now() - started) / 1000);
-      current = null; el('dubGeneratorProgress').value = 0; status('Ses üretimi başarısız oldu.');
+      current = null; el('dubGeneratorProgress').value = 0; lastFailure=r?.error||'error'; status('Ses üretimi başarısız oldu.');
       el('dubGeneratorDetails').textContent = generationError(r?.error); controls();
       restoreReadyOutput(pending);
     }
@@ -1077,7 +1147,7 @@
       current = null; controls();
       if (event.type === 'done') {
         completedRequest=job.request||lastRequest;
-        output = event; window.DubWorkspaceUI?.setOutput(output, job.context, job.qualityKey); preview(output); el('dubGeneratorProgress').value = 100;
+        output = event; outputOwner=srt; lastFailure=''; window.DubWorkspaceUI?.setOutput(output, job.context, job.qualityKey); preview(output); el('dubGeneratorProgress').value = 100;
         if (event.quality?.groups) { results.clear(); for (const row of event.quality.groups) results.set(row.key, row); showResults(); }
         const needsReview = event.qualityUnavailable === true || [...results.values()].some(row => row.status !== 'ready');
         fileName('dubGeneratedName',event.name);
@@ -1091,9 +1161,9 @@
         }
       } else if (event.type === 'cancelled') {status('Durduruldu.');restoreReadyOutput(job);}
       else {
-        status('Ses üretimi başarısız oldu.'); runtimeError=event.error||'';el('dubGeneratorDetails').textContent = generationError(runtimeError);
+        status('Ses üretimi başarısız oldu.'); runtimeError=event.error||'';lastFailure=event.error||'error';el('dubGeneratorDetails').textContent = generationError(runtimeError);
         if (event.recoverablePath && event.recoverableUrl) {
-          output = {path:event.recoverablePath,url:event.recoverableUrl,name:event.name,syncInvalid:true};
+          output = {path:event.recoverablePath,url:event.recoverableUrl,name:event.name,syncInvalid:true};outputOwner=srt;
           preview(output); fileName('dubGeneratedName',event.name || basename(output.path));
           el('dubGeneratorOutput').classList.remove('hidden');
           el('dubGeneratorUse').classList.add('hidden');
@@ -1113,7 +1183,7 @@
     el('dubGeneratorOutput').classList.remove('hidden');
     el('dubGeneratorUse').classList.toggle('hidden',output.sample===true || output.syncInvalid===true);
     // A project carries rendered media, not an executable engine request.
-    srt=output.subtitle || ''; lastRequest=null;completedRequest=null; plan=null; edits={};void loadPronunciations();
+    srt=output.subtitle || '';outputOwner=srt;lastFailure=''; lastRequest=null;completedRequest=null; plan=null; edits={};void loadPronunciations();
     el('dubRangeEnabled').checked=!!output.range;
     if(output.range){el('dubRangeStart').value=String(output.range.start);el('dubRangeEnd').value=String(output.range.end);}
     fileName('dubSrtName',basename(srt)); controls();

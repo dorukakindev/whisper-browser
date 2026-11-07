@@ -21,17 +21,14 @@
      değerleri aşağıdaki html[data-theme] bloğunda geçersiz kılınır. */
   --chrome-danger-soft: rgba(208, 107, 99, .16);
 }
-
 /* Browser inherits the shared page palette through styles.css aliases.
    Keep local chrome roles below; do not redeclare a scoped page palette. */
-
 html[data-theme="light"] {
   --chrome-danger-soft: rgba(162, 63, 59, .13);
   --elev-1: 0 1px 3px rgb(40 35 31 / .08);
   --elev-2: 0 8px 24px rgb(40 35 31 / .16);
   --elev-3: 0 18px 44px rgb(40 35 31 / .2);
 }
-
 /* İzlerken düzeltme kutusu */
 .player-layer:not(.workspace-browser) #browserSubtitleReview { display: none; }
 .browser-translate-split {
@@ -81,8 +78,8 @@ html[data-theme="light"] {
   left: auto;
   right: 8px;
 }
-@media (prefers-reduced-motion: reduce) {
-.browser-menu-popover, .player-more-menu, .ph-more-menu, .subtitle-mode-menu { animation: none; }
+@media (prefers-reduced-motion: reduce) {.browser-menu-popover, .player-more-menu, .ph-more-menu, .subtitle-mode-menu { animation: none; }
+
 }
 .browser-menu-popover {
   position: absolute;
@@ -349,7 +346,10 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-nav, .browser-address-wrap, .browser-toolbar-actions { grid-row: 2; }
 .browser-nav { display: flex; gap: 3px; }
 .browser-nav .browser-media-home{width:auto;min-width:34px;flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;padding:0 10px;color:var(--accent);font:600 12px 'IBM Plex Sans',sans-serif}
-@media(max-width:900px){.browser-nav .browser-media-home{padding:0;width:34px}.browser-media-home>span{display:none}}
+@media(max-width:900px) {.browser-nav .browser-media-home{padding:0;width:34px}
+.browser-media-home>span{display:none}
+
+}
 .browser-find {
   grid-column: 1 / -1;
   grid-row: 3;
@@ -396,91 +396,11 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .dub-generator-row .btn { flex: 0 0 auto; }
 .dub-generator-row span { min-width: 0; overflow-wrap: anywhere; }
 .dub-generator progress { width: 100%; accent-color: var(--accent); }
-#voiceReferenceRecorder { margin-block: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
-#voiceReferenceRecorder > summary { cursor: pointer; }
-#voiceReferenceRecorder audio, #voiceReferenceRecorder textarea, #voiceReferenceSelect { width: 100%; margin-block: 8px; }
-#voiceReferenceRecorder textarea, #voiceReferenceRecorder input { color: var(--text); background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: var(--radius-xs); padding: 8px; font: inherit; }
-#voiceReferenceRecorder input { width: 88px; }
-#voiceReferenceRecorder #voiceReferenceName { flex: 1 1 220px; width: auto; min-width: 0; }
-#voiceReferenceRecorder textarea { resize: vertical; }
+#voiceReferenceSelect { width: 100%; margin-block: 8px; }
 .dub-generator select { max-width: 100%; min-height: 34px; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); color: var(--text); font: inherit; }
-#dubQualityResults { margin-block: 14px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
-#dubQualityResults > summary { cursor: pointer; }
-#dubQualityResults select { width: 100%; margin-top: 8px; }
 .dub-generator select:disabled { opacity: .65; }
-
 /* Voice studio: a bounded workspace with persistent playback/job actions. */
-#dubGeneratorDialog.dub-studio { width: min(1080px, calc(100vw - 32px)); max-height: min(940px, 94dvh); padding: 0; overflow: hidden; border-radius: 18px; }
-#dubGeneratorDialog.dub-studio[open] { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
-.dub-studio-header { gap: 18px; padding: 20px 24px 14px; border-bottom: 1px solid var(--border); }
-.dub-studio-header h2 { font-size: 24px; line-height: 1.2; margin: 5px 0; letter-spacing: -.5px; }
-.dub-studio-header p { margin: 0; }
 .dub-eyebrow { font-size: 11px; color: var(--accent); font-weight: 600; letter-spacing: .6px; }
-.dub-header-actions { display: flex; align-items: center; gap: 10px; }
-.dub-readiness { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
-.dub-readiness > div { min-width: 0; padding: 12px 24px; background: var(--bg-1); }
-.dub-readiness small { display: block; color: var(--text-muted); font-size: 11px; margin-bottom: 4px; }
-.dub-readiness strong { display: block; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dub-readiness [data-ready="false"] { color: var(--text-muted); }
-.dub-studio-scroll { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 18px 24px; scrollbar-gutter: stable; }
-.dub-studio-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(270px, 1fr); gap: 16px; align-items: start; }
-.dub-studio-main, .dub-studio-side { min-width: 0; display: grid; gap: 14px; }
-.dub-card { min-width: 0; padding: 16px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; }
-.dub-card-heading { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
-.dub-card-heading h3 { margin: 0; font-size: 14px; font-weight: 600; }
-.dub-step { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 8px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-size: 12px; font-weight: 700; flex-shrink: 0; }
-.dub-step::before { content: attr(data-step); }
-.dub-card details > summary { padding: 10px 0; cursor: pointer; font-size: 13px; font-weight: 600; }
-.dub-card details + details { border-top: 1px solid var(--border); margin-top: 8px; }
-.dub-card .dub-generator-row { margin: 10px 0; }
-.dub-card .dub-generator-row > select { flex: 1 1 180px; min-width: 0; }
-.dub-card select, .dub-card textarea { width: 100%; box-sizing: border-box; }
-.dub-card input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
-.dub-card input[type="text"] { min-width: 0; max-width: 100%; padding: 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); color: var(--text); }
-.dub-card .dub-range-row { display: grid; grid-template-columns: auto minmax(65px, 1fr) auto minmax(65px, 1fr); }
-.dub-card .dub-range-row input { width: 100%; box-sizing: border-box; }
-.dub-card .dub-range-row button { grid-column: 1 / -1; justify-self: start; }
-.dub-card textarea { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); color: var(--text); }
-.dub-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
-.dub-preset { padding: 10px 8px; text-align: left; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-1); color: var(--text); cursor: pointer; }
-.dub-preset strong, .dub-preset small { display: block; }
-.dub-preset strong { font-size: 12px; margin-bottom: 5px; }
-.dub-preset small { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
-.dub-preset[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--bg-1)); }
-.dub-preset:disabled { opacity: .6; cursor: default; }
-.dub-studio :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.dub-studio-footer { padding: 12px 24px 16px; border-top: 1px solid var(--border); background: var(--bg-1); min-width: 0; }
-.dub-studio-footer p { margin: 4px 0; font-size: 11px; }
-.dub-job-status, .dub-job-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 14px; }
-.dub-job-meta { justify-content: flex-start; }
-.dub-job-status #dubGeneratorStatus { margin: 0; }
-.dub-studio-footer progress { display: block; height: 5px; margin-top: 8px; }
-#dubGeneratorStatus { color: var(--text); font-weight: 600; font-size: 13px; }
-.dub-studio-footer #dubGeneratorDetails { max-height: 64px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; margin: 5px 0; }
-.dub-studio-footer #dubGeneratorDetails:empty, .dub-studio-footer #dubReferenceQuality:empty, .dub-studio-footer #dubGeneratedName:empty { display: none; }
-.dub-studio-footer .dub-generator-row { margin: 9px 0 0; }
-.dub-studio-footer audio { width: 100%; height: 34px; margin-top: 8px; }
-.dub-studio #voiceReferenceRecorder { margin-top: 10px; }
-@media (max-width: 850px) {
-  .dub-studio-grid { grid-template-columns: minmax(0, 1fr); }
-  .dub-studio-header { align-items: flex-start; padding: 16px; }
-  .dub-header-actions { flex-direction: column-reverse; align-items: flex-end; }
-  .dub-readiness > div { padding: 10px 12px; }
-  .dub-studio-scroll { padding: 12px; }
-  .dub-studio-footer { padding: 10px 14px; }
-}
-@media (max-width: 520px) {
-  #dubGeneratorDialog.dub-studio { width: calc(100vw - 12px); max-height: 97dvh; }
-  .dub-studio-header h2 { font-size: 20px; }
-  .dub-header-actions #dubTextStudio { font-size: 10px; max-width: 145px; }
-  .dub-presets { grid-template-columns: 1fr; }
-  .dub-preset { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .dub-card .dub-range-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .dub-range-row label:nth-of-type(1) { grid-column: 1; grid-row: 1; }
-  .dub-range-row label:nth-of-type(2) { grid-column: 2; grid-row: 1; }
-  .dub-range-row #dubRangeStart { grid-column: 1; grid-row: 2; }
-  .dub-range-row #dubRangeEnd { grid-column: 2; grid-row: 2; }
-}
 #browserDubName { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-dub-strip label { display: inline-flex; align-items: center; gap: 6px; }
 .browser-dub-strip input[type="range"] { width: 90px; accent-color: var(--accent); }
@@ -490,9 +410,9 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 }
 .browser-dub-strip .btn { flex: 0 0 auto; width: auto; }
 #browserDubStatus { color: var(--text-muted); }
-@media (max-width: 920px) {
-  .browser-dub-button > span { display: none; }
+@media (max-width: 920px) {  .browser-dub-button > span { display: none; }
   .browser-dub-button { width: 36px; min-width: 36px; padding: 0; justify-content: center; }
+
 }
 .browser-nav-button {
   width: 32px;
@@ -591,12 +511,14 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-ntp-tile:hover .browser-ntp-tile-remove, .browser-ntp-tile-remove:focus-visible { opacity: 1; }
 .browser-ntp-tile-remove:hover { color: var(--text); border-color: var(--accent-dim); }
 .browser-ntp-tile-remove svg { width: 11px; height: 11px; }
-@media (hover: none) { .browser-ntp-tile-remove { opacity: .8; } }
-@media (max-width: 760px) {
-.browser-quick-places-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (hover: none) { .browser-ntp-tile-remove { opacity: .8; }
+
 }
-@container browser-workspace (max-width: 680px) {
-  .browser-quick-places-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 760px) {.browser-quick-places-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+}
+@container browser-workspace (max-width: 680px) {  .browser-quick-places-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
 }
 .browser-workspace-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .browser-workspace-actions .btn { width: auto; min-height: 29px; padding: 0 9px; }
@@ -785,16 +707,15 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   grid-template-rows: auto 0 minmax(0, 1fr);
 }
 .player-layer.browser-chrome-collapsed .browser-find { grid-row: 2; }
-@container browser-workspace (max-width: 1640px) {
-.browser-signal-body { display: grid; grid-template-columns: minmax(0, 1fr); }
+@container browser-workspace (max-width: 1640px) {.browser-signal-body { display: grid; grid-template-columns: minmax(0, 1fr); }
 .browser-view-settings-grid { grid-template-columns: repeat(3, minmax(130px, 1fr)); }
+
 }
-@container browser-workspace (max-width: 1180px) {
-.browser-signal-head { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+@container browser-workspace (max-width: 1180px) {.browser-signal-head { grid-template-columns: minmax(0, 1fr); gap: 7px; }
 .browser-signal-state-actions { justify-content: flex-start; flex-wrap: wrap; }
+
 }
-@container browser-workspace (max-width: 620px) {
-.player-layer:not(.browser-chrome-collapsed) .browser-find { grid-row: 4; }
+@container browser-workspace (max-width: 620px) {.player-layer:not(.browser-chrome-collapsed) .browser-find { grid-row: 4; }
 .player-layer:not(.browser-chrome-collapsed) .browser-toolbar {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: 28px 36px 36px;
@@ -815,9 +736,10 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
   .browser-track-actions .btn,
   .browser-track-actions select { width: 100%; max-width: none; }
 .browser-view-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
 }
-@media (prefers-reduced-motion: reduce) {
-.workspace-mode, .browser-address-wrap { transition: none; }
+@media (prefers-reduced-motion: reduce) {.workspace-mode, .browser-address-wrap { transition: none; }
+
 }
 /* Browser workspace: reader, split view, research and site permission surfaces. */
 .browser-address-wrap { position: relative; }
@@ -853,8 +775,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .browser-tab.is-split-secondary { box-shadow: inset 0 -2px 0 var(--group-cyan); }
 .browser-tab[draggable="true"] { cursor: grab; }
 .browser-tab.is-dragging { opacity: .48; }
-@media (prefers-reduced-motion: reduce) {
-/* Animasyon kısaltılınca yükleniyor çizgisi tam genişlikte duruyor ve etkin
+@media (prefers-reduced-motion: reduce) {/* Animasyon kısaltılınca yükleniyor çizgisi tam genişlikte duruyor ve etkin
      sekmenin alt çizgisiyle aynı görünüyordu; durağan kesikli çizgi kullan. */
 .browser-tab.loading::after {
     animation: none !important;
@@ -862,6 +783,7 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
     background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 12px);
     opacity: .6;
   }
+
 }
 .settings-page-browser-subtitles .browser-signal-tools {
   gap: 7px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -933,14 +855,14 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 }
 .browser-translate-menu > summary:hover,
 .browser-translate-menu[open] > summary { color: var(--accent); background: var(--accent-soft); }
-@container browser-workspace (max-width: 620px) {
-.player-layer:not(.browser-chrome-collapsed) .browser-toolbar {
+@container browser-workspace (max-width: 620px) {.player-layer:not(.browser-chrome-collapsed) .browser-toolbar {
     grid-template-columns: auto minmax(100px, 1fr) auto;
     grid-template-rows: 38px;
   }
 .player-layer:not(.browser-chrome-collapsed) .browser-nav { grid-column: 1; grid-row: 1; }
 .player-layer:not(.browser-chrome-collapsed) .browser-address-wrap { grid-column: 2; grid-row: 1; }
 .player-layer:not(.browser-chrome-collapsed) .browser-toolbar-actions { grid-column: 3; grid-row: 1; }
+
 }
 /* Son düzen: sade izleme kromu ve dar ayar çekmeceleri.  Bu kurallar, eski
    iki satırlı toolbar katmanlarının görünmeyen sütun bırakmasını engeller. */
@@ -1173,14 +1095,13 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .workspace-browser .browser-settings-surface-content .browser-adblock-settings > .browser-view-switch:first-of-type { padding-top: 0; margin-top: 0; border-top: 0; }
 .workspace-browser .browser-view-settings-grid select[multiple] { height: auto; min-height: 128px; padding: 5px; }
 .workspace-browser .browser-view-settings-grid select[multiple] option { padding: 5px 7px; border-radius: 4px; }
-@container browser-workspace (max-width: 800px) {
-.workspace-browser .browser-settings-body { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@container browser-workspace (max-width: 800px) {.workspace-browser .browser-settings-body { grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .workspace-browser .browser-settings-categories { position: static; flex-direction: row; flex-wrap: wrap; gap: 5px; }
 .workspace-browser .browser-settings-categories button { min-height: 36px; padding: 8px 11px; }
 .workspace-browser .browser-profile-field { grid-template-columns: minmax(0, 1fr) auto; }
+
 }
-@container browser-workspace (max-width: 560px) {
-.browser-home-actions { grid-template-columns: 1fr; max-width: 340px; gap: 8px; margin-top: 20px; }
+@container browser-workspace (max-width: 560px) {.browser-home-actions { grid-template-columns: 1fr; max-width: 340px; gap: 8px; margin-top: 20px; }
 .browser-home-actions button { grid-template-columns: 24px 1fr; gap: 3px 12px; padding: 14px; }
 .browser-home-actions .browser-home-action-icon { grid-row: 1 / 3; margin: 0; align-self: center; }
 .browser-home-actions kbd { display: none; }
@@ -1190,11 +1111,12 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .workspace-browser .browser-view-settings-grid { grid-template-columns: minmax(0, 1fr); }
 .workspace-browser .browser-profile-field { grid-template-columns: minmax(0, 1fr); }
 .workspace-browser .browser-profile-field .btn { justify-self: start; }
+
 }
-@container player-sidebar (max-width: 370px) {
-.workspace-browser .side-tabbar { flex-wrap: wrap; padding-block: 8px; }
+@container player-sidebar (max-width: 370px) {.workspace-browser .side-tabbar { flex-wrap: wrap; padding-block: 8px; }
 .workspace-browser .side-tab-actions { margin-left: auto; }
 .workspace-browser .ai-chat-foot { align-items: stretch; flex-direction: column; }
+
 }
 .player-layer:not(.workspace-browser) #browserWatchTools { display:none; }
 /* Browser durum şeridi: video alanını koruyan iki satırlı düzen. */
@@ -1223,14 +1145,14 @@ html[data-theme="light"] .browser-profile-field .btn:disabled {
 .workspace-browser .browser-video-subtitles[open] { grid-column: 1 / -1; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-2); }
 .workspace-browser .browser-video-subtitles[open] > summary { border: 0; padding: 0 0 8px; color: var(--accent); }
 .workspace-browser #browserPreferenceNotice:empty { display: none; }
-@container browser-workspace (max-width: 650px) {
-.workspace-browser .browser-signal { grid-template-columns: minmax(0,1fr); gap: 5px; }
+@container browser-workspace (max-width: 650px) {.workspace-browser .browser-signal { grid-template-columns: minmax(0,1fr); gap: 5px; }
 .workspace-browser .browser-signal-head { grid-template-columns: minmax(0,1fr); gap: 6px; }
 .workspace-browser .browser-signal-state-actions { justify-content: flex-start; flex-wrap: wrap; }
 .workspace-browser .browser-signal-copy { flex-wrap: wrap; gap: 4px 8px; }
 .workspace-browser .browser-subtitle-health { flex-direction: row; flex-wrap: wrap; align-items: center; }
 .workspace-browser .browser-subtitle-health-actions { width: auto; }
 .workspace-browser .browser-video-subtitles > summary { width: fit-content; }
+
 }
 .browser-tab-preview {
   position: fixed;
@@ -1305,8 +1227,7 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
 .browser-tab .browser-tab-close { transition: opacity var(--motion-fast) ease; }
 .browser-tab:not(.active):not(:hover):not(:focus-within) .browser-tab-close { opacity: .65; }
 #browserSubtitleLabel { max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-@media (max-width: 920px) {
-  /* The local player's stacked layout collapses the browser's view slot. */
+@media (max-width: 920px) {  /* The local player's stacked layout collapses the browser's view slot. */
   .player-layer.workspace-browser .player-body { display: grid; }
   .player-layer:not(.browser-chrome-collapsed) .browser-toolbar {
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1315,31 +1236,32 @@ html[data-theme="light"] #browserBookmarkToggle:hover { color: var(--text); }
   .workspace-browser #browserPageTranslate { min-width: 34px; width: 34px; padding-inline: 0; justify-content: center; }
   #browserSubtitleLabel { max-width: 110px; }
   .browser-toolbar-actions { gap: 3px; }
+
 }
-@container browser-workspace (min-width: 621px) and (max-width: 1180px) {
- .browser-toolbar-actions>.browser-dub-button{display:none}
+@container browser-workspace (min-width: 621px) and (max-width: 1180px) { .browser-toolbar-actions>.browser-dub-button{display:none}
  .workspace-browser .browser-address-wrap{min-width:280px}
+
 }
-@media (hover: none) {
-.browser-tab .browser-tab-close { opacity: 1 !important; }
+@media (hover: none) {.browser-tab .browser-tab-close { opacity: 1 !important; }
+
 }
 .browser-address-wrap { border-radius: var(--chrome-radius-pill); }
 .browser-address-wrap { padding-left: 14px; padding-right: 6px; }
 /* The browser can be narrow inside a wide window when its side panel grows. */
-@container browser-workspace (max-width: 920px) {
-  #browserPageLabel, #browserSubtitleLabel, #browserMangaLabel,
+@container browser-workspace (max-width: 920px) {  #browserPageLabel, #browserSubtitleLabel, #browserMangaLabel,
   #browserMediaHome > span, .browser-dub-button > span { display: none; }
   .workspace-browser #browserPageTranslate,
   .workspace-browser #browserDubGenerate, .workspace-browser #browserDubAdd,
   .workspace-browser #browserMediaHome { min-width: 34px; width: 34px; padding-inline: 0; justify-content: center; }
   .browser-toolbar-actions { gap: 3px; }
+
 }
-@container browser-workspace (max-width: 620px) {
-  .player-layer:not(.browser-chrome-collapsed) .browser-toolbar { grid-template-columns: auto minmax(100px, 1fr) auto; grid-template-rows: 38px; }
+@container browser-workspace (max-width: 620px) {  .player-layer:not(.browser-chrome-collapsed) .browser-toolbar { grid-template-columns: auto minmax(100px, 1fr) auto; grid-template-rows: 38px; }
   .player-layer:not(.browser-chrome-collapsed) .browser-nav { grid-column: 1; grid-row: 1; }
   .player-layer:not(.browser-chrome-collapsed) .browser-address-wrap { grid-column: 2; grid-row: 1; }
   .player-layer:not(.browser-chrome-collapsed) .browser-toolbar-actions { grid-column: 3; grid-row: 1; justify-content: flex-end; }
   .browser-toolbar-actions > .browser-dub-button { display: none; }
+
 }
 /* ═══ R124 Adım 3 — tek satır üst çerçeve, birleşik Whisper düğmesi, durum hapı, gruplu ⋯ ═══ */
 /* 3.1 — Tarayıcı modunda üst çerçeve 38px tek satır: [logo menüsü | sekmeler | uygulama menüsü] */
@@ -1581,14 +1503,12 @@ details.browser-translate-split.hidden { display: none !important; }
 .browser-ntp-resume-item { position: relative; overflow: hidden; }
 .browser-ntp-resume-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--border); }
 .browser-ntp-resume-progress::after { content: ''; display: block; width: var(--progress, 0%); height: 100%; background: var(--accent); }
-
 /* Sayfa çevirisi hızlı menüsü: onay kutusu ile etiket arasında boşluk yoktu. */
 .browser-page-quick-popover .browser-view-switch { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 /* Menü içi arama sonuç vermediğinde boş durum. */
 .browser-more-empty { padding: 10px 12px; color: var(--text-muted); font-size: 12px; }
 /* Hedefi şu an kullanılamayan vekil menü öğesi. */
 .browser-menu-popover [data-browser-proxy][aria-disabled="true"] { opacity: .45; cursor: default; }
-
 /* R403 — browser yan panel tasarım düzeltmeleri.
    Amber yalnız ana eylem/etkin durum/odak içindir (UI-DESIGN-SYSTEM §1);
    katlanır bölüm başlıkları ve araç başlığı sessiz, aynı tipografiyle çizilir. */
@@ -1644,9 +1564,9 @@ details.browser-translate-split.hidden { display: none !important; }
 .cue-quality-warning svg { display: block; width: 11px; height: 11px; }
 .cue-quality-warning:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .cue-card.quality-warning .cue-card-tr { text-decoration: underline dotted var(--warning); text-underline-offset: 3px; }
-@media (prefers-reduced-motion: reduce) {
-  .player-layer.workspace-browser .browser-subtitle-review > summary::before { transition: none; }
+@media (prefers-reduced-motion: reduce) {  .player-layer.workspace-browser .browser-subtitle-review > summary::before { transition: none; }
   .browser-home-actions button { transition: none; }
+
 }
 /* R403 — yan panel sekmeleri: dördüncü \"Araçlar\" sekmesi gizli kaydırma
    çubuğu olan şeridin dışına taşıyor, fareyle hiç görünmüyordu. Etkin sekme
@@ -1662,10 +1582,8 @@ details.browser-translate-split.hidden { display: none !important; }
   white-space: nowrap;
 }
 .player-layer.workspace-browser .player-side:not(.side-rail) .side-tab { position: relative; }
-
 /* ===== R406 — oynatıcı + browser tasarım turu =====
    Yalnız mevcut token'lar; amber yalnız ana eylem / etkin durum / odak. */
-
 /* Yan panel giriş kutuları: metin kenara yapışıyordu (iç boşluk yoktu). */
 .player-side .side-source-quick input,
 .player-side .side-toolrow input[type="search"] {
@@ -1675,7 +1593,6 @@ details.browser-translate-split.hidden { display: none !important; }
 }
 .player-side .side-source-quick input::placeholder,
 .player-side .side-toolrow input[type="search"]::placeholder { color: var(--text-muted); }
-
 /* Boş panel: ana eylem tam genişlikte, ikincil eylemler altında yan yana;
    ikincil düğmeler tarayıcı varsayılanı (gri dolgu + açık çerçeve) yerine
    tasarım token'larıyla çizilir. */
@@ -1708,10 +1625,8 @@ details.browser-translate-split.hidden { display: none !important; }
   text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border-strong);
 }
 .cue-empty-hint:hover { color: var(--text); }
-
 /* Araçlar: anahtar ızgarası "Altyazı işlemleri" düğmesine yapışıktı. */
 #sentenceTools > .sentence-tools + .sentence-tools { margin-top: 8px; }
-
 /* SmartTube rayı: etkin işaret yuvarlak köşede hilal gibi kırpılıyordu
    (inset gölge + 10px köşe). Kenara oturan ayrı bir çubuk çizilir; simgeler
    artık aynı çizgi kalınlığında SVG. */
@@ -1728,7 +1643,6 @@ details.browser-translate-split.hidden { display: none !important; }
 /* TV düzeni (varsayılan) de aynı çubuğu kullanır; eski inset gölge kırpılıyordu. */
 .st-tv .st-sidebar .st-side-item.is-active { box-shadow: none; }
 .st-home-fallback-actions .btn { white-space: nowrap; }
-
 /* Yeni sekme: ilk açılıştan sonra yalnız arama kutusu kalıyordu. Hızlı erişim
    ve "izlemeye devam et" boşken simge, başlık ve üç eylem kartı kompakt
    biçimde görünür; açıklama paragrafı ve "hakkında" yalnız ilk açılışta. */
@@ -1741,14 +1655,10 @@ details.browser-translate-split.hidden { display: none !important; }
 /* Arama kutusunun büyük açılır-menü gölgesi koyu temada kirli bir hale bırakıyordu. */
 .browser-ntp-search { box-shadow: var(--elev-1); }
 .browser-ntp-search:focus-within { box-shadow: 0 0 0 3px var(--accent-soft); }
-
 /* The toolbar is z30; settings opened from the icon rail must cover it,
    including the sticky Back/Close header, rather than sit behind it. */
 .player-layer.workspace-browser.settings-open .player-side { z-index: 41; }
 #browserSidebarToggle { flex: 0 0 34px; }
-
-#dubGeneratedPreview { width: 100%; margin-block: 10px; }
-
 /* Player home: clear entry points, compact navigation and one accent. */
 .smarttube-browser .st-topbar { flex-wrap: wrap; gap: 8px; padding: 12px 18px; background: var(--bg-1); border-bottom: 1px solid var(--border); }
 .smarttube-browser .st-search-wrap { flex: 1 1 240px; max-width: none; min-width: 160px; }
@@ -1768,11 +1678,11 @@ details.browser-translate-split.hidden { display: none !important; }
 .st-home-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .smarttube-browser .st-main > .st-section-title { padding: 14px 22px; margin: 0; color: var(--text-dim); font-size: 13px; }
 .smarttube-browser .st-home-fallback { margin: 12px 0; padding: 24px 18px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-1); }
-@media (max-width: 1100px) {
-  .st-home-intro { padding: 18px; }
+@media (max-width: 1100px) {  .st-home-intro { padding: 18px; }
   .st-home-actions { gap: 7px; margin-top: 14px; }
   .st-home-actions button { padding: 11px; }
   .st-home-actions span { display: none; }
+
 }
 .dub-timeline { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(170px, 230px); gap: 8px; overflow-x: auto; padding: 10px 2px; max-height: 180px; }
 .dub-timeline-block { text-align: left; color: var(--text); background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; overflow: hidden; font: inherit; }
@@ -1783,31 +1693,18 @@ details.browser-translate-split.hidden { display: none !important; }
 .dub-timeline-block[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .dub-timeline-block:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #dubTimelineInfo { white-space: pre-wrap; overflow-wrap: anywhere; }
-#dubWorkspacePanel { margin-block: 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 14px; }
-#dubWorkspacePanel > summary { font-weight: 600; cursor: pointer; }
-#dubWorkspacePanel progress { width: 100%; }
 .dub-mixer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
 .dub-mixer-grid label { display: grid; gap: 6px; }
 .dub-mixer-grid input { width: 100%; }
-@media (max-width: 540px) { .dub-mixer-grid { grid-template-columns: 1fr; } }
+@media (max-width: 540px) { .dub-mixer-grid { grid-template-columns: 1fr; }
 
-#dubWorkspacePanel input[type="range"] { accent-color: var(--accent); }
+}
 #dubMixer > label { display: block; margin-block: 12px; }
 #dubMixer > label input[type="range"] { display: block; width: 100%; margin-top: 8px; }
-
 /* The review handoff occupies toolbar space, never overlays the native page. */
 .browser-toolbar > .mrv-browser-return { grid-row: 3; grid-column: 1 / -1; }
 .player-layer.browser-chrome-collapsed .browser-workspace:has(.mrv-browser-return) { grid-template-rows: auto minmax(0, 1fr); }
-
-.dub-production-summary { flex: 0 0 auto; margin: 0; padding: 10px 24px; color: var(--text-muted); background: var(--bg-1); border-bottom: 1px solid var(--border); font-size: 12px; line-height: 1.6; text-wrap: pretty; }
-#voiceReferenceRecorder #voiceReferenceSearch { display: block; width: 100%; min-width: 0; box-sizing: border-box; margin-top: 6px; }
 .voice-reference-count { margin: 6px 0 12px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-@media(max-width:700px){.dub-production-summary{padding:8px 12px;font-size:11px;}}
-
-#dubPreviewCard[hidden] { display: none; }
-#dubPreviewCard audio { display:block; width:100%; margin-top:10px; }
-#dubPreviewCard #dubGeneratedName { color:var(--text-muted);font-size:12px;overflow-wrap:anywhere; }
-
 .voice-reference-picker { scroll-margin-block: 12px; min-width: 0; }
 .voice-reference-comparison { margin-block:12px; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-1); }
 .voice-reference-comparison > summary { min-height:40px; align-content:center; font-weight:600; cursor:pointer; color:var(--text); }
@@ -1819,68 +1716,11 @@ details.browser-translate-split.hidden { display: none !important; }
 .voice-reference-comparison .reference-diff-del { text-decoration:line-through; text-decoration-color:var(--accent); }
 .voice-reference-comparison .reference-diff-add { background:color-mix(in srgb,var(--accent) 18%,transparent); border-radius:3px; }
 .voice-reference-comparison > button { min-height:40px; margin-top:8px; }
-@media(max-width:700px){.voice-reference-comparison-columns{grid-template-columns:1fr;}}
+@media(max-width:700px) {.voice-reference-comparison-columns{grid-template-columns:1fr;}
 
-/* Keep the primary dubbing workflow readable; technical detail is opt-in. */
-.dub-studio-header { gap: 16px; padding: 18px 24px; align-items: center; }
-.dub-studio-header h2 { font-size: 24px; line-height: 1.25; }
-.dub-studio-header p { margin-top: 7px; line-height: 1.5; }
-.dub-studio-header #dubTextStudio { font-size: 12px; padding: 9px 12px; }
-.dub-studio .dub-card p { line-height: 1.6; max-width: 68ch; }
-.dub-studio .dub-card label:has(>input[type="checkbox"]) { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
-.dub-studio .dub-card label:has(>input[type="checkbox"]) input { margin: 3px 0 0; }
-.dub-studio #dubProductionSettings, .dub-studio #dubAdvancedSettings { margin-top: 16px; border-top: 1px solid var(--border); }
-.dub-studio .dub-card details>summary { min-height: 40px; box-sizing: border-box; display: list-item; align-content: center; line-height: 1.5; }
-.dub-studio-footer .dub-job-meta { align-items: center; justify-content: space-between; }
-.dub-run-details { font-size: 11px; max-width: 100%; }
-.dub-run-details>summary { cursor: pointer; padding: 7px 0; color: var(--text-muted); }
-.dub-run-details-body { max-height: 112px; overflow: auto; padding: 8px 0; }
-.dub-studio-footer:has(.dub-run-details[open]) .dub-job-meta { display: block; }
-.dub-studio-footer #dubGeneratorDetails { font-family: inherit; line-height: 1.5; color: var(--text-muted); }
-.dub-studio-footer .dub-generator-row { gap: 8px; flex-wrap: wrap; }
-.dub-studio-footer .btn { min-height: 40px; }
-@media(max-width: 650px) {
-  .dub-studio-header { padding: 14px; align-items: flex-start; }
-  .dub-studio-header h2 { font-size: 21px; }
-  .dub-studio-header p { font-size: 12px; }
-  .dub-studio-footer { padding: 10px 14px; }
-  .dub-studio-footer .btn { padding: 8px 12px; font-size: 12px; }
 }
-
-.dub-studio #voiceReferencePicker { margin: 14px 0; padding-top: 14px; border-top: 1px solid var(--border); }
-.dub-studio #voiceReferencePicker label { display: block; margin: 10px 0 7px; }
-.dub-studio #voiceReferencePicker input { width: 100%; box-sizing: border-box; }
-.dub-studio #dubDeliverySettings { border-top: 1px solid var(--border); margin: 12px 0; }
-
-.dub-studio #voiceReferenceSearch { min-height: 40px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); color: var(--text); font: inherit; }
-.dub-studio #voiceReferenceSearch::placeholder { color: var(--text-muted); }
-.dub-studio .dub-header-actions { flex-shrink: 0; }
-.dub-studio .dub-card .voice-reference-count { font-size: 11px; margin: 6px 0; }
-.dub-studio .dub-card:has(#dubChooseSrt)>p { font-size: 12px; margin: 8px 0; }
-
-.dub-studio .dub-input-notice { padding: 10px 12px; border-inline-start: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg-1)); border-radius: 6px; color: var(--text); font-size: 12px; line-height: 1.6; }
+/* Keep the primary dubbing workflow readable; technical detail is opt-in. */
 /* Podcast: bölüm + iz seçici kartın birincil yoludur; elle SRT seçimi ikincil kalır ve dosya adı tekrarlanmaz. */
-.dub-studio .dub-source-card[data-podcast="on"] { display: flex; flex-direction: column; }
-.dub-studio .dub-source-card[data-podcast="on"] > .dub-card-heading { order: -3; }
-.dub-studio .dub-source-card[data-podcast="on"] > .dub-podcast-source { order: -2; }
-.dub-studio .dub-source-card[data-podcast="on"] #dubSrtName { display: none; }
-.dub-studio .dub-source-card[data-podcast="on"] #dubChooseSrt { align-self:flex-start; width:auto; background: transparent; border:0; padding:5px 0; min-height:32px; height:auto; font-size: 12px; font-weight: 500; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; }
-.dub-studio .dub-source-card[data-podcast="on"] #dubChooseSrt:hover { color: var(--accent); }
-.dub-studio .dub-podcast-source { display: grid; gap: 4px; margin-block: 2px 8px; min-width: 0; }
-.dub-studio .dub-podcast-source[hidden], .dub-studio .dub-podcast-source [hidden] { display: none !important; }
-.dub-studio .dub-podcast-eyebrow, .dub-studio .dub-podcast-source > label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); }
-.dub-studio .dub-podcast-source > label { margin-top: 8px; }
-.dub-studio .dub-podcast-episode { display: block; font-size: 14px; line-height: 1.4; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.dub-studio .dub-podcast-source select { width: 100%; min-height: 34px; }
-.dub-studio .dub-podcast-source select:disabled { opacity: .6; }
-.dub-studio .dub-podcast-meta { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--text-muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.dub-studio .dub-podcast-meta:empty { display: none; }
-.dub-studio .dub-podcast-source .dub-input-notice { margin-top: 4px; }
-.dub-studio .dub-podcast-source .btn { justify-self: start; margin-top: 2px; }
-
-.dub-studio #dubGeneratorStart:disabled { background: var(--bg-2); color: var(--text-muted); border-color: var(--border); box-shadow: none; opacity: 1; cursor: not-allowed; }
-.dub-studio #dubStartRequirement { color: var(--text-muted); line-height: 1.5; font-size: 12px; margin: 7px 0; }
-
 /* Output facts remain next to that audio, independently of the next job controls. */
 .dub-saved-recipe { margin-top:12px; padding-top:10px; border-top:1px solid var(--border); min-width:0; font-size:12px; }
 .dub-saved-recipe>summary { cursor:pointer; color:var(--text-muted); padding:6px 0; }
@@ -1888,7 +1728,6 @@ details.browser-translate-split.hidden { display: none !important; }
 .dub-saved-recipe dt { color:var(--text-muted); }
 .dub-saved-recipe dd { margin:0; overflow-wrap:anywhere; line-height:1.5; }
 #dubCacheInfo:empty { display:none; }
-
 /* R828 — navigation and utility actions have separate width budgets. */
 .workspace-browser .player-side:not(.side-rail) .side-tabbar {
   display: flex;
@@ -1923,8 +1762,8 @@ details.browser-translate-split.hidden { display: none !important; }
 .workspace-browser .player-side:not(.side-rail) .side-tab-actions { margin-left: auto; }
 .workspace-browser .player-side:not(.side-rail) .narrow-panel-back { order: 0; }
 .workspace-browser .player-side:not(.side-rail) .side-tabs { order: -1; }
-@container player-sidebar (max-width: 370px) {
-  .player-layer.workspace-browser .player-side:not(.side-rail) .side-tab .side-tab-ico { display: none; }
+@container player-sidebar (max-width: 370px) {  .player-layer.workspace-browser .player-side:not(.side-rail) .side-tab .side-tab-ico { display: none; }
+
 }
 /* Status details follow the browser viewport, including when the sidebar grows. */
 .workspace-browser .browser-signal-popover {
@@ -1935,10 +1774,8 @@ details.browser-translate-split.hidden { display: none !important; }
 }
 .workspace-browser .browser-signal-popover .browser-subtitle-health { gap: 8px; line-height: 1.5; }
 .workspace-browser .browser-signal-popover .browser-subtitle-health-actions { gap: 8px; flex-wrap: wrap; }
-
 /* Settings and panel controls remain reachable in the tools destination. */
 .workspace-browser .player-side.tools-mode:not(.side-rail) .side-tab-actions { display: flex; }
-
 /* Cinema chrome: navigation, current source and secondary tools have distinct roles.
    Keep existing DOM/actions and their native disclosure/keyboard behavior. */
 .player-layer.workspace-browser .browser-toolbar {
@@ -2046,21 +1883,19 @@ details.browser-translate-split.hidden { display: none !important; }
   border-color: var(--border);
   box-shadow: inset 0 -2px var(--accent);
 }
-@container browser-workspace (max-width: 650px) {
-  .player-layer.workspace-browser .browser-toolbar { column-gap: 6px; padding: 8px; }
+@container browser-workspace (max-width: 650px) {  .player-layer.workspace-browser .browser-toolbar { column-gap: 6px; padding: 8px; }
   .player-layer.workspace-browser .browser-nav { padding-right: 5px; }
   .player-layer.workspace-browser .browser-toolbar-actions { gap: 2px; padding-left: 0; }
   .player-layer.workspace-browser .browser-settings-body { min-width: 0; }
   .player-layer.workspace-browser .browser-settings-categories { gap: 3px; }
   .player-layer.workspace-browser .browser-settings-categories button { padding: 8px 9px; }
-}
 
+}
 /* The settings title already identifies this surface; keep its utility hierarchy compact. */
 .player-layer.workspace-browser #browserSettingsSurface > .browser-settings-surface-head .browser-section-eyebrow { display: none; }
 .player-layer.workspace-browser #browserSettingsSurface > .browser-settings-surface-head { padding-bottom: 12px; }
 .player-layer.workspace-browser #browserSettingsSurface > .browser-settings-surface-head h2 { margin-top: 0; }
 .player-layer.workspace-browser #browserSettingsSurface > .browser-settings-surface-tools { margin-top: 12px; margin-bottom: 18px; }
-
 /* The desktop chrome owns the panel. Keep live WebContents bounds changes discrete. */
 .workspace-browser .player-body { transition-property: none; }
 .workspace-browser .browser-panel-main {
