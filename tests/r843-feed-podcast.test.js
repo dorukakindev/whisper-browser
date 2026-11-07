@@ -48,7 +48,7 @@ test('R843-07 rolling podcast refresh preserves missing personal episodes and ma
  mod._compile(fs.readFileSync(filename,'utf8'),filename);
  let handle;mod.exports.registerMediaShelf({ipcMain:{handle:(_,fn)=>handle=fn},authorized:()=>true,userData:()=>dir,catalogStore:()=>({list:()=>[]}),pythonPath:()=> 'controlled-parser',owner:()=>null,fetchImpl:async()=>new Response('<rss/>')});
  assert.equal((await handle({},{action:'podcast-add',url:'https://pod.test/rss'})).ok,true);
- let saved=JSON.parse(fs.readFileSync(path.join(dir,'media-shelf.json'),'utf8')).podcasts[0];assert.equal(saved.episodes.length,2);assert.deepEqual(saved.episodes.find(e=>e.guid==='old'),old);
+ let saved=JSON.parse(fs.readFileSync(path.join(dir,'media-shelf.json'),'utf8')).podcasts[0];assert.equal(saved.episodes.length,2);const kept=saved.episodes.find(e=>e.guid==='old');for(const [key,value]of Object.entries(old))assert.deepEqual(kept[key],value,'saved personal field '+key+' is preserved');assert.match(kept.episodeIdentity,/^[a-f0-9]{64}$/);assert.match(kept.sourceVersion,/^[a-f0-9]{64}$/);assert.equal(kept.sourceBinding.resource,old.url);
  assert.equal((await handle({},{action:'podcast-offline-status'})).copies.length,1);
  parsed.episodes.push({title:'Returned episode',guid:'old',url:old.url});
  assert.equal((await handle({},{action:'podcast-add',url:'https://pod.test/rss'})).ok,true);

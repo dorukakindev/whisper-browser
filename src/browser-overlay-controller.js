@@ -303,24 +303,34 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
       item.addEventListener('lostpointercapture', cancelDrag);
     };
 
+    const nativeCaptionSheets = new Map();
     const syncNativeCaptionVisibility = (stageHasText = false) => {
       const id = '__whisper_hide_native_captions';
-      let sheet = document.getElementById(id);
       // Uygulama katmanı kapalıyken sitenin kendi altyazısını asla gizleme;
       // aksi halde kullanıcı iki altyazı kaynağını da aynı anda kaybeder.
       const hideByPreference = state.mode !== 'off' && state.style?.hideSiteCaptions;
       const hideDuplicate = !!stageStyle && state.mode !== 'off' && stageHasText;
+      const scopes = new Set();
       if (hideByPreference || hideDuplicate) {
-        if (!sheet) {
-          sheet = document.createElement('style');
-          sheet.id = id;
-          (document.head || document.documentElement).appendChild(sheet);
+        scopes.add(document);
+        // Document styles do not cross an open ShadowRoot. Scope the same
+        // temporary caption rule to roots that actually contain discovered media.
+        for (const item of mediaCandidates) {
+          const scope = item.isConnected && item.getRootNode?.();
+          if (scope?.host) scopes.add(scope);
         }
-        const css = (hideByPreference
-          ? 'video::cue { opacity: 0 !important; color: transparent !important; background: transparent !important; } .ytp-caption-window-container, .player-timedtext, .video-js .vjs-text-track-display { visibility: hidden !important; }'
-          : '') + (hideDuplicate ? '#movie_player .ytp-caption-window-container { opacity: 0 !important; }' : '');
-        if (sheet.textContent !== css) sheet.textContent = css;
-      } else if (sheet) sheet.remove();
+      }
+      for (const [scope,sheet] of nativeCaptionSheets) if (!scopes.has(scope)) { sheet.remove(); nativeCaptionSheets.delete(scope); }
+      const css = 'video::cue { opacity: 0 !important; color: transparent !important; background: transparent !important; } .ytp-caption-window-container, .player-timedtext, .video-js .vjs-text-track-display { visibility: hidden !important; }';
+      for (const scope of scopes) {
+        let sheet=nativeCaptionSheets.get(scope);
+        if (!sheet?.isConnected) {
+          sheet=document.createElement('style');sheet.id=id;
+          (scope===document?(document.head||document.documentElement):scope).appendChild(sheet);
+          nativeCaptionSheets.set(scope,sheet);
+        }
+        if(sheet.textContent!==css)sheet.textContent=css;
+      }
     };
 
     const ensureRoot = () => {

@@ -12,6 +12,22 @@ function fixture(fetchImpl,extras={}){
 }
 const reply=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
 
+test('Podcast studio so-far requests use only frozen finished episode lines across context, history and subtitle tools',async()=>{
+ let turn=0;const bodies=[];
+ const call=(id,name,args)=>({role:'assistant',tool_calls:[{id,type:'function',function:{name,arguments:JSON.stringify(args)}}]});
+ const h=fixture(async(_url,options)=>{const body=JSON.parse(options.body);bodies.push(JSON.stringify(body.messages));
+  return reply(++turn===1?call('context','get_source_context',{}):turn===2?call('subtitles','search_subtitles',{query:'alpha'}):{role:'assistant',content:'Done.'});
+ });
+ const rows=[{id:'T1',start:0,end:5,text:'HEARD_PODCAST alpha'},{id:'T2',start:6,end:15,text:'UNFINISHED_PODCAST alpha'},{id:'T3',start:20,end:25,text:'FUTURE_PODCAST alpha'}];
+ try{
+  const result=await h.call('agentRun',{requestId:'podcast-studio-cutoff',question:'Bu ana kadar alpha hakkında ne anlatıldı?',owner:{...h.owner,kind:'studio',time:10},context:{workspace:'podcast',title:'Episode',evidence:rows,watched_cutoff:10},pool:[{id:'U1',start:0,end:4,text:'UNRELATED_HIDDEN_PLAYER alpha'}],history:[{role:'assistant',content:'OLD_HISTORY_FUTURE'}]});
+  assert.equal(result.ok,true,result.error);const all=bodies.join('\n');
+  assert(all.includes('HEARD_PODCAST'));
+  for(const marker of ['UNFINISHED_PODCAST','FUTURE_PODCAST','UNRELATED_HIDDEN_PLAYER','OLD_HISTORY_FUTURE'])assert(!all.includes(marker),marker+' must not reach the provider');
+  assert(h.events.some(row=>row.value.type==='evidence'&&row.value.evidence.some(e=>e.text==='HEARD_PODCAST alpha')));
+ }finally{h.app.emit('will-quit');}
+});
+
 test('R844-01 translation ambiguity uses the latest delivered human intent, never concatenated history or source text',async()=>{
  const explicit='Mevcut English altyazı izini Türkçeye çevir; sayfayı çevirme.';
  for(const mode of ['steer','followup'])for(const initialAmbiguous of [true,false]){
@@ -360,6 +376,26 @@ test('A resumed "so far" video flow keeps the cutoff of its question on every pr
   const resumed=await h.call('agentRun',{requestId:'so-far-2',question,owner:{...h.owner,time:1200},pool:rows,continuationId:applied.result.continuationId});assert.equal(resumed.ok,true,resumed.error);
   const all=bodies.map(row=>row.text).join('\n'),late=bodies.filter(row=>row.phase==='resume').map(row=>row.text).join('\n');
   for(const marker of ['FUTURE_LINE','ACTIVE_LATE_LINE','FULL_TRANSCRIPT_MARKER','HISTORY_MARKER'])assert(!all.includes(marker),marker+' must never reach the provider');
+  assert(late.includes('HEARD_EARLY_LINE'),'the finished line before the question moment stays available');
+  assert(!JSON.stringify(h.events.filter(e=>e.value.type==='evidence')).match(/FUTURE_LINE|ACTIVE_LATE_LINE/));
+ }finally{h.app.emit('will-quit');}
+});
+
+test('A resumed "so far" Podcast flow keeps the cutoff of its question on every provider channel',async()=>{
+ const rows=[{id:'U1',start:590,end:595,text:'HEARD_EARLY_LINE alpha',translation:''},{id:'U2',start:596,end:612,text:'ACTIVE_LATE_LINE alpha',translation:''},{id:'U3',start:700,end:710,text:'FUTURE_LINE alpha',translation:''}];
+ let phase='first',turn=0;const bodies=[],call=(id,name,args)=>({role:'assistant',content:null,tool_calls:[{id,type:'function',function:{name,arguments:JSON.stringify(args)}}]});
+ const h=fixture(async(_url,options)=>{bodies.push({phase,text:JSON.stringify(JSON.parse(options.body).messages)});
+  if(phase==='first')return reply(turn++===0?call('c1','restore_original_audio',{}):{role:'assistant',content:'Prepared.'});
+  return reply(turn++===0?call('c2','search_subtitles',{query:'alpha'}):{role:'assistant',content:'Done.'});});
+ h.owner.time=600;h.owner.kind='studio';h.owner.hasMedia=true;const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:packet.callId,result:{status:'completed'}}));};
+ const question='Bu ana kadar ne söylendi? Sonra özgün sese dön.';
+ try{
+  const first=await h.call('agentRun',{requestId:'so-far',question,owner:h.owner,pool:[{id:'U9',start:0,end:1,text:'UNRELATED_HIDDEN_PLAYER'}],context:{workspace:'podcast',watched_cutoff:600,evidence:rows},history:[{role:'assistant',content:'HISTORY_MARKER'}]});assert.equal(first.ok,true,first.error);
+  const card=h.events.find(e=>e.value.type==='proposal').value.action,applied=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert(applied.result.continuationId);
+  phase='resume';turn=0;h.events.length=0;
+  const resumed=await h.call('agentRun',{requestId:'so-far-2',question,owner:{...h.owner,time:1200},pool:rows,continuationId:applied.result.continuationId});assert.equal(resumed.ok,true,resumed.error);
+  const all=bodies.map(row=>row.text).join('\n'),late=bodies.filter(row=>row.phase==='resume').map(row=>row.text).join('\n');
+  for(const marker of ['FUTURE_LINE','ACTIVE_LATE_LINE','UNRELATED_HIDDEN_PLAYER','HISTORY_MARKER'])assert(!all.includes(marker),marker+' must never reach the provider');
   assert(late.includes('HEARD_EARLY_LINE'),'the finished line before the question moment stays available');
   assert(!JSON.stringify(h.events.filter(e=>e.value.type==='evidence')).match(/FUTURE_LINE|ACTIVE_LATE_LINE/));
  }finally{h.app.emit('will-quit');}

@@ -12,7 +12,7 @@
   return t('Waiting for the assistant response…','Asistan yanıtı bekleniyor…');
  };
  // The owner snapshot is taken after awaits; a "so far" request never reaches past the moment it was asked.
- const frozenOwner=context=>{const owner=window.AssistantAppActions.snapshot(),cutoff=context?.watched_cutoff;return Number.isFinite(cutoff)&&Number.isFinite(owner?.time)&&cutoff<owner.time?{...owner,time:Math.max(0,cutoff)}:owner;};
+ const frozenOwner=context=>{const owner=window.AssistantAppActions.snapshot(),cutoff=context?.watched_cutoff??context?.podcastAnchor?.time;if(context?.workspace==='podcast'&&Number.isFinite(cutoff))return {...owner,time:Math.max(0,cutoff)};return Number.isFinite(cutoff)&&Number.isFinite(owner?.time)&&cutoff<owner.time?{...owner,time:Math.max(0,cutoff)}:owner;};
  const soFarQuestion=question=>/(?:bu ana kadar|şu ana kadar|şimdiye kadar|buraya kadar|so far|up to (?:now|this point)|until now)/iu.test(String(question||''));
  const errorText=value=>{const parts=String(value||'').split(' / ');return window.UiLocale?.get?.()==='tr'&&parts[1]?parts[1]:parts[0];};
  const changed=()=>{updateAiChatActions();document.dispatchEvent(new Event('assistant-agent-changed'));};

@@ -239,6 +239,23 @@ function harness() {
   assert.equal(returning.tab.subtitleSelectionRestored, true);
   assert.equal(returning.tab.subtitleSelectionLoading, false);
 
+  // Turning captions off while a restored track is still being read must win.
+  const toggled = harness();
+  Object.assign(toggled.tab, { id: 'a', subtitleSelection: { primaryId: 'src', secondaryId: '' },
+    subtitleSelectionRestored: false, restoreSubtitleMode: 'source' });
+  toggled.ctx.addSubtitleOption = () => {};
+  toggled.ctx.saveActiveBrowserTabWorkspace = () => {};
+  let finishRead;
+  toggled.ctx.window.api.readSubtitle = () => new Promise(resolve => { finishRead = resolve; });
+  vm.runInContext(js.slice(js.indexOf('async function restoreBrowserSubtitleSelection('),
+    js.indexOf('async function loadPersistedBrowserTranslation(')), toggled.ctx);
+  const pendingRestore = toggled.ctx.restoreBrowserSubtitleSelection(toggled.tab);
+  toggled.tab.subtitleMode = toggled.tab.restoreSubtitleMode = 'off';
+  toggled.ctx.player.subsHidden = true;
+  finishRead({ ok: true, text: 'Restored source' });
+  await pendingRestore;
+  assert.equal(toggled.modes.at(-1), 'off', 'a pending restore replaced the latest visibility choice');
+
   const automatic = harness();
   automatic.tab.id = 'a';
   let autoGeneration = 1;

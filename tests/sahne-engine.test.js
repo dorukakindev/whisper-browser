@@ -981,3 +981,14 @@ test('shared row copy sends only the visible language once and confirms the writ
   await new Promise(resolve => setImmediate(resolve));
   assert.match(f.sh.q('[data-r=toast]').textContent, /Metin kopyalandı/);
 });
+
+for(const disp of ['src','both','tr'])test(`no transcript card with text is blank in "${disp}" display, including source-only and translation-only rows`,t=>{
+ const f=mount(t,{study:true,prefs:{disp}});
+ f.rows[0]={id:'a',start:0,end:10,timed:true,src:'Only source here',trs:[],unc:[],words:null};
+ f.rows[1]={id:'b',start:10,end:20,timed:true,src:'',trs:['Sadece çeviri var'],unc:[],words:null};
+ f.setRevision('blank-'+disp);f.sh.tick();
+ const cards=[...f.sh.root.querySelectorAll('.sh-cards [data-i]')];
+ assert.equal(cards.length,2);
+ for(const card of cards)assert.notEqual(card.textContent.replace(/\d+:\d{2}/,'').replace(/\s+/g,' ').trim(),'','metni olan satır boş görünmemeli');
+ assert.match(cards[0].textContent,/Only source here/);assert.match(cards[1].textContent,/Sadece çeviri var/);
+});

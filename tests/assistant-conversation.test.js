@@ -177,6 +177,8 @@ test('Go to source: only podcast and library contexts offer it, the panel button
   context={workspace:'podcast',page:'podcast',title:'Episode'};w.document.dispatchEvent(new w.Event('media-context-changed'));listener({action:'send',text:'x',sourceToken:'A',requestId:'r'});await wait();assert.equal(last.sourceTarget.kind,'podcast');
   listener({action:'open-source',sourceToken:'OLD'});await wait();assert.deepEqual(opened,[],'a stale conversation token opens nothing');
   listener({action:'open-source',sourceToken:'A'});await wait();assert.deepEqual(opened,[['sahne','podcast']]);assert.equal(last.workspaceError,'');
+  context={...context,transcript_evidence:{scope:'watched',limitations:[],evidence:[]}};w.document.dispatchEvent(new w.Event('media-context-changed'));await wait();assert.equal(last.transcriptScope,true,'timed Podcast exposes the real scope control');
+  context.transcript_evidence.limitations=['untimed-transcript-excluded'];w.document.dispatchEvent(new w.Event('media-context-changed'));await wait();assert.equal(last.transcriptScope,false,'untimed prose offers no heard-time scope');
   context={type:'library-title',catalogId:'film-1',title:'Film'};listener({action:'send',text:'y',sourceToken:'A',requestId:'r2'});await wait();assert.equal(last.sourceTarget.kind,'library');
   listener({action:'open-source',sourceToken:'A'});await wait();assert.deepEqual(opened.at(-1),['title','film-1']);
   w.MediaTitleUI.open=async()=>({ok:false});

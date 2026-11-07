@@ -75,3 +75,16 @@ test('A so-far request carries the click-time cutoff to the agent owner even whe
   }
  }finally{h.close();}
 });
+
+
+test('Podcast question owner uses its frozen audible clock even when the hidden player clock differs',async()=>{
+ const h=fixture();try{
+  for(const hiddenTime of [0,700]){
+   h.w.AssistantAppActions.snapshot=()=>({owner:'podcast-A',thread:'thread-A',kind:'studio',time:hiddenTime});
+   const context={workspace:'podcast',watched_cutoff:10,podcastAnchor:{time:10},transcript_evidence:{evidence:[{id:'T1',baslangic:1,bitis:5,metin:'Heard sentence'}]}};
+   const run=h.ui.send('Bu ana kadar ne söylendi?',context,[],'scope');await new Promise(setImmediate);
+   assert.equal(h.runs.at(-1).owner.time,10);assert.equal(h.runs.at(-1).context.watched_cutoff,10);assert.equal(h.runs.at(-1).context.evidence[0].end,5);
+   h.settle({ok:true,text:'Done'});await run;
+  }
+ }finally{h.close();}
+});

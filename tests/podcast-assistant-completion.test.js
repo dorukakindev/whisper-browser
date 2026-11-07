@@ -1,5 +1,11 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const context=require('../src/assistant-source-context');
+
+test('nearby Podcast evidence is bounded around the audible position instead of using the end of the episode',()=>{
+ const rows=[{start:0,end:10,text:'Distant past'},{start:490,end:495,text:'Near current speech'},{start:1000,end:1010,text:'Distant future'}];
+ const packet=context.freezePodcast({time:500},[{id:'s',revision:'r',timed:true,cues:rows}],'nearby');
+ assert.deepEqual(packet.transcript_evidence.evidence.map(row=>row.metin),['Near current speech']);
+});
 const snap={title:'Episode',mediaKey:'p:1',episodeIdentity:'one',sourceVersion:'bytes-a',generation:7,time:10,sourceTrack:{id:'publisher',revision:'r1'}};
 const track={...snap.sourceTrack,role:'source',timed:true,offsetSeconds:2,cues:[{id:'past',start:1,end:5,text:'past'},{id:'partial',start:7,end:10,text:'future tail'},{id:'future',start:20,end:25,text:'future'},{id:'bad',start:0,end:Infinity,text:'bad'}]};
 test('Podcast request freezes episode, byte binding, generation, track and horizon without future cues',()=>{
@@ -79,4 +85,13 @@ test('Browser Podcast so-far questions use the audible cutoff without taking ove
  assert.equal(env.podcastContextCurrent(packet),true);
  snapshot.generation++;
  assert.equal(env.podcastContextCurrent(packet),false);
+});
+
+test('Dense nearby Podcast evidence stays around the playing sentence instead of its future edge',()=>{
+ const cues=Array.from({length:360},(_,i)=>({id:String(i),start:320+i,end:321+i,text:'Line '+(320+i)}));
+ const packet=context.freezePodcast({...snap,time:500},[{...track,cues}],'nearby');
+ const rows=packet.transcript_evidence.evidence;
+ assert.equal(rows.length,40);assert(rows.some(row=>row.baslangic===500));
+ assert(rows[0].baslangic>=479&&rows.at(-1).bitis<=521);
+ assert(packet.transcript_evidence.limitations.includes('nearest-40-eligible-cues-only'));
 });
