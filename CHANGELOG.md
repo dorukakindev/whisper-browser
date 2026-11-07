@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Browser altyazı hızlı düzenleyicisi kayıtlı çeviri satırının önceki metin ve zamanlarını saklar; önceki sürüm yeniden açılışta karşılaştırılıp taslağa alınabilir. Podcast aramasında açılamayan pasaj hatayı kartta gösterir ve yeniden denemeye izin verir. Sahne’de etkin zaman düğmesi ve salt okunur transkript görsel olarak ayrışır. [Devir](docs/devir/2026-11-06-1846.md).
+
+- Kayıtlı podcast pasajının ses kaynağı değiştiğinde alıntı salt okunur açılır. Asistanın “bu ana kadar” video sorularında altyazı araması sorunun sorulduğu konumda dondurulur ve bitmemiş satırlar sağlayıcıya gönderilmez. [Devir](docs/devir/2026-11-06-1829.md).
+
+- Başta açılamayan ağ bölümü yeniden denendiğinde mpv yolu korunur. Kayıtlı zamanlı Podcast metni ancak seçilen dosya yüklendikten sonra etkinleşir. Asistan pasaj kartı, açtığı bölüm görünümü değiştirirken işlemi ilk sohbetle ilişkilendirmeyi sürdürür. [Devir](docs/devir/2026-11-06-1819.md).
+
+- Bölüm sonu uyku ayarı oynatıcıyı açıkça duraklatır ve kuyruk ilerlemeden tek kullanımlık zamanlayıcıyı temizler. [Devir](docs/devir/2026-11-06-1809.md).
+
+- mpv, süresi bilinen bir HTTP akışında belirgin biçimde erken dosya sonu bildirirse Podcast kuyruğu aynı bölümde kalır ve oynatma son güvenli konumdan yeniden denenebilir. [Devir](docs/devir/2026-11-06-1805.md).
+
+- mpv oynatma hataları mevcut Sahne kurtarmasına ulaşır. Yeniden deneme aynı bölümün konumunu korur. Yeni bölüm kendi kaynağı ve başlangıç konumuyla açılır, arka plandaki Chromium öğesinin hatası Sahne’ye taşınmaz. [Devir](docs/devir/2026-11-06-1801.md).
+
+- Browser’da **Oynatmayı yeniden dene**, aynı video son güvenli konuma döndüğünde oynatmayı sürdürür. Sahne’de kurtarma odağı oynatma düğmesine geçer ve yeniden deneme eylemi tek yerde görünür. [Devir](docs/devir/2026-11-06-1748.md).
+
+- Sahne’de **Cümlenin tamamı**, uzun transkript kartında etkin çeviri parçasını görünür alana getirir. Browser iz seçicisi otomatik altyazıyı etiketler. [Devir](docs/devir/2026-11-06-1735.md).
+
 - Podcast Sahne’de uzun başlıklar ve eşzamanlı iki dil daha okunabilir. Çift dilli Sahne’de altyazılar video alanının altına hizalanır. Transkriptteki etkin satırın vurgusu ve kaydırma alanı düzenlendi. [Devir](docs/devir/2026-11-06-1719.md).
 
 - Önceki medyanın gecikmiş bitişi yeni oynatmayı ilerletmez. Altyazı yenilenirken çeviri cümlesinin odağı kimliğiyle korunur. Genel arayüz denetimlerinin altı eski beklentisi güncel işlevlerle doğrulandı. [Teslim](docs/devir/2026-11-06-1713.md).

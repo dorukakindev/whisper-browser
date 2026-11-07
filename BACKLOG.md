@@ -11,7 +11,9 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 - **Tamamlanan kabul.** İki gerçek altyazılı sekmede kimlik, konum, iz ve bağımsız kaymaların geri yüklenmesi; aynı YouTube bölümünde beş hızlı Browser/Podcast/Çift dilli geçişi; Podcast canlı satır, cümle döngüsü, 1,5× hız, elle kaydırma ve konuşmaya dönüş; dar video üzerindeki iki dil ve site altyazısının geri gelmesi doğrulandı. Önceki tur ayrıntıları devir indeksinde korunur.
 - **Tam yeniden başlatma.** İzole LG uygulaması temiz kapatılıp yeni Electron sürecinde aynı profille açıldı. Kütüphaneden bölüm açma, iki kayıtlı izi, −0,1/+0,1 kaymaları, konumu ve Podcast tercihini geri getirdi. Bu kabul, kayıtlı bölümü kütüphaneden açmayı içerir.
 - **YouTube boş yanıt sınırı.** Aynı otomatik altyazı isteği ilk açılışta HTTP 200 ve boş gövde, yeniden yüklemede 2.129 satırlık JSON verdi. Yeni **Altyazıyı yeniden dene** düğmesi kontrollü boş yanıttan sonra aynı kaynağa döndü ve gerçek iz geldi. Ayrı canlı denemede mevcut iki iz ve kaymalar korundu. Sağlayıcı boş yanıt vermeyi sürdürürse sonraki adım aynı videoda Browser CC seçimini kontrol etmek.
-- **İki iz türü.** Aynı videoda hem elle hazırlanmış hem otomatik izi menüde sunan kaynak henüz doğrulanmadı. Kaynak iki türü birlikte sunarsa aynı kanalda elle hazırlanmış → otomatik → elle hazırlanmış geçişinde kayma ve aktif satırı karşılaştır.
+- **İki iz türü.** TED videosunun canlı seçicisinde otomatik iz sunulmadı. İki türü aynı videoda seçilebilir kılan kaynak bulunduğunda aynı konumda elle hazırlanmış → otomatik → elle hazırlanmış geçişini yapıp kayma ve etkin satırı karşılaştır. [Son kontrol](docs/devir/2026-11-06-1735.md).
+- **İki sekmede ses ve dar okuma.** İzole LG oturumunda Blender ve YouTube ön planda sesli, arka planda duraklamış ve sessiz olarak Chromium tarafından raporlandı. 680×700 Sahne’de etkin çeviri, arama ve iki izin zaman kontrolleri doğrulandı. [Kanıt ve sınırlar](docs/devir/2026-11-06-1735.md).
+- **Tek altyazıyla sekme yarışı ve klavye.** Kontrollü geciktirilen altyazı okuması yeni sekmenin durumunu değiştirmedi. İlk videoda konum ve kayma geri geldi. Dar Sahne’de tam cümle, odak dönüşü, canlı takip ve arama klavyeyle doğrulandı. [Devir](docs/devir/2026-11-06-1740.md).
 - Ürün paketi yerel `master` üzerinde `a7c60e21354505f7d22bab1862792665a645b823`. [Güncel doğrulama](docs/devir/2026-11-06-1724.md).
 - **Genel arayüz denetimi kapandı.** Altı eski beklenti güncel giriş ve sahiplerle karşılaştırıldı. Kaynak değişirken geciken bitişin ilerlemesi ve altyazı yenilemede odak kaybı ayrıca düzeltildi. 153 arayüz denetimi geçti. [Güncel teslim](docs/devir/2026-11-06-1713.md).
 ## Sahne görünüm düzeltmeleri — 2026-11-06
@@ -22,7 +24,13 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 
 ## Podcast ve yorum akışları — kalan kabul
 
-- Uzun Browser transkripti: 1.256 kontrollü satırda Sahne etkin satır ve Browser dönüşü doğrulandı. İlk tur video içi katman metnini yakalayamadı. Sonraki adım izole LG profilinde erişilebilir uzun izi normal yükleme düğmesinden açmak ve video saati etkin satırın içindeyken native katman metnini okumak. [Devir](docs/devir/2026-11-06-0818.md).
+- Podcast aramasında 105 sonucun sonundaki pasaj açıldı ve dönüşte kart görünür kaldı. Geciken ikinci sayfa, değişen yayın filtresine uygulanmadı. [Devir](docs/devir/2026-11-06-1829.md).
+- Gerçek yayıncı bölüm başlığına atlama doğrulandı. Podnews yayıncı akışı açılmış içerik için 2 MB sınırını aştı. Sonraki adım bu sınır altında kalan, oynatılan sesle birlikte zamanlı yayıncı izi veren bir RSS bölümünde iki satır geçişini karşılaştırmak. [Devir](docs/devir/2026-11-06-1846.md).
+- Tekrar ve karıştırma birlikte iki ayrı Electron sürecinde korundu. Araştırma defterinde düzenlenen not ikinci süreçte doğru bölüme döndü. İzole testte oluşturulan altyazı dosyasına mevcut geliştirme izni verildi; ilk izin isteğinin nedenini belirlemek için temiz izole profilde istenen dosyayı tanımlayıp yalnız uygulamanın ürettiği varlıkların yetkilendirme hattını izle.
+- Gerçek YouTube geçişi aynı medya ve oynatma durumuyla doğrulandı. Bu tur YouTube yeni altyazı izi sunmadı. Sonraki adım erişilebilir aynı video izini yükleyip oynarken art arda etkin satırları gözlemek. [Devir](docs/devir/2026-11-06-1846.md).
+- Sohbet değişiminde geciken pasaj kartı ve izlenen süre sınırı kontrollü testte geçti. Canlı kabul için izole profile yetkili sağlayıcı yapılandırıldığında bir pasaj kartı aç, çözüm sürerken sohbeti değiştir ve konumun değişmediğini ölç. Ardından oynatma sürerken tam transkript seçili bir “bu ana kadar” isteğini sınayıp yanıtın soru sonrasını kullanmadığını doğrula.
+
+- Uzun Browser transkripti: İzole LG oturumunda 1.256 kontrollü satırla Sahne atlaması, etkin satır, video içi altyazı ve yeni video karesi birlikte doğrulandı. [Devir](docs/devir/2026-11-06-1819.md).
 
 - Dal: codex/podcast-review-acceptance-20261106. [Devir](docs/devir/2026-11-06-0702.md).
 - Podcast: LG’de gerçek girişten aynı bölümde hız, ses, tekrar ve takip birlikte denenmeli. Kayıtlı sonuç ve zamansız görünümü yeniden aç. Kısa iş gerekiyorsa 3–4 dakika sınırında kaynak değiştirerek eski sonuç yalıtımını ölç.
@@ -41,15 +49,19 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 ## Sürümlü medya akışları — kalan kabul
 
 - **Dal ve kanıt** `codex/versioned-media-workflows-20261106`, [devir](docs/devir/2026-11-06-0625.md). İzole hedef testleri ve gerçek ZIP çıkarma geçti.
-- **Altyazı** Yerel oturum kaydı yeniden açılışta kalıcı sürüm değildir. Sonraki adım mevcut altyazı depolarında medya, iz ve dosya revizyonuna bağlı sürüm sözleşmesi kurmak. Zaman ve dil düzenlemelerini bu sözleşmeden geçirmek. İzole Electron’da açık taslak sırasında çeviri tamamlama ve başlamış dosya yazımı sırasında kaynak değiştirme senaryolarını sınamak.
+- **Altyazı** Browser çeviri hızlı düzenleyicisi mevcut düzeltmeyle birlikte önceki metin ve zamanları saklar. Depo gidiş dönüşü test edildi. İzole Electron’da aynı çeviri satırını düzenle, uygulamayı yeniden aç ve önceki sürümü taslağa alıp kaydet. Dosyaya bağlı kaynak/yerel izler için kalıcı sürüm ayrı iş olarak açık. Sonraki adım dosya revizyonuna bağlı uygulama içi sürüm kaydını mevcut düzenleyiciye bağlamak ve çeviri tamamlama ile kaynak değiştirme yarışını sınamak. [Devir](docs/devir/2026-11-06-1846.md).
 - **Browser** Sahne medya eşleşmesi bileşen testinde doğrulandı. LG izole profilde iki video açıp konum, iz, senkron ve Sahne dönüşünü ölç. Arka plan sesinin durduğunu ve geç gelen sonucu diğer sekmenin almadığını doğrula. Duraklatma betiğini engelleyen siteler için ses sahipliği ayrıca sınanmalı.
 - **Paket** Önizleme ve çakışma kararı dosya düzeyinde. Kayıt bazlı birleştirme için katalog, akış, not ve izleme depolarının kimlikleri ile çapraz bağlarını birlikte doğrulayan bir plan gerekir. ZIP eklerinde ikinci içe aktarım için doğrulanmış varlık kimliği ve tekrar kullanımı ekle. İkinci yazımda hata enjekte ederek yedekten geri dönüşü izole profilde doğrula. Serbest metin ve eski paketlerdeki gizlilik kapsamını ayrıca sınırla.
 - **Rota** Kontrollü asistan araç kartı ve koleksiyon onayı/geri alma testleri geçti. Yetkili canlı sağlayıcı ve izole katalogla 150 dakika + mola isteğini çalıştır. Karttan rota aç, bir yapımı değiştir ve eski onayın reddedildiğini, yeni onayın yalnız eklenenleri bildirdiğini gör.
 
 ## Oynatma kurtarma — native motor ve dosya seçimi kabulü
 
+- **Sahne takibi ve klavye.** İzole LG oturumunda kontrollü Browser kesintisinden 9. saniyeye, aynı tek iz ve konuşan satırla dönüş tamamlandı. Geciktirilen ilk Podcast isteği ikinci bölümün oynatmasını ve hata durumunu değiştirmedi. 680×700 görünümde kurtarma odağı ve tek eylem doğrulandı. [Devir](docs/devir/2026-11-06-1748.md).
+
 - **Dal ve kanıt** `codex/media-return-history-20261106`, [devir](docs/devir/2026-11-06-0643.md). Kontrollü web ve RSS ağ hataları, aynı kaynakta 9. saniyeye dönüş, kaynak geçişi, yerel hata yönlendirmeleri ve dar Sahne/RSS dönüşü LG’de doğrulandı.
-- **Kalan** Native mpv ağ hata eylemi hedefli testlerden geçti. Gerçek mpv kabulü için izole LG profilinde yerel HTTPS akışını native motorla oynat, bağlantıyı kes, aynı kaynakta konum ve eski eylem temizliğini ölç. İzin penceresi açılmayacağı için taşınmış gerçek dosya seçme adımı ayrı, kullanıcı kontrollü kabulde yapılabilir. Podcast ve web kabulünde üçüncü taraf sağlayıcı kullanılmadı.
+- **mpv kabulü.** İzole LG oturumunda yerel HTTP Podcast kaynağını yeniden açarken bağlantı kesildi. Bağlantı kapalıyken yeniden deneme kullanılabilir kaldı. Bağlantı gelince 9. saniye, tek altyazı ve etkin satır geri geldi. Geciken açılış yanıtı ikinci bölümün 0:00 konumunu veya hata durumunu değiştirmedi. [Devir](docs/devir/2026-11-06-1801.md).
+- **mpv aktarım ortası kabulü.** Gerçek mpv, 30 saniyelik HTTP yayınının soketi kesilince erken dosya sonu bildirdi. Düzeltmeden sonra kuyruk aynı bölümde kaldı, tek altyazıyla yaklaşık 12,7 saniyeden devam edildi. Gerçek bölüm sonu kuyruğu bir kez ilerletti. [Devir](docs/devir/2026-11-06-1805.md).
+- **Kalan.** Taşınmış gerçek dosyayı seçme adımı kullanıcı kontrollü ayrı kabulde kalır.
 
 ## İstenen iki canlı kabul — 2026-11-05 13:58
 
