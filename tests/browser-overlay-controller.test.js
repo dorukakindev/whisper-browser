@@ -187,4 +187,18 @@ test('Video.js site captions hide only while the app overlay requests isolation'
   } finally { w.close(); }
 });
 
+test('Stage caption isolation reaches Shadow DOM media and removes only its own sheets when app captions turn off',()=>{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('<!doctype html><div id="host"></div>',{runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
+ w.ResizeObserver=class{observe(){}disconnect(){}};
+ const shadow=w.document.getElementById('host').attachShadow({mode:'open'});shadow.innerHTML='<style id="publisher-style">video{width:100%}</style><video></video>';
+ const video=shadow.querySelector('video');video.currentTime=1;video.getBoundingClientRect=()=>({left:0,top:0,width:1280,height:720,right:1280,bottom:720});
+ const payload={mode:'source',source:[{start:0,end:5,text:'App caption'}],translation:[],style:{hideSiteCaptions:true}};
+ try{
+  w.eval(buildBrowserOverlayScript(payload,'(cues,t)=>cues.filter(c=>c.start<=t&&t<c.end)'));
+  assert(shadow.querySelector('#__whisper_hide_native_captions'),'site caption CSS must cross the Shadow DOM boundary');
+  w.__whisperBrowserOverlayController.update({...payload,mode:'off'});
+  assert.equal(shadow.querySelector('#__whisper_hide_native_captions'),null);assert(shadow.querySelector('#publisher-style'));assert.equal(shadow.querySelector('video'),video);
+ }finally{w.close();}
+});
+
 console.log(`browser-overlay-controller: ${passed} test`);

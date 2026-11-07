@@ -1,3 +1,6 @@
+Güncel entegrasyon: [Podcast çeviri/dublaj, Browser sahipliği ve asistan bağlamı](docs/devir/2026-11-07-1021.md)
+Güncel paket: [Sahne ve Browser/Podcast/Çift dilli — Dilim 2 kısmi inceleme](docs/devir/2026-11-07-0650.md)
+Güncel paket: [Claude Podcast dublaj teslimi (Dilim 1)](docs/devir/2026-11-07-0620.md)
 Güncel yayın: [Claude Keşfet tesliminin GitHub/master yayını](docs/devir/2026-11-07-0815.md)
 Güncel paket: [Claude Keşfet sürekliliği, onay akışı ve görsel entegrasyon](docs/devir/2026-11-07-0808.md)
 Güncel paket: [Claude kümülatif ürün teslimi](docs/devir/2026-11-07-0605.md)

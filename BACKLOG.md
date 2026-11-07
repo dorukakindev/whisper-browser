@@ -6,19 +6,26 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Claude Podcast / Browser / asistan entegrasyonu — 2026-11-07
+
+- **Doğrulanmış ürün tamamlandı:** `3ed735be2ffbc34552cec0a91d6106695e302326`, dal `codex/claude-podcast-context-dub-20261107`, yayın [PR #896](https://github.com/dorukakindev/whisper-browser/pull/896). [Entegrasyon ve kanıt](docs/devir/2026-11-07-1021.md). V5 önceki WIP dilimlerini kapsar; yinelenen ZIP’ler yeniden uygulanmadı. Zamansız çeviri bağlamı, VTT→SRT, ortak dublaj paneli, kaynak/iz yarışları ve ilk/ devam Podcast soru sınırı tamamlandı. Üç eski Podcast test düzeneğinin nedenleri ayrıldı ve düzeltildi; bu dosyalar artık geçiyor.
+- **Windows Electron kabulü:** İzole LG oturumunda gerçek renderer/main/IPC ve kontrollü yerel medya kullanıldı. Browser Podcast dublaj düğmesi, RSS bölümünden VTT çevirisiyle dublaj paneli, tek medya sahibiyle görünüm geçişi, canlı satır/arama/takip, A/B duraklatma ve kaymanın geri gelmesi, aynı sayfada farklı doğrudan videoda sıfırlama, fullscreen, açık Shadow DOM’da site altyazısını gizleme/geri alma ve asistanın aynı bölüme dönüşü geçti. Dosya/izin penceresi açılmadı.
+- **Kalan gerçek sağlayıcı kabulü:** Bu teslimde yeni canlı model, Whisper, çeviri veya VoxCPM2 sesi üretilmedi; native mpv oynatma ve gerçek YouTube sağlayıcı yarışı gözlenmedi. Kesin sonraki adım: mevcut yetkili sağlayıcı ve izole LG profiliyle aynı ses sürümüne ait kısa bir Podcast kesitinde bağlamlı çeviri → iz/aralık önizlemesi → VoxCPM2 üretim → kendi bölümünde sonucu yeniden açma; 3–4 dakikayı aşma. Ardından gerçek erişilebilir YouTube’da aynı sekmede yeni video ve iki sekmede geciken sonuç kabulünü tekrarla. Kontrollü medya başarısı bu canlı kabullerin yerine geçmez.
+- **Kimlik sınırı:** Yeni aynı-sayfa video koruması genel sayfalardaki seçilmiş doğrudan medya dosyasını tanır; sağlayıcı video kimliği, blob ve manifest akışları mevcut sahiplerinde kalır. Kapalı Shadow DOM içine erişim sağlandığı iddia edilmez.
+
 ## Claude kümülatif teslimi — açık canlı kabuller
 
 - Paket temeli `a97dc03bbbac83105492c9c777acc0d7dc2b3cda`, teslim dalı `codex/claude-cumulative-20261107`. [Devir ve kanıt](docs/devir/2026-11-07-0605.md).
 - Keşfet ve film/dizi detayı sonraki Claude paketinde geliştirildi; aynı adlı 2019/2023 yapımların yarışı, üyelik ve geri dönüş kontrollü Windows Chrome’da doğrulandı. [Yeni entegrasyon](docs/devir/2026-11-07-0808.md). Gerçek Electron/sağlayıcı ve yorum dönüşü kabulü açık; sonraki adım LG’de izole profilde iki gerçek yapımın detay/yorum/geri akışını ve Browser araç çubuğunu karşılaştırmak. Kontrollü katalog ve afişler canlı metadata kanıtı değildir.
 - Gerçek YouTube ve Letterboxd sağlayıcılarından bu paket için yeni canlı kanıt yok. Yetkili erişimle aynı sekmede yeni video, iki sekmede geciken altyazı/çeviri ve site altyazısının Shadow DOM tam ekran dönüşünü kısa izole turda sına. Letterboxd için doğru film/yıl, gerçek sayı ve spoiler seçimini izinli Browser yoluyla kontrol et.
-- İlk Podcast “bu ana kadar” isteği ve yorum örneği kimliği için sonraki adım gerçek girişten sağlayıcı isteğini izole ve yetkili koşulda yakalamak. Asistanın çok adımlı kaynak zinciri ve özgün yorum kartı bu paketle eklenmedi.
+- İlk Podcast “bu ana kadar” isteğinin servis isteği ve devam sınırı kontrollü testlerle kapandı; [güncel entegrasyon](docs/devir/2026-11-07-1021.md). Canlı model ve yorum örneği kimliği için sonraki adım gerçek girişten sağlayıcı isteğini izole ve yetkili koşulda yakalamak. Asistanın çok adımlı kaynak zinciri ve özgün yorum kartı bu paketle eklenmedi.
 
 ### Claude Keşfet görsel teslimi — 2026-11-07
 
 - Ürün `f3950c8445eeda709ab672405e4df58b966429af`, dal `codex/claude-discovery-delivery-20261107`, yayın [PR #895](https://github.com/dorukakindev/whisper-browser/pull/895). İlk yerel teslimden sonra kullanıcı GitHub yayını ve master’a birleştirmeyi ayrıca yetkilendirdi. [Entegrasyon](docs/devir/2026-11-07-0808.md) · [Yayın kaydı](docs/devir/2026-11-07-0815.md).
 - Üçüncü ZIP ilk iki teslimin tamamını kapsıyor; yinelenen arşivler ikinci kez uygulanmadı. Teslim edilen ürün farklarının tamamı alındı. Entegrasyonda erken çıkarma isteği, bayat hero üyeliği/odak, açma simgesi ve kaynak okuma hatasının yanlış etiketlenmesi ayrıca düzeltildi.
 - **Kalan gerçek kabul:** Windows Chrome’da gerçek renderer ve kontrollü servisler kullanıldı; gerçek Electron IPC, Cinemeta/TMDB/Letterboxd ve kişisel katalogla canlı kabul yapılmadı. Kesin sonraki adım LG’de izole profilde aynı adlı iki yapımda ekle → geri → detay → çıkar → vazgeç → yeniden çıkar → onay yolunu çalıştırmak; liste konumu, üyelik, kişisel alanlar ve kaynak şeridini karşılaştırmak. Dosya seçme/yeniden bağlama penceresi açma.
-- **Paket dışı önceki kapsam:** Yeni Browser/Sahne, Asistan ve Podcast bağlamlı çeviri/VTT/dublaj dilimleri bu ZIP’lerde yok; tamamlandı sayılmıyor. Devam koşulu ilgili mevcut sahiplerden ayrı bir uygulama turu: `browser-study.js`/`browser-podcast.js`/`cinema-sahne.js` bağlam yarışları, ardından asistan bağlamı ve Podcast çeviri/dublaj girişlerinin ortak profil/iş sahipleriyle karşılaştırılması. Çalışan önceki teslimleri yeniden kurma; canlı sağlayıcı gerektiren kabulü kontrollü testten ayrı kaydet.
+- Önceki pakette bulunmayan Browser/Sahne, Asistan ve Podcast çeviri/dublaj kodu sonraki V5 entegrasyonunda alınıp güçlendirildi; güncel durum ve kalan canlı kabul yukarıdaki [2026-11-07 entegrasyonunda](docs/devir/2026-11-07-1021.md).
 
 ## Sahne ve Browser — güncel kabul
 

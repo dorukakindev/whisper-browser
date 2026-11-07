@@ -10690,7 +10690,7 @@ async function restoreBrowserSubtitleSelection(tab) {
     }
     if (!isCurrent()) return;
     tab.subtitleSelectionRestored = true;
-    setSubtitleMode(mode, false);
+    setSubtitleMode(tab.restoreSubtitleMode || tab.subtitleMode || mode, false);
     saveActiveBrowserTabWorkspace();
   } finally {
     if (tab.subtitleSelectionLoading === request) tab.subtitleSelectionLoading = false;
@@ -12637,13 +12637,13 @@ function updateBrowserNavigation(data, options = {}) {
   const tab = browserTabState();
   const previousMediaId = tab?.mediaId || '';
   const nextMediaId = data.mediaId !== undefined ? (data.mediaId || '') : previousMediaId;
-  const nextMediaKey = nextMediaId
+  const nextMediaKey = data.sourceChanged&&data.sourceMediaId?`browser:${data.sourceMediaId}`:nextMediaId
     ? `browser:${nextMediaId}`
     : `browser:${browserPlaceKey(data.url) || data.url || ''}`;
   const pageChanged = !!data.url && data.url !== player.browserPageUrl;
   // Aynı video içindeki hash/query/pushState geçişleri yalnız adresi günceller;
   // altyazı çalışma alanını ancak kararlı medya kimliği değiştiğinde sıfırla.
-  const mediaChanged = pageChanged && (!previousMediaId || !nextMediaId || previousMediaId !== nextMediaId);
+  const mediaChanged = data.sourceChanged===true || pageChanged && (!previousMediaId || !nextMediaId || previousMediaId !== nextMediaId);
   if (tab) {
     tab.generation = Math.max(Number(tab.generation) || 0, Number(data.generation) || 0);
     if (data.url !== undefined) tab.url = data.url || '';
@@ -20629,7 +20629,7 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   if (watchPacket && !integration.watchQuestionIsCurrent(watchPacket)) return;
   if(podcastPacket&&!podcastContextCurrent(podcastPacket))return;
   const bounded = podcastPacket || requestOptions.playerEvidence || watchPacket?.ok;
-  const chatContext = podcastPacket || (bounded
+  const chatContext = podcastPacket ? {...podcastPacket,watched_cutoff:podcastPacket.podcastAnchor.time} : (bounded
     ? { video: $('playerTitle')?.textContent || '', zaman: pSecToTime(
         requestOptions.playerEvidence ? (requestOptions.playerEvidence.scopeEnd ?? requestOptions.playerEvidence.range.end) : watchPacket.horizon) }
     : aiChatContext());
@@ -22099,7 +22099,7 @@ function setSubtitleMode(mode, announce = true) {
   if (player.workspaceMode === 'browser') mode = bestAvailableSubtitleMode(mode);
   if (player.workspaceMode === 'browser') {
     const tab = browserTabState();
-    if (tab) tab.subtitleMode = mode;
+    if (tab) { tab.subtitleMode = mode; tab.restoreSubtitleMode = mode; }
   }
   if (mode === 'off') {
     setSubtitlesVisible(false);
@@ -23183,7 +23183,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       if ($('browserTrackSelect2')) $('browserTrackSelect2').value = '';
       // Kaynak izine geri dönüldüğünde, artık mevcut olmayan çeviri modu
       // yüzünden ekranın boş kalmasını önle.
-      setSubtitleMode('source', false);
+      if (!options.restoringSelection) setSubtitleMode('source', false);
     }
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
   }
@@ -34151,13 +34151,15 @@ window.queuePodcastSource=async function(binding,config={}){
 window.translatePodcastTextSource=async function(binding,{isCancelled=()=>false,targetLanguage}={}){
  if(isCancelled()||!binding?.entryId||!binding.sourceVersion||!binding.sourceTranscriptText||!podcastQueueOwnerCurrent(binding))throw Error('Podcast transcript changed / Podcast metni değişti.');
  const target=targetLanguage||document.getElementById('translateTo')?.value||'tr';
+ // Same ±N-lines setting the subtitle queue uses (translateContext); read once so later edits cannot change this job.
+ const contextLines=Number(document.getElementById('translateContext')?.value??'4');
  const rows=state.podcastTextTasks||(state.podcastTextTasks=[]);
  if(rows.some(row=>row.status==='running'))throw Error('Wait for the current podcast text translation / Önce çalışan podcast metni çevirisini bitirin.');
  while(rows.length>=16)rows.shift();
  const id='podcast-text-'+Date.now()+'-'+(state.podcastTextTaskSeq=(state.podcastTextTaskSeq||0)+1),item={id,status:'running',podcastText:true,podcastBinding:{...binding},stage:interfaceChoice('Yayıncı metni çevriliyor…','Translating publisher text…')};rows.push(item);
  void (async()=>{
   try{
-   const result=await window.api.feedsRequest({action:'podcast-translate-text',entryId:binding.entryId,sourceVersion:binding.sourceVersion,expectedTranscriptText:binding.sourceTranscriptText,targetLanguage:target,requestId:id});
+   const result=await window.api.feedsRequest({action:'podcast-translate-text',entryId:binding.entryId,sourceVersion:binding.sourceVersion,expectedTranscriptText:binding.sourceTranscriptText,targetLanguage:target,contextLines,requestId:id});
    if(!result?.ok)throw Error(result?.error||'Podcast translation failed / Podcast çevirisi başarısız.');
    if(result.sourceTranscriptText!==binding.sourceTranscriptText)throw Error('Podcast transcript changed / Podcast metni değişti.');
    if(isCancelled()||!podcastQueueOwnerCurrent(binding)){item.status='stopped';return;}

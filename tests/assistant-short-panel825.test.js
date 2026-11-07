@@ -36,3 +36,11 @@ test('Every action card carries a status that follows its real result',t=>{
  const h=fixture(t),card=value=>{h.publish({messages:[{id:'a',role:'ai',text:'Answer',status:'complete',actions:[{id:'p1',kind:'app_action',label:'Open the passage',...value}]}]});return h.w.document.querySelector('.tool-card');};
  for(const [value,status,text] of [[{},'pending',/Waiting for your approval/],[{resultStatus:'completed'},'completed',/Applied/],[{resultStatus:'failed'},'failed',/Failed/],[{resultStatus:'failed',refreshable:true},'failed',/Source or settings changed/],[{resultStatus:'stopped'},'stopped',/Stopped/]]){const c=card(value);assert.equal(c.dataset.status,status);assert.match(c.querySelector('.tool-status').textContent,text);}
 });
+
+test('Podcast scope is visible, localized and explains the frozen heard boundary; non-transcript sources leave no orphan scope label',t=>{
+ const h=fixture(t);h.publish({locale:'tr',transcriptScope:true,sourceTarget:{kind:'podcast'},scope:'watched'});
+ assert.equal(h.$('tools').hidden,false);assert.equal(h.$('scope').selectedOptions[0].textContent,'Bu ana kadar dinlenen');assert.match(h.$('scopeHint').textContent,/soru anına kadar biten/);assert.equal(h.$('sourceLabel').textContent,'Podcast metni ve model');
+ h.$('scope').value='nearby';h.$('scope').dispatchEvent(new h.w.Event('change'));assert.equal(h.packets.at(-1)[0],'scope');assert.equal(h.packets.at(-1)[1],'nearby');
+ h.publish({locale:'en',transcriptScope:true,sourceTarget:{kind:'podcast'},scope:'full'});assert.equal(h.$('scope').selectedOptions[0].textContent,'Saved transcript');assert.match(h.$('scopeHint').textContent,/may be shortened/);
+ h.publish({transcriptScope:false});assert.equal(h.$('tools').hidden,true);
+});

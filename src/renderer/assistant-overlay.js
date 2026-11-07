@@ -151,6 +151,11 @@
     $('runtimeControls').hidden=!value.canRuntimeMessage;$('steer').textContent=t('Steer now','Yön değiştir');$('followup').textContent=t('After this answer','Bitince ekle');for(const id of ['steer','followup'])$(id).disabled=!!pending;
     const queued=(value.runtimeMessages||[]).filter(row=>row.status==='queued').length;$('runtimeMessageStatus').textContent=queued?t(`${queued} queued message(s)`,`${queued} mesaj sırada`):'';
     $('scope').value = value.scope || 'watched';$('scopeLabel').textContent=t('Context scope','Bağlam kapsamı');
+    $('tools').hidden=value.transcriptScope===false;
+    const podcastScope=value.sourceTarget?.kind==='podcast';
+    if(podcastScope)$('sourceLabel').textContent=t('Podcast transcript & model','Podcast metni ve model');
+    for(const option of $('scope').options)option.textContent=option.value==='nearby'?t('Nearby','Yakın çevre'):option.value==='watched'?(podcastScope?t('Heard so far','Bu ana kadar dinlenen'):t('Watched so far','Bu ana kadar izlenen')):(podcastScope?t('Saved transcript','Kayıtlı döküm'):t('Full transcript','Tüm döküm'));
+    $('scopeHint').textContent=$('scope').value==='watched'?t('Only finished lines up to the question moment. Later speech stays outside this request.','Yalnız soru anına kadar biten satırlar. Sonraki konuşma bu isteğe eklenmez.'):$('scope').value==='nearby'?t('About three minutes around the current position.','Geçerli konumun yaklaşık üç dakika çevresi.'):t('Uses saved text. The supplied excerpt may be shortened; check the source preview.','Kayıtlı metni kullanır. Gönderilen bölüm kısaltılabilir; kaynak önizlemesini kontrol et.');
     if(pending && value.receipt?.id===pending.id){
       if(value.receipt.accepted && pending.sourceToken===value.sourceToken && $('text').value.trim()===pending.text){$('text').value='';rememberDraft();}
       showStatus(value.receipt.message||'',!value.receipt.accepted);pending=null;$('send').disabled=busy||!!value.blocked;

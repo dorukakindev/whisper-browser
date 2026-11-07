@@ -498,7 +498,32 @@
             return Promise.resolve({ok:true});
           case 'dub': {
             if (!window.DubGeneratorUI?.prepareCurrent) return Promise.resolve({ok:false,code:'unsupported'});
-            return Promise.resolve(window.DubGeneratorUI.prepareCurrent()).then(() => ({ok:true}));
+            if (kind !== 'shelf') return Promise.resolve(window.DubGeneratorUI.prepareCurrent()).then(() => ({ok:true}));
+            // Library audio is not a dubbing target: dubbing attaches to the player's audio. Open THIS episode in the player
+            // through the existing Podcast entry (the verified Whisper copy when the saved timings belong to it), then open the
+            // shared dubbing panel for that player media. Nothing of a previously hidden player media is carried over.
+            return (async () => {
+              const entryId = s.entryId, owner = { mediaKey: s.mediaKey, generation: s.generation }, actionEpoch=stageEpoch, openingIntent=Number(player.openIntent)||0;
+              const sameShelf = () => current() && F.snap()?.mediaKey === owner.mediaKey && F.snap()?.generation === owner.generation;
+              if (!entryId || typeof window.PlayerSourceCatalogIntegration?.openPodcastEntry !== 'function')
+                return { ok:false, code:'needs-player', message:T('Dublaj için bölümü oynatıcıda açın.', 'Open the episode in the player to dub it.') };
+              const exact = window.MediaShelfUI?.getTranscriptTracks?.().find(track => track.role === 'source')?.exactSource;
+              if (exact) {
+                const proof = await window.api.feedsRequest({ action:'podcast-exact-audio', entryId:exact.entryId });
+                if (!sameShelf()) return stale;
+                if (!proof?.available || proof.sourceVersion !== exact.sourceVersion)
+                  return { ok:false, code:'exact-unavailable', message:T('Whisper ses kopyası artık mevcut değil.', 'The Whisper audio copy is no longer available.') };
+              }
+              const target = exact?.entryId || entryId;
+              await window.PlayerSourceCatalogIntegration.openPodcastEntry(target, { view: mode === 'study' ? 'bilingual' : 'podcast', ...(exact ? { exactVersion:exact.sourceVersion } : {}),
+                isCancelled: () => stageEpoch!==actionEpoch || !sameShelf() && !(player.workspaceMode==='player'&&player.openIntent===openingIntent+1) });
+              const audio = player.workspaceAudio;
+              // The handoff must really have produced this episode as the current player media before the panel opens.
+              if (stageEpoch!==actionEpoch || !audio || audio.entryId !== target || audio.mediaKey !== player.mediaKey || audio.generation !== player.generation || (exact && (!audio.exactAudio || audio.sourceVersion !== exact.sourceVersion)))
+                return { ok:false, code:'source-changed', message:T('Bölüm oynatıcıda açılamadı; dublaj başlatılmadı.', 'The episode could not be opened in the player; dubbing was not started.') };
+              await window.DubGeneratorUI.prepareCurrent();
+              return { ok:true };
+            })();
           }
           case 'fullscreen': {
             if (doc.fullscreenElement && doc.exitFullscreen) return doc.exitFullscreen().then(()=>({ok:true}));

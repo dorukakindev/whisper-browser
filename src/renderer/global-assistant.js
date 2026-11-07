@@ -20,7 +20,8 @@
       const pageContext=!selectionContext&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
       const videoContext=pageContext&&!!currentBrowserYoutubeUrl();
       const attachedSelection=window.AssistantSourcePreview.hasAttachedSource(selectionContext);
-      const transcriptScope=!selectionContext&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
+      const podcastTranscript=selectionContext?.workspace==='podcast'&&!!selectionContext.transcript_evidence&&!selectionContext.transcript_evidence.limitations?.includes('untimed-transcript-excluded');
+      const transcriptScope=podcastTranscript||!selectionContext&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
       const pageTask=window.AssistantAgentUI?.status()||window.AssistantVideoCommands?.status()||window.AssistantPageCommands?.status()||window.AssistantMediaCommands?.status();
       const context = selectionContext ? (selectionContext.title || selectionContext.heading || (selectionContext.workspace === 'media-library' ? (tr?'Medya kütüphanesi':'Media library') : (tr?'Altyazı stüdyosu':'Subtitle studio')))
         : (pageContext?(player.browserPageTitle||$('playerTitle')?.textContent):$('playerTitle')?.textContent) || (tr ? 'Açık video / sayfa' : 'Current video / page');

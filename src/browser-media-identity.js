@@ -174,6 +174,16 @@ function deriveStreamMediaIdentity(baseMediaIdentity, streamUrl, hints = {}) {
   return `${base || 'browser:web'}:stream:${stableUrlHash(material)}`;
 }
 
+// Known provider/video IDs and manifest/blob pipelines retain their existing
+// identity owners. Only a generic page's selected direct file is eligible here.
+function observedDirectMediaIdentity(pageUrl, sourceUrl) {
+  const page=canonicalMediaIdentity(pageUrl),stream=normalizeStreamIdentityUrl(sourceUrl);
+  if(page.service!=='web'||page.contentId||!stream)return '';
+  try { if(!/\.(?:mp4|webm|m4v|mov|mp3|m4a|wav|ogg|oga|ogv|flac|aac)$/i.test(new URL(stream).pathname))return ''; }
+  catch { return ''; }
+  return deriveStreamMediaIdentity(page.key,stream);
+}
+
 function canonicalMediaIdentity(rawUrl, hints = {}) {
   // Depolanan URL'yi sınırlı tut, fakat kimliği tam normalize edilmiş URL'den
   // üret. Aksi halde aynı 16 KiB öneke sahip iki ayrı adres aynı içeriğe
@@ -196,6 +206,7 @@ module.exports = {
   TRACKING_PARAM_RE,
   canonicalMediaIdentity,
   deriveStreamMediaIdentity,
+  observedDirectMediaIdentity,
   normalizeBrowserUrl,
   normalizeStreamIdentityUrl,
   isAmazonHost,

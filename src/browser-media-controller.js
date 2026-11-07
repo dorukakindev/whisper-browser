@@ -564,6 +564,7 @@ function controllerBootstrap() {
         const rect = item.getBoundingClientRect?.();
         return {
           docToken: tokenFor(item),
+          sourceUrl: String(item.currentSrc || item.src || '').slice(0,16384),
           publisher: String(document.querySelector('ytd-watch-metadata ytd-video-owner-renderer #channel-name a, #owner #channel-name a')?.textContent || '').trim().slice(0,300),
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),

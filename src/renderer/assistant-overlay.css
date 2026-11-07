@@ -329,3 +329,7 @@ header{padding-inline:16px;gap:12px}
 
 .source-return{display:inline-flex;margin-top:4px;padding:2px 9px;min-height:24px;font-size:11px;letter-spacing:.02em;border-radius:12px;background:transparent;border:1px solid var(--line);color:var(--accent)}
 .source-return:hover,.source-return:focus-visible{border-color:var(--accent);background:rgba(213,163,92,.08)}
+#tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;align-items:center}
+.context-scope-hint{grid-column:1/-1;line-height:1.45;color:var(--muted);font-size:11px;max-width:65ch}
+#suggestions,#panel:has(.empty) #suggestions{flex-wrap:wrap;min-width:0}
+#primarySuggestion>button,#panel:has(.empty) #primarySuggestion>button{flex:1 1 150px;width:auto;min-width:0;white-space:normal;overflow-wrap:anywhere}

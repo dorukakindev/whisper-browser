@@ -63,8 +63,9 @@
   if(context.diller)safe.diller={kaynak:text(context.diller.kaynak,30),ceviri:text(context.diller.ceviri,30)};
   if(context.page&&typeof context.page==='object'){const blocks=Array.isArray(context.page.blocks)?context.page.blocks:[];safe.page={title:text(context.page.title,300),selectedText:text(context.page.selectedText,3000),truncated:context.page.truncated===true||blocks.length>40||String(context.page.selectedText||'').length>3000||blocks.some(row=>typeof row?.text==='string'&&row.text.length>400),
    blocks:blocks.slice(0,40).filter(row=>row&&typeof row==='object').map(row=>({id:text(row.id,40),text:text(row.text,400)}))};if(safe.page.truncated)safe.sourceTruncated=true;}
+  if(Number.isFinite(context.watched_cutoff)&&context.watched_cutoff>=0)safe.watched_cutoff=context.watched_cutoff;
   const evidence=Array.isArray(context.transcript_evidence?.evidence)?context.transcript_evidence.evidence:Array.isArray(context.evidence)?context.evidence:null;
-  if(evidence){safe.evidence=evidence.slice(0,12).filter(row=>row&&typeof row==='object').map(row=>({id:text(row.id,40),start:Number(row.baslangic??row.start)||0,text:text(row.metin??row.text,500),translation:text(row.ceviri??row.translation,500),
+  if(evidence){safe.evidence=evidence.slice(0,12).filter(row=>row&&typeof row==='object').map(row=>({id:text(row.id,40),start:Number(row.baslangic??row.start)||0,...(Number.isFinite(row.bitis??row.end)?{end:row.bitis??row.end}:{}),text:text(row.metin??row.text,500),translation:text(row.ceviri??row.translation,500),
    ...(Number.isSafeInteger(row.textOffset)&&row.textOffset>=0?{textOffset:row.textOffset}:{}),...(Number.isSafeInteger(row.translationOffset)&&row.translationOffset>=0?{translationOffset:row.translationOffset}:{}),
    ...(row.textTruncated===true||String(row.metin??row.text??'').length>500?{textTruncated:true}:{}),...(row.translationTruncated===true||String(row.ceviri??row.translation??'').length>500?{translationTruncated:true}:{})}));if(evidence.length>12||evidence.some(row=>String(row?.metin??row?.text??'').length>500||String(row?.ceviri??row?.translation??'').length>500))safe.sourceTruncated=true;}
   updateCoverage();

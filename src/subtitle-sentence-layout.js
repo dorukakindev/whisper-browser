@@ -6,6 +6,9 @@ const SENTENCE_PROTOCOL_VERSION = 4;
 const SUPPORTED_SENTENCE_PROTOCOL_VERSIONS = new Set([2, 3, 4]);
 const ABBREVIATIONS = new Set(require('../backend/subtitle-abbreviations.json'));
 const normalizeText = (value) => String(value ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
+// Untimed article prose keeps its paragraph/line breaks: only runs of spaces/tabs are folded and 3+ blank lines shrink to one.
+const normalizeParagraphs = (value) => String(value ?? '').normalize('NFC').replace(/\r\n?/g, '\n').replace(/[^\S\n]+/g, ' ')
+  .replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 const SPACELESS_SCRIPT = /[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/u;
 // Türkçe İ/i/ı/I harflerini tek kanona indirger: 'İstanbul' ile 'istanbul',
 // 'I' ile 'i' aynı kabul edilir. Sağlayıcıların büyük/küçük harf farkı
@@ -336,7 +339,7 @@ function validParts(text, parts, count) {
     && sentencePartsMatch(text, parts);
 }
 
-function decodeSentenceTranslation(raw, count, requireParts = false) {
+function decodeSentenceTranslation(raw, count, requireParts = false, { preserveParagraphs = false } = {}) {
   if (typeof raw === 'string') {
     const value = raw.trim().replace(/^```(?:json|text)?\s*|\s*```$/gi, '').trim();
     const wrapped = value.match(/^(?:çeviri|translation|response|yanıt)\s*:\s*(\{[\s\S]*\})$/iu);
@@ -377,7 +380,7 @@ function decodeSentenceTranslation(raw, count, requireParts = false) {
     error.code = 'PARTS_MISSING';
     throw error;
   }
-  return { text: normalizeText(raw.text), parts: raw.parts?.map(normalizeText) || null };
+  return { text: preserveParagraphs ? normalizeParagraphs(raw.text) : normalizeText(raw.text), parts: raw.parts?.map(normalizeText) || null };
 }
 
 function sentenceTranslationRequest(sentence, targetLanguage = 'tr') {

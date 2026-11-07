@@ -91,6 +91,7 @@
   }
   function refreshOverview() {
     modal.dataset.running=String(!!current);
+    {const select=el('dubPodcastTrack');if(select)select.disabled=podcastBusy()||!podcast?.tracks.some(item=>!item.unverified);}
     editorProviderHint();naturalOverview();
     const decoding=plan?.sourceDecoding;decodingInfo.hidden=!decoding;decodingInfo.textContent=decoding?(window.UiLocale?.get?.()==='en'?'Text read using '+decoding.encoding+(decoding.repaired?' · automatic text repair applied':'')+'. Check characters before generating speech. Source file unchanged.':'Metin '+decoding.encoding+' ile okundu'+(decoding.repaired?' · otomatik metin onarımı uygulandı':'')+'. Ses üretmeden önce harfleri kontrol et. Kaynak dosya değiştirilmedi.'):'';
     for(const id of ['dubSrtName','dubGeneratedName','dubVoiceName']){const node=el(id);if(node)node.title=node.textContent;}
@@ -98,7 +99,8 @@
     if(notice){const partial=/\.partial\.srt$/i.test(srt);notice.hidden=!partial;notice.textContent=partial?(window.UiLocale?.get?.()==='en'?'This is a partial translation. Untranslated lines may be read in their original language; complete the translation for consistent dubbing.':'Bu kısmi bir çeviri. Çevrilmeyen satırlar özgün dilinde okunabilir; tutarlı dublaj için önce çeviriyi tamamlayın.'):'';}
     for(const {button,kind}of preparationActions){button.disabled=!!current||planning||referenceBusy||choosing||workspaceBusy;button.title=kind==='source'?(window.UiLocale?.get?.()==='en'?'Choose or change subtitles':'Altyazı seç veya değiştir'):kind==='voice'?(window.UiLocale?.get?.()==='en'?'Go to reference voice':'Referans sese git'):(window.UiLocale?.get?.()==='en'?'Scope and short preview':'Kapsam ve kısa örnek');}
     const source = el('dubReadySource'), voice = el('dubReadyVoice'), range = el('dubReadyRange');
-    source.textContent = srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
+    const episodeTrack=srtOrigin==='podcast'&&podcast?.tracks.find(row=>row.role===podcast.choice);
+    source.textContent = episodeTrack ? [episodeTrack.role==='translation'?L('Çeviri','Translation'):L('Özgün','Original'),episodeTrack.language].filter(Boolean).join(' · ') : srt ? basename(srt) : t('SRT seçilmedi'); source.dataset.ready = String(!!srt);
     const activeVoice=current?.voice||cfg;
     const currentVoice=el('dubCurrentVoiceName'),currentVoiceHint=el('dubCurrentVoiceHint');
     currentVoice.textContent=activeVoice?.reference?basename(activeVoice.reference):(window.UiLocale?.get?.()==='en'?'Choose a voice':'Ses seçin');
@@ -136,7 +138,11 @@
     button.type='button';button.className='dub-readiness-action';button.append(...box.childNodes);box.append(button);preparationActions.push({button,kind});
     button.addEventListener('click',()=>{
       if(current||planning||referenceBusy||choosing||workspaceBusy)return;
-      if(kind==='source'){el('dubChooseSrt').click();return;}
+      if(kind==='source'){
+        const target=podcast?el('dubPodcastTrack'):null;
+        if(target){const card=el('dubPodcastSource');card.scrollIntoView?.({block:'center'});(target.hidden||target.disabled?el('dubPodcastAction'):target).focus({preventScroll:true});return;}
+        el('dubChooseSrt').click();return;
+      }
       const target=el(kind==='voice'?(el('voiceReferenceLibrary')?.hidden?'voiceReferenceLocal':'voiceReferenceSelect'):'dubSampleOnly');
       for(let parent=target.parentElement;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;
       target.scrollIntoView?.({block:'center',behavior:'auto'});target.focus({preventScroll:true});
@@ -405,14 +411,14 @@
     const context = window.BrowserDubAudioUI?.context();
     const mediaKey = JSON.stringify([context?.mode, context?.tabId, context?.mediaId || context?.mediaKey]);
     if (mediaContextKey !== null && mediaContextKey !== mediaKey) {
-      srt = ''; backgroundSource = ''; fileName('dubSrtName','—'); el('dubBackgroundName').textContent = '';
+      srt = ''; srtOrigin = ''; podcast = null; paintPodcast(); backgroundSource = ''; fileName('dubSrtName','—'); el('dubBackgroundName').textContent = '';
       deliverySource='';el('dubDeliverySourceName').textContent='';
       lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults();
       resetComparison(); output=null; window.DubWorkspaceUI?.setOutput(null); preview(null);
       el('dubGeneratorOutput').classList.add('hidden'); el('dubGeneratorUse').classList.add('hidden');
     }
     mediaContextKey = mediaKey;
-    const range = ['browser','player'].includes(context?.mode) ? context.subtitleRange : null;
+    const range = ['browser','player'].includes(context?.mode) && context.visible !== false && context.hasMedia !== false ? context.subtitleRange : null;
     const valid = range && Number.isFinite(range.start) && Number.isFinite(range.end)
       && range.start >= 0 && range.end > range.start && range.end <= 86400;
     const key = JSON.stringify([context?.mode, context?.tabId, context?.mediaId || context?.mediaKey, valid ? range : null]);
@@ -446,6 +452,8 @@
   function currentSubtitle() {
     const context = window.BrowserDubAudioUI?.context();
     if (!['browser','player'].includes(context?.mode) || typeof player === 'undefined') return '';
+    // A hidden player or a player without media (e.g. while a library Podcast is shown) is not the media being dubbed.
+    if (context.visible === false || context.hasMedia === false) return '';
     const candidate = player.sub2Role === 'translation' && player.sub2Path ? player.sub2Path : player.subPath;
     if (typeof candidate !== 'string' || !/\.srt$/i.test(candidate) || !/^(?:[a-z]:[\\/]|[/\\])/i.test(candidate)) return '';
     // Browser tracks belong to the active tab. Never adopt a leftover player path.
@@ -454,13 +462,140 @@
   }
   function adoptCurrentSubtitle(candidate) {
     if (!candidate || srt || current || planning || choosing || workspaceBusy) return;
-    srt = candidate; lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();
+    srt = candidate; srtOrigin = ''; lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();
     void loadPronunciations();
     fileName('dubSrtName',basename(candidate)); refreshOverview(); status('Hazır');
   }
+  function currentSubtitleSelection() {
+    const context=window.BrowserDubAudioUI?.context();
+    if(context?.visible===false||context?.hasMedia===false)return '';
+    if(context?.mode!=='browser')return currentSubtitle();
+    const secondary=player.sub2Role==='translation'&&!!player.sub2Path;
+    const id=secondary?player.browserLoadedTrackId2:player.browserLoadedTrackId;
+    // Capture can replace a track's materialized file while keeping its identity.
+    // A different user-selected track is not the same preparation request.
+    return id?JSON.stringify([secondary?'secondary':'primary',id]):currentSubtitle();
+  }
+  // ---- Podcast source: the dubbing subtitle is the STORED transcript of the episode the player shows ----
+  // Never the leftover player path. A candidate is a timed stored track of the same entry/version/generation; VTT is
+  // derived to a timing-proved SRT by the main process (podcast-materialize as:'srt'), the stored original is untouched.
+  // Timing validity mirrors the player's own rule (PlayerSourceCatalogIntegration.loadSavedPodcastResult): a Whisper track is
+  // timed only on the exact audio copy whose sha256 equals the track's timeline.sha256 (clock 'absolute-media-seconds',
+  // a partial range carries extractionStart = coverage.start). Publisher/user tracks need no such proof. Titles never match audio.
+  const L = (tr, en) => window.UiLocale?.get?.() === 'en' ? en : tr;
+  let podcast = null, srtOrigin = '', podcastTrackRequest = 0;
+  modal.addEventListener('close',()=>{podcastTrackRequest++;});
+  const podcastBusy = () => !!current || planning || referenceBusy || choosing || workspaceBusy;
+  function podcastOwner() {
+    const context = window.BrowserDubAudioUI?.context(), audio = typeof player === 'object' ? player.workspaceAudio : null;
+    if (context?.mode !== 'player' || context.visible === false || context.hasMedia === false || !audio?.entryId || !audio.sourceVersion
+      || audio.mediaKey !== player.mediaKey || audio.generation !== player.generation || context.mediaKey !== audio.mediaKey) return null;
+    return { entryId: audio.entryId, sourceVersion: audio.sourceVersion, mediaKey: audio.mediaKey, generation: audio.generation, exactAudio: !!audio.exactAudio, sha256: String(audio.sourceBinding?.sha256 || '') };
+  }
+  const podcastKey = owner => owner ? JSON.stringify([owner.entryId, owner.sourceVersion, owner.mediaKey, owner.generation]) : '';
+  const podcastNow = key => !!key && podcastKey(podcastOwner()) === key;
+  function paintPodcast() {
+    const box = el('dubPodcastSource'), select = el('dubPodcastTrack'), meta = el('dubPodcastMeta'), notice = el('dubPodcastNotice'), action = el('dubPodcastAction');
+    if (!box) return;
+    box.hidden = !podcast;
+    el('dubChooseSrt').textContent=podcast?L('Farklı bir SRT seç','Choose a different SRT'):L('SRT seç','Choose SRT');
+    const card = box.closest('.dub-source-card'); if (card) card.dataset.podcast = podcast ? 'on' : '';
+    if (!podcast) { select.replaceChildren(); meta.textContent = notice.textContent = action.textContent = ''; notice.hidden = action.hidden = true; return; }
+    const clock = seconds => { const total = Math.round(seconds), h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), sec = String(total % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`; };
+    const who = { publisher: L('Yayıncı', 'Publisher'), asr: 'Whisper', user: L('Kullanıcı', 'User') };
+    const label = item => [item.role === 'translation' ? L('Çeviri', 'Translation') : L('Özgün', 'Original'), item.language, who[item.provenance] || item.provenance,
+      item.range ? clock(item.range.start) + '–' + clock(item.range.end) : '', item.partial ? L('kısmi', 'partial') : '', item.unverified ? L('zamanı doğrulanmadı', 'timing unverified') : ''].filter(Boolean).join(' · ');
+    const episode = el('dubPodcastEpisode'), heading = (document.getElementById('playerTitle')?.textContent || '').trim();
+    if (episode) { episode.textContent = heading; episode.title = heading; episode.hidden = !heading; }
+    const usable = podcast.tracks.some(item => !item.unverified); select.hidden = !usable;
+    select.replaceChildren(...podcast.tracks.map(item => { const option = document.createElement('option'); option.value = item.role; option.textContent = label(item); option.disabled = !!item.unverified; return option; }));
+    const manual = srtOrigin === 'manual' && !!srt;
+    if (manual) { const option = document.createElement('option'); option.value = 'manual'; option.textContent = L('Elle seçilen SRT', 'Manually chosen SRT') + ' · ' + basename(srt); select.append(option); select.value = 'manual'; }
+    else select.value = podcast.choice || '';
+    const chosen = podcast.tracks.find(item => item.role === podcast.choice);
+    meta.textContent = !usable && podcast.tracks.length ? L('Kayıtlı izler: ', 'Saved tracks: ') + podcast.tracks.map(label).join(' | ') : chosen?.revision && !manual ? `${L('İz sürümü', 'Track version')} ${chosen.revision.slice(0, 12)} · ${L('Bölüm sürümü', 'Episode version')} ${podcast.owner.sourceVersion.slice(0, 8)}` : '';
+    notice.hidden = !podcast.notice; notice.textContent = podcast.notice || '';
+    action.hidden = !podcast.action;
+    action.textContent = podcast.action === 'exact' ? L('Whisper’ın kullandığı ses kopyasını aç', 'Open the audio copy used by Whisper') : podcast.action === 'timed' ? L('Önce zamanlı transkript oluştur', 'Create a timed transcript first') : '';
+    select.disabled = podcastBusy() || !podcast.tracks.some(item => !item.unverified);
+  }
+  async function applyPodcastTrack(role) {
+    const owner = podcast?.owner, key = podcast?.key, item = podcast?.tracks.find(row => row.role === role);
+    if (!owner || !item || item.unverified || podcastBusy() || !podcastNow(key)) { paintPodcast(); return false; }
+    const ticket=++podcastTrackRequest, previousSrt=srt, previousOrigin=srtOrigin;
+    const out = await window.api.feedsRequest({ action: 'podcast-materialize', entryId: owner.entryId, sourceVersion: owner.sourceVersion, role, as: 'srt' }).catch(error => ({ ok: false, error: error?.message }));
+    if (!modal.open || ticket!==podcastTrackRequest || !podcastNow(key) || podcast?.key !== key || srt!==previousSrt || srtOrigin!==previousOrigin) return false;
+    if (!out?.ok || typeof out.path !== 'string' || !/\.srt$/i.test(out.path)) {
+      podcast.notice = L('Dublaj için SRT hazırlanamadı: ', 'Could not prepare an SRT for dubbing: ') + String(out?.error || L('bilinmeyen hata', 'unknown error')); podcast.action = ''; paintPodcast(); return false;
+    }
+    item.revision = String(out.revision || ''); podcast.choice = role; podcast.notice = ''; podcast.action = '';
+    if (srt !== out.path) {
+      srt = out.path; srtOrigin = 'podcast'; lastRequest = null; completedRequest = null; qualityFilter = 'all'; results.clear(); showResults(); invalidatePlan();
+      void loadPronunciations(); fileName('dubSrtName', basename(out.path)); status('Hazır');
+    } else srtOrigin = 'podcast';
+    paintPodcast(); refreshOverview(); return true;
+  }
+  async function loadPodcast() {
+    const owner = podcastOwner(), key = podcastKey(owner);
+    if (!owner) { podcast = null; paintPodcast(); return; }
+    const saved = await window.api.feedsRequest({ action: 'podcast-workspace', entryId: owner.entryId, sourceVersion: owner.sourceVersion }).catch(() => null);
+    if (!podcastNow(key)) return;
+    const next = { owner, key, tracks: [], notice: '', action: '', choice: podcast?.key === key ? podcast.choice : '' };
+    const workspace = saved?.ok ? saved.workspace : null; let untimed = false;
+    const asrSource = workspace?.transcript?.provenance === 'asr';
+    for (const [role, stored] of [['translation', workspace?.translation], ['source', workspace?.transcript]]) {
+      if (!stored) continue;
+      if (stored.state !== 'timed') { untimed = true; continue; }
+      const proven = !asrSource || (owner.exactAudio && !!owner.sha256 && stored.timeline?.clock === 'absolute-media-seconds' && stored.timeline.sha256 === owner.sha256);
+      const range = stored.coverage && Number.isFinite(stored.coverage.start) && Number.isFinite(stored.coverage.end) ? stored.coverage : null;
+      next.tracks.push({ role, provenance: stored.provenance, partial: stored.status === 'partial', language: String(stored.targetLanguage || stored.language || ''), range, unverified: !proven });
+    }
+    const usable = next.tracks.filter(item => !item.unverified);
+    if (!saved?.ok) next.notice = L('Bu bölümün kayıtlı dökümü okunamadı.', 'The saved transcript of this episode could not be read.');
+    else if (!next.tracks.length) { next.notice = untimed ? L('Bu bölümün metni zamansız (yayıncı metni). Senkron dublaj için zamanlı transkript gerekir; zamanlar doğrulanmadan dublaj başlatılmaz.', 'This episode’s text has no timing (publisher prose). Synchronized dubbing needs a timed transcript; dubbing does not start on unverified timing.')
+      : L('Bu bölüm için kayıtlı transkript yok. Dublaj için önce zamanlı bir transkript oluşturun.', 'There is no saved transcript for this episode. Create a timed transcript before dubbing.'); next.action = 'timed'; }
+    else if (!usable.length) { next.notice = L('Bu dökümün zamanları Whisper’ın kullandığı ses kopyasına aittir; çalan yayının sesiyle eşleştiği doğrulanmadı. Kopyayı açıp dublajı orada hazırlayın.', 'These timings belong to the audio copy Whisper used and are not verified against the stream that is playing. Open that copy and prepare the dub there.'); next.action = 'exact'; }
+    if (!usable.some(item => item.role === next.choice)) next.choice = '';
+    podcast = next;
+    const target = next.choice || usable[0]?.role || '';
+    // A manual SRT, a running job or an already adopted track of this very version are never replaced silently.
+    if (target && srtOrigin !== 'manual' && !podcastBusy()) return applyPodcastTrack(target);
+    if(!target&&srtOrigin==='podcast'&&!podcastBusy()){
+      srt='';srtOrigin='';lastRequest=null;completedRequest=null;invalidatePlan();fileName('dubSrtName','—');refreshOverview();controls();
+    }
+    paintPodcast();return false;
+  }
+  // Right before generation: the stored track may have changed since the SRT was derived.
+  async function podcastFresh() {
+    if (srtOrigin !== 'podcast' || !podcast || !podcast.choice) return true;
+    const key = podcast.key, role = podcast.choice, selectedSrt=srt;
+    // Re-read timing provenance as well as file revision: the same episode can
+    // replace a publisher track with Whisper timing for a different audio copy.
+    const loaded=await loadPodcast();
+    if (!loaded || !modal.open || srtOrigin!=='podcast' || !podcastNow(key) || podcast?.key !== key) return false;
+    if(podcast.choice===role && srt===selectedSrt)return true;
+    podcast.notice = L('Podcast dökümü değişti. Güncel iz yüklendi; kontrol edip yeniden başlatın.', 'The Podcast transcript changed. The current track was loaded; review it and start again.');paintPodcast();
+    return false;
+  }
+  async function podcastAction() {
+    const action = podcast?.action, owner = podcast?.owner, key = podcast?.key;
+    if (!action || !owner || podcastBusy() || !podcastNow(key)) return;
+    if (action === 'timed') { modal.close(); await window.PlayerSourceCatalogIntegration?.podcastTools?.(); return; }
+    try {
+      const proof = await window.api.feedsRequest({ action: 'podcast-exact-audio', entryId: owner.entryId });
+      if (!podcastNow(key)) return;
+      if (!proof?.available) throw Error(L('Whisper ses kopyası artık mevcut değil.', 'The Whisper audio copy is no longer available.'));
+      await window.PlayerSourceCatalogIntegration.openPodcastEntry(owner.entryId, { exactVersion: proof.sourceVersion, view: 'podcast', isCancelled: () => false });
+      modal.close();
+    } catch (error) { if (podcast?.key === key) { podcast.notice = String(error?.message || error); paintPodcast(); } }
+  }
+  el('dubPodcastTrack')?.addEventListener('change', event => { if (podcastBusy() || event.target.value === 'manual') { paintPodcast(); return; } void applyPodcastTrack(event.target.value); });
+  el('dubPodcastAction')?.addEventListener('click', () => void podcastAction());
   async function open() {
+    podcastTrackRequest++;
     inheritSubtitleRange();
-    const candidate = currentSubtitle();
+    // A Podcast takes its subtitle from its own stored transcript, never from a leftover player path.
+    const candidateSelection = podcastOwner() ? '' : currentSubtitleSelection();
     if (!modal.open) modal.showModal();
     syncBrowserOcclusion();
     const openedMedia=requestIdentity();
@@ -468,7 +603,9 @@
     if (openedMedia !== requestIdentity()) return;
     await window.VoiceReferenceUI?.refresh();
     if (openedMedia !== requestIdentity()) return;
-    if (candidate === currentSubtitle()) adoptCurrentSubtitle(candidate);
+    await loadPodcast();
+    if (openedMedia !== requestIdentity()) return;
+    if (candidateSelection && candidateSelection === currentSubtitleSelection()) adoptCurrentSubtitle(currentSubtitle());
     if (!current && !output) {
       const selection = () => JSON.stringify([srt,el('dubRangeEnabled').checked,el('dubRangeStart').value,el('dubRangeEnd').value]);
       const requestedSelection = selection();
@@ -575,7 +712,7 @@
         }
       } else if (kind === 'subtitle') {
         if (typeof result === 'string' && /\.srt$/i.test(result)) {
-          srt = result; lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();void loadPronunciations(); fileName('dubSrtName',basename(result)); status('Hazır');
+          srt = result; srtOrigin = 'manual'; lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();void loadPronunciations(); fileName('dubSrtName',basename(result)); status('Hazır'); paintPodcast();
         } else if (result) status('Bir SRT altyazı dosyası seçin.');
       } else if (Array.isArray(result) && typeof result[0] === 'string') {
         backgroundSource = result[0]; el('dubBackgroundName').textContent = basename(backgroundSource);
@@ -720,6 +857,7 @@
     // preflight rather than borrowing options edited while its plan was loading.
     const sourceBefore=requestIdentity(),selectionBefore=startSelection();
     const obsolete=()=>sourceBefore!==requestIdentity()||selectionBefore!==startSelection()||job.isCancelled?.();
+    if(!retry&&srtOrigin==='podcast'&&!(await podcastFresh()))return {ok:false};
     if(!retry&&!plan){await preparePlan();if(!plan||obsolete()||current)return {ok:false};}
     if(obsolete())return {ok:false};
     if(!retry&&acceptedPreflight!==selectionBefore&&window.DubExperienceModel){

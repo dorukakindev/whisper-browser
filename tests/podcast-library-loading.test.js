@@ -5,7 +5,7 @@ const tick=()=>new Promise(setImmediate);
 test('library uses paged compact state without per-episode workspace IPC and keeps canonical data on duplicate shelf URLs',async t=>{
  const dom=new JSDOM('<main></main>',{runScripts:'outside-only'});t.after(()=>dom.window.close());const w=dom.window,root=w.document.querySelector('main'),calls=[];let mounted;
  const rows=[{id:'canonical',feedId:'f',kind:'podcast',title:'Current episode',enclosures:[{type:'audio/mpeg',url:'https://audio.example/episode.mp3'}],sourceVersion:'current',positionState:'needs-review',podcastWorkspace:{sourceVersion:'current',position:0,transcript:{hasText:true}}}];
- w.view={};w.snapshot={};w.legacy={podcasts:[{id:'shelf',url:'https://feed.example/rss',title:'Show',episodes:[{title:'Older title',url:rows[0].enclosures[0].url,localSource:{path:'private-kept-local'}}]}]};
+ w.view={};w.snapshot={};w.transcriptSearchState={};w.legacy={podcasts:[{id:'shelf',url:'https://feed.example/rss',title:'Show',episodes:[{title:'Older title',url:rows[0].enclosures[0].url,localSource:{path:'private-kept-local'}}]}]};
  w.api=async()=>w.legacy;w.t=(en)=>en;w.el=(tag,cls,text)=>{const n=w.document.createElement(tag);n.className=cls;n.textContent=text||'';return n;};w.classicRadio=()=>{};w.openQueue=()=>{};w.openLocalMedia=()=>{};
  w.api.feedsRequest=undefined;w.window.api={feedsRequest:async input=>{calls.push(input);if(input.action==='list')return {ok:true,feeds:[{id:'f',url:'https://feed.example/rss',title:'Show'}]};if(input.action==='entries')return {ok:true,total:1,rows};throw Error('Unexpected per-episode request');}};
  // media-shelf api is a lexical function; expose it independently of window.api.

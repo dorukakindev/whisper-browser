@@ -6,6 +6,7 @@ const path = require('path');
 const {
   canonicalMediaIdentity,
   deriveStreamMediaIdentity,
+  observedDirectMediaIdentity,
   isAmazonHost,
   normalizeBrowserUrl,
   normalizeStreamIdentityUrl,
@@ -124,6 +125,15 @@ test('aynı sayfadaki akış kimliği imza yenilenmesinde sabit, video yolu değ
   assert.notEqual(deriveStreamMediaIdentity('web:url:course', firstUrl),
     deriveStreamMediaIdentity('web:url:course', nextVideoUrl));
   assert(!normalizeStreamIdentityUrl(firstUrl).includes('token'));
+});
+
+test('observed generic direct files change identity without leaking signed URLs or replacing provider/manifest identity',()=>{
+ const page='https://watch.example/room';
+ const one=observedDirectMediaIdentity(page,'https://cdn.example/one.mp4?token=secret&expire=1');
+ assert(one);assert(!one.includes('secret'));assert.equal(one,observedDirectMediaIdentity(page,'https://cdn.example/one.mp4?token=new&expire=2'));
+ assert.notEqual(one,observedDirectMediaIdentity(page,'https://cdn.example/two.mp4'));
+ for(const url of ['blob:https://watch.example/123','https://cdn.example/master.m3u8','https://cdn.example/chunk.ts'])assert.equal(observedDirectMediaIdentity(page,url),'');
+ assert.equal(observedDirectMediaIdentity('https://www.youtube.com/watch?v=video1','https://cdn.example/one.mp4'),'');
 });
 
 test('16 KiB üstünde aynı öneki taşıyan farklı URLler ayrı kimlik alır', () => {

@@ -140,11 +140,16 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    // Keep the latest delivered human request separate from the accumulated
    // provider history. Old explicit wording must not resolve a later ambiguity.
    flow.humanIntent??={question:flow.question,revision:0};
-   const watchedOnly=owner.kind==='video'&&watchedQuestion(flow.question);
-   // The watched cutoff belongs to the original question. A resumed flow keeps it, and never reaches past the current position.
-   const horizon=Number.isFinite(flow.owner?.time)?Math.min(flow.owner.time,owner.time):owner.time;
-   const sourcePool=manifest.pool(reviewMode?[]:input.pool).filter(row=>!watchedOnly||row.end<=horizon);
-   const sourceContext=watchedOnly?{title:owner.title,sinir:'Only timed excerpts ending by the frozen playback position are available.'}:input.context;
+   const podcastWatched=owner.kind==='studio'&&(flow.podcastEvidence||input.context?.workspace==='podcast')&&watchedQuestion(flow.question);
+   const watchedOnly=(owner.kind==='video'||podcastWatched)&&watchedQuestion(flow.question);
+   // Continuation retains the episode packet, not a hidden player pool or a newly broadened context.
+   const podcastContext=flow.podcastEvidence||input.context;
+   const ownerHorizon=Number.isFinite(flow.owner?.time)?Math.min(flow.owner.time,owner.time):owner.time;
+   const horizon=podcastWatched&&Number.isFinite(podcastContext?.watched_cutoff)?Math.max(0,Math.min(ownerHorizon,podcastContext.watched_cutoff)):ownerHorizon;
+   const podcastRows=Array.isArray(podcastContext?.evidence)?podcastContext.evidence:[];
+   const sourcePool=manifest.pool(reviewMode?[]:podcastWatched?podcastRows.map((row,index)=>({...row,id:'U'+index})):input.pool).filter(row=>!watchedOnly||row.end<=horizon);
+   if(podcastWatched&&!flow.podcastEvidence)flow.podcastEvidence={workspace:'podcast',evidence:sourcePool,watched_cutoff:horizon,sourceTruncated:podcastContext.sourceTruncated,sourceCoverage:podcastContext.sourceCoverage};
+   const sourceContext=watchedOnly?{title:owner.title,...(podcastWatched?{workspace:'podcast',evidence:sourcePool,sourceTruncated:podcastContext.sourceTruncated,sourceCoverage:podcastContext.sourceCoverage}:{}),sinir:'Only timed excerpts ending by the frozen playback position are available.'}:input.context;
    owner.hasSubtitles=sourcePool.length>0;
    const config=getConfig();
    controller=new AbortController();session={id:input.requestId,controller,owner,flow,reviewMode,runtime:runtimeTools.createRuntime(input.requestId)};sessions.set(event.sender.id,session);

@@ -85,7 +85,10 @@
       :await window.api.mediaHub({action:'network',url:enclosure.url});
     if(!stream?.ok)throw Error(stream?.error||'Media unavailable');
     if(request!==epoch||!intentCurrent())return;
-    close();stream.title=entry.title;await window.MediaHubUI.playStream(stream,0,{isCancelled:()=>isCancelled()||!ownerCurrent()});
+    // The old owner is checked immediately before handing off. MediaHubUI then
+    // owns its openIntent and generation; its own Browser -> player transition
+    // must not invalidate itself against the preceding Browser generation.
+    close();stream.title=entry.title;await window.MediaHubUI.playStream(stream,0,{isCancelled});
     if(isCancelled()||player.mediaKey!==stream.key)return;
     const owner={mediaKey:player.mediaKey,generation:player.generation};
     player.workspaceAudio={...owner,title:entry.title,publisher:entry.sourceFeed?.title||'',image:entry.imageUrl||'',entryId:entry.id,revision:entry.revision,sourceVersion:saved.sourceVersion,sourceBinding:exact?.sourceBinding||saved.sourceBinding,episodeIdentity:saved.episodeIdentity||saved.sourceBinding?.episodeIdentity||entry.id,transcriptState:'none',...(exact?{exactAudio:true}:{})};

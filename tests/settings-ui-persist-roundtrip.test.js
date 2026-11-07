@@ -97,7 +97,7 @@ const TRANSIENT = new Set([
   // Per-video audio and reviewed text belong to the current dubbing job.
   'dubWorkspacePanel','dubProjectVideo','dubTimelineFilter','dubMixer','dubMixVoice','dubMixBackground','dubMixMusic','dubMixAmbience','dubMixDuck','dubMixDuckAmount','dubExportKind','browserDubMusicVolume','browserDubAmbienceVolume','browserDubDuck',
   'browserDubVolume', 'browserDubOffset', 'browserDubFile', 'dubSampleOnly',
-  'dubTextEditor', 'dubPlanGroup', 'dubPlanOriginal', 'dubPlanText', 'dubQualityResults', 'dubQualityGroup',
+  'dubTextEditor', 'dubPlanGroup', 'dubPodcastTrack', 'dubPlanOriginal', 'dubPlanText', 'dubQualityResults', 'dubQualityGroup',
   'dubRangeEnabled', 'dubRangeStart', 'dubRangeEnd', 'dubKeepBackground', 'browserDubBackgroundVolume',
   'voiceReferenceName', 'voiceReferenceRecorder', 'voiceReferenceStart', 'voiceReferenceEnd', 'voiceReferenceSelect', 'voiceReferenceText',
   'aiChatText', 'aiContextPreview', 'appDialogInput', 'appMenu', 'appModeMenu', 'audioTrack',

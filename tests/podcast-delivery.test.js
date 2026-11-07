@@ -1,8 +1,29 @@
 'use strict';
+
+require('node:test')('VTT dubbing derivation rejects malformed speech cues mixed with valid cues instead of silently dropping them',()=>{
+ const {deriveDubSrt}=require('../src/podcast-dub-subtitle');
+ const text='WEBVTT\n\n00:00.000 --> 00:01.000\nKeep this sentence.\n\n00:02.BAD --> 00:03.000\nDo not silently discard this sentence.\n';
+ require('node:assert/strict').throws(()=>deriveDubSrt(text),error=>error.code==='timing-not-preserved');
+});
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),vm=require('node:vm'),{EventEmitter}=require('node:events'),{Readable}=require('node:stream');
 const {registerFeeds}=require('../src/feed-service'),{sourceVersion,validateTimedText}=require('../src/podcast-session');
 const xml='<rss xmlns:podcast="https://podcastindex.org/namespace/1.0"><channel><title>Show</title><item><guid>one</guid><title>Episode</title><enclosure url="https://audio.example/one.mp3" type="audio/mpeg"/><podcast:transcript url="https://text.example/one.vtt" type="text/vtt"/></item></channel></rss>';
 const text='WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nHello\n';
+
+test('Browser to RSS handoff accepts its own player generation change, while a newer media intent still cancels it',async()=>{
+ const source=fs.readFileSync(require.resolve('../src/renderer/player-source-catalog-integration'),'utf8'),hub=fs.readFileSync(require.resolve('../src/renderer/media-hub-ui'),'utf8');
+ for(const replaced of [false,true]){
+  const player={mediaKey:'browser:A',generation:2,openIntent:0,workspaceMode:'browser'};
+  const env={player,epoch:0,t:tr=>tr,flushPodcastPosition:async()=>{},close(){},currentGeneration:()=>player.generation,document:{getElementById:()=>({classList:{remove(){}}})},
+   api:async input=>input.action==='entry'?{entry:{id:'B',title:'Episode B',enclosures:[{type:'audio/wav',url:'https://example.test/B.wav'}]}}:{sourceVersion:'version-B',workspace:null},
+   flushWatchState:async()=>{if(replaced)player.openIntent++;},setWorkspaceMode:mode=>{player.workspaceMode=mode;player.generation++;},setPlayerSource:(_url,_title,key)=>{player.mediaKey=key;player.generation++;},window:{NativePlayerUI:{start:async()=>false},api:{mediaHub:async()=>({ok:true,key:'rss:B',url:'https://example.test/B.wav'})}}};
+  const ctx=vm.createContext(env);vm.runInContext(hub.slice(hub.indexOf(' async function playStream('),hub.indexOf(' async function drawPlayer(')),ctx);env.window.MediaHubUI={playStream:ctx.playStream};
+  vm.runInContext(source.slice(source.indexOf('  async function play('),source.indexOf('  function videoRate(')),ctx);
+  await ctx.play({entry:{id:'B'}},'play');
+  if(replaced){assert.equal(player.workspaceAudio,undefined);assert.equal(player.mediaKey,'browser:A');}
+  else {assert.equal(player.workspaceAudio?.entryId,'B');assert.equal(player.workspaceAudio.mediaKey,'rss:B');assert.equal(player.workspaceAudio.generation,player.generation);}
+ }
+});
 test('podcast source-scoped reopen, publisher cache, separate translation, confirmed Spotify and workspace roundtrip',async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'podcast-delivery-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));const app=new EventEmitter();app.getPath=()=>dir;let calls=0;const grants=[];
  const service=registerFeeds({app,ipcMain:{handle(){}},authorized:e=>e.allowed,autoStart:false,grantSubtitle:file=>grants.push(file),transcriptFetcher:async()=>{calls++;return {ok:true,timed:'yes',format:'vtt',text};},fetchValidated:async()=>({status:200,headers:new Headers({'content-type':'application/json'}),buffer:Buffer.from('{"title":"Episode"}'),effectiveUrl:'https://open.spotify.com/oembed'})});t.after(()=>service.dispose());
@@ -92,4 +113,134 @@ test('completed ASR keeps only its owned audio bytes, survives release, and dete
  assert.deepEqual(fs.readFileSync(exact.path),body);
  fs.writeFileSync(exact.path,Buffer.alloc(body.length,9));
  assert.equal((await call('podcast-exact-audio')).available,false);
+});
+
+// --- Slice 1 / gereksinim 5: zamanlı VTT dublaj için zamanları korunarak türetilmiş SRT olur ---
+const vttSource=['WEBVTT','','NOTE editor comment','','intro','00:01.250 --> 00:03.500 align:start position:10%','<v Ann>Hello &amp; welcome','to the show.</v>','','2','00:00:04.000 --> 00:00:06.500','Second <b>line</b>','','1:02:03.040 --> 1:02:05.000','Late cue',''].join('\n');
+function materializeFixture(t){
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'podcast-dub-srt-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const app=new EventEmitter();app.getPath=()=>dir;const grants=[];
+ const service=registerFeeds({app,ipcMain:{handle(){}},authorized:()=>true,autoStart:false,grantSubtitle:file=>grants.push(file)});t.after(()=>service.dispose?.());
+ const parsed=require('../src/feed-parser').parseFeed(xml,'https://feed.example/rss');service.store.subscribe({...parsed,url:'https://feed.example/rss'},parsed.entries);
+ const entry=service.store.entries().rows[0],version=sourceVersion(entry),event={sender:{id:9}};
+ return {dir,grants,entry,version,api:(action,rest={})=>service.handle(event,{action,entryId:entry.id,sourceVersion:version,...rest})};
+}
+test('timed VTT becomes a dubbing SRT with the same times, text and order; the stored VTT is never touched',async t=>{
+ const f=materializeFixture(t);
+ assert.equal((await f.api('podcast-save-transcript',{text:vttSource,format:'vtt',timed:true})).ok,true);
+ const plain=await f.api('podcast-materialize');assert.equal(path.extname(plain.path),'.vtt');
+ const derived=await f.api('podcast-materialize',{as:'srt'});assert.equal(derived.ok,true,derived.error);
+ assert.equal(path.extname(derived.path),'.srt');assert.notEqual(derived.path,plain.path);assert.equal(derived.derived,true);assert.equal(derived.format,'srt');
+ assert.equal(fs.readFileSync(plain.path,'utf8'),vttSource,'özgün VTT dosyası değişmedi');
+ const {parseSubtitlePayload}=require('../src/browser-subtitles'),cues=parseSubtitlePayload(fs.readFileSync(derived.path,'utf8')).cues;
+ assert.deepEqual(cues.map(c=>[Math.round(c.start*1000),Math.round(c.end*1000),c.text.replace(/\s+/g,' ')]),[[1250,3500,'Hello & welcome to the show.'],[4000,6500,'Second line'],[3723040,3725000,'Late cue']],'zamanlar, metin ve sıra korunmalı');
+ assert(f.grants.includes(derived.path),'türetilmiş dosya mevcut izin sahibinden yetkilendirilmeli');
+ assert.equal((await f.api('podcast-materialize',{as:'srt'})).path,derived.path,'aynı sürüm aynı dosyayı verir');
+ const srtOnly=await f.api('podcast-materialize',{as:'srt',role:'translation'});assert.equal(srtOnly.ok,false,'çeviri yokken boş dosya üretilmez');
+});
+test('an SRT transcript is used as stored and an unsupported target format is rejected',async t=>{
+ const f=materializeFixture(t),srt='1\n00:00:01,000 --> 00:00:02,000\nMerhaba\n';
+ assert.equal((await f.api('podcast-save-transcript',{text:srt,format:'srt',timed:true})).ok,true);
+ const out=await f.api('podcast-materialize',{as:'srt'});assert.equal(out.ok,true,out.error);assert.equal(out.derived,false);assert.equal(fs.readFileSync(out.path,'utf8'),srt);
+ assert.equal((await f.api('podcast-materialize',{as:'ass'})).ok,false);
+});
+test('dubbing derivation refuses input it cannot prove: no cues, reordered, repaired end time, merged duplicates',()=>{
+ const {deriveDubSrt}=require('../src/podcast-dub-subtitle'),code=text=>{try{deriveDubSrt(text);return 'ok';}catch(error){return error.code;}};
+ assert.equal(code('WEBVTT\n\nno cues here\n'),'no-timed-cues');
+ assert.equal(code('WEBVTT\n\nNOTE 00:00:01.000 --> 00:00:02.000\n'),'no-timed-cues');
+ assert.equal(code('WEBVTT\n\n00:05.000 --> 00:06.000\nB\n\n00:01.000 --> 00:02.000\nA\n'),'timing-not-preserved','sıra değiştiren girdi');
+ assert.equal(code('WEBVTT\n\n00:01.000 --> 00:01.000\nZero\n'),'timing-not-preserved','uydurulmuş bitiş zamanı');
+ assert.equal(code('WEBVTT\n\n00:01.000 --> 00:03.000\nSame\n\n00:01.400 --> 00:03.400\nSame\n'),'timing-not-preserved','birleştirilen yinelenen satır');
+ assert.equal(code('WEBVTT\n\n00:01.000 --> 00:02.000\nOnly one\n'),'ok');
+});
+
+// --- Slice 1 / gereksinim 1 ve 8: zamanlı Podcast çevirisi gerçek handler'dan ortak kuyruğa, dondurulmuş seçeneklerle ---
+function realQueueHarness(){
+ const {JSDOM}=require('jsdom'),dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../src/renderer/index.html'),'utf8'),{runScripts:'outside-only'}),w=dom.window,document=w.document;
+ const source=fs.readFileSync(path.join(__dirname,'../src/renderer/renderer.js'),'utf8');
+ const fn=name=>{const a=source.indexOf('\nfunction '+name+'(')+1,b=source.indexOf('\nfunction ',a+10),c=source.indexOf('\nasync function ',a+10);const end=[b,c].filter(i=>i>0).sort((x,y)=>x-y)[0];if(a<1)throw Error('bulunamadı: '+name);return source.slice(a,end);};
+ const state={queue:[],queueRunning:false,running:false,podcastTextTasks:[]},player={mediaKey:'rss:A',generation:2,workspaceAudio:{entryId:'A',sourceVersion:'a'.repeat(64)},workspaceMode:'player'};
+ const logs=[],context={window:{PodcastTaskScope:{}},document,state,player,Error,Promise,Number,String,Math,JSON,Object,Array,Date,
+  $:id=>document.getElementById(id),$$:selector=>[...document.querySelectorAll(selector)],logLine:(...a)=>logs.push(a),renderQueue(){},startQueue(){state.queueRunning=true;},showJobValidation(){},clearJobValidation(){},
+  QUEUE_UI_LIMIT:100,_queueIdCounter:0,_queueRejectReason:'',interfaceChoice:(tr)=>tr,
+  queueInputKey:(type,input)=>type+':'+input,mediaKeyFor:(kind,input)=>kind+':'+input,glossaryCombined:()=>['Alpha=Beta'],optsProblemInfo:()=>null,
+  resolveNetBudgetPreset:()=>({translateWorkers:4,concurrency:1}),updateQueueUi(){}};
+ return {w,document,state,player,logs,context,source,fn};
+}
+test('timed Podcast translation enters the shared queue through the real handler with language, context and profile frozen at queue time',async()=>{
+ const vm=require('node:vm'),h=realQueueHarness(),{document,state,player,source}=h;
+ const set=(id,value)=>{const el=document.getElementById(id);if(el.type==='checkbox')el.checked=!!value;else el.value=value;};
+ set('translateTo','de');set('translateContext','6');set('translateRegister',document.getElementById('translateRegister').options[1].value);set('translateProfanity',document.getElementById('translateProfanity').options[1].value);
+ set('translateKeepSource',true);set('translateWorkers','2');
+ const owner=source.slice(source.indexOf('function podcastQueueOwnerCurrent(binding)'),source.indexOf('// Podcast uses the existing frozen-options queue'));
+ const handler=source.slice(source.indexOf('window.translatePodcastSource=async function'),source.indexOf('async function persistPodcastJobOutputs'));
+ let code=owner+h.fn('addToQueue')+h.fn('buildOptsFromUI')+handler;
+ const ctx=vm.createContext(h.context);vm.runInContext(code,ctx);
+ // Real renderer helpers the handler needs are loaded from renderer.js itself (never replaced by stand-ins).
+ const call=async binding=>{for(let attempt=0;attempt<25;attempt++){try{return await vm.runInContext('window.translatePodcastSource',ctx)(binding);}catch(error){const m=/^(\w+) is not defined$/.exec(error.message);if(!m||!source.includes('function '+m[1]+'('))throw error;state.queue.length=0;vm.runInContext(h.fn(m[1]),ctx);}}throw Error('çözülemeyen bağımlılık');};
+ const chosen={register:document.getElementById('translateRegister').value,profanity:document.getElementById('translateProfanity').value};
+ const binding={materializedPath:'C:/managed/a-source.srt',entryId:'A',sourceVersion:'a'.repeat(64),mediaKey:'rss:A',generation:2,playbackOwner:'player',sourceTranscriptText:'WEBVTT',track:{id:'src-A',revision:'r1',timed:true,language:'en'}};
+ // translatePodcastSource reads the saved workspace through the feeds API before queueing.
+ ctx.window.api={feedsRequest:async request=>request.action==='podcast-workspace'?{ok:true,sourceVersion:binding.sourceVersion,workspace:{transcript:{state:'timed',status:'complete',text:'WEBVTT'}}}:{ok:false}};
+ ctx.window.MediaShelfUI=undefined;
+ const result=await call(binding);
+ assert.equal(result.queued,true);assert.equal(state.queue.length,1);
+ const item=state.queue[0],opts=item.opts;
+ assert.equal(item.type,'file');assert.equal(item.input,'C:/managed/a-source.srt');
+ assert.equal(opts.translateOnly,true);assert.equal(opts.translate,true,'çeviri bu iş için açılır');assert.equal(opts.language,'en','kaynak dil izden gelir');
+ assert.equal(opts.translateTo,'de');assert.equal(String(opts.translateContext),'6','bağlam ayarı kuyruk öğesine taşınır');
+ assert.equal(opts.translateRegister,chosen.register);assert.equal(opts.translateProfanity,chosen.profanity);assert.equal(opts.translateKeepSource,true);
+ assert.equal(opts.glossary,'Alpha=Beta','sözlük kuyruk anında dondurulur');assert.match(opts.outputNameSuffix,/^-whisper-podcast-a{12}$/);
+ assert.deepEqual([item.podcastBinding.entryId,item.podcastBinding.outputRole,item.podcastBinding.targetLanguage,item.podcastBinding.expectedTranslation],['A','translation','de',true]);
+ // Settings change and the user moves to episode B: the queued job keeps its own frozen options and its episode.
+ set('translateTo','fr');set('translateContext','0');set('translateRegister',document.getElementById('translateRegister').options[0].value);
+ Object.assign(player,{mediaKey:'rss:B',generation:3,workspaceAudio:{entryId:'B',sourceVersion:'b'.repeat(64)}});
+ assert.equal(item.opts.translateTo,'de');assert.equal(String(item.opts.translateContext),'6');assert.equal(item.opts.translateRegister,chosen.register);assert.equal(item.podcastBinding.entryId,'A');
+ await assert.rejects(call(binding),/changed|değişti/,'B açıkken A’nın bağıyla yeni iş eklenmez');assert.equal(state.queue.length,1);
+});
+
+// --- Slice 1 / gereksinim 8 (5B): A'da hazırlanan iş, B'ye geçildikten sonra tamamlanır ---
+const abXml='<rss><channel><title>Show</title><item><guid>A</guid><title>Episode A</title><enclosure url="https://audio.example/a.mp3" type="audio/mpeg"/></item><item><guid>B</guid><title>Episode B</title><enclosure url="https://audio.example/b.mp3" type="audio/mpeg"/></item></channel></rss>';
+async function abHarness(t,{playerOn}){
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'podcast-ab-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const app=new EventEmitter();app.getPath=()=>dir;
+ const service=registerFeeds({app,ipcMain:{handle(){}},authorized:()=>true,autoStart:false,grantSubtitle(){}});t.after(()=>service.dispose?.());
+ const parsed=require('../src/feed-parser').parseFeed(abXml,'https://feed.example/rss');service.store.subscribe({...parsed,url:'https://feed.example/rss'},parsed.entries);
+ const rows=service.store.entries({kind:'podcast'}).rows,event={sender:{id:5}};
+ const entry=title=>rows.find(row=>row.title===title),A=entry('Episode A'),B=entry('Episode B'),vA=sourceVersion(A),vB=sourceVersion(B);
+ const api=(action,rest={})=>service.handle(event,{action,...rest});
+ const srcA='WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nHello A\n',srcB='WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nHello B\n',trA='WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nMerhaba A\n';
+ assert.equal((await api('podcast-save-transcript',{entryId:A.id,sourceVersion:vA,text:srcA,format:'vtt',timed:true})).ok,true);
+ assert.equal((await api('podcast-save-transcript',{entryId:B.id,sourceVersion:vB,text:srcB,format:'vtt',timed:true})).ok,true);
+ const vm=require('node:vm'),source=fs.readFileSync(path.join(__dirname,'../src/renderer/renderer.js'),'utf8');
+ const cut=(from,to)=>source.slice(source.indexOf(from),source.indexOf(to,source.indexOf(from)));
+ const code=cut('function podcastQueueOwnerCurrent(binding)','// Podcast uses the existing frozen-options queue')+cut('function completedSubtitleOutputs','\nfunction rememberPendingPlayerLoad')+cut('async function persistPodcastJobOutputs','\nasync function releasePodcastQueueItem');
+ const player=playerOn==='A'?{mediaKey:'rss:A',generation:2,workspaceAudio:{entryId:A.id,sourceVersion:vA,mediaKey:'rss:A',generation:2},subPath:'C:/t/A.vtt',sub2Path:'',workspaceMode:'player'}:{mediaKey:'rss:B',generation:3,workspaceAudio:{entryId:B.id,sourceVersion:vB,mediaKey:'rss:B',generation:3},subPath:'C:/t/B.vtt',sub2Path:'',workspaceMode:'player'};
+ const spies={loaded:[],applied:[],logs:[]},files={'C:/out/A.tr.srt':'1\n00:00:01,000 --> 00:00:03,000\nMerhaba A\n'};
+ const ctx=vm.createContext({window:{SubtitleOutputContract:require('../src/subtitle-output-contract'),api:{feedsRequest:input=>service.handle(event,input),readSubtitle:async file=>({ok:true,text:files[file]})},
+  PlayerSourceCatalogIntegration:{loadSavedPodcastResult:async role=>{spies.loaded.push(role);}},MediaShelfUI:{applyPodcastOutput:async value=>{spies.applied.push(value);},setPodcastRecovery(){},readSnapshot:()=>null}},
+  player,state:{queue:[]},Error,Promise,JSON,Object,Array,Number,String,logLine:(...a)=>spies.logs.push(a),setTimeout});
+ vm.runInContext('const subtitleOutputContract=window.SubtitleOutputContract;\n'+code+';globalThis.persist=persistPodcastJobOutputs;',ctx);
+ const binding={entryId:A.id,sourceVersion:vA,outputRole:'translation',sourceTranscriptText:srcA,targetLanguage:'tr',playbackOwner:'player',mediaKey:'rss:A',generation:2,expectedTranslation:true};
+ const event2={outputs:[{role:'translation',path:'C:/out/A.tr.srt',status:'complete'}]};
+ return {api,A,B,vA,vB,srcA,srcB,trA,player,spies,binding,event:event2,persist:()=>ctx.persist(event2,binding)};
+}
+test('A job queued for A that finishes after the user moved to B is saved to A only; B is untouched and A reopens with the result',async t=>{
+ const h=await abHarness(t,{playerOn:'B'});
+ await h.persist();
+ assert.equal(h.binding.persistence,'saved');
+ const a=await h.api('podcast-workspace',{entryId:h.A.id,sourceVersion:h.vA}),b=await h.api('podcast-workspace',{entryId:h.B.id,sourceVersion:h.vB});
+ assert.match(a.workspace.translation.text,/Merhaba A/);assert.equal(a.workspace.translation.state,'timed');assert.equal(a.workspace.transcript.text,h.srcA,'A’nın kaynağı değişmedi');
+ assert.equal(b.workspace.translation,undefined,'B’ye çeviri yazılmadı');assert.equal(b.workspace.transcript.text,h.srcB);
+ assert.deepEqual(h.spies.loaded,[],'B açıkken yeni bölümde iz otomatik seçilmedi');assert.deepEqual(h.spies.applied,[]);
+ assert.deepEqual([h.player.mediaKey,h.player.generation,h.player.subPath,h.player.sub2Path],['rss:B',3,'C:/t/B.vtt',''],'B’nin oynatıcı durumu değişmedi');
+ assert.deepEqual(h.spies.logs,[],'B’de hata/ilerleme üretilmedi');
+ const reopened=await h.api('podcast-materialize',{entryId:h.A.id,sourceVersion:h.vA,role:'translation'});
+ assert.equal(reopened.ok,true,reopened.error);assert.match(fs.readFileSync(reopened.path,'utf8'),/Merhaba A/,'A yeniden açılınca kayıtlı sonuç mevcut yoldan bulunur');
+ assert.equal((await h.api('podcast-materialize',{entryId:h.B.id,sourceVersion:h.vB,role:'translation'})).ok,false,'B’nin çevirisi yok');
+});
+test('the same job finishing while A is still the open episode loads its translation into the player (positive control)',async t=>{
+ const h=await abHarness(t,{playerOn:'A'});
+ await h.persist();
+ assert.deepEqual(h.spies.loaded,['translation']);
 });
