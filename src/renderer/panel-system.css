@@ -271,3 +271,8 @@ html:root body .aps-dialog input::placeholder { color:var(--text-dim);opacity:1;
 html:root body .aps-nav button:not([aria-current="page"]) { color:var(--text-dim); }
 .sy-timing-overview { display:flex;gap:6px;padding:0 14px 10px;flex-wrap:wrap; }
 .sy-timing-overview button { flex:1;min-height:32px;border:1px solid var(--sy-edge);border-radius:8px;background:var(--sy-row);color:var(--text-dim);font-size:11px; }
+
+/* Main renderer retains legacy media-plane aliases; forms use page palette. */
+html:root body .aps-dialog :is(input,textarea) { background:var(--theme-bg-1);color:var(--theme-text);border-color:var(--theme-border-strong); }
+html:root body .aps-dialog input::placeholder { color:var(--theme-text-dim); }
+html:root body .aps-nav button:not([aria-current="page"]) { color:var(--theme-text-dim); }
