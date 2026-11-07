@@ -688,23 +688,27 @@ test('an ended event cannot advance the new media while its old progress save is
   const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer'),'utf8');
   const start=renderer.indexOf("video.addEventListener('ended', async () => {");
   const end=renderer.indexOf("video.addEventListener('error'",start);
-  for (const change of ['key','generation','none','podcast']) {
-    let ended,release,generation=1,next=0,queue=0;
+  for (const change of ['key','generation','none','podcast','sleep','auto-off']) {
+    let ended,release,generation=1,next=0,queue=0,paused=0;
     const player={mediaKey:'local:one',generation:1,autoNext:true,sleepTimerMode:'',playlistIndex:0};
     const context=vm.createContext({
-      player,video:{addEventListener:(_type,callback)=>{ended=callback;}},
-      window:{MediaShelfUI:{ownsPodcastQueue:()=>change==='podcast',advancePodcastQueue:async()=>{queue++;}}},
+      player,video:{addEventListener:(_type,callback)=>{ended=callback;},pause:()=>{paused++;}},
+      window:{MediaShelfUI:{ownsPodcastQueue:()=>['podcast','sleep','auto-off'].includes(change),advancePodcastQueue:async()=>{queue++;}}},
       currentGeneration:()=>generation,staleGeneration:expected=>expected!==generation,
       stopPlayerVideoFrameLoop(){},renderCue(){},flushWatchState:()=>new Promise(resolve=>{release=resolve;}),
-      stQueueAutoNext:()=>false,playPlaylistDelta:async()=>{next++;},stAutoRelatedNext(){},$:()=>null,osd(){}
+      stQueueAutoNext:()=>false,playPlaylistDelta:async()=>{next++;},stAutoRelatedNext(){},$:()=>null,osd(){},syncPlayerMediaSession(){}
     });
     vm.runInContext(renderer.slice(start,end),context);
     const pending=ended();
     if(change==='key')player.mediaKey='local:two';
     if(change==='generation')generation++;
+    if(change==='sleep')player.sleepTimerMode='end';
+    if(change==='auto-off')player.autoNext=false;
     release();await pending;
     assert.equal(next,change==='none'?1:0);
     assert.equal(queue,change==='podcast'?1:0);
+    assert.equal(paused,change==='sleep'?1:0);
+    assert.equal(player.sleepTimerMode,'');
   }
 });
 test('a late Browser show response hides the native view after leaving Browser', async () => {
@@ -742,4 +746,29 @@ test('Stage clipboard reports the actual result of the single IPC write', async 
   assert.equal((await adapter.cmd('copy', 'Accepted')).ok, true);
   assert.equal((await adapter.cmd('copy', 'Rejected')).ok, false);
   assert.deepEqual(writes, ['Accepted', 'Rejected']);
+});
+test('Browser playback retry seeks before playing and retires a late seek after a tab change', async () => {
+  const renderer = fs.readFileSync(require.resolve('../src/renderer/renderer.js'), 'utf8');
+  const start = renderer.indexOf('      const pendingSeek = player.pendingLibrarySeek;');
+  const end = renderer.indexOf('      if (now - player.browserPositionTick', start);
+  const handle = renderer.slice(start, end);
+  for (const switched of [false, true]) {
+    const commands = [];
+    let finish;
+    const player = { mediaKey:'video-a', workspaceMode:'browser', browserDuration:60,
+      browserActiveTabId:'a', pendingLibrarySeek:{key:'video-a',tabId:'a',generation:1,seconds:9,resumePlayback:true} };
+    const context = {
+      player, event:{media:{readyState:2}}, currentGeneration:()=>1, staleGeneration:()=>false,
+      browserCommand:(command,value)=>{
+        commands.push([command,value]);
+        return command === 'seek' ? new Promise(resolve=>{finish=resolve;}) : Promise.resolve({ok:true});
+      },
+    };
+    vm.runInNewContext(handle,context);
+    assert.deepEqual(commands,[['seek',9]]);
+    if (switched) player.browserActiveTabId='b';
+    finish({ok:true});
+    await Promise.resolve();
+    assert.deepEqual(commands,switched ? [['seek',9]] : [['seek',9],['play',undefined]]);
+  }
 });

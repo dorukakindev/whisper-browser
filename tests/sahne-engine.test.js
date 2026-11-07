@@ -764,6 +764,40 @@ test('shared transport enables only usable sentence tools and supports keyboard 
   assert(!study.sh.lines[0].querySelector('[data-act=loop]').disabled);
 });
 
+test('playback recovery hands keyboard focus back to transport without stealing it from other controls', async t => {
+ const f=mount(t,{study:true}), retry=f.sh.q('[data-a=playbackRetry]'), play=f.sh.q('[data-a=toggle]');
+ const search=f.sh.q('[data-r=q]');
+ let finish;
+ const error={message:'Playback failed',label:'Retry',run:()=>new Promise(resolve=>{finish=resolve;})};
+ let recovery=error;
+ f.sh.a.recovery=()=>recovery;
+ f.sh.drawJob();
+ retry.focus();
+ const pending=f.sh.runStatusAction(retry,error.run);
+ assert.equal(f.w.document.activeElement,play);
+ search.focus();
+ recovery=null;
+ f.sh.drawJob();
+ finish();
+ await pending;
+ assert.equal(f.w.document.activeElement,search);
+ assert.equal(retry.closest('[data-r=recovery]').hidden,true);
+ recovery=error;
+ f.sh.drawJob();
+ retry.focus();
+ recovery=null;
+ f.sh.drawJob();
+ assert.equal(f.w.document.activeElement,play);
+ recovery=error;
+ f.sh.drawJob();
+ retry.focus();
+ const interrupted=f.sh.runStatusAction(retry,error.run);
+ play.blur();
+ finish();
+ await interrupted;
+ assert.equal(f.w.document.activeElement,play);
+});
+
 test('Full sentence opens the current transcript row without issuing a playback command', t => {
  const f=mount(t,{study:true}), button=f.sh.q('[data-a=readCurrent]');
  const query=f.sh.q('[data-r=q]');
@@ -777,6 +811,24 @@ test('Full sentence opens the current transcript row without issuing a playback 
  assert.equal(f.commands.length,0);
  f.sh.q('.browser-study-transcript-close').click();
  assert.equal(f.w.document.activeElement,button);
+});
+test('Full sentence brings the active translation into view inside a tall transcript card', t => {
+ const f=mount(t,{study:true}), scroll=f.sh.q('[data-r=scroll]'), line=f.sh.lines[0];
+ const part=line.querySelectorAll('[data-translation-part]')[1];
+ f.sh.livePart=part;
+ Object.defineProperty(scroll,'clientHeight',{value:180});
+ Object.defineProperty(line,'offsetHeight',{value:360});
+ Object.defineProperty(part,'offsetHeight',{value:40});
+ scroll.getBoundingClientRect=()=>({top:100});
+ line.getBoundingClientRect=()=>({top:120});
+ part.getBoundingClientRect=()=>({top:390});
+ const frames=[];
+ f.w.requestAnimationFrame=callback=>frames.push(callback);
+ f.sh.q('[data-a=readCurrent]').click();
+ frames.at(-1)();
+ assert.equal(scroll.scrollTop,220);
+ assert.equal(f.w.document.activeElement,line);
+ assert.equal(f.commands.length,0);
 });
 test('track rebuild preserves focus on the same independent translation when cue ids overlap', t => {
  const f=mount(t,{study:true,prefs:{disp:'tr'}});

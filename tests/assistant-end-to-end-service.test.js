@@ -29,6 +29,29 @@ function fixture(provider){
   counts:()=>({digestReads,entryReads}),expectRenderer:fn=>{nextRenderer=fn;},close:()=>{app.emit('will-quit');feeds.dispose();fs.rmSync(dir,{recursive:true,force:true});}};
 }
 
+test('watched-only video questions freeze evidence before the playback cutoff even in full transcript mode',async()=>{
+ let turn=0;const h=fixture(body=>{
+  assert.doesNotMatch(JSON.stringify(body.messages),/FUTURE_MARKER|UNFINISHED_MARKER/);
+  if(++turn===1)return tool('search_subtitles',{query:'lighthouse'});
+  const result=JSON.parse(body.messages.at(-1).content);
+  assert.equal(result.transcriptScope,'watched');
+  assert.equal(result.position,10);
+  assert.deepEqual(result.matches.map(row=>row.id),['U1']);
+  return reply({role:'assistant',content:'The watched excerpt mentions a lighthouse.'});
+ });
+ try{
+  const result=await h.call('agentRun',{requestId:'watched-cutoff',question:'Where was the lighthouse mentioned so far?',owner:{...h.owner,time:10},
+   context:{cumle:'UNFINISHED_MARKER',sonraki:[{text:'FUTURE_MARKER'}]},history:[{role:'assistant',content:'FUTURE_MARKER'}],pool:[
+    {id:'U1',start:1,end:4,text:'A lighthouse on the shore.'},
+    {id:'U2',start:9,end:11,text:'A lighthouse UNFINISHED_MARKER.'},
+    {id:'U3',start:11,end:12,text:'A lighthouse FUTURE_MARKER.'}
+   ]});
+  assert.equal(result.ok,true,result.error);
+  assert.equal(turn,2);
+  assert.equal(h.renderer.length,0);
+ }finally{h.close();}
+});
+
 test('registered main service routes RSS digest into an exact revision-bound reader proposal and applies only the reviewed owner',async()=>{
  let turn=0,observed;const h=fixture(body=>{
   if(++turn===1)return tool('get_feed_digest',{query:'Cinema',unread:true,limit:2});

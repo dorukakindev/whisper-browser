@@ -63,6 +63,26 @@ function harness() {
     assert.equal(h.ctx.player.cues.length,changed?0:1);
   }
   {
+    const h = harness();
+    let generation = 1;
+    let finish;
+    h.ctx.currentGeneration = () => generation;
+    h.ctx.staleGeneration = (started) => started !== generation;
+    h.ctx.window.api.readSubtitle = () => new Promise(resolve => { finish = resolve; });
+    const pending = h.load('src.srt');
+
+    generation++;
+    h.ctx.player.browserActiveTabId = 'b';
+    // Reusing the same file path in another tab must not validate the old read.
+    const currentCues = [{ id: 'current', start: 0, end: 1, text: 'Current tab' }];
+    h.ctx.player.subPath = 'src.srt';
+    h.ctx.player.cues = currentCues;
+    finish({ ok: true, text: 'Late subtitle from the first tab' });
+    await pending;
+    assert.equal(h.ctx.player.cues, currentCues);
+    assert.deepEqual(h.signals, []);
+  }
+  {
   const pair = harness();
   await pair.load('src.srt');
   await pair.load('src2.srt', true);

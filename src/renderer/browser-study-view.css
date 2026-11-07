@@ -333,7 +333,10 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
  background:color-mix(in srgb,var(--accent) 12%,var(--bg-1));
 }
 .sh-browser-study .sh-card .src{font-weight:400}
-.sh-browser-study .sh-card.on .src{font-weight:550}
+.sh-browser-study .sh-card.on .src{font-weight:550;color:var(--text)}
+.sh-browser-study .sh-card.on [data-a=cueSeek]{color:var(--accent)}
+.sh-browser-study .sh-card.is-untimed{opacity:1;border-color:transparent;background:transparent}
+.sh-browser-study .sh-card.is-untimed .src{color:var(--text-dim)}
 .sh-browser-study .sh-card.on.sh-translation-live .src{color:var(--text-muted);font-weight:400}
 @media(prefers-reduced-motion:reduce){.sh-browser-study .sh-card .acts{transition:none}}
 

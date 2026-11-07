@@ -260,6 +260,10 @@
     const sourceHash = clean(raw?.sourceHash, 128);
     const cueId = clean(raw?.cueId, 180);
     const sourceCueHash = clean(raw?.sourceCueHash, 64);
+    const previous = raw?.previous;
+    const hasPrevious = typeof previous?.text === 'string' && previous.text.length <= 12000
+      && Number.isFinite(previous.start) && Number.isFinite(previous.end)
+      && previous.start >= 0 && previous.end - previous.start >= .08;
     if (!mediaId || !variantId || !sourceHash || !cueId || !sourceCueHash) {
       throw new TypeError('Kullanıcı düzeltmesinin kalıcı kimliği eksik.');
     }
@@ -267,6 +271,7 @@
       version: EDIT_RECORD_VERSION,
       mediaId, variantId, sourceHash, cueId, sourceCueHash,
       baseTranslation: String(raw.baseTranslation ?? ''),
+      ...(hasPrevious ? { previous: { text: previous.text, start: previous.start, end: previous.end } } : {}),
       ...(timing != null ? { timingOverride: { start: timing.start, end: timing.end } } : {}),
       hasOverride: raw.hasOverride === true,
       userOverride: raw.hasOverride === true ? String(raw.userOverride ?? '') : null,

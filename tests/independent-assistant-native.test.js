@@ -1,10 +1,15 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');
-async function fixture(t){
+async function fixture(t,{previousSource=false,pendingStart=false}={}){
  const dom=new JSDOM('<div id="playerLayer"><div id="playerStage"><video id="playerVideo"></video></div></div>',{runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());const w=dom.window,v=w.document.getElementById('playerVideo');
  v.play=async()=>{};v.pause=()=>{};Object.defineProperty(v,'duration',{configurable:true,get:()=>120});
+ if(previousSource){v.src='https://test.invalid/next.wav';Object.defineProperty(v,'currentSrc',{configurable:true,value:'https://test.invalid/old.wav'});v.currentTime=9;}
+ let htmlRecovery=previousSource?{owner:'html'}:null;
+ w.activePlaybackRecovery=()=>htmlRecovery;
+ w.clearPlayerPlaybackRecovery=()=>{htmlRecovery=null;};
  w.player={workspaceMode:'player',localPath:'fixture.mp4',mediaKey:'file:fixture',generation:1};
+ if(pendingStart){v.currentTime=9;w.player.pendingLibrarySeek={key:'file:fixture',generation:1,seconds:0};}
  w.BrowserDubAudioUI={context:()=>({visible:true,hasMedia:true}),snapshot:()=>null,stop:async()=>{}};w.AssistantAppActions={current:()=>true};w.UiLocale={get:()=> 'en'};let startupError='';w.osd=message=>{startupError=message;};
  let reject='',pending,onEvent,calls=[];
  w.api={nativePlayer:async input=>{calls.push(input);if(input.action==='command'&&input.command===reject)return {ok:false,error:'Native command refused'};if(input.action==='command'&&pending)return pending(input);return {ok:true};},onNativePlayer:fn=>{onEvent=fn;},onAssistantVisibility:()=>{}};
@@ -13,6 +18,17 @@ async function fixture(t){
  w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer/assistant-library-actions.js'),'utf8'));
  return {w,v,calls,reject:op=>{reject=op;},defer:fn=>{pending=fn;},run:(operation,value)=>w.AssistantLibraryActions.execute('playback_control',{operation,value},{})};
 }
+test('native startup owns the selected source even while Chromium reports the previous one',async t=>{
+ const h=await fixture(t,{previousSource:true});
+ const start=h.calls.find(call=>call.action==='start');
+ assert.equal(start.source,'https://test.invalid/next.wav');
+ assert.equal(start.time,0);
+ assert.equal(h.w.activePlaybackRecovery(),null);
+});
+test('a source-owned pending start at zero wins over the media element clock',async t=>{
+ const h=await fixture(t,{pendingStart:true});
+ assert.equal(h.calls.find(call=>call.action==='start').time,0);
+});
 for(const [operation,value,property,before] of [['speed',1.5,'playbackRate',1],['volume',.3,'volume',1],['seek',25,'currentTime',0]])test('assistant native '+operation+' refuses failed IPC rather than reporting completion',async t=>{
  const h=await fixture(t);h.reject(operation);
  await assert.rejects(h.run(operation,value),/Native command refused/);assert.equal(h.v[property],before);

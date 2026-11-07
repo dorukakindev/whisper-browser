@@ -3,6 +3,8 @@
  let active=false,starting=false,key='',generation=0,sample={},source='',pulse=null,originals=new Map(),ended=false,startEpoch=0;
  const originalPlay=video.play.bind(video),originalPause=video.pause.bind(video);
  const event=name=>video.dispatchEvent(new Event(name));
+ const playbackError=message=>message==='Native media could not play.'&&window.UiLocale?.get?.()==='tr'
+  ?'Medya oynatılamadı.':message;
  function command(name,value){if(!active)return Promise.resolve({ok:false});return window.api.nativePlayer({action:'command',key,generation,command:name,value});}
  function subtitleProjection(){
   const mode=currentSubtitleMode(),primaryRole=player.subRole==='translation'?'translation':'source',secondaryRole=player.sub2Role==='source'?'source':'translation';
@@ -43,24 +45,47 @@
   if(!hidden){freeze?.remove();freeze=null;freezeAttempted=false;}layoutKey=next;void window.api.nativePlayer({action:'layout',key,generation,bounds:box,hidden});
  }
  async function start(){
-  if(active||starting)return;starting=true;const epoch=++startEpoch,now=video.currentTime,wasPaused=video.paused,saved=window.BrowserDubAudioUI?.snapshot(),desired={speed:video.playbackRate,volume:video.volume,muted:video.muted};
+  if(active||starting)return;
+  const requestedSource=video.src||video.currentSrc;
+  const sameElementSource=video.currentSrc===requestedSource;
+  const requestedKey=player.mediaKey,requestedGeneration=player.generation;
+  const pending=player.pendingLibrarySeek;
+  const now=pending?.key===requestedKey&&pending.generation===requestedGeneration
+   ?Number(pending.seconds)||0:sameElementSource?video.currentTime:0;
+  starting=true;const epoch=++startEpoch,wasPaused=video.paused,saved=window.BrowserDubAudioUI?.snapshot(),desired={speed:video.playbackRate,volume:video.volume,muted:video.muted};
   try{
    if(player.hls)throw Error(window.UiLocale?.get?.()==='tr'?'HLS için mevcut oynatıcı kullanılıyor; native geçiş yerel dosya ve torrent akışında kullanılabilir.':'Keep HLS in the existing player; native switching supports local files and torrent streams.');
-   await window.BrowserDubAudioUI?.stop();if(epoch!==startEpoch)return;originalPause();key=player.mediaKey;generation=player.generation;source=video.currentSrc||video.src;sample={time:now,duration:video.duration,paused:true,speed:video.playbackRate,volume:video.volume,muted:video.muted};
+   await window.BrowserDubAudioUI?.stop();if(epoch!==startEpoch||requestedKey!==player.mediaKey||requestedGeneration!==player.generation)return;
+   originalPause();key=requestedKey;generation=requestedGeneration;source=requestedSource;sample={time:now,duration:sameElementSource?video.duration:0,paused:true,speed:video.playbackRate,volume:video.volume,muted:video.muted};
    const result=await window.api.nativePlayer({action:'start',key,generation,path:player.localPath,source,time:now,bounds:bounds()});
-   if(epoch!==startEpoch)return;if(!result?.ok)throw Error(result?.error||'Native player failed.');if(key!==player.mediaKey||generation!==player.generation){await window.api.nativePlayer({action:'stop'});return;}
+   if(epoch!==startEpoch)return;if(!result?.ok)throw Error(playbackError(result?.error)||'Native player failed.');if(key!==player.mediaKey||generation!==player.generation){await window.api.nativePlayer({action:'stop'});return;}
    active=true;ended=false;sample={time:now,duration:video.duration,paused:true,speed:video.playbackRate,volume:video.volume,muted:video.muted,...sample};install();document.getElementById('playerStage').classList.add('native-player-active');
+   if(activePlaybackRecovery()?.owner==='html')clearPlayerPlaybackRecovery();
    event('loadedmetadata');event('canplay');await command('speed',desired.speed);await command('volume',desired.volume);await command('mute',desired.muted);
    pulse=setInterval(()=>{layout();void command('text',subtitleProjection());},300);
    if(saved)await window.BrowserDubAudioUI?.restore(saved,key);
    if(!wasPaused)await video.play();layout();return true;
-  }catch(error){if(epoch===startEpoch){osd(error.message);if(active)await stop();else if(key===player.mediaKey&&generation===player.generation){if(saved)await window.BrowserDubAudioUI?.restore(saved,key);if(!wasPaused)void originalPlay().catch(()=>{});}}return false;}finally{if(epoch===startEpoch)starting=false;}
+  }catch(error){
+   if(epoch!==startEpoch)return false;
+   osd(error.message);
+   if(active)await stop();
+   else if(requestedKey===player.mediaKey&&requestedGeneration===player.generation){
+    if(saved)await window.BrowserDubAudioUI?.restore(saved,requestedKey);
+    if(epoch===startEpoch&&requestedKey===player.mediaKey&&requestedGeneration===player.generation){
+     if(video.error&&/^https?:\/\//i.test(requestedSource)&&activePlaybackRecovery()?.owner!=='native'){
+      void showLocalPlaybackRecovery(video,{position:now,nativeFailure:true});
+     }else if(video.error&&!activePlaybackRecovery())void showLocalPlaybackRecovery(video,{code:video.error.code});
+     if(!wasPaused)void originalPlay().catch(()=>{});
+    }
+   }
+   return false;
+  }finally{if(epoch===startEpoch)starting=false;}
  }
  async function stop({resume=true}={}){if(!active&&!starting)return;startEpoch++;starting=false;const saved={...sample},time=Number(saved.time)||0,expectedKey=key,expectedGeneration=generation;active=false;layoutKey='';freeze?.remove();freeze=null;document.getElementById('playerStage').classList.remove('native-player-active');clearInterval(pulse);pulse=null;restore();await window.api.nativePlayer({action:'stop'}).catch(()=>null);if(player.mediaKey===expectedKey&&player.generation===expectedGeneration){try{video.currentTime=time;video.playbackRate=Number(saved.speed)||1;video.volume=Math.max(0,Math.min(1,Number(saved.volume)||0));video.muted=!!saved.muted;}catch{}event('timeupdate');if(resume&&saved.paused===false)void originalPlay().catch(()=>{});}}
  window.api.onNativePlayer(row=>{if(row.key!==key||row.generation!==generation)return;
   if(row.type==='error'){
-   window.MediaShelfUI?.podcastQueueError?.({mediaKey:row.key,generation:row.generation});osd(row.error);
-   const position=Number(sample.time)||0,intent=player.openIntent;
+   window.MediaShelfUI?.podcastQueueError?.({mediaKey:row.key,generation:row.generation});osd(playbackError(row.error));
+   const position=Number(row.time)||Number(sample.time)||0,intent=player.openIntent;
    void stop({resume:false}).then(()=>{
     if(player.mediaKey===row.key&&player.generation===row.generation&&player.openIntent===intent)
      return showLocalPlaybackRecovery(video,{position,nativeFailure:true});

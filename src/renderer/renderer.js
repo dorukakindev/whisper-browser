@@ -10403,7 +10403,9 @@ function renderBrowserPanelTracks() {
     button.title = label.textContent;
     const tag = document.createElement('span');
     tag.className = 'bp-chip';
-    tag.textContent = track.role === 'translation' ? (english ? 'Translation' : 'Çeviri') : track.role === 'source' ? (english ? 'Original' : 'Özgün') : (english ? 'Subtitle' : 'Altyazı');
+    tag.textContent = track.role === 'translation' ? (english ? 'Translation' : 'Çeviri')
+      : track.automatic ? (english ? 'Automatic' : 'Otomatik')
+      : track.role === 'source' ? (english ? 'Original' : 'Özgün') : (english ? 'Subtitle' : 'Altyazı');
     button.append(radio, label, tag);
     button.setAttribute('aria-checked', String(String(track.id) === select.value));
     button.onclick = () => {
@@ -10488,7 +10490,8 @@ function renderBrowserTracks(selectedId) {
       }
       const roleLabel = track.role === 'translation' ? 'Çeviri' : 'Kaynak';
       const variant = track.role === 'translation'
-        ? [track.provider, track.model].filter(Boolean).join(' / ') : (track.format || track.source || 'web');
+        ? [track.provider, track.model].filter(Boolean).join(' / ')
+        : track.automatic ? interfaceChoice('Otomatik', 'Automatic') : (track.format || track.source || 'web');
       const date = Number(track.updatedAt) ? new Date(Number(track.updatedAt)).toLocaleDateString((globalThis.UiLocale?.get?.() === 'en' ? 'en-US' : 'tr-TR')) : '';
       const label = [recency.has(browserTrackRecencyKey(track)) ? '↺' : '',
         roleLabel, track.language ? track.language.toUpperCase() : '', track.label,
@@ -15205,10 +15208,19 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       const pendingSeek = player.pendingLibrarySeek;
       if (pendingSeek && pendingSeek.key === player.mediaKey
           && (!pendingSeek.tabId || pendingSeek.tabId === player.browserActiveTabId)
-          && pendingSeek.generation === currentGeneration()) {
+          && pendingSeek.generation === currentGeneration()
+          && (!pendingSeek.resumePlayback || (Number(event.media.readyState) >= 2
+            && !Number(event.media.errorCode) && !event.media.adPlaying))) {
         const seekTo = Math.max(0, Math.min(player.browserDuration, Number(pendingSeek.seconds) || 0));
         player.pendingLibrarySeek = null;
-        if (seekTo > 0) browserCommand('seek', seekTo).catch(() => {});
+        const seek = seekTo > 0 ? browserCommand('seek', seekTo) : Promise.resolve();
+        void seek.then((result) => {
+          if (pendingSeek.resumePlayback && result?.ok !== false
+              && player.workspaceMode === 'browser' && pendingSeek.key === player.mediaKey
+              && pendingSeek.tabId === player.browserActiveTabId && !staleGeneration(pendingSeek.generation)) {
+            return browserCommand('play');
+          }
+        }).catch(() => {});
       }
       if (now - player.browserPositionTick > 5000) {
         player.browserPositionTick = now;
@@ -15576,7 +15588,7 @@ function browserPlaybackRecovery(event) {
     run: async () => {
       if (denied) return window.api.openExternal(url);
       if (browserChromeCommandBlocked('reload')) return runBrowserChromeCommand('reload');
-      const seek = { key, tabId, generation, seconds };
+      const seek = { key, tabId, generation, seconds, resumePlayback: true };
       player.pendingLibrarySeek = seek;
       const result = await runBrowserChromeCommand('reload');
       if (!result?.ok && player.pendingLibrarySeek === seek) player.pendingLibrarySeek = null;
@@ -15648,7 +15660,7 @@ async function showLocalPlaybackRecovery(video, { code, manifest, position, nati
     run = () => offerCompatibleMedia(seconds);
   }
   const message = interfaceChoice('Medya oynatılamadı.', 'Media could not play.');
-  player.playbackRecovery = { current, message, label, run };
+  player.playbackRecovery = { owner: nativeFailure ? 'native' : 'html', current, message, label, run };
   const button = $('playerPlaybackRecovery');
   if (button) {
     button.textContent = label;
@@ -20862,7 +20874,8 @@ async function openPodcastResearchResult(result, { beforeSeek, isCancelled = () 
     const same = result.sourceVersion && snapshot?.sourceVersion === result.sourceVersion && result.episodeIdentity && snapshot?.episodeIdentity === result.episodeIdentity
       && binding && current && binding.episodeIdentity === result.episodeIdentity && Object.keys(binding).every(key => binding[key] === current[key]);
     if (!same || result.seconds === null || result.seconds === undefined || !Number.isFinite(Number(result.seconds)) || Number(result.seconds) < 0) {
-      osd(message('Podcast açıldı; ses kaynağı veya zaman çıpası eşleşmediği için zamana gidilmedi.', 'Podcast opened; its audio binding or time anchor did not match, so no timestamp was sought.')); return exact?readOnly():!beforeSeek;
+      if (readOnly()) return true;
+      osd(message('Podcast açıldı; ses kaynağı veya zaman çıpası eşleşmediği için zamana gidilmedi.', 'Podcast opened; its audio binding or time anchor did not match, so no timestamp was sought.')); return !beforeSeek;
     }
     if(exact){
       const media=document.getElementById('playerVideo');
@@ -23427,6 +23440,7 @@ function prepareSubtitleBulkOperations(plans) {
       }
       const after = browserSubtitleSync.createEditRecord({
         ...context, baseTranslation, hasOverride: true, userOverride: plan.after,
+        previous: { text: plan.before, start: cue.start, end: cue.end },
         timingOverride: plan.timing || before?.timingOverride,
         revision: Number(before?.revision || 0) + 1, userEditedAt: Date.now(),
       });
@@ -27654,7 +27668,8 @@ if ($('playerVideo')) {
     }
   });
   const checkpoint = () => {
-    if (player.workspaceMode === 'player' && !video.error && (video.readyState >= 2 || window.NativePlayerUI?.active()) && Number.isFinite(video.duration)) {
+    if (player.workspaceMode === 'player' && Number.isFinite(video.duration)
+        && (window.NativePlayerUI?.active() || (!video.error && video.readyState >= 2))) {
       rememberPlaybackCheckpoint(video.currentTime);
     }
   };
@@ -27731,16 +27746,20 @@ if ($('playerVideo')) {
     renderCue();
     await flushWatchState(true, true);
     if (player.mediaKey !== endedOwner.key || staleGeneration(endedOwner.generation)) return;
-    if(podcastQueueOwner){if(player.autoNext&&player.sleepTimerMode!=='end')await window.MediaShelfUI.advancePodcastQueue(podcastQueueOwner);}
-    else if (player.autoNext && player.sleepTimerMode !== 'end' && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
-    else if (player.sleepTimerMode !== 'end') stAutoRelatedNext();
     if (player.sleepTimerMode === 'end') {
+      video.pause();
       player.sleepTimerMode = '';
       if ($('sleepTimer')) $('sleepTimer').value = '0';
       osd('Uyku zamanlayıcısı: bölüm sonunda durduruldu', 5000);
+      syncPlayerMediaSession();
+      return;
     }
+    if(podcastQueueOwner){if(player.autoNext)await window.MediaShelfUI.advancePodcastQueue(podcastQueueOwner);}
+    else if (player.autoNext && !stQueueAutoNext() && player.playlistIndex >= 0) await playPlaylistDelta(1);
+    else stAutoRelatedNext();
   });
   video.addEventListener('error', () => {
+    if (window.NativePlayerUI?.busy() || activePlaybackRecovery()?.owner === 'native') return;
     window.MediaShelfUI?.podcastQueueError?.();
     const code = video.error?.code;
     if (!code || player.workspaceMode !== 'player') return;
@@ -28977,6 +28996,7 @@ function updateQuickEditorStatus(message = '') {
   $('browserQuickSyncSave').disabled=busy||!syncDirty;
   $('browserQuickSyncCancel').disabled=busy||!syncDirty;
   for (const row of browserQuickEditor.rows) for (const input of [row.text, row.start, row.end]) input.disabled = busy;
+  for (const row of browserQuickEditor.rows) if (row.restorePrevious) row.restorePrevious.disabled = busy || dirty;
 }
 
 function closeBrowserQuickEditor() {
@@ -29029,14 +29049,48 @@ function openBrowserQuickEditor(secondary = false, target = null) {
       row[property] = input; wrapper.append(input); times.append(wrapper);
     }
     const review = document.createElement('details');
+    review.className = 'browser-quick-edit-compare';
     const summary = document.createElement('summary');
     summary.textContent = interfaceChoice('Önce / sonra','Before / after');
-    const before = document.createElement('p'), after = document.createElement('p');
+    const comparison = (title) => {
+      const label = document.createElement('strong');
+      label.textContent = title;
+      const text = document.createElement('span');
+      text.dataset.uiUntranslated = '';
+      const item = document.createElement('p');
+      item.append(label, text);
+      review.append(item);
+      return text;
+    };
+    review.append(summary);
+    const before = comparison(interfaceChoice('Mevcut kayıt', 'Current saved version'));
+    const after = comparison(interfaceChoice('Taslak', 'Draft'));
     before.textContent = [row.before.start, row.before.end, row.before.text].join(' · ');
     const updateReview = () => { after.textContent = [row.start.value, row.end.value, row.text.value].join(' · '); };
     review.addEventListener('toggle', updateReview);
     field.addEventListener('input', updateReview);
-    review.append(summary, before, after);
+    const previous = row.expectedRecord ? JSON.parse(row.expectedRecord)?.previous : null;
+    if (previous) {
+      const saved = comparison(interfaceChoice('Önceki kayıtlı sürüm', 'Previous saved version'));
+      saved.textContent = `${previous.start} – ${previous.end} · ${previous.text}`;
+      const restore = document.createElement('button');
+      restore.type = 'button';
+      restore.className = 'btn btn-secondary btn-sm';
+      restore.textContent = interfaceChoice('Önceki sürümü taslağa al', 'Load previous version into draft');
+      restore.addEventListener('click', () => {
+        if (!quickEditorStillCurrent(editor)) {
+          updateQuickEditorStatus(interfaceChoice('Altyazı değişti. Güncel satırı yeniden açın.', 'The subtitle changed. Reopen the current line.'));
+          return;
+        }
+        row.text.value = previous.text;
+        row.start.value = previous.start;
+        row.end.value = previous.end;
+        row.text.dispatchEvent(new Event('input', { bubbles: true }));
+        row.text.focus();
+      });
+      row.restorePrevious = restore;
+      review.append(restore);
+    }
     field.append(legend, row.text, times, review); box.append(field);
     const actions=document.createElement('div');actions.className='browser-quick-edit-actions';
     const align=document.createElement('button');align.type='button';align.className='btn btn-secondary btn-sm';

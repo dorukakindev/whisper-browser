@@ -5,6 +5,7 @@ const settingProposals=require('./assistant-setting-proposals');
 const workflowPlan=require('./assistant-workflow-plan');
 const runtimeTools=require('./assistant-runtime');
 const {withinResultBudget}=require('./assistant-tool-results');
+const {transcriptTokens,foldTranscriptText}=require('./browser-transcript-search');
 const fold=value=>String(value||'').normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase();
 const identifier=value=>typeof value==='string'&&/^[\w-]{1,100}$/.test(value);
 const workflowSnapshot=(name,state)=>JSON.stringify(name==='undo_workflow_settings'?{values:state.values,canUndo:state.canUndo,undoChanges:state.undoChanges}:state.values);
@@ -139,7 +140,10 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    // Keep the latest delivered human request separate from the accumulated
    // provider history. Old explicit wording must not resolve a later ambiguity.
    flow.humanIntent??={question:flow.question,revision:0};
-   const sourcePool=manifest.pool(reviewMode?[]:input.pool);owner.hasSubtitles=sourcePool.length>0;
+   const watchedOnly=owner.kind==='video'&&watchedQuestion(flow.question);
+   const sourcePool=manifest.pool(reviewMode?[]:input.pool).filter(row=>!watchedOnly||row.end<=owner.time);
+   const sourceContext=watchedOnly?{title:owner.title,sinir:'Only timed excerpts ending by the frozen playback position are available.'}:input.context;
+   owner.hasSubtitles=sourcePool.length>0;
    const config=getConfig();
    controller=new AbortController();session={id:input.requestId,controller,owner,flow,reviewMode,runtime:runtimeTools.createRuntime(input.requestId)};sessions.set(event.sender.id,session);
    stop=()=>controller.abort('closed');event.sender.once('destroyed',stop);timer=setTimeout(()=>controller.abort('timeout'),require('./assistant-settings').timeout(config));
@@ -193,9 +197,19 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     if(name==='get_job_status'){const state=getJobs(),ordered=[...state.jobs.filter(job=>['running','cancelling'].includes(job.state)),...state.jobs.filter(job=>!['running','cancelling'].includes(job.state))],offset=args.offset||0;return {revision:state.revision,jobs:args.job_id?[jobResult(args.job_id,owner).job]:ordered.slice(offset,offset+5).map(job=>jobResult(job.id,owner).job),total:state.jobs.length,nextOffset:!args.job_id&&offset+5<ordered.length?offset+5:null};}
     if(name==='get_job_result')return jobResult(args.job_id,owner);
     if(name==='get_workflow_plan')return workflowPlan.build(owner,args.goal);
-    if(name==='get_source_context')return {source:manifest.publicContext(owner),data:manifest.sourceText(input.context,10000),translationChoices:workflowPlan.translationChoices(owner)};
+    if(name==='get_source_context')return {source:manifest.publicContext(owner),data:manifest.sourceText(sourceContext,10000),translationChoices:workflowPlan.translationChoices(owner)};
     if(name==='list_subtitle_tracks')return {tracks:owner.tracks};
     if(name==='search_subtitles'||name==='get_current_subtitle'){
+     if(watchedOnly){
+      const terms=transcriptTokens(args.query||'');
+      const matches=name==='get_current_subtitle'?sourcePool.filter(row=>row.end===owner.time).slice(0,3):sourcePool.map(row=>{
+       const body=foldTranscriptText(`${row.text} ${row.translation}`);
+       return {row,score:terms.filter(term=>body.includes(term)).length};
+      }).filter(hit=>hit.score>0).sort((a,b)=>b.score-a.score||a.row.start-b.row.start).slice(0,8).map(hit=>hit.row);
+      for(const row of matches)evidence.set(row.id,row);
+      emit(event.sender,{type:'evidence',requestId:session.id,evidence:[...evidence.values()]});
+      return {status:'completed',matches,transcriptScope:'watched',position:owner.time,searchedCues:sourcePool.length,scope:'Only available excerpts ending by the frozen playback position were searched. An empty result does not establish absence in the complete watched transcript.'};
+     }
      const result=await requestRenderer(event.sender,owner,name,args,controller.signal);
      controller.signal.throwIfAborted();requireOwner(owner);
      if(result?.status!=='completed')throw Error(result?.error||'Subtitle retrieval failed.');
@@ -304,7 +318,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     catch(error){finished=true;if(!controller.signal.aborted)failed++;emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,intentRevision,state:controller.signal.aborted?'stopped':'failed',elapsedMs:Date.now()-traceStarted}});throw error;}
     finally{finished=true;if(!controller.signal.aborted)emit(event.sender,{type:'progress',requestId:session.id,phase:'thinking'});}
    };
-   const result=await provider.run({question:flow.question,responseContract:input.responseContract,continuation:reviewMode?[]:flows.evidence(flow),history:reviewMode?[]:input.history,context:reviewMode?(recallMode?{type:'recall-sources',recallAnalysis:recallEvidence}:{...input.context,reviewAnalysis:reviewContext}):input.context,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
+   const result=await provider.run({question:flow.question,responseContract:input.responseContract,continuation:reviewMode||watchedOnly?[]:flows.evidence(flow),history:reviewMode||watchedOnly?[]:input.history,context:reviewMode?(recallMode?{type:'recall-sources',recallAnalysis:recallEvidence}:{...sourceContext,reviewAnalysis:reviewContext}):sourceContext,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
     takeMessages:mode=>{requireOwner(owner);return session.runtime.take(mode);},
     onHumanMessages:rows=>{const invalidatedProposalIds=[];if(rows.some(row=>row.mode==='steer')){offered.clear();planned.clear();session.podcastCitations=[];session.podcastSearched=false;for(const [id,row] of podcastPassages)if(row.runId===session.id)podcastPassages.delete(id);for(const [id,row]of proposals)if(row.sender===event.sender&&row.runId===session.id){proposals.delete(id);invalidatedProposalIds.push(id);}}const latest=rows.at(-1);if(latest)flow.humanIntent={question:latest.text,revision:flow.humanIntent.revision+1};flow.question=(flow.question+'\n\n'+rows.map(row=>'Latest human '+row.mode+': '+row.text).join('\n')).slice(-16000);emit(event.sender,{type:'runtime-delivered',requestId:session.id,messages:rows,intentRevision:session.runtime.revision,invalidatedProposalIds});},
     onProgress:phase=>{if(!controller.signal.aborted&&validateOwner(owner))emit(event.sender,{type:'progress',requestId:session.id,phase});},

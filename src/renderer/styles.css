@@ -1632,6 +1632,11 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .browser-quick-edit-times label { display: grid; gap: 4px; color: var(--text-muted); font-size: 12px; }
 .browser-quick-edit-times input { min-width: 0; width: 100%; font-variant-numeric: tabular-nums; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-family: inherit; }
 .browser-quick-edit-heading > button { margin-left: auto; flex: 0 0 auto; }
+.browser-quick-edit-compare { margin-block: 10px; }
+.browser-quick-edit-compare summary { cursor: pointer; color: var(--accent); }
+.browser-quick-edit-compare p { display: grid; gap: 4px; margin-block: 8px; padding-inline-start: 10px; border-inline-start: 2px solid var(--border-strong); }
+.browser-quick-edit-compare strong { color: var(--text-muted); font-size: 12px; }
+.browser-quick-edit-compare span { white-space: pre-wrap; overflow-wrap: anywhere; }
 #browserQuickEditStatus { font-size: 12px; line-height: 1.5; color: var(--accent); }
 .subtitle-edit {
   position: absolute;

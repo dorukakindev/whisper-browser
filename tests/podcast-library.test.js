@@ -157,3 +157,50 @@ test('transcript scope, next page and selected passage survive a library remount
   assert.match(root.querySelector('.pl-transcript-search [role=status]').textContent,/no complete translation/);
  }finally{w.close();}
 });
+
+test('a stale passage open keeps the source dialog visible and allows retry',async()=>{
+ const dom=new JSDOM('<div id="root"></div>',{runScripts:'outside-only'}),w=dom.window;
+ try{
+  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+  w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+  w.eval(source);
+  const row={episodeTitle:'Episode',showTitle:'Show',quote:'A real quote',timed:true,seconds:2,end:3,token:'t'};
+  let opens=0;
+  w.PodcastLibraryUI.mount(w.document.getElementById('root'),{podcasts:[]},{
+   searchTranscripts:async()=>({rows:[row]}),resolveTranscript:async()=>({row}),
+   openTranscriptResult:async()=>{if(++opens===1)throw Error('The source changed.');},
+   queue:()=>({rows:[],index:-1}),openQueue:()=>{}
+  });
+  const form=w.document.querySelector('.pl-transcript-search form');
+  form.querySelector('input').value='quote';form.dispatchEvent(new w.Event('submit',{cancelable:true}));await tick();
+  w.document.querySelector('.pl-passage-open').click();await tick();
+  const dialog=w.document.querySelector('dialog');
+  const open=dialog.querySelector('.mh-primary');open.click();await tick();
+  assert.equal(dialog.open,true);assert.equal(dialog.querySelector('[role=alert]').textContent,'The source changed.');
+  assert.equal(open.disabled,false);open.click();await tick();assert.equal(dialog.isConnected,false);
+ }finally{w.close();}
+});
+
+test('a pending next page cannot repopulate results after changing the show',async()=>{
+ const {window:w}=new JSDOM('<div id="root"></div>',{runScripts:'outside-only'});
+ try{
+  w.eval(source);
+  const root=w.document.getElementById('root'),state={};
+  let complete;
+  const hit={token:'old',episodeTitle:'Old episode',showTitle:'Old show',quote:'Old passage',timed:false};
+  w.PodcastLibraryUI.mount(root,{podcasts:[{id:'old',title:'Old',episodes:[{title:'Episode',episodeIdentity:'ep'}]}]},
+   {transcriptSearchState:state,queue:()=>({rows:[]}),searchTranscripts:async(_query,scope)=>
+    scope.offset?new Promise(resolve=>{complete=resolve;}):{rows:[hit],nextOffset:100}});
+  const area=root.querySelector('.pl-transcript-search');
+  area.querySelector('input').value='passage';
+  area.querySelector('form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+  await tick();
+  [...area.querySelectorAll('button')].find(b=>b.textContent==='Load more passages').click();
+  const show=area.querySelector('select');show.value='old';show.dispatchEvent(new w.Event('change'));
+  complete({rows:[{...hit,token:'late',quote:'Late old page'}],nextOffset:200});
+  await tick();
+  assert.equal(area.querySelectorAll('.pl-search-hit').length,0);
+  assert.equal(state.nextOffset,null);
+  assert.equal(state.show,'old');
+ }finally{w.close();}
+});

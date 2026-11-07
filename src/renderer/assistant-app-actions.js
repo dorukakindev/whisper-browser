@@ -42,6 +42,7 @@
   if(name==='open_saved_podcast_passage'){
    const locator=expectedSettings?.kind==='podcast-passage'?expectedSettings.locator:null;
    if(!locator)throw Error(t('Review this podcast passage again.','Podcast pasajını yeniden inceleyin.'));
+   const conversation=window.AssistantWorkspace?.key();
    const resolve=async()=>{
     const result=await window.api.mediaShelf({...locator,locale:window.UiLocale?.get?.()});
     if(!result?.ok||result.row?.token!==locator.token)throw Error(result?.error||t('The saved passage changed.','Kayıtlı pasaj değişti.'));
@@ -50,7 +51,7 @@
    const row=await resolve();
    if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
    const receipt={};
-   const opened=await openPodcastResearchResult(row,{beforeSeek:resolve,receipt,isCancelled:()=>isCancelled()||Date.now()>=deadline||(window.AssistantWorkspace?.activeId()||'')!==owner.thread});
+   const opened=await openPodcastResearchResult(row,{beforeSeek:resolve,receipt,isCancelled:()=>isCancelled()||Date.now()>=deadline||(window.AssistantWorkspace?.activeId(conversation)||'')!==owner.thread});
    if(!opened||!receipt.mode)throw Error(t('The passage could not be opened. Search again.','Pasaj açılamadı. Yeniden arayın.'));
    return {status:'completed',mode:receipt.mode,title:row.episodeTitle,show:row.showTitle};
   }

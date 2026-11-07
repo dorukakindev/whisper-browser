@@ -276,6 +276,7 @@ html[data-sahne-hidden=true] .sh *{animation-play-state:paused!important}
 .sh-psel input[type=range]{accent-color:var(--theme-accent);width:100%;min-height:32px}
 
 .cp-sahne-on.workspace-browser #playerSide{visibility:hidden;pointer-events:none}
+.cp-sahne-on #playerPlaybackRecovery{display:none}
 
 /* Local cinema inherits the Sahne content and the original video owner. */
 .sh-local .sh-main{position:relative;display:block;padding:0;overflow:hidden}

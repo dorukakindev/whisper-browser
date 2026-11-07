@@ -13,6 +13,18 @@ assert.equal(normalizeSessionTab({ ...raw, subtitleSelection: undefined }).subti
 assert.deepEqual(normalizeSessionTab({ ...raw, subtitleSelection: {} }).subtitleSelection, { primaryId: '', secondaryId: '' });
 assert.equal(normalizeSessionTab({ ...raw, subtitleSelection: { primaryId: 'x'.repeat(500) } }).subtitleSelection.primaryId.length, 180);
 
+const revision = { mediaId: 'media', variantId: 'translation', sourceHash: 'source', cueId: 'line', sourceCueHash: 'linehash',
+  hasOverride: true, userOverride: 'Saved translation', timingOverride: { start: 8, end: 10 },
+  previous: { text: 'Earlier translation', start: 7, end: 9 } };
+const editTab = { ...raw, mediaId: 'media', subtitleEdits: [revision] };
+const saved = normalizeBrowserSession({ tabs: [editTab] });
+const reopened = normalizeBrowserSession(JSON.parse(JSON.stringify(saved))).tabs[0].subtitleEdits[0];
+assert.deepEqual(reopened.previous, revision.previous);
+assert.deepEqual(reopened.timingOverride, revision.timingOverride);
+assert.equal(reopened.userOverride, revision.userOverride);
+const invalidPrevious = { ...revision, previous: { ...revision.previous, end: 1 } };
+assert.equal(normalizeSessionTab({ ...editTab, subtitleEdits: [invalidPrevious] }).subtitleEdits[0].previous, undefined);
+
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
 const save = renderer.slice(renderer.indexOf('function saveActiveBrowserTabWorkspace('), renderer.indexOf('function restoreActiveBrowserTabWorkspace('));
 const selectState = new Function('tab', 'player', 'browserSubtitleMode',

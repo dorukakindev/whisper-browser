@@ -21,9 +21,48 @@ test('Cancellation during shelf opening prevents the follow-up scene and seek', 
 });
 test('Missing RSS locator never falls through to a generic browser reopen',async()=>{const h=setup();delete h.result.sourceEntryId;assert.equal(await h.context.openPodcastResearchResult(h.result),false);assert.equal(h.calls.length,0);assert(h.notices.length);});
 
+test('changed audio opens the saved quote as read-only without seeking',async()=>{
+ const h=setup();
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('');
+ try{
+  h.context.document=dom.window.document;
+  h.context.syncBrowserOcclusion=()=>{};
+  dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+  h.setSnapshot({...h.snapshot,sourceVersion:'replacement'});
+  const receipt={};
+  assert.equal(await h.context.openPodcastResearchResult({...h.result,quote:'Saved wording'},{receipt}),true);
+  assert.equal(receipt.mode,'read-only');
+  assert.equal(dom.window.document.querySelector('dialog blockquote').textContent,'Saved wording');
+  assert.deepEqual(h.calls,[['open-rss','entry-A']]);
+ }finally{dom.window.close();}
+});
+
 test('Saved-search revalidation cannot seek a newer episode or a modified saved passage',async()=>{
  for(const change of ['source','text']){const h=setup();const opened=await h.context.openPodcastResearchResult(h.result,{beforeSeek:async()=>{if(change==='text')throw Error('Saved passage changed');h.setSnapshot({...h.snapshot,episodeIdentity:'episode-B',generation:3});}}).catch(()=>false);assert.equal(opened,false);assert.equal(h.calls.length,1);}
  const h=setup();assert.equal(await h.context.openPodcastResearchResult(h.result,{beforeSeek:async()=>{}}),true);assert.equal(h.calls.filter(c=>c[0]==='open-rss').length,1);assert.equal(h.calls[1][1].time,0);
+});
+
+test('Assistant passage navigation keeps its originating conversation and rejects a replacement thread',async()=>{
+ const source=fs.readFileSync(require.resolve('../src/renderer/assistant-app-actions'),'utf8');
+ const start=source.indexOf("  if(name==='open_saved_podcast_passage')");
+ const end=source.indexOf("  if(name==='open_feed_entry')",start);
+ for(const switched of [false,true]){
+  let scope='library',thread='original';
+  const row={token:'passage',episodeTitle:'Episode'};
+  const context={t:en=>en,stale:()=>false,Date,window:{
+   AssistantWorkspace:{key:()=>scope,activeId:(key=scope)=>key==='library'?thread:''},
+   api:{mediaShelf:async()=>({ok:true,row})}},
+   openPodcastResearchResult:async(_row,{receipt,isCancelled})=>{
+    scope='podcast';
+    if(switched)thread='replacement';
+    if(isCancelled())return false;
+    receipt.mode='seek';return true;
+   }};
+  const execute=vm.runInNewContext(`(async function(name,owner,expectedSettings,isCancelled,deadline){${source.slice(start,end)}})`,context);
+  const request=execute('open_saved_podcast_passage',{thread:'original'},{kind:'podcast-passage',locator:{token:'passage'}},()=>false,Infinity);
+  if(switched)await assert.rejects(request,/could not be opened/);
+  else assert.equal((await request).mode,'seek');
+ }
 });
 
 test('Research library renders untimed notes without a fake zero timestamp',()=>{

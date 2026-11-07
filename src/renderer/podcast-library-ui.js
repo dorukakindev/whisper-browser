@@ -113,10 +113,19 @@
               const error=node('p','mh-error');
               error.setAttribute('role','alert');
               d.append(node('h2','',fresh.episodeTitle),node('p','pl-meta',fresh.showTitle+' · '+time),node('blockquote','',fresh.quote),error);
-              if(fresh.timed)d.append(button(t('Open episode at this passage','Bölümü bu pasajda aç'),async()=>{
-                await actions.openTranscriptResult(query,row.token,locator);
-                d.close();
-              },'mh-action mh-primary'));
+              if(fresh.timed){
+                const open=button(t('Open episode at this passage','Bölümü bu pasajda aç'),async()=>{
+                  open.disabled=true;
+                  error.textContent='';
+                  try{
+                    await actions.openTranscriptResult(query,row.token,locator);
+                    if(d.open)d.close();
+                  }catch(cause){
+                    if(d.open)error.textContent=cause?.message||t('The episode could not be opened. Try again.','Bölüm açılamadı. Yeniden deneyin.');
+                  }finally{open.disabled=false;}
+                },'mh-action mh-primary');
+                d.append(open);
+              }
               d.append(button(t('Back to results','Sonuçlara dön'),()=>d.close()));
               d.addEventListener('close',()=>{
                 d.remove();
