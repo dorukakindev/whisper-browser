@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Podcast: zamansız yayıncı metni mevcut ±N bağlam ayarıyla çevrilir; paragraf yapısı korunur. Zamanlı VTT özgün zaman/metin doğrulanarak ayrı dublaj SRT’sine hazırlanır. Ortak VoxCPM2 paneli bölümün kayıtlı çeviri/özgün izini, kapsamını ve sürümünü gösterir; gizli oynatıcıyı ödünç almaz. Elle seçilen dosya, değişen iz ve geciken sonuç yarışları korunur; üretim öncesi zaman kaynağı yeniden doğrulanır. [Devir](docs/devir/2026-11-07-1021.md).
+- Browser/Sahne: RSS’ye geçişin kendi medya değişimiyle iptal olması, aynı sayfada farklı doğrudan videoya eski kaymanın taşınması ve geç altyazı geri yüklemesinin kapalı seçimini ezmesi düzeltildi. Açık Shadow DOM’daki site altyazıları uygulama katmanıyla yinelenmez ve kapatınca geri gelir. Podcast asistanında kapsam seçimi görünür, yakındaki kanıt konuşulan satırı kapsar, ilk ve devam “bu ana kadar” istekleri soru anındaki bitmiş bölüm satırlarıyla sınırlıdır. Asistan önerileri taşmadan yerleşir. [Windows Electron ve kontrollü test kanıtı](docs/devir/2026-11-07-1021.md).
+
 - Keşfet’te kütüphane değişince yüklenmiş sayfalar, filtreler, konum ve kart odağı korunur. İzleneceklere ekleme detayda kalır; çıkarma mevcut önizleme/onay akışını kullanır ve kayıt hatasında önceki bilgiler korunur. Film sayfasının üyelik, devam ve kaynak şeridi ile hero/kart yerleşimi iyileştirildi; bekleyen kişisel işlemlerde gözlemci döngüsü giderildi. [Devir](docs/devir/2026-11-07-0808.md).
 
 - Ana sayfa kaldığın konumu ve diğer devam kayıtlarını gösterir. Letterboxd örnekleri kaynak kimliğini, sayı ve spoiler seçimini gözetir. Boş yenileme önceki örneği korur, gizlenen spoiler mevcut analizde de gösterilmez. Asistan kartlarında işlem durumu ve **Kaynağa git** eylemi görünür. Podcast Sahne gerçek kuyruktan sıradaki bölümü gösterir ve değişen hedefi açmayı reddeder. [Devir](docs/devir/2026-11-07-0605.md).
