@@ -161,7 +161,7 @@ function readPodcastSearch(directory,input,limit=100){
     for(const row of podcastTranscriptMatches(data,feeds,input.query,scope)){
       if(row.token===input.token)return {ok:true,row};
     }
-    throw Error('Saved source changed or was removed. Search again. / Kayıtlı kaynak değişti veya silindi. Yeniden arayın.');
+    throw Object.assign(Error('Saved source changed or was removed. Search again. / Kayıtlı kaynak değişti veya silindi. Yeniden arayın.'),{sourceChanged:true});
   }
   const offset=input.offset??0;
   if(!Number.isSafeInteger(offset)||offset<0||offset>Number.MAX_SAFE_INTEGER-limit)throw Error('Invalid search page. / Geçersiz arama sayfası.');
@@ -560,7 +560,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'taste-analysis': { const data=load();if(input.expectedPreferencesRevision!==undefined&&input.expectedPreferencesRevision!==tasteOf(data).preferencesRevision)throw Object.assign(Error('Priorities changed. Review a new sample. / Öncelikler değişti. Yeni örneği inceleyin.'),{stale:true});if(input.expectedEvidenceRevision!==undefined&&input.expectedEvidenceRevision!==tasteOf(data).evidenceRevision)throw Object.assign(Error('Review evidence changed; prepare a new sample / Yorum kanıtları değişti; yeni bir örnek hazırlayın.'),{stale:true});const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis,taste:tasteOf(data)}; }
         default: throw Error('Unsupported media shelf action.');
       }
-    } catch (error) { const parts=String(error.message).split(' / ');return { ok: false,...(error.stale?{stale:true}:{}), error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }
+    } catch (error) { const parts=String(error.message).split(' / ');return { ok: false,...(error.stale?{stale:true}:{}),...(error.sourceChanged?{sourceChanged:true}:{}), error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }
   });
 }
 module.exports = { registerMediaShelf, csvPlan, urlOf, readReviewTaste, readPodcastSearch, searchPodcastTranscripts };

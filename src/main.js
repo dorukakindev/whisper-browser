@@ -19345,17 +19345,17 @@ ipcMain.handle('browser:research:list', async (event, request = {}) => {
   } catch (error) { return { ok: false, error: error.message, annotations: [] }; }
 });
 
+// One writer for every research note, including source-bound podcast notes confirmed in the assistant.
+// The implementation lives in research-annotation-writer.js so tests run the same code, not a copy.
+const researchAnnotationWriter = require('./research-annotation-writer').createAnnotationWriter({
+  store: () => ensureBrowserNotesReady(),
+  index: () => watchIndex(),
+  indexMedia: (index, annotation) => ensureIndexMediaForAnnotation(index, annotation),
+});
+function saveResearchAnnotation(raw, options) { return researchAnnotationWriter.save(raw, options); }
 ipcMain.handle('browser:research:upsert', async (event, raw) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  try {
-    const annotation = normalizeAnnotation(raw || {});
-    if (!annotation.id || !annotation.mediaId) return { ok: false, error: 'Not ve medya kimliği gerekli.' };
-    const store = ensureBrowserNotesReady();
-    if (store.loadError || store.migrationError) return { ok: false, error: store.loadError || store.migrationError };
-    const saved = store.upsert({ ...raw, id:annotation.id,mediaId:annotation.mediaId,updatedAt: Date.now() });
-    try { const index = watchIndex(); ensureIndexMediaForAnnotation(index, saved); index?.upsertAnnotation(saved); } catch (_) {}
-    return { ok: true, annotation: saved };
-  } catch (error) { return { ok: false, error: error.message }; }
+  try { return saveResearchAnnotation(raw); } catch (error) { return { ok: false, error: error.message }; }
 });
 
 ipcMain.handle('browser:research:review', async (event, request = {}) => {
@@ -20644,6 +20644,8 @@ require('./assistant-agent-service').register({app,ipcMain,authorized:authorized
   getJobs:()=>assistantJobs.snapshot(),resolveJobId:resolveAssistantJobId,cancelJob:id=>assistantJobs.cancel(id),
   researchWeb:assistantResearch,
   podcastSearch:input=>require('./media-shelf-service').readPodcastSearch(app.getPath('userData'),input,6),
+  researchNotes:{save:saveResearchAnnotation,get:id=>researchAnnotationWriter.get(id)},
+  voiceRuns:dubService.runs,
   feedDigest:args=>require('./assistant-feed-digest').getFeedDigest(mediaFeedsService.store,args),
   feedEntry:async(args,event)=>{const entry=mediaFeedsService.store.entry(args.entry_id,args.revision);const result=await mediaFeedsService.handle(event,{action:'context',entryIds:[entry.id]});if(!result.ok||!result.sources?.some(s=>s.entryId===entry.id&&s.revision===entry.revision))throw Error('Feed source is unavailable or hidden by spoiler preferences.');return {entry_id:entry.id,revision:entry.revision,title:entry.title};},
   probeVideo:async(owner,signal)=>{

@@ -36,11 +36,33 @@
   const showStatus=(message,error=false)=>{$('delivery').textContent=message;$('delivery').classList.toggle('error',error);};
   $('latest').onclick=()=>{$('log').scrollTop=$('log').scrollHeight;$('latest').hidden=true;};
   $('log').onscroll=()=>{$('latest').hidden=!$('log').querySelector('.message')||$('log').scrollHeight-$('log').scrollTop-$('log').clientHeight<80;};
+  // Inline [P1]-style markers in the answer become buttons that open and focus the matching source card of the SAME message.
+  function linkCitations(node,row,sources,t){
+    const labels=new Map(row.links.map(l=>[l.label,l]));
+    const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&!n.parentElement.closest('.sources,button,pre,code,summary,.message-actions')&&/\[[A-Za-z]\d+\]/.test(n.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});
+    const targets=[];while(walker.nextNode())targets.push(walker.currentNode);
+    for(const textNode of targets){
+      const frag=document.createDocumentFragment();
+      for(const part of textNode.nodeValue.split(/(\[[A-Za-z]\d+\])/g)){
+        const match=/^\[([A-Za-z]\d+)\]$/.exec(part),link=match&&labels.get(match[1]);
+        if(!link){if(part)frag.append(part);continue;}
+        const b=document.createElement('button');b.type='button';b.className='cite-ref';b.textContent=link.label;b.dataset.citationControl=JSON.stringify([row.id||'message',link.id,'ref']);
+        b.setAttribute('aria-label',t('Go to source ','Kaynağa git ')+link.label+(link.title?': '+link.title:''));
+        b.onclick=()=>{
+          const card=[...sources.querySelectorAll('[data-cite-label]')].find(c=>c.dataset.citeLabel===link.label&&c.tagName==='DETAILS')||[...sources.querySelectorAll('[data-cite-label]')].find(c=>c.dataset.citeLabel===link.label);
+          if(!card)return;const group=card.closest('.source-group');if(group)group.open=true;if(card.tagName==='DETAILS')card.open=true;
+          card.scrollIntoView?.({block:"nearest"});(card.querySelector('summary')||card).focus?.({preventScroll:true});card.dataset.flash='1';setTimeout(()=>{delete card.dataset.flash;},1400);
+        };
+        frag.append(b);
+      }
+      textNode.replaceWith(frag);
+    }
+  }
   function renderText(node,text,streaming=false){
     if(streaming&&window.AssistantRemend?.default)text=window.AssistantRemend.default(String(text||''));
     const inline=(node,value)=>{for(const part of value.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g)){if(!part)continue;let tag=part.startsWith('**')&&part.endsWith('**')?'strong':part.startsWith('`')&&part.endsWith('`')?'code':part.startsWith('*')&&part.endsWith('*')?'em':null;if(tag){const child=document.createElement(tag);child.textContent=part.slice(tag==='strong'?2:1,tag==='strong'?-2:-1);node.append(child);}else node.append(document.createTextNode(part));}};
     const blocks=String(text||'').split(/(```[\s\S]*?(?:```|$))/g);
-    for(const block of blocks){if(!block)continue;if(block.startsWith('```')){const pre=document.createElement('pre'),code=document.createElement('code');code.textContent=block.replace(/^```[^\n]*\n?/,'').replace(/```$/,'');pre.append(code);node.append(pre);}else{for(const line of block.split('\n')){if(!line){node.append(document.createElement('br'));continue;}const heading=/^#{1,3}\s+/.test(line),list=/^\s*[-*]\s+/.test(line);const p=document.createElement(heading?'h3':'p');if(list)p.className='answer-list';inline(p,line.replace(/^#{1,3}\s+/,'').replace(/^\s*[-*]\s+/,'• '));node.append(p);}}}
+    for(const block of blocks){if(!block)continue;if(block.startsWith('```')){const pre=document.createElement('pre'),code=document.createElement('code');code.textContent=block.replace(/^```[^\n]*\n?/,'').replace(/```$/,'');pre.append(code);node.append(pre);}else{for(const line of block.split('\n')){if(!line){node.append(document.createElement('br'));continue;}const heading=/^#{1,3}\s+/.test(line),list=/^\s*[-*]\s+/.test(line),ordered=/^\s*\d+[.)]\s+/.test(line),quote=/^>\s?/.test(line);const p=document.createElement(heading?'h3':quote?'blockquote':'p');if(list||ordered)p.className='answer-list';if(ordered)p.dataset.ordered='1';if(quote)p.className='answer-quote';inline(p,line.replace(/^>\s?/,'').replace(/^#{1,3}\s+/,'').replace(/^\s*[-*]\s+/,'• '));node.append(p);}}}
   }
   try{const saved=JSON.parse(localStorage.getItem('assistant-pins-v1')||'[]');if(Array.isArray(saved))pins=saved.filter(x=>x&&typeof x.scope==='string'&&typeof x.text==='string').slice(-100);}catch{}
   const isPinned=row=>pins.some(p=>p.scope===(snapshot.pinScope||snapshot.conversation)&&p.text===row.text);
@@ -170,7 +192,7 @@
     const focusTarget=focusCard?{id:focusCard.dataset.proposalId,control:focused.dataset.toolControl}:null;
     const messageFocus=log.contains(focused)&&focused.closest('.message-actions')?{key:focused.closest('.message-actions').dataset.messageKey,control:focused.dataset.messageControl}:null;
     if(threadChanged){openMessageActions.clear();openSources.clear();}else for(const more of log.querySelectorAll('.message-more[open]'))openMessageActions.add(more.closest('.message-actions').dataset.messageKey);
-    if(!threadChanged)for(const source of log.querySelectorAll('.source-card')){if(source.open)openSources.add(source.dataset.sourceKey);else openSources.delete(source.dataset.sourceKey);}
+    if(!threadChanged)for(const source of log.querySelectorAll('.source-card,.source-group')){if(source.open)openSources.add(source.dataset.sourceKey);else openSources.delete(source.dataset.sourceKey);}
     const citationFocus=log.contains(focused)?focused.dataset.citationControl:null;
     const runFocus=log.contains(focused)?focused.dataset.runControl:null;
     log.replaceChildren();
@@ -190,19 +212,68 @@
       const code=[...row.text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map(m=>m[1]).join('\n\n');if(code)addAction(t('Copy code','Kodu kopyala'),()=>action('copy',code));
       if(!row.loading)node.append(actions);
       if (row.links?.length) {
-        const sources = document.createElement('div'); sources.className = 'sources';
-        const label=document.createElement('span');label.className='sources-label';label.textContent=t('Sources','Kaynaklar')+' · '+row.links.length;sources.append(label);
-        for (const link of row.links) {
-          const button=document.createElement('button');button.textContent=link.label;button.dataset.citationId=link.id;button.dataset.citationControl=JSON.stringify([row.id||'message-'+index,link.id,'open']);button.onclick=()=>action('citation',link.id);
-          if(link.excerpt){
-            const card=document.createElement('details'),summary=document.createElement('summary'),label=document.createElement('span'),hint=document.createElement('span'),excerpt=document.createElement('p');
-            const sourceKey=String(row.id||index)+':'+String(link.id)+':'+String(link.excerpt);card.className='source-card';card.open=openSources.has(sourceKey);card.dataset.sourceKey=sourceKey;summary.dataset.citationControl=sourceKey;
-            label.textContent=link.label;hint.textContent=t('Read excerpt','Alıntıyı oku');hint.className='source-excerpt-hint';summary.append(label,hint);excerpt.textContent=link.excerpt;card.append(summary,excerpt);
-            if(link.translation){const translated=document.createElement('small');translated.textContent=link.translation;card.append(translated);}button.textContent=t('Open source: ','Kaynağa git: ')+link.label;card.append(button);
-            card.addEventListener('toggle',()=>{if(!card.isConnected)return;if(card.open)openSources.add(sourceKey);else openSources.delete(sourceKey);while(openSources.size>100)openSources.delete(openSources.keys().next().value);});sources.append(card);
-          }else sources.append(button);
+        const sources = document.createElement('section'); sources.className = 'sources evidence';
+        // Evidence strip: coverage at a glance as chips; the full explanation is one tap away instead of a wall of text.
+        const count=usage=>row.links.filter(l=>l.usage===usage).length,cited=count('cited'),carried=count('carried'),found=count('found');
+        const failedSteps=(row.steps||[]).filter(s=>['failed','blocked','unknown'].includes(s.state)).length;
+        const head=document.createElement('header');head.className='evidence-head';
+        const label=document.createElement('span');label.className='sources-label';label.textContent=t('Evidence','Dayanak')+' · '+row.links.length;
+        const chips=document.createElement('span');chips.className='evidence-chips';
+        const chip=(tone,text)=>{const c=document.createElement('span');c.className='evidence-chip';c.dataset.tone=tone;c.textContent=text;chips.append(c);};
+        if(cited)chip('ok',t(cited+' cited',cited+' atıf'));
+        if(carried)chip('ok',t(carried+' from an earlier search',carried+' önceki aramadan'));
+        if(found)chip('muted',t(found+' found, not cited',found+' bulundu, atıfsız'));
+        if(row.links.some(l=>l.more))chip('warn',t('more not read','daha fazlası okunmadı'));
+        if(failedSteps)chip('bad',t(failedSteps+' check failed or unknown',failedSteps+' kontrol başarısız/bilinmiyor'));
+        if(row.basis?.unverified)chip('bad',t(row.basis.unverified+' reference unverified',row.basis.unverified+' atıf doğrulanamadı'));
+        head.append(label,chips);sources.append(head);
+        if(cited||carried||found||row.basis?.unverified){
+          const lines=[],parts=[];
+          if(cited)parts.push(t(cited+' cited in the answer',cited+' yanıtta atıf yapıldı'));
+          if(carried)parts.push(t(carried+' cited from an earlier search',carried+' önceki aramadan atıf'));
+          if(found)parts.push(t(found+' found, not cited',found+' bulundu, atıf yok'));
+          if(parts.length)lines.push(parts.join(' · '));
+          if(row.links.some(l=>l.more))lines.push(t('The search shows a limited number of matches; more exist that were not read.','Arama sınırlı sayıda eşleşme gösteriyor; okunmayan daha fazlası var.'));
+          if(failedSteps)lines.push(t(failedSteps+' tool check failed, was blocked or has an unknown result; those parts are not verified.',failedSteps+' araç kontrolü başarısız, engellendi veya sonucu bilinmiyor; bu kısımlar doğrulanmadı.'));
+          if(row.basis?.unverified)lines.push(t(row.basis.unverified+' reference in the answer could not be verified and is not shown as a source.',row.basis.unverified+' atıf doğrulanamadı ve kaynak olarak gösterilmiyor.'));
+          const more=document.createElement('details');more.className='evidence-more';const moreKey=String(row.id||index)+':coverage';more.dataset.sourceKey=moreKey;more.open=openSources.has(moreKey);
+          const moreSummary=document.createElement('summary');moreSummary.dataset.citationControl=moreKey;moreSummary.textContent=t('What this covers','Neyi kapsıyor');more.append(moreSummary);
+          const basis=document.createElement('p');basis.className='source-basis';basis.setAttribute('role','note');lines.forEach((line,i)=>{const part=document.createElement(i===0&&parts.length?'strong':'span');part.textContent=line;basis.append(part);});more.append(basis);
+          more.addEventListener('toggle',()=>{if(!more.isConnected)return;if(more.open)openSources.add(moreKey);else openSources.delete(moreKey);});sources.append(more);
         }
+        // When something is cited, found-but-uncited results sit in one disclosure so the evidence stays scannable.
+        const groupKey=String(row.id||index)+':found-group',group=(cited||carried)&&found?document.createElement('details'):null;
+        if(group){group.className='source-group';group.open=openSources.has(groupKey);group.dataset.sourceKey=groupKey;const groupSummary=document.createElement('summary');groupSummary.dataset.citationControl=groupKey;groupSummary.textContent=t('Found, not cited · '+found,'Bulundu, atıf yok · '+found);group.append(groupSummary);group.addEventListener('toggle',()=>{if(!group.isConnected)return;if(group.open)openSources.add(groupKey);else openSources.delete(groupKey);});}
+        const usageText={cited:t('Cited','Atıf'),carried:t('Earlier search','Önceki arama'),found:t('Not cited','Atıfsız')};
+        const stateText={opening:t('Opening…','Açılıyor…'),opened:t('Opened','Açıldı'),'read-only':t('Read-only','Salt okunur'),stale:t('Changed','Değişti'),unavailable:t('Unavailable','Yok'),unconfirmed:t('Unconfirmed','Doğrulanmadı'),cancelled:t('Cancelled','İptal')};
+        for (const link of row.links) {
+          const holder=group&&link.usage==='found'?group:sources;
+          const button=document.createElement('button');button.textContent=link.label;button.dataset.citationId=link.id;button.dataset.citationControl=JSON.stringify([row.id||'message-'+index,link.id,'open']);button.onclick=()=>action('citation',link.id);button.dataset.citeLabel=link.label;
+          if(link.excerpt){
+            const card=document.createElement('details'),summary=document.createElement('summary'),excerpt=document.createElement('p');
+            const sourceKey=String(row.id||index)+':'+String(link.id)+':'+String(link.excerpt);card.className='source-card';card.open=openSources.has(sourceKey);card.dataset.sourceKey=sourceKey;card.dataset.citeLabel=link.label;summary.dataset.citationControl=sourceKey;
+            // One scannable line: the marker used in the answer, what the source is, and its role/state.
+            const marker=document.createElement('span');marker.className='cite-chip';marker.textContent=link.label;
+            const title=document.createElement('span');title.className='source-title';title.textContent=link.title||'';if(link.title)title.title=link.title;
+            const tags=document.createElement('span');tags.className='source-tags';
+            if(link.usage){const u=document.createElement('span');u.className='source-usage';u.dataset.usage=link.usage;u.textContent=usageText[link.usage];tags.append(u);}
+            if(link.state){const s=document.createElement('span');s.className='source-state-chip';s.dataset.state=link.state;s.textContent=stateText[link.state];tags.append(s);}
+            if(!link.usage&&!link.state){const hint=document.createElement('span');hint.className='source-excerpt-hint';hint.textContent=t('Read excerpt','Alıntıyı oku');tags.append(hint);}
+            summary.append(marker,title,tags);card.dataset.usage=link.usage||'';card.dataset.state=link.state||'';card.append(summary);
+            if(link.meta||link.scope){const detail=document.createElement('small');detail.className='source-meta';detail.textContent=[link.meta,link.scope].filter(Boolean).join('\n');card.append(detail);}
+            excerpt.textContent=link.excerpt;card.append(excerpt);
+            if(link.translation){const translated=document.createElement('small');translated.textContent=link.translation;card.append(translated);}
+            button.textContent=link.state==='opening'?t('Opening…','Açılıyor…'):['stale','unavailable'].includes(link.state)?t('Check again','Yeniden kontrol et'):link.action==='text'?t('Open text','Metni aç'):link.action==='seek'?t('Go to moment','Ana git'):t('Open source: ','Kaynağa git: ')+link.label;button.disabled=link.state==='opening';if(link.action)button.setAttribute('aria-label',button.textContent+': '+(link.title||link.label));
+            if(link.note){const note=document.createElement('p');note.className='source-state';note.dataset.state=link.state;note.setAttribute('role','status');note.textContent=link.note;card.append(note);}
+            const bar=document.createElement('div');bar.className='source-actions';bar.append(button);
+            if(link.action){const noteButton=document.createElement('button');noteButton.className='source-note';noteButton.dataset.noteControl='open';noteButton.dataset.noteKey=link.id;noteButton.textContent=t('Save as note…','Not olarak kaydet…');noteButton.setAttribute('aria-label',noteButton.textContent+': '+(link.title||link.label));noteButton.onclick=()=>{window.AssistantFocusReturn?.mark(link.id);action('note',link.id);};bar.append(noteButton);}
+            card.append(bar);
+            card.addEventListener('toggle',()=>{if(!card.isConnected)return;if(card.open)openSources.add(sourceKey);else openSources.delete(sourceKey);while(openSources.size>100)openSources.delete(openSources.keys().next().value);});holder.append(card);
+          }else holder.append(button);
+        }
+        if(group)sources.append(group);
         node.append(sources);
+        linkCitations(node,row,sources,t);
       }
       for(const proposed of row.actions||[]){
         const card=document.createElement('div');card.className='tool-card';card.dataset.proposalId=proposed.id;card.tabIndex=-1;
@@ -210,11 +281,14 @@
         const detail=document.createElement('p');detail.textContent=[proposed.excerpt,proposed.translation].filter(Boolean).join('\n→ ');
         const apply=document.createElement('button');
         apply.dataset.toolControl='apply';
-        apply.textContent=proposed.refreshable&&proposed.resultStatus==='failed'?t('Settings changed','Ayarlar de\u011fi\u015fti'):proposed.resultStatus?t(({accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[proposed.resultStatus]||'Finished',({accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[proposed.resultStatus]||'Bitti'):proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');
-        apply.disabled=busy||!!proposed.resultStatus;
+        const running=proposed.live==='running';
+        apply.textContent=running?t('Applying…','Uygulanıyor…'):proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');
+        apply.disabled=busy||running;
         apply.onclick=()=>openReview({action:'apply-tool',id:proposed.id},title.textContent+'\n'+detail.textContent+'\n'+(proposed.kind==='app_action'?t('Runs this application action on the attached source using your current settings.','Bu uygulama işlemini bağlı kaynakta mevcut ayarlarınla çalıştırır.'):t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.')),apply);
-        const statusKey=proposed.refreshable&&proposed.resultStatus==='failed'?'changed':proposed.resultStatus||'pending',badge=document.createElement('small');card.dataset.status=proposed.resultStatus||'pending';badge.className='tool-status';badge.textContent=t(({pending:'Waiting for your approval',changed:'Source or settings changed',accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[statusKey]||'Finished',({pending:'Onayını bekliyor',changed:'Kaynak veya ayarlar değişti',accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[statusKey]||'Bitti');
-        card.append(badge,title,detail,apply);
+        const statusKey=running?'running':proposed.refreshable&&proposed.resultStatus==='failed'?'changed':proposed.resultStatus||'pending',badge=document.createElement('small');card.dataset.status=running?'running':proposed.resultStatus||'pending';badge.className='tool-status';badge.textContent=t(({pending:'Waiting for your approval',changed:'Source or settings changed',accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped',unknown:'Result unknown — not re-applied',running:'Applying now'})[statusKey]||'Finished',({pending:'Onayını bekliyor',changed:'Kaynak veya ayarlar değişti',accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu',unknown:'Sonuç bilinmiyor — yeniden uygulanmadı',running:'Uygulanıyor'})[statusKey]||'Bitti');
+        const head=document.createElement('header');head.className='tool-head';head.append(badge,title);card.dataset.settled=proposed.resultStatus&&!running?'1':'';if(!card.dataset.settled)delete card.dataset.settled;card.append(head,detail);
+        // Only a card that has not run offers Apply; a settled card shows its real result instead of a dead button.
+        if(!proposed.resultStatus)card.append(apply);
         if(proposed.refreshable&&proposed.resultStatus==='failed'){
           const refresh=document.createElement('button');refresh.dataset.toolControl='refresh';refresh.className='flow-continue';
           refresh.textContent=t('Refresh from current settings','Güncel ayarlarla yenile');refresh.disabled=busy;
@@ -225,11 +299,13 @@
 
         if(proposed.flowNote){const note=document.createElement('p');note.className='action-receipt';note.setAttribute('role','status');note.textContent=proposed.flowNote;card.append(note);}
         if(proposed.resultText){const receipt=document.createElement('p');receipt.className='action-receipt';receipt.setAttribute('role','status');receipt.textContent=proposed.resultText;card.append(receipt);}
+        if(proposed.activity&&['unknown','accepted'].includes(proposed.resultStatus)){const check=document.createElement('button');check.dataset.toolControl='activity';check.className='flow-continue';check.textContent=t('Open Activity','İşlemleri aç');check.title=t('Shows the real state of running and finished jobs.','Çalışan ve biten işlerin gerçek durumunu gösterir.');check.onclick=()=>action('open-activity');card.append(check);}
         node.append(card);
       }
       log.append(node);
     }
     filter();
+    window.AssistantFocusReturn?.restore();
     if(focusTarget){const card=[...log.querySelectorAll('.tool-card')].find(n=>n.dataset.proposalId===focusTarget.id);if(card&&!card.closest('[hidden]')){const button=[...card.querySelectorAll('button')].find(n=>n.dataset.toolControl===focusTarget.control&&!n.disabled);(button||card).focus({preventScroll:true});}}
     if(messageFocus&&!threadChanged){const group=[...log.querySelectorAll('.message-actions')].find(n=>n.dataset.messageKey===messageFocus.key);if(group&&!group.closest('[hidden]')){const target=[...group.querySelectorAll('[data-message-control]')].find(n=>n.dataset.messageControl===messageFocus.control),more=target?.closest('details');(more&&!more.open?more.querySelector('summary'):target)?.focus({preventScroll:true});}}
     if(runFocus&&!threadChanged)[...log.querySelectorAll('[data-run-control]')].find(n=>n.dataset.runControl===runFocus)?.focus({preventScroll:true});

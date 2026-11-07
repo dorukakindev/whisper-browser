@@ -2,3 +2,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),steps=require('../src/assistant-run-steps');
 test('Activity states never turn prepared cards or accepted jobs into completed work',()=>{const rows=[{id:'r',name:'query_media_library',state:'completed'},{id:'p',name:'open_feed_entry',state:'proposed',proposalId:'real-proposal'}];assert.equal(steps.summary(rows).state,'proposed');assert.equal(steps.summary(rows).linkedProposal,true);const done=steps.settle(rows,'real-proposal',{status:'completed'});assert.equal(steps.summary(done).state,'completed');assert.equal(done[1].applied,true);assert.equal(done[0].applied,undefined);assert.equal(steps.summary(steps.settle(rows,'real-proposal',{status:'accepted'})).state,'accepted');assert.equal(steps.summary(steps.settle(rows,'real-proposal',{status:'failed'})).state,'failed');assert.equal(steps.summary(steps.settle(rows,'real-proposal',{status:'stopped'})).state,'stopped');});
 test('Only the exact proposal is reconciled and historical unlinked cards are not current approval claims',()=>{const rows=[{id:'a',name:'open_feed_entry',state:'proposed',proposalId:'a'},{id:'b',name:'open_settings',state:'proposed',proposalId:'b'}];const result=steps.settle(rows,'a',{status:'completed'});assert.equal(result[0].state,'completed');assert.equal(result[1].state,'proposed');assert.equal(steps.summary([{id:'old',name:'open_settings',state:'proposed'}]).linkedProposal,false);assert(!steps.clean([{id:'bad',name:'open_settings',state:'proposed',proposalId:'<script>'}])[0].proposalId);});
+
+test('An unknown action result outranks failure, is never counted as applied and survives cleaning',()=>{
+ const rows=[{id:'a',name:'open_settings',state:'proposed',proposalId:'a'},{id:'b',name:'open_settings',state:'failed'}];
+ const settled=steps.settle(rows,'a',{status:'unknown'});
+ assert.equal(settled[0].state,'unknown');assert.equal(!!settled[0].applied,false);assert.equal(steps.summary(settled).state,'unknown');
+ assert.equal(steps.clean(settled)[0].state,'unknown');
+});

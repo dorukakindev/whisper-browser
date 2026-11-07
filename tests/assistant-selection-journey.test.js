@@ -45,7 +45,7 @@ test('controlled provider search → exact selection → comparison → collecti
  assert.equal((await h.invoke('agentApply',{proposalId:h.card.proposalId,owner:{...h.owner,thread:'foreign-thread'}})).ok,false);assert(h.store.list().every(f=>!f.collections.length));
  const result=await h.invoke('agentApply',{proposalId:h.card.proposalId,owner:h.owner});assert.equal(result.ok,true,result.error);assert.equal(result.result.status,'completed');assert.equal(result.result.count,3);
  assert.deepEqual(h.store.list().filter(f=>f.collections.includes('Controlled thriller selection')).map(f=>f.id).sort(),expected);assert.equal(h.collectionRequests.filter(r=>r.action==='apply').length,1);
- assert(h.films.slice(3).every(f=>h.store.get(f.id).collections.length===0));assert.equal((await h.invoke('agentApply',{proposalId:h.card.proposalId,owner:h.owner})).ok,false);
+ assert(h.films.slice(3).every(f=>h.store.get(f.id).collections.length===0));const repeat=await h.invoke('agentApply',{proposalId:h.card.proposalId,owner:h.owner});assert.deepEqual([repeat.ok,repeat.replayed,repeat.result.count],[true,true,3]);assert.equal(h.collectionRequests.filter(r=>r.action==='apply').length,1,'no second membership write');
 });
 
 test('changed reviewed catalog identity blocks collection Apply without partial membership changes',async t=>{

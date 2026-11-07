@@ -2,6 +2,7 @@
 const {randomUUID}=require('node:crypto');
 const registry=require('./assistant-capabilities'),manifest=require('./assistant-context-manifest'),provider=require('./assistant-provider');
 const settingProposals=require('./assistant-setting-proposals');
+const podcastSources=require('./renderer/assistant-podcast-sources');
 const workflowPlan=require('./assistant-workflow-plan');
 const runtimeTools=require('./assistant-runtime');
 const {withinResultBudget}=require('./assistant-tool-results');
@@ -10,7 +11,7 @@ const fold=value=>String(value||'').normalize('NFKD').replace(/\p{M}/gu,'').repl
 const identifier=value=>typeof value==='string'&&/^[\w-]{1,100}$/.test(value);
 const workflowSnapshot=(name,state)=>JSON.stringify(name==='undo_workflow_settings'?{values:state.values,canUndo:state.canUndo,undoChanges:state.undoChanges}:state.values);
 
-function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetchImpl=fetch,getJobs=()=>({jobs:[]}),cancelJob=async()=>({ok:false}),probeVideo=async()=>({ok:false}),resolveJobId=()=>null,researchWeb=async()=>({}),podcastSearch=()=>{throw Error('Podcast search unavailable.');},feedDigest=()=>{throw Error('Feed digest unavailable.');},feedEntry=()=>{throw Error('Feed entry unavailable.');}}){
+function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetchImpl=fetch,getJobs=()=>({jobs:[]}),cancelJob=async()=>({ok:false}),probeVideo=async()=>({ok:false}),resolveJobId=()=>null,researchWeb=async()=>({}),podcastSearch=()=>{throw Error('Podcast search unavailable.');},feedDigest=()=>{throw Error('Feed digest unavailable.');},feedEntry=()=>{throw Error('Feed entry unavailable.');},researchNotes={save:()=>({ok:false,error:'Notes unavailable.'}),get:()=>null},voiceRuns={list:()=>({runs:[],total:0}),detail:()=>null,preview:()=>({ok:false,code:'unavailable',reason:'Production runs are unavailable.'}),sourceMatch:()=>null,exists:()=>false}}){
  const podcastPassages=new Map();
  const watchedQuestion=question=>/(?:bu ana kadar|şu ana kadar|şimdiye kadar|buraya kadar|so far|up to (?:now|this point)|until now)/iu.test(question);
  function podcastPassage(id,sender,owner){
@@ -18,7 +19,8 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   if(!row||row.expires<Date.now()||row.sender!==sender||!manifest.same(row.owner,owner))throw Error('Podcast passage expired. Search again / Podcast pasajı eskidi. Yeniden arayın.');
   return row;
  }
- const flows=require('./assistant-flows').createFlows({getJobs}),applications=new Map();
+ const flows=require('./assistant-flows').createFlows({getJobs}),applications=new Map(),receipts=require('./assistant-receipts').createReceipts();
+ const podcastNotes=require('./assistant-podcast-note').createNotes({podcastSearch,notes:researchNotes,manifest,validateOwner});
  const sessions=new Map(),proposals=new Map(),pending=new Map(),refreshable=new Map(),captionProbes=new Map(),jobBindings=new Map();
  const emit=(sender,packet)=>{if(!sender.isDestroyed())sender.send('assistant:agentEvent',packet);};
  function sameJobSource(binding,owner){return !!binding&&manifest.same({...binding.owner,thread:owner.thread},owner);}
@@ -103,6 +105,10 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   }
   return row;
  }
+ ipcMain.handle('assistant:podcastNote',async(event,input={})=>{
+  if(!authorized(event))return {ok:false,error:'Unauthorized assistant action.'};
+  try{return await podcastNotes.handle(event.sender.id,input);}catch(error){return {ok:false,code:'failed',error:String(error.message).slice(0,300)};}
+ });
  ipcMain.handle('assistant:agentResult',(event,input={})=>{
   if(!authorized(event)||!identifier(input.callId))return {ok:false};
   const call=pending.get(input.callId);if(!call||call.sender!==event.sender)return {ok:false};
@@ -175,9 +181,14 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      const fold=require('./text-fold').search;
      const matches=result.rows.slice(0,6).map(row=>{
       const id='P'+randomUUID(),locator={...query,action:'podcast-search-resolve',episode:row.sourceEntryId||row.episodeIdentity,token:row.token};
-      podcastPassages.set(id,{sender:event.sender.id,owner,runId:session.id,expires:Date.now()+600000,locator});
+      const quote=row.quote.slice(Math.max(0,fold(row.quote).indexOf(fold(args.query))-100)).slice(0,700);
+      // The structured card carries the same exact locator as the reviewed open action; limit/more come from the real service result.
+      const card=podcastSources.cleanOne({id,kind:'podcast',show:row.showTitle,episode:row.episodeTitle,role:row.role,timed:row.timed===true,seconds:row.timed?row.seconds:null,end:row.timed?row.end:null,quote,
+       locator:{action:'podcast-search-resolve',query:args.query,showName:args.show,role:args.role,episode:locator.episode,token:row.token},scope:{limit:result.limit,more:result.nextOffset!=null}});
+      podcastPassages.set(id,{sender:event.sender.id,owner,runId:session.id,expires:Date.now()+600000,locator,card});
       while(podcastPassages.size>120)podcastPassages.delete(podcastPassages.keys().next().value);
-      return {id,episode:row.episodeTitle,show:row.showTitle,quote:row.quote.slice(Math.max(0,fold(row.quote).indexOf(fold(args.query))-100)).slice(0,700),role:row.role,seconds:row.timed?row.seconds:null,end:row.timed?row.end:null};
+      if(card){session.podcastRecords??=new Map();session.podcastRecords.set(id,card);}
+      return {id,episode:row.episodeTitle,show:row.showTitle,quote,role:row.role,seconds:row.timed?row.seconds:null,end:row.timed?row.end:null};
      });
      session.podcastSearched=true;
      session.podcastCitations=[...(session.podcastCitations||[]),...matches].slice(0,6);
@@ -200,6 +211,19 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      // all of its URLs were excluded by the session source budget.
      const synthesisAllowed=!readable.length&&sources.every(row=>session.webSources.some(accepted=>accepted.url===row.url));
      return {status:'completed',method:result.method||'provider',sourceKind:passages.length?'web_page_excerpts':'provider_synthesis',scope:result.scope||'External research, separate from the attached open page. Provider synthesis is not a verbatim source excerpt.',text:passages.length?passages.map(row=>'['+row.id+'] '+row.title+'\n'+row.url+'\n'+row.text).join('\n\n'):synthesisAllowed?providerText:'',sources:session.webSources,passages,blocked:result.blocked||[]};
+    }
+    if(['get_voice_runs','inspect_voice_run','preview_voice_retry'].includes(name)){
+     // The persistent run records give the facts. The renderer only says which run the panel has selected and which media is open;
+     // the open source string stays in the main process (identity comparison) and is never sent to the model.
+     let panel={};
+     try{const state=await requestRenderer(event.sender,owner,'get_voice_panel',{},controller.signal);if(state?.status==='completed')panel=state;else panel={unavailable:true};}catch(error){if(controller.signal.aborted)throw error;panel={unavailable:true};}
+     controller.signal.throwIfAborted();requireOwner(owner);
+     const panelInfo={selected_in_panel:panel.selectedRunId||null,panel_open:panel.panelOpen===true,current_media:panel.media?{title:String(panel.media.title||'').slice(0,160)}:null,panel_state_unavailable:panel.unavailable===true,
+      panel_note:'The run selected in the panel is a saved record. It is not the media that is currently playing.'};
+     if(name==='get_voice_runs')return {status:'completed',...voiceRuns.list({openSource:panel.openSource||'',offset:args.offset||0}),...panelInfo};
+     if(!voiceRuns.exists(args.run_id))throw Error('Unknown voice run id; read get_voice_runs / Bilinmeyen çalışma kimliği; get_voice_runs oku.');
+     if(name==='inspect_voice_run')return {status:'completed',...voiceRuns.detail(args.run_id,{openSource:panel.openSource||''}),...panelInfo};
+     return {status:'completed',...voiceRuns.preview(args.run_id,args.settings||'pinned')};
     }
     if(name==='get_job_status'){const state=getJobs(),ordered=[...state.jobs.filter(job=>['running','cancelling'].includes(job.state)),...state.jobs.filter(job=>!['running','cancelling'].includes(job.state))],offset=args.offset||0;return {revision:state.revision,jobs:args.job_id?[jobResult(args.job_id,owner).job]:ordered.slice(offset,offset+5).map(job=>jobResult(job.id,owner).job),total:state.jobs.length,nextOffset:!args.job_id&&offset+5<ordered.length?offset+5:null};}
     if(name==='get_job_result')return jobResult(args.job_id,owner);
@@ -262,8 +286,18 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      if(existing){const [proposalId,row]=existing,action={kind:'app_action',proposalId,tool:name,label:row.label,summary:row.summary};emit(event.sender,{type:'proposal',requestId:session.id,action});const receipt={status:'proposed',label:row.label,proposalId,tool:name,note:'The existing un-applied card was reused. It has not run.'};offered.set(signature,receipt);return receipt;}
      if(proposals.size>=100||session.proposalCount>=8)throw Error('Too many pending assistant actions.');
      session.proposalCount=(session.proposalCount||0)+1;
-     const proposalId=randomUUID();let libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,personalMediaIdentity,personalMediaSettings,comparisonIdentity,feedEntryIdentity;let {label,summary}=registry.describe(name,args,input.locale,owner);
+     const proposalId=randomUUID();let libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,personalMediaIdentity,personalMediaSettings,comparisonIdentity,feedEntryIdentity,voiceRunIdentity;let {label,summary}=registry.describe(name,args,input.locale,owner);
 
+     if(name==='open_voice_run'){
+      if(!voiceRuns.exists(args.run_id))throw Error('Unknown voice run id / Bilinmeyen çalışma kimliği.');
+      const panel=await requestRenderer(event.sender,owner,'get_voice_panel',{},controller.signal);controller.signal.throwIfAborted();requireOwner(owner);
+      const detail=voiceRuns.detail(args.run_id,{openSource:panel?.openSource||''});
+      if(args.target==='source'&&detail.run.source_matches_current_media!==true)return {status:'blocked',note:'This run\'s source is not known to be the currently open media (match: '+detail.run.source_matches_current_media+'). The record stores only a source identity, not a way to reopen another source; ask the user to open the source. / Bu çalışmanın kaynağı açık medya olarak doğrulanamadı; kayıt yalnız kaynak kimliği tutar, başka kaynağı yeniden açamaz.'};
+      if(args.target==='result'&&(detail.run.audio_file.check!=='valid'||['running','running-elsewhere'].includes(detail.run.state)))return {status:'blocked',note:'No valid finished audio file exists for this run; there is nothing to open for review. / Bu çalışma için geçerli, bitmiş ses dosyası yok.'};
+      if(args.target==='retry_preview'&&!detail.run.retryable)return {status:'blocked',note:'This run cannot be retried now (state '+detail.run.state+'). / Bu çalışma şu an yeniden denenemez.'};
+      voiceRunIdentity=JSON.stringify([args.run_id,args.target,detail.run.state,detail.run.audio_file.check,detail.run.audio_file.seconds,detail.run.attempt,detail.run.source_matches_current_media]);
+      summary=(detail.run.title||'')+' · '+summary;
+     }
      if(args.translation_profile||name==='set_translation_profile'){const state=await requestRenderer(event.sender,owner,'get_translation_profile',{profile_id:args.translation_profile||args.profile_id},controller.signal);if(state.status!=='completed'||!state.profile)throw Error('Configured translation model unavailable.');translationIdentity=JSON.stringify(state.profile);summary+=' · '+state.profile.model+' ('+state.profile.provider+')';}
      if(name==='set_voice_reference'){const state=await requestRenderer(event.sender,owner,'list_voice_references',{},controller.signal);const ref=state.references?.find(row=>row.id===args.reference_id);if(!ref)throw Error('Unknown saved voice reference.');summary=(input.locale==='tr'?'Referans: ':'Reference: ')+ref.name+(input.locale==='tr'?' · üretim başlamaz.':' · generation does not start.');}
      if(['voice_group','use_generated_voice','start_voice_generation'].includes(name)){const state=await requestRenderer(event.sender,owner,'get_voice_status',name==='voice_group'?{group_id:args.group_id}:{},controller.signal);const voice=state.voice;if(!voice||voice.busy)throw Error('Voice panel unavailable or busy.');if(name==='voice_group'){const group=voice.groups?.find(row=>row.id===args.group_id);if(!group)throw Error('Unknown current voice group.');summary=(input.locale==='tr'?'Grup ':'Group ')+group.number+' · '+summary;}if(name==='use_generated_voice'&&(!voice.output||voice.output.id!==args.output_id||voice.output.sample||voice.output.syncInvalid))throw Error('No matching full voice output.');if(name==='start_voice_generation'&&(!voice.subtitleReady||!voice.engineAndReferenceReady))throw Error('Open voice preparation and select subtitles/reference first.');}
@@ -309,7 +343,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
       podcastLocator=selected.locator;
       summary=[row.showTitle,row.episodeTitle,row.timed?row.seconds.toFixed(1)+' s':input.locale==='tr'?'Salt okunur':'Read only',row.quote.slice(0,300)].filter(Boolean).join(' · ');
      }
-     const row=await captureSettings(event.sender,owner,{sender:event.sender,owner,name,args,flow,label,summary,locale:input.locale,libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,personalMediaIdentity,comparisonIdentity,feedEntryIdentity,podcastLocator,...(personalMediaSettings?{expectedSettings:personalMediaSettings}:{}),expires:Date.now()+10*60*1000},controller.signal);
+     const row=await captureSettings(event.sender,owner,{sender:event.sender,owner,name,args,flow,label,summary,locale:input.locale,libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,personalMediaIdentity,comparisonIdentity,feedEntryIdentity,voiceRunIdentity,podcastLocator,...(personalMediaSettings?{expectedSettings:personalMediaSettings}:{}),expires:Date.now()+10*60*1000},controller.signal);
      summary=row.summary;const action={kind:'app_action',proposalId,tool:name,label,summary};
      row.runId=session.id;row.intentRevision=session.runtime.revision;proposals.set(proposalId,row);
      emit(event.sender,{type:'proposal',requestId:session.id,action});
@@ -321,19 +355,29 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     const traceId=randomUUID(),traceStarted=Date.now(),intentRevision=session.runtime.revision,sourceRevision=runtimeTools.sourceKey(owner);let sequence=0,finished=false;
     const publishRead=(value,final=false)=>{if(finished||controller.signal.aborted||!validateOwner(owner)||session.runtime.revision!==intentRevision)return;emit(event.sender,{type:'read-progress',requestId:session.id,callId:traceId,providerCallId:metadata.providerCallId,name,intentRevision,sourceRevision,sequence:++sequence,final,value:runtimeTools.partial(value)});};
     emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,state:'running',intentRevision,started:traceStarted}});emit(event.sender,{type:'progress',requestId:session.id,phase:'tool',domain:name==='research_web'?'web':registry.get(name)?.domain||''});
-    try{const result=await executeUnchecked(name,args,name==='research_web'?value=>publishRead(value):undefined);if(['failed','blocked','unsupported'].includes(result?.status))failed++;if(sequence)publishRead({},true);finished=true;emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,intentRevision,...(identifier(result?.proposalId)?{proposalId:result.proposalId}:{}),state:result?.status==='unsupported'?'failed':['proposed','failed','blocked','accepted'].includes(result?.status)?result.status:'completed',elapsedMs:Date.now()-traceStarted}});return result;}
+    try{const result=await executeUnchecked(name,args,name==='research_web'?value=>publishRead(value):undefined);if(['failed','blocked','unsupported'].includes(result?.status))failed++;if(sequence)publishRead({},true);finished=true;emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,intentRevision,...(identifier(result?.proposalId)?{proposalId:result.proposalId}:{}),state:result?.status==='unsupported'?'failed':['proposed','failed','blocked','accepted'].includes(result?.status)?result.status:'completed',elapsedMs:Date.now()-traceStarted,...require('./assistant-voice-runs').stepSummary(name,result)}});return result;}
     catch(error){finished=true;if(!controller.signal.aborted)failed++;emit(event.sender,{type:'tool-step',requestId:session.id,step:{id:traceId,name,intentRevision,state:controller.signal.aborted?'stopped':'failed',elapsedMs:Date.now()-traceStarted}});throw error;}
     finally{finished=true;if(!controller.signal.aborted)emit(event.sender,{type:'progress',requestId:session.id,phase:'thinking'});}
    };
    const result=await provider.run({question:flow.question,responseContract:input.responseContract,continuation:reviewMode||watchedOnly?[]:flows.evidence(flow),history:reviewMode||watchedOnly?[]:input.history,context:reviewMode?(recallMode?{type:'recall-sources',recallAnalysis:recallEvidence}:{...sourceContext,reviewAnalysis:reviewContext}):sourceContext,owner,pool:sourcePool,locale:input.locale,config,signal:controller.signal,fetchImpl,
     takeMessages:mode=>{requireOwner(owner);return session.runtime.take(mode);},
-    onHumanMessages:rows=>{const invalidatedProposalIds=[];if(rows.some(row=>row.mode==='steer')){offered.clear();planned.clear();session.podcastCitations=[];session.podcastSearched=false;for(const [id,row] of podcastPassages)if(row.runId===session.id)podcastPassages.delete(id);for(const [id,row]of proposals)if(row.sender===event.sender&&row.runId===session.id){proposals.delete(id);invalidatedProposalIds.push(id);}}const latest=rows.at(-1);if(latest)flow.humanIntent={question:latest.text,revision:flow.humanIntent.revision+1};flow.question=(flow.question+'\n\n'+rows.map(row=>'Latest human '+row.mode+': '+row.text).join('\n')).slice(-16000);emit(event.sender,{type:'runtime-delivered',requestId:session.id,messages:rows,intentRevision:session.runtime.revision,invalidatedProposalIds});},
+    onHumanMessages:rows=>{const invalidatedProposalIds=[];if(rows.some(row=>row.mode==='steer')){offered.clear();planned.clear();session.podcastCitations=[];session.podcastRecords=new Map();session.podcastSearched=false;for(const [id,row] of podcastPassages)if(row.runId===session.id)podcastPassages.delete(id);for(const [id,row]of proposals)if(row.sender===event.sender&&row.runId===session.id){proposals.delete(id);invalidatedProposalIds.push(id);}}const latest=rows.at(-1);if(latest)flow.humanIntent={question:latest.text,revision:flow.humanIntent.revision+1};flow.question=(flow.question+'\n\n'+rows.map(row=>'Latest human '+row.mode+': '+row.text).join('\n')).slice(-16000);emit(event.sender,{type:'runtime-delivered',requestId:session.id,messages:rows,intentRevision:session.runtime.revision,invalidatedProposalIds});},
     onProgress:phase=>{if(!controller.signal.aborted&&validateOwner(owner))emit(event.sender,{type:'progress',requestId:session.id,phase});},
     onDelta:text=>emit(event.sender,{type:'delta',requestId:session.id,text}),
     onReplace:text=>emit(event.sender,{type:'replace',requestId:session.id,text}),
     onCapability:value=>emit(event.sender,{type:'capabilities',requestId:session.id,value}),execute});
    controller.signal.throwIfAborted();requireOwner(owner);
    if(reviewMode)result.text=JSON.stringify(recallMode?recallContract.parseAnswer(result.text,recallEvidence):reviewModel.parseDecisionResponse(result.text,reviewEvidence.reviews));
+   // Cards are separated by real use: cited now, cited from an earlier accessible search, or found but not cited.
+   // Results that merely remain from an earlier turn are not labelled as this answer's basis.
+   let podcastCards=[],podcastUnverified=0;
+   if(!reviewMode&&!watchedOnly){
+    const mentioned=new Set(String(result.text||'').match(/P[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/g)||[]);
+    const retrieved=[...(session.podcastRecords?.values()||[])];
+    const carried=[...mentioned].filter(id=>!session.podcastRecords?.has(id)).flatMap(id=>{const kept=podcastPassages.get(id);return kept?.card&&kept.sender===event.sender.id&&kept.expires>Date.now()&&manifest.same(kept.owner,owner)?[kept.card]:[];});
+    podcastUnverified=[...mentioned].filter(id=>!session.podcastRecords?.has(id)&&!carried.some(card=>card.id===id)).length;
+    podcastCards=[...retrieved.filter(card=>mentioned.has(card.id)).map(card=>({...card,usage:'cited'})),...carried.map(card=>({...card,usage:'carried'})),...retrieved.filter(card=>!mentioned.has(card.id)).map(card=>({...card,usage:'found'}))].slice(0,12);
+   }
    if(!reviewMode&&session.podcastSearched&&!session.podcastCitations?.length){
     result.text=input.locale==='tr'?'Kayıtlı podcast metinlerinde bu aramayla eşleşen bir pasaj bulunamadı.':'This search found no matching passage in the saved podcast transcripts.';
    }
@@ -347,7 +391,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const execution={cards:offered.size,pendingPlans:planned.size,attempted,blockedOrFailed:failed,appliedActions:0};
    let structuredAnswer=false;try{const parsed=JSON.parse(result.text);structuredAnswer=parsed!==null&&typeof parsed==='object';}catch{}
    if(!reviewMode&&(attempted||planned.size||(!structuredAnswer&&/kart|\bcard\b|başlat|started|tamamlan|completed/i.test(result.text)))){const tr=input.locale==='tr';const note=tr?'Uygulama doğrulaması: '+offered.size+' gerçek işlem kartı oluşturuldu; bu istek kartları uygulamadı, transkripsiyon/dublaj başlatmadı.':'Application verification: '+offered.size+' real action cards created; this request applied no cards and started no transcription/dubbing.';const extra=planned.size?(tr?' Koleksiyon planı yalnız veri; uygulanabilir kartı henüz yok.':' A collection plan is data only; its review card is still missing.'):'';result.text=result.text.slice(0,30500)+'\n\n'+note+extra;}
-   resumed?.settle?.(true);return {ok:true,...result,runtime:session.runtime.snapshot(),execution,bookCitations:session.bookCitations||[],filmCitations:session.filmCitations||[]};
+   resumed?.settle?.(true);return {ok:true,...result,runtime:session.runtime.snapshot(),execution,bookCitations:session.bookCitations||[],filmCitations:session.filmCitations||[],podcastCitations:podcastCards,podcastUnverified};
   }catch(error){const timedOut=controller?.signal.aborted&&controller.signal.reason==='timeout';return {ok:false,runtime:session?.runtime?.snapshot(),timedOut:!!timedOut,cancelled:!!controller?.signal.aborted&&!timedOut,error:timedOut?'Assistant timed out. Received text was kept; you can retry / Asistan zaman aşımına uğradı. Alınan metin korundu; yeniden deneyebilirsin.':controller?.signal.aborted?'Assistant stopped / Asistan durduruldu.':String(error.message).slice(0,300)};}
   finally{session?.runtime?.close();resumed?.settle?.(false);clearTimeout(timer);if(stop)event.sender.removeListener('destroyed',stop);if(sessions.get(event.sender.id)===session)sessions.delete(event.sender.id);}
  });
@@ -357,23 +401,47 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
  });
  ipcMain.handle('assistant:agentApply',async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized assistant action.'};
+  const receipt=input.mode==='refresh'?null:receipts.get(input.proposalId);
+  if(receipt){
+   // A repeated approval gets the one real outcome back; it is never dispatched again and never widened to a changed source.
+   if(receipt.sender!==event.sender.id)return {ok:false,error:'This action expired; ask again / Öneri eskidi; yeniden iste.'};
+   let now;try{now=manifest.clean(input.owner);}catch(_){now=null;}
+   if(!now||!manifest.same(receipt.owner,now))return {ok:false,error:'The source or conversation changed / Kaynak veya sohbet değişti.'};
+   if(receipt.state==='applying')return {ok:false,pending:true,error:'This action is still running / Bu işlem hâlâ sürüyor.'};
+   if(receipt.state==='settled')return {ok:true,replayed:true,result:receipt.result};
+   return {ok:false,uncertain:true,replayed:true,error:receipt.error};
+  }
   if(sessions.has(event.sender.id)||applications.has(event.sender.id))return {ok:false,error:'Another assistant action is running / Başka asistan işlemi sürüyor.'};
   if(input.mode==='refresh')return refreshProposal(event,input);
-  const row=proposals.get(input.proposalId);if(!row||row.sender!==event.sender)return {ok:false,error:'This action expired; ask again / Öneri eskidi; yeniden iste.'};
+  const row=proposals.get(input.proposalId);
+  // No proposal and no receipt: after expiry or a restart nothing can prove whether it ran, so never claim it did not.
+  if(!row)return {ok:false,unconfirmed:true,error:'This card is no longer active (it expired or the app restarted), so whether it ran cannot be confirmed. Check the current state; ask again only if needed. / Bu kart artık etkin değil (süresi doldu veya uygulama yeniden başladı); çalışıp çalışmadığı doğrulanamıyor. Güncel durumu kontrol et; gerekirse yeniden iste.'};
+  if(row.sender!==event.sender)return {ok:false,error:'This action expired; ask again / Öneri eskidi; yeniden iste.'};
+  let dispatched=false,claimed=false;
   try{
-   const current=manifest.clean(input.owner);if(row.expires<Date.now()||!manifest.same(row.owner,current))throw Error('The source or conversation changed / Kaynak veya sohbet değişti.');
+   const current=manifest.clean(input.owner);if(row.expires<Date.now())throw Error('This card expired before it was applied; nothing ran. Ask again. / Kart uygulanmadan eskidi; hiçbir şey çalışmadı. Yeniden iste.');
+   if(!manifest.same(row.owner,current))throw Error('The source or conversation changed / Kaynak veya sohbet değişti.');
    requireOwner(current);registry.validate(row.name,row.args,current);
    if(row.name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,current)||!probe.languages.some(item=>item.id===row.args.caption_id))throw Error('Caption selection expired. Probe again.');}
-   proposals.delete(input.proposalId);
+   proposals.delete(input.proposalId);receipts.claim(input.proposalId,{sender:event.sender.id,owner:current,name:row.name});claimed=true;
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort('timeout'),row.name==='analyze_title_reviews'?420000:['prepare_voice_reference','start_voice_generation','voice_group','pick_local_voice_reference','prepare_book_narration','start_book_narration','book_chapter','export_book_audio','load_title_reviews','get_film_page_info','get_film_person_info','translate_title_synopsis'].includes(row.name)?120000:row.name==='translate_video_captions'?100000:30000);
    const stop=()=>controller.abort('closed');event.sender.once('destroyed',stop);if(event.sender.isDestroyed())stop();
    applications.set(event.sender.id,{id:input.proposalId,controller});
    try{
     if(row.podcastLocator)await podcastSearch(row.podcastLocator);
+    if(row.voiceRunIdentity){
+     // The run, its audio check, its attempt or the open-source match must be exactly what was reviewed; an old card never opens a changed record.
+     const panel=await requestRenderer(event.sender,current,'get_voice_panel',{},controller.signal),detail=voiceRuns.detail(row.args.run_id,{openSource:panel?.openSource||''});
+     if(!detail||JSON.stringify([row.args.run_id,row.args.target,detail.run.state,detail.run.audio_file.check,detail.run.audio_file.seconds,detail.run.attempt,detail.run.source_matches_current_media])!==row.voiceRunIdentity)throw Error('The run, its audio file or the open source changed since this suggestion; nothing was opened. Review it again. / Çalışma, ses dosyası veya açık kaynak bu öneriden sonra değişti; hiçbir şey açılmadı. Yeniden incele.');
+    }
     if(row.feedEntryIdentity&&JSON.stringify(await feedEntry(row.args,event))!==row.feedEntryIdentity)throw Object.assign(Error('Feed entry changed; review again / Akış girdisi değişti; yeniden inceleyin.'),{stale:true});
     if(row.personalMediaIdentity){const state=await requestRenderer(event.sender,current,'read_personal_media',{item_id:row.args.item_id},controller.signal);if(state.status!=='completed'||state.personalIdentity!==row.personalMediaIdentity)throw Object.assign(Error('Personal media changed; review again / Kişisel kayıt değişti; yeniden inceleyin.'),{stale:true});}
-    if(row.selectionIdentity){const translation=row.name==='set_translation_profile',state=await requestRenderer(event.sender,current,translation?'get_translation_profile':'list_voice_references',translation?{profile_id:row.args.profile_id}:{},controller.signal);if(state.status!=='completed'||state.selectionIdentity!==row.selectionIdentity||!translation&&!state.references?.some(ref=>ref.id===row.args.reference_id))throw Object.assign(Error('Selection changed; refresh and review / Seçim değişti; yenileyip inceleyin.'),{stale:true});}if(row.settingsIdentity){const state=await requestRenderer(event.sender,current,row.name!=='configure_voice_generation'?'get_app_preferences':'get_voice_status',{},controller.signal);if(settingsSnapshot(row.name,row.args,state,current)!==row.settingsIdentity)throw Object.assign(Error('Settings changed; refresh and review / Ayarlar değişti; yenileyip inceleyin.'),{stale:true});}if(row.translationIdentity){const state=await requestRenderer(event.sender,current,'get_translation_profile',{profile_id:row.args.translation_profile||row.args.profile_id},controller.signal);if(JSON.stringify(state.profile)!==row.translationIdentity)throw Error('Translation profile changed; ask again / Çeviri profili değişti; yeniden isteyin.');}if(row.workflowIdentity){const state=await requestRenderer(event.sender,current,'get_workflow_settings',{domain:row.args.domain},controller.signal);if(workflowSnapshot(row.name,state)!==row.workflowIdentity)throw Object.assign(Error('Workflow settings changed; refresh and review / İşlem ayarları değişti; yenileyip inceleyin.'),{stale:true});}if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.comparisonIdentity){const state=await requestRenderer(event.sender,current,'compare_film_titles',row.args,controller.signal);if(state.status!=='completed'||JSON.stringify(state.films?.map(f=>[f.item.id,f.item.kind,f.item.title,f.item.year,f.item.imdbId,f.item.tmdbId]))!==row.comparisonIdentity)throw Error('Comparison film changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){const result=await cancelJob(row.args.job_id);return result.ok?{ok:true,result}:{ok:false,error:result.error};}const binding=row.name==='use_job_subtitles'?subtitleBinding(row.args,current):null;const result=await requestRenderer(event.sender,current,row.name,binding?{...row.args,job_id:binding.externalId}:row.args,controller.signal,row.podcastLocator?{kind:'podcast-passage',locator:row.podcastLocator}:row.expectedSettings);if(row.expectedSettings&&result?.status==='failed'&&result.stale===true)throw Object.assign(Error(String(result.error||'Settings changed; refresh and review.').slice(0,300)),{stale:true});const exactId=resolveJobId(result?.jobId);if(result?.status==='accepted'&&exactId){jobBindings.set(exactId,{owner:current,externalId:result.jobId,tool:row.name});while(jobBindings.size>50)jobBindings.delete(jobBindings.keys().next().value);}const continuation=flows.record(row.flow,row.name,row.args,result,resolveJobId(result?.jobId));const invalidated=[];if(['accepted','completed'].includes(result?.status))for(const [id,other] of proposals)if(other.flow===row.flow){proposals.delete(id);invalidated.push(id);}return {ok:true,result:{...result,...continuation,invalidatedProposalIds:invalidated}};}finally{clearTimeout(timer);event.sender.removeListener('destroyed',stop);applications.delete(event.sender.id);}
-  }catch(error){if(error.stale){for(const [id,other] of refreshable)if(other.expires<Date.now())refreshable.delete(id);if(refreshable.size>=100)refreshable.delete(refreshable.keys().next().value);refreshable.set(input.proposalId,row);}return {ok:false,...(error.stale?{stale:true,refreshable:true}:{}),error:String(error.message).slice(0,300)};}
+    if(row.selectionIdentity){const translation=row.name==='set_translation_profile',state=await requestRenderer(event.sender,current,translation?'get_translation_profile':'list_voice_references',translation?{profile_id:row.args.profile_id}:{},controller.signal);if(state.status!=='completed'||state.selectionIdentity!==row.selectionIdentity||!translation&&!state.references?.some(ref=>ref.id===row.args.reference_id))throw Object.assign(Error('Selection changed; refresh and review / Seçim değişti; yenileyip inceleyin.'),{stale:true});}if(row.settingsIdentity){const state=await requestRenderer(event.sender,current,row.name!=='configure_voice_generation'?'get_app_preferences':'get_voice_status',{},controller.signal);if(settingsSnapshot(row.name,row.args,state,current)!==row.settingsIdentity)throw Object.assign(Error('Settings changed; refresh and review / Ayarlar değişti; yenileyip inceleyin.'),{stale:true});}if(row.translationIdentity){const state=await requestRenderer(event.sender,current,'get_translation_profile',{profile_id:row.args.translation_profile||row.args.profile_id},controller.signal);if(JSON.stringify(state.profile)!==row.translationIdentity)throw Error('Translation profile changed; ask again / Çeviri profili değişti; yeniden isteyin.');}if(row.workflowIdentity){const state=await requestRenderer(event.sender,current,'get_workflow_settings',{domain:row.args.domain},controller.signal);if(workflowSnapshot(row.name,state)!==row.workflowIdentity)throw Object.assign(Error('Workflow settings changed; refresh and review / İşlem ayarları değişti; yenileyip inceleyin.'),{stale:true});}if(row.libraryIdentity){const state=await requestRenderer(event.sender,current,'get_title_details',{item_id:row.args.item_id},controller.signal);if(state.identity!==row.libraryIdentity)throw Error('Title changed; ask again.');}if(row.comparisonIdentity){const state=await requestRenderer(event.sender,current,'compare_film_titles',row.args,controller.signal);if(state.status!=='completed'||JSON.stringify(state.films?.map(f=>[f.item.id,f.item.kind,f.item.title,f.item.year,f.item.imdbId,f.item.tmdbId]))!==row.comparisonIdentity)throw Error('Comparison film changed; ask again.');}if(row.collectionIdentity){const state=await requestRenderer(event.sender,current,'get_collection_plan',{plan_id:row.args.plan_id},controller.signal);if(JSON.stringify(state.plan)!==row.collectionIdentity)throw Error('Collection plan changed; ask again.');}if(row.name==='cancel_job'){dispatched=true;const result=await cancelJob(row.args.job_id);if(!result.ok){receipts.drop(input.proposalId);return {ok:false,error:result.error};}const settled={...result};receipts.settle(input.proposalId,{state:'settled',result:settled});return {ok:true,result:settled};}const binding=row.name==='use_job_subtitles'?subtitleBinding(row.args,current):null;dispatched=true;const result=await requestRenderer(event.sender,current,row.name,binding?{...row.args,job_id:binding.externalId}:row.args,controller.signal,row.podcastLocator?{kind:'podcast-passage',locator:row.podcastLocator}:row.expectedSettings);if(row.expectedSettings&&result?.status==='failed'&&result.stale===true)throw Object.assign(Error(String(result.error||'Settings changed; refresh and review.').slice(0,300)),{stale:true});const exactId=resolveJobId(result?.jobId);if(result?.status==='accepted'&&exactId){jobBindings.set(exactId,{owner:current,externalId:result.jobId,tool:row.name});while(jobBindings.size>50)jobBindings.delete(jobBindings.keys().next().value);}const continuation=flows.record(row.flow,row.name,row.args,result,resolveJobId(result?.jobId));const invalidated=[];if(['accepted','completed'].includes(result?.status))for(const [id,other] of proposals)if(other.flow===row.flow){proposals.delete(id);invalidated.push(id);}const settled={...result,...continuation,invalidatedProposalIds:invalidated};receipts.settle(input.proposalId,{state:'settled',result:settled});return {ok:true,result:settled};}finally{clearTimeout(timer);event.sender.removeListener('destroyed',stop);applications.delete(event.sender.id);}
+  }catch(error){if(error.stale){for(const [id,other] of refreshable)if(other.expires<Date.now())refreshable.delete(id);if(refreshable.size>=100)refreshable.delete(refreshable.keys().next().value);refreshable.set(input.proposalId,row);}
+   // After dispatch an error cannot prove the action did not run: report it as unknown, never as a plain failure.
+   if(claimed&&dispatched&&!error.stale){const message='The application result is unknown. Check the current state before asking again; this approval was not re-applied. / Uygulama sonucu bilinmiyor. Yeniden istemeden önce güncel durumu kontrol et; bu onay yeniden uygulanmadı.';receipts.settle(input.proposalId,{state:'unknown',error:message});return {ok:false,uncertain:true,error:message};}
+   if(claimed)receipts.drop(input.proposalId);
+   return {ok:false,...(error.stale?{stale:true,refreshable:true}:{}),error:String(error.message).slice(0,300)};}
  });
  async function refreshProposal(event,input={}){
   if(!authorized(event))return {ok:false,error:'Unauthorized assistant action.'};
@@ -398,7 +466,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    return {ok:true,action:{kind:'app_action',proposalId,tool:fresh.name,label:fresh.label,summary:fresh.summary}};
   }catch(error){return {ok:false,error:String(error.message).slice(0,300)};}finally{clearTimeout(timer);applications.delete(event.sender.id);}
  }
- app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort('closed');for(const row of applications.values())row.controller.abort('closed');for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();refreshable.clear();flows.tokens.clear();captionProbes.clear();jobBindings.clear();});
- return {sessions,proposals,flows,applications};
+ app.once('will-quit',()=>{for(const row of sessions.values())row.controller.abort('closed');for(const row of applications.values())row.controller.abort('closed');for(const row of pending.values())row.finish(null,Error('Application closing.'));proposals.clear();refreshable.clear();receipts.clear();flows.tokens.clear();captionProbes.clear();jobBindings.clear();});
+ return {sessions,proposals,flows,applications,receipts};
 }
 module.exports={register};

@@ -21,7 +21,11 @@ function fromMessage(thread, message, kind) {
   }
   for (const row of message.pageEvidence || []) add(row, 'page', JSON.stringify(row.source));
   for (const row of message.feedEvidence || []) add(row, row.nodeId ? 'recall' : 'feed', JSON.stringify([row.url, row.nodeId, row.revision]));
-  for (const row of message.citations || []) add(row, row.kind === 'film-review' ? 'film-review' : 'book', JSON.stringify([row.sourceId, row.itemId, row.reviewId, row.revision, row.page]));
+  for (const row of message.citations || []) {
+    // Saved podcast text is its own source kind (never a book) and never enters the subtitle timeline.
+    if (row.kind === 'podcast') add({ id: row.id, text: row.quote }, 'podcast', JSON.stringify([row.locator?.token, row.locator?.episode, row.role]));
+    else add(row, row.kind === 'film-review' ? 'film-review' : 'book', JSON.stringify([row.sourceId, row.itemId, row.reviewId, row.revision, row.page]));
+  }
 
   let omitted = 0;
   const passages = message.text.split(/\n\s*\n/).flatMap((text, index) => {

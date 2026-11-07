@@ -88,3 +88,31 @@ test('Podcast question owner uses its frozen audible clock even when the hidden 
   }
  }finally{h.close();}
 });
+
+test('Approval UI keeps a running card pending, marks an unknown result without a retry claim and notes a replay',async()=>{
+ const h=fixture();try{
+  const marked=[];Object.assign(h.w.AssistantWorkspace,{evidence(){},steps(){},actionResult:(id,result)=>marked.push([id,result.status,String(result.note||result.error||'')])});
+  const proposal={proposalId:'p',kind:'app_action'},initial=h.ui.send('Request',{},[],'scope');await new Promise(setImmediate);
+  h.event({type:'proposal',requestId:h.ui.status().id,action:proposal});h.settle({ok:true,text:'Apply first'});await initial;
+  h.w.api.assistantAgentApply=async()=>({ok:false,pending:true,error:'This action is still running / Bu işlem hâlâ sürüyor.'});
+  await assert.rejects(h.ui.apply(proposal),/Bu işlem hâlâ sürüyor/);assert.deepEqual(marked,[],'a running approval is neither failed nor applied');
+  h.w.api.assistantAgentApply=async()=>({ok:false,uncertain:true,error:'Result unknown. / Sonuç bilinmiyor.'});
+  await assert.rejects(h.ui.apply(proposal),/Sonuç bilinmiyor/);assert.deepEqual(marked.at(-1).slice(0,2),['p','unknown']);
+  h.w.api.assistantAgentApply=async()=>({ok:true,replayed:true,result:{status:'accepted',note:'Started'}});
+  await h.ui.apply(proposal);assert.deepEqual(marked.at(-1).slice(0,2),['p','accepted']);assert.match(marked.at(-1)[2],/Started.*yeniden uygulanmadı/);
+  assert.equal(h.ui.busy(),false);
+ }finally{h.close();}
+});
+
+test('Approval UI marks an unconfirmed card unknown and shows the card that is applying',async()=>{
+ const h=fixture();try{
+  const marked=[];Object.assign(h.w.AssistantWorkspace,{evidence(){},steps(){},actionResult:(id,result)=>marked.push([id,result.status])});
+  const proposal={proposalId:'p',kind:'app_action'},initial=h.ui.send('Request',{},[],'scope');await new Promise(setImmediate);
+  h.event({type:'proposal',requestId:h.ui.status().id,action:proposal});h.settle({ok:true,text:'Apply first'});await initial;
+  h.w.api.assistantAgentApply=async()=>({ok:false,unconfirmed:true,error:'Not confirmed. / Doğrulanamıyor.'});
+  assert.equal(h.ui.applyingId(),null);await assert.rejects(h.ui.apply(proposal),/Doğrulanamıyor/);assert.deepEqual(marked.at(-1),['p','unknown']);
+  let release;h.w.api.assistantAgentApply=()=>new Promise(resolve=>{release=resolve;});
+  const running=h.ui.apply(proposal).catch(()=>{});assert.equal(h.ui.applyingId(),'p','the card being applied is known while it runs');
+  release({ok:true,result:{status:'completed'}});await running;assert.equal(h.ui.applyingId(),null);
+ }finally{h.close();}
+});

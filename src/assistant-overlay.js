@@ -14,7 +14,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     contextIsolation: true, sandbox: true, nodeIntegration: false,
     partition: 'assistant-overlay',
   } });
-  let expanded = false, large = false, disposed = false, modalBlocked = false, snapshot = {};
+  let expanded = false, large = false, disposed = false, modalBlocked = false, snapshot = {}, returnFocusToView = false;
   view.setBackgroundColor('#00000000');
   view.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   view.webContents.on('will-navigate', (event, target) => { if (target !== url) event.preventDefault(); });
@@ -56,9 +56,9 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       suggestions: Array.isArray(value.suggestions) ? value.suggestions.slice(0, 5).map(row => ({ id:String(row.id || '').slice(0, 100), direct:!!row.direct, label:String(row.label || '').slice(0, 120), review:String(row.review || '').slice(0, 1800) })) : [],
       messages: Array.isArray(value.messages) ? value.messages.slice(-200).map(row => ({
         steps:require('./assistant-run-steps').clean(row.steps),id:String(row.id||'').slice(0,100),status:String(row.status||'').slice(0,20),
-        actions:Array.isArray(row.actions)?row.actions.slice(0,8).map(a=>({id:String(a.id||'').slice(0,200),kind:String(a.kind||'').slice(0,60),label:String(a.label||'').slice(0,120),canContinue:a.canContinue===true,waiting:a.waiting===true,retryable:a.retryable===true,partial:a.partial===true,flowNote:String(a.flowNote||'').slice(0,300),resultStatus:String(a.resultStatus||'').slice(0,20),refreshable:a.refreshable===true,resultText:String(a.resultText||'').slice(0,500),excerpt:String(a.excerpt||'').slice(0,1200),translation:String(a.translation||'').slice(0,2000)})):[],
-        role: row.role === 'user' ? 'user' : 'ai',loading:!!row.loading,error:!!row.error,text: String(row.text || '').slice(0, 32000),
-        links: Array.isArray(row.links) ? row.links.slice(0, 40).map(link => ({ id: String(link.id || '').slice(0, 200),excerpt:String(link.excerpt||'').slice(0,1200),translation:String(link.translation||'').slice(0,1200), label: String(link.label || '').slice(0, 80) })) : [],
+        actions:Array.isArray(row.actions)?row.actions.slice(0,8).map(a=>({id:String(a.id||'').slice(0,200),live:a.live==='running'?'running':'',activity:a.activity===true,kind:String(a.kind||'').slice(0,60),label:String(a.label||'').slice(0,120),canContinue:a.canContinue===true,waiting:a.waiting===true,retryable:a.retryable===true,partial:a.partial===true,flowNote:String(a.flowNote||'').slice(0,300),resultStatus:String(a.resultStatus||'').slice(0,20),refreshable:a.refreshable===true,resultText:String(a.resultText||'').slice(0,500),excerpt:String(a.excerpt||'').slice(0,1200),translation:String(a.translation||'').slice(0,2000)})):[],
+        role: row.role === 'user' ? 'user' : 'ai',loading:!!row.loading,error:!!row.error,basis:Number.isInteger(row.basis?.unverified)&&row.basis.unverified>0?{unverified:Math.min(40,row.basis.unverified)}:null,text: String(row.text || '').slice(0, 32000),
+        links: Array.isArray(row.links) ? row.links.slice(0, 40).map(link => ({ id: String(link.id || '').slice(0, 200),excerpt:String(link.excerpt||'').slice(0,1200),translation:String(link.translation||'').slice(0,1200), label: String(link.label || '').slice(0, 80),title:String(link.title||'').slice(0,300),meta:String(link.meta||'').slice(0,300),scope:String(link.scope||'').slice(0,300),action:['seek','text'].includes(link.action)?link.action:'',usage:['cited','found','carried'].includes(link.usage)?link.usage:'',more:link.more===true,state:['opening','opened','read-only','stale','unavailable','unconfirmed','cancelled'].includes(link.state)?link.state:'',note:String(link.note||'').slice(0,400) })) : [],
       })) : [],
     };
     if (!view.webContents.isDestroyed()) view.webContents.send('assistant:snapshot', snapshot);
@@ -69,13 +69,15 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     const action = packet.action;
     if (action === 'ready') { view.webContents.send('assistant:snapshot', snapshot); return; }
     if (modalBlocked) return;
+    // A dialog opened from an overlay card hides the overlay; when it closes, keyboard focus must go back to the overlay, not stay in the main page.
+    if (action === 'note') returnFocusToView = true;
     if (action === 'toggle') { expanded = !expanded; window.webContents.send('assistant:visibility',{expanded}); layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
-    if (!['steer','followup','send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','save-dossier','save-timeline','open-artifact','apply-tool','refresh-tool','continue-tool','cancel-job','settings','open-source'].includes(action)) return;
+    if (!['steer','followup','send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','save-dossier','save-timeline','open-artifact','apply-tool','refresh-tool','continue-tool','cancel-job','settings','open-source','note','open-activity'].includes(action)) return;
     window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,8000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
   const show = event => { if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||modalBlocked)return; expanded=true; snapshot.opened=true; view.webContents.send('assistant:snapshot',snapshot); window.webContents.send('assistant:visibility',{expanded}); layout(); };
-  const modalHandler = (event, blocked) => { if (!owner(event)) return; modalBlocked = blocked === true; layout(); };
+  const modalHandler = (event, blocked) => { if (!owner(event)) return; const was = modalBlocked; modalBlocked = blocked === true; layout(); if (was && !modalBlocked && returnFocusToView) { returnFocusToView = false; if (expanded && !disposed && !view.webContents.isDestroyed()) view.webContents.focus(); } else if (!was && !modalBlocked && !returnFocusToView) { /* not a dialog return */ } };
   const parentReady = () => { modalBlocked = false; layout(); };
   const showHandler=(event,...args)=>{if(!owner(event))return;show(event,...args);};
   const updateHandler=(event,...args)=>{if(!owner(event))return;update(event,...args);};

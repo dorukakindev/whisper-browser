@@ -26,6 +26,7 @@
   if(!current(owner))throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
   if(['seek_to_time','open_subtitle_editor','search_subtitles','get_current_subtitle'].includes(name)&&owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track changed. Ask for a new action.','Altyazı izi değişti. Yeni bir işlem isteyin.'));
   if(isCancelled()||Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
+  if(name==='get_voice_panel')return window.AssistantVoiceRuns.panel();
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>isCancelled()||Date.now()>=deadline||!current(owner);
   if(['search_subtitles','get_current_subtitle'].includes(name)){
@@ -74,6 +75,7 @@
   if(registry.get(name)?.domain==='library'||['get_app_preferences','set_app_preferences','undo_app_preferences','navigate_workspace','get_playback_state','playback_control'].includes(name))return window.AssistantLibraryActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings,personalSource:()=>personalSource(owner,()=>{if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));})});
   if(registry.get(name)?.domain==='book')return window.AssistantBookActions.execute(name,args,owner,{deadline,isCancelled});
   if(registry.get(name)?.domain==='voice'&&name!=='open_voice_preparation')return window.AssistantVoiceActions.execute(name,args,owner,{deadline,isCancelled,expectedSettings});
+  if(name==='open_voice_run')return window.AssistantVoiceRuns.open(args,{stale});
   if(name==='get_job_status')return {status:'completed',...await window.api.assistantJobs()};
   if(name==='use_job_subtitles'){
    const track=(player.browserTracks||[]).find(row=>row.backendJobId===args.job_id&&row.role===args.role&&row.path);

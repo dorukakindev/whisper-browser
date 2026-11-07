@@ -82,7 +82,7 @@ test('R844-02 failed translation continuation permits reviewed audio recovery wh
    phase='recovery';turn=0;h.events.length=0;
    const resumed=await h.call('agentRun',{requestId:'recover-after-failure',question:'Restore original audio.',owner:h.owner,continuationId:accepted.result.continuationId});assert.equal(resumed.ok,true,resumed.error);
    const cards=h.events.filter(e=>e.value.type==='proposal');assert.equal(cards.length,nextTool==='restore_original_audio'?1:0);assert.equal(restores,0,'Recovery is still only an unapplied proposal');
-   if(cards.length){const id=cards[0].value.action.proposalId;assert.equal((await h.call('agentApply',{proposalId:id,owner:{...h.owner,thread:'foreign-thread'}})).ok,false);assert.equal(restores,0);const applied=await h.call('agentApply',{proposalId:id,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert.equal(restores,1);assert.equal((await h.call('agentApply',{proposalId:id,owner:h.owner})).ok,false);}
+   if(cards.length){const id=cards[0].value.action.proposalId;assert.equal((await h.call('agentApply',{proposalId:id,owner:{...h.owner,thread:'foreign-thread'}})).ok,false);assert.equal(restores,0);const applied=await h.call('agentApply',{proposalId:id,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert.equal(restores,1);const again=await h.call('agentApply',{proposalId:id,owner:h.owner});assert.deepEqual([again.ok,again.replayed],[true,true]);assert.equal(restores,1,'the repeated approval is replayed, never executed twice');}
   }finally{h.app.emit('will-quit');}
  }
 });
@@ -176,7 +176,7 @@ test('Model proposals do not execute until the same source applies; stale, forei
  const request=h.events.find(row=>row.value.type==='action').value;assert.equal(request.name,'start_whisper');
  assert.equal((await h.call('agentResult',{callId:request.callId,result:{status:'completed'}},{sender:h.sender,senderFrame:'iframe'})).ok,false);
  await h.call('agentResult',{callId:request.callId,result:{status:'accepted',note:'Started'}});
- assert.equal((await apply).result.status,'accepted');assert.equal((await h.call('agentApply',{proposalId:action.proposalId,owner:h.owner})).ok,false);
+ assert.equal((await apply).result.status,'accepted');const replay=await h.call('agentApply',{proposalId:action.proposalId,owner:h.owner});assert.deepEqual([replay.ok,replay.replayed,replay.result.status],[true,true,'accepted']);assert.equal(h.events.filter(row=>row.value.type==='action').length,1,'a repeated approval replays the real result and is never dispatched again');
  h.app.emit('will-quit');
 });
 test('Cancellation affects only the matching request and clears the active session',async()=>{
@@ -398,5 +398,79 @@ test('A resumed "so far" Podcast flow keeps the cutoff of its question on every 
   for(const marker of ['FUTURE_LINE','ACTIVE_LATE_LINE','UNRELATED_HIDDEN_PLAYER','HISTORY_MARKER'])assert(!all.includes(marker),marker+' must never reach the provider');
   assert(late.includes('HEARD_EARLY_LINE'),'the finished line before the question moment stays available');
   assert(!JSON.stringify(h.events.filter(e=>e.value.type==='evidence')).match(/FUTURE_LINE|ACTIVE_LATE_LINE/));
+ }finally{h.app.emit('will-quit');}
+});
+
+const settingsProvider=()=>{let turn=0;return async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'open',function:{name:'open_settings',arguments:'{"section":"general"}'}}]}):reply({role:'assistant',content:'Review it.'});};
+const dispatches=h=>h.events.filter(row=>row.value.type==='action').length;
+test('A repeated approval replays the one verified result, reports a running one as pending and never dispatches twice',async()=>{
+ const h=fixture(settingsProvider());
+ try{
+  await h.call('agentRun',{requestId:'dup',question:'Open settings',owner:h.owner});
+  const proposal=h.events.find(r=>r.value.type==='proposal').value.action,id=proposal.proposalId;
+  const first=h.call('agentApply',{proposalId:id,owner:h.owner});await new Promise(r=>setImmediate(r));
+  const request=h.events.find(r=>r.value.type==='action').value;
+  const during=await h.call('agentApply',{proposalId:id,owner:h.owner});
+  assert.deepEqual([during.ok,during.pending],[false,true],'a duplicate while running is a still-running state');assert.equal(dispatches(h),1);
+  await h.call('agentResult',{callId:request.callId,result:{status:'completed',note:'Opened'}});
+  const applied=await first;assert.equal(applied.ok,true);
+  // The response was lost and the user retries the same card.
+  const retry=await h.call('agentApply',{proposalId:id,owner:h.owner});
+  assert.equal(retry.ok,true);assert.equal(retry.replayed,true);assert.deepEqual(retry.result,applied.result);assert.equal(dispatches(h),1);
+  assert.equal((await h.call('agentApply',{proposalId:id,owner:{...h.owner,thread:'other'}})).ok,false,'a changed conversation never replays');
+  assert.equal((await h.call('agentApply',{proposalId:id,owner:{...h.owner,generation:9}})).ok,false,'a changed source never replays');
+  assert.equal((await h.call('agentApply',{proposalId:id,owner:h.owner},{sender:{id:8},senderFrame:'main'})).ok,false,'another window cannot read it');
+  // A receipt is bounded in time: once expired it explains nothing and authorizes nothing.
+  h.service.receipts.get(id).expires=Date.now()-1;
+  const late=await h.call('agentApply',{proposalId:id,owner:h.owner});assert.equal(late.ok,false);assert.match(late.error,/expired/);assert.equal(h.service.receipts.size,0);assert.equal(dispatches(h),1);
+ }finally{h.app.emit('will-quit');}
+});
+test('A window closing after dispatch leaves an unknown result that is never re-applied or reported as a plain failure',async()=>{
+ const h=fixture(settingsProvider());
+ try{
+  await h.call('agentRun',{requestId:'lost',question:'Open settings',owner:h.owner});
+  const id=h.events.find(r=>r.value.type==='proposal').value.action.proposalId;
+  const applying=h.call('agentApply',{proposalId:id,owner:h.owner});await new Promise(r=>setImmediate(r));
+  h.sender.isDestroyed=()=>true;h.sender.emit('destroyed');
+  const lost=await applying;assert.deepEqual([lost.ok,lost.uncertain],[false,true]);assert.match(lost.error,/unknown/i);assert.match(lost.error,/Uygulama sonucu bilinmiyor/);assert(!/Another|failed/i.test(lost.error));
+  h.sender.isDestroyed=()=>false;
+  const again=await h.call('agentApply',{proposalId:id,owner:h.owner});
+  assert.deepEqual([again.ok,again.uncertain,again.replayed],[false,true,true]);assert.equal(dispatches(h),1,'the unknown action is not dispatched again');
+  assert.equal(h.service.applications.size,0);
+ }finally{h.app.emit('will-quit');}
+});
+test('A failure before dispatch stays a certain failure and leaves no receipt',async()=>{
+ const h=fixture(settingsProvider());
+ try{
+  await h.call('agentRun',{requestId:'pre',question:'Open settings',owner:h.owner});
+  const id=h.events.find(r=>r.value.type==='proposal').value.action.proposalId;
+  assert.equal((await h.call('agentApply',{proposalId:id,owner:{...h.owner,thread:'B'}})).ok,false);assert.equal(h.service.receipts.size,0);assert.equal(dispatches(h),0);
+  const applying=h.call('agentApply',{proposalId:id,owner:h.owner});await new Promise(r=>setImmediate(r));
+  const request=h.events.find(r=>r.value.type==='action').value;
+  await h.call('agentResult',{callId:request.callId,result:{status:'failed',error:'Settings window refused.'}});
+  const result=await applying;assert.equal(result.ok,true);assert.equal(result.result.status,'failed');
+  assert.deepEqual((await h.call('agentApply',{proposalId:id,owner:h.owner})).result,result.result,'the real failed result is what a repeat sees');
+ }finally{h.app.emit('will-quit');}
+});
+test('Approval receipts are bounded, expire, never prune running entries and cannot authorize',()=>{
+ let clock=1000;const store=require('../src/assistant-receipts').createReceipts({ttl:50,max:3,now:()=>clock});
+ store.claim('run',{sender:1,owner:{},name:'x'});
+ for(const id of ['a','b','c','d']){store.claim(id,{sender:1,owner:{},name:'x'});store.settle(id,{state:'settled',result:{id}});}
+ assert.equal(store.get('run').state,'applying','a running entry is never pruned');
+ assert.equal(store.get('a'),null);assert.equal(store.get('b'),null);assert.equal(store.get('d').result.id,'d');assert(store.size<=3);
+ clock+=51;assert.equal(store.get('d'),null,'settled entries expire');assert.equal(store.get('run').state,'applying');
+ store.drop('run');assert.equal(store.size,0);
+});
+
+test('A card that is no longer active never claims it did not run, and an expired unclaimed card says nothing ran',async()=>{
+ const h=fixture(settingsProvider());
+ try{
+  await h.call('agentRun',{requestId:'expiry',question:'Open settings',owner:h.owner});
+  const id=h.events.find(r=>r.value.type==='proposal').value.action.proposalId;
+  h.service.proposals.get(id).expires=Date.now()-1;
+  const expired=await h.call('agentApply',{proposalId:id,owner:h.owner});
+  assert.equal(expired.ok,false);assert.match(expired.error,/expired before it was applied; nothing ran/);assert.equal(expired.unconfirmed,undefined);assert.equal(dispatches(h),0);
+  const unknown=await h.call('agentApply',{proposalId:'never-seen-proposal',owner:h.owner});
+  assert.deepEqual([unknown.ok,unknown.unconfirmed],[false,true]);assert.match(unknown.error,/cannot be confirmed/);assert.doesNotMatch(unknown.error,/did not run|nothing ran/i);assert.equal(dispatches(h),0);
  }finally{h.app.emit('will-quit');}
 });

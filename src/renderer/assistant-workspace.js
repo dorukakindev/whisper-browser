@@ -103,6 +103,7 @@
  }
  function resume(proposalId,context){const thread=current(),reply=thread?.messages.find(row=>row.actions?.some(action=>action.proposalId===proposalId));if(!reply||thread.headId!==reply.id)throw Error(t('Continue only the latest reply in this conversation.','Bu sohbette yalnız son yanıttan devam edilebilir.'));restoreLog();const bubble=[...document.querySelectorAll('#aiChatLog .ai-msg')].find(node=>node._assistantMessageId===reply.id&&node._assistantThreadId===thread.id&&node._sourceScope===aiSourceScope());if(!bubble)throw Error('Reply is unavailable.');reply.status='streaming';bubble.classList.add('is-loading');bubble.classList.remove('ai-msg-err');const job={chatContext:context,sourceScope:aiSourceScope(),bubble};own(job,thread,reply);scheduleFlush(thread);changed();return {job,text:reply.text,actions:reply.actions||[],evidence:reply.evidence||[],citations:reply.citations||[],steps:reply.steps||[],runtimeMessages:reply.runtimeMessages||[]};}
  function citations(job,rows){const rec=record(job);if(!rec)return;rec.reply.citations=structuredClone(rows||[]);scheduleFlush(rec.thread);changed();}
+ function basis(job,value){const rec=record(job);if(!rec)return;rec.reply.basis={unverified:Math.max(0,Math.min(40,Math.trunc(Number(value?.unverified))||0))};scheduleFlush(rec.thread);changed();}
  function runtime(job,rows){const rec=record(job);if(!rec)return;rec.reply.runtimeMessages=structuredClone(rows||[]).slice(-8);scheduleFlush(rec.thread);changed();}
  function steps(job,rows){const rec=record(job);if(!rec)return;rec.reply.steps=window.AssistantRunSteps.clean(rows);scheduleFlush(rec.thread);changed();}
  function partial(job,text){const rec=record(job);if(!rec)return;rec.reply.text=String(text||'').slice(0,32000);scheduleFlush(rec.thread);changed();}
@@ -124,7 +125,7 @@
  function actionResult(proposalId,result){
   for(const value of cache.values())for(const thread of value.threads)for(const message of thread.messages){
    const action=message.actions?.find(row=>row.proposalId===proposalId);if(!action)continue;
-   action.resultStatus=['accepted','completed','failed','stopped'].includes(result?.status)?result.status:'failed';
+   action.resultStatus=['accepted','completed','failed','stopped','unknown'].includes(result?.status)?result.status:'failed';
     message.steps=window.AssistantRunSteps.settle(message.steps,proposalId,{status:action.resultStatus});
    action.refreshable=action.resultStatus==='failed'&&result?.refreshable===true;
    action.resultText=String(result?.note||result?.error||'').slice(0,500);void persist(thread);changed();return;
@@ -164,7 +165,7 @@
   const step=Math.max(1,Math.ceil(eligible.length/3000));const pool=eligible.filter((row,index)=>index%step===0||row.start<=now&&row.end>=now).slice(0,3100).map(row=>({id:row.id,start:row.start,end:row.end,text:String(row.text||'').slice(0,500),translation:String(row.translation||'').slice(0,500)}));
   return {enabled:pool.length>0,time:now,scope,truncated:step>1,rows:pool};
  }
- window.AssistantWorkspace=Object.freeze({key,snapshot,artifact,openArtifact,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,runtime,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,activeId:(sourceKey=key())=>cache.get(sourceKey)?.active||''});
+ window.AssistantWorkspace=Object.freeze({basis,key,snapshot,artifact,openArtifact,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,runtime,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,activeId:(sourceKey=key())=>cache.get(sourceKey)?.active||''});
  document.addEventListener('media-context-changed',()=>{if(workspaceState())restoreLog();});
  window.addEventListener('pagehide',()=>{const pending=new Set(flushTimers.keys());for(const thread of pending)cancelFlush(thread);for(const state of cache.values())for(const thread of state.threads)if(pending.has(thread)||thread.messages.some(row=>row.status==='streaming'))void persist(thread);});
 })();
