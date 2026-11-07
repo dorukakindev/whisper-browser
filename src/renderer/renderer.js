@@ -7429,8 +7429,8 @@ async function changeBrowserZoom(command) {
   return result;
 }
 
-function navigateBrowser(url, tabId = player.browserActiveTabId) {
-  return window.api.navigateBrowser(tabId, url);
+function navigateBrowser(url, tabId = player.browserActiveTabId, options = {}) {
+  return window.api.navigateBrowser(tabId, url, options);
 }
 
 // R123-D1: Favicon'u olmayan/yüklenemeyen sekmede boş alan yerine alan adının
@@ -19603,8 +19603,117 @@ function researchLibraryFilters() {
     tag: String($('researchTag')?.value || '').trim(),
     type: $('researchType')?.value || 'all',
     status: $('researchStatus')?.value || 'all',
+    mediaType: $('researchMedia')?.value || 'all',
     dueOnly: playerLibraryView === 'reviews',
   };
+}
+
+// ---- research notebook: provenance, verified time, edit conflicts, kept place ------------------------------------------------
+// The quote (original), the saved translation and the person's own note are different things and are labelled as such. A time is
+// shown only when the record proves one; otherwise the card says so instead of showing 0:00.
+const researchDraftCache = new Map(), researchSelected = new Set();
+const researchConflicts = new Map(), researchOpenNotes = new Map(), researchOpening = new Set();
+let researchReturnState = null;
+function researchTimeLabel(annotation) {
+  const start = Number(annotation.start);
+  const proven = annotation.timed === true && Number.isFinite(start) && start >= 0 && (start > 0 || !!annotation.cueId || !!annotation.trackId);
+  if (proven) return pSecToTime(start);
+  return annotation.timed === false ? interfaceChoice('Zamansız metin', 'Untimed text') : interfaceChoice('Zaman doğrulanmadı', 'Time not verified');
+}
+function researchSourceLabel(annotation) {
+  const name = ({ podcast: 'Podcast', youtube: 'YouTube', local: interfaceChoice('Yerel', 'Local'), browser: interfaceChoice('Tarayıcı', 'Browser') })[annotation.mediaType];
+  return name ? `${name} · ` : '';
+}
+function researchCardLabel(text) {
+  const label = document.createElement('small'); label.className = 'research-card-label'; label.textContent = text; return label;
+}
+function appendResearchConflict(card, annotation) {
+  const conflict = researchConflicts.get(annotation.id);
+  if (!conflict) return;
+  const panel = document.createElement('div'); panel.className = 'research-card-conflict'; panel.setAttribute('role', 'alert');
+  const lead = document.createElement('p');
+  lead.textContent = conflict.current
+    ? interfaceChoice('Bu not başka bir yerde değişti. Taslağın korunuyor; hiçbir şey kaydedilmedi.', 'This note changed elsewhere. Your draft is kept; nothing was saved.')
+    : interfaceChoice('Bu not başka bir yerde kaldırılmış. Taslağın korunuyor; hiçbir şey kaydedilmedi.', 'This note was removed elsewhere. Your draft is kept; nothing was saved.');
+  panel.appendChild(lead);
+  if (conflict.current) {
+    panel.appendChild(researchCardLabel(interfaceChoice('Kayıtlı güncel not', 'Saved current note')));
+    const current = document.createElement('blockquote'); current.dataset.uiUntranslated = '';
+    current.textContent = conflict.current.note || interfaceChoice('(boş)', '(empty)'); panel.appendChild(current);
+  }
+  const bar = document.createElement('div'); bar.className = 'research-card-actions';
+  const options = conflict.current
+    ? [['reload', interfaceChoice('Güncel notu yükle (taslağı bırak)', 'Load the current note (drop my draft)')], ['overwrite', interfaceChoice('Taslağımı kaydet (güncel notun üzerine)', 'Save my draft (over the current note)')]]
+    : [['overwrite', interfaceChoice('Taslağımı yeni not olarak kaydet', 'Save my draft as a new note')], ['reload', interfaceChoice('Taslağı bırak', 'Drop my draft')]];
+  for (const [action, text] of options) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'link-btn'; button.dataset.researchConflict = action; button.textContent = text; bar.appendChild(button);
+  }
+  panel.appendChild(bar); card.appendChild(panel);
+}
+function researchUiState(list) {
+  const focused = document.activeElement, card = focused && typeof focused.closest === 'function' ? focused.closest('[data-research-id]') : null;
+  const inside = !!card && list.contains(focused);
+  const field = inside ? (focused.dataset.researchField ? `[data-research-field="${focused.dataset.researchField}"]` : focused.dataset.researchAction ? `[data-research-action="${focused.dataset.researchAction}"]` : focused.dataset.researchConflict ? `[data-research-conflict="${focused.dataset.researchConflict}"]` : null) : null;
+  return { scrollTop: list.scrollTop, id: inside ? card.dataset.researchId : '', field, selection: inside && typeof focused.selectionStart === 'number' ? [focused.selectionStart, focused.selectionEnd] : null };
+}
+function restoreResearchUi(list, state) {
+  list.scrollTop = Math.max(0, Math.min(state.scrollTop, list.scrollHeight));
+  // Focus returns only if it was inside the list; a redraw never takes focus from the search box or anywhere else.
+  if (!state.id || !state.field) return;
+  const card = [...list.querySelectorAll('[data-research-id]')].find(item => item.dataset.researchId === state.id);
+  const target = card?.querySelector(state.field) || card?.querySelector('[data-research-field="note"]');
+  if (!target) return;
+  target.focus({ preventScroll: true });
+  if (state.selection && typeof target.setSelectionRange === 'function') { try { target.setSelectionRange(state.selection[0], state.selection[1]); } catch (_) {} }
+}
+function renderResearchLibrary(drafts = captureResearchLibraryDrafts(), returning = null) {
+  const list = $('playerLibraryList');
+  let state = list ? researchUiState(list) : null;
+  // Coming back from a source the list was hidden (its scroll is gone): the place remembered before leaving is used, once.
+  if (state && returning && !state.id && state.scrollTop === 0) state = returning;
+  renderResearchLibraryBody(drafts);
+  if (list && state) restoreResearchUi(list, state);
+}
+function appendResearchOpenNote(card, annotation) {
+  const note = researchOpenNotes.get(annotation.id);
+  if (!note) return;
+  const line = document.createElement('p'); line.className = 'research-card-open-note'; line.dataset.tone = note.tone; line.setAttribute('role', 'status'); line.textContent = note.text;
+  card.appendChild(line);
+}
+function researchCardFields(card, annotation) {
+  const note = card.querySelector('[data-research-field="note"]')?.value || '';
+  const tagText = card.querySelector('[data-research-field="tags"]')?.value || '';
+  const tags = tagText === (annotation.tags || []).join(', ') ? annotation.tags : tagText;
+  const linkText = card.querySelector('[data-research-field="links"]')?.value || '';
+  const savedLinks = (annotation.links || []).map(link => link.label ? `${link.label} | ${link.url}` : link.url).join('\n');
+  const links = linkText === savedLinks ? annotation.links : researchLinksFromText(linkText);
+  if ((links || []).some(link => { try { return !['http:', 'https:'].includes(new URL(link.url).protocol); } catch (_) { return true; } })) return null;
+  return { note, tags, links };
+}
+// Saves with the revision the list was read at. A conflict writes nothing and keeps the draft.
+async function saveResearchCard(card, annotation, fields, expectRevision) {
+  const { revision, ...stored } = annotation, payload = { ...stored, ...fields };
+  const call = window.api.saveResearchAnnotation && expectRevision ? window.api.saveResearchAnnotation(payload, expectRevision) : window.api.upsertResearchAnnotation(payload);
+  const result = await Promise.resolve(call).catch((error) => ({ ok: false, error: error.message }));
+  if (!['research','reviews'].includes(playerLibraryView)) return result;
+  if (result?.code === 'target-changed') {
+    const keepFocus=card.contains(document.activeElement);
+    researchConflicts.set(annotation.id, { current: result.current || null });
+    renderResearchLibrary(captureResearchLibraryDrafts());
+    if(keepFocus) $('playerLibraryList')?.querySelector(`[data-research-id="${CSS.escape(annotation.id)}"] [data-research-conflict]`)?.focus({ preventScroll: false });
+    return result;
+  }
+  if (!result?.ok) { researchOpenNotes.set(annotation.id,{tone:'bad',text:result?.committed?interfaceChoice('Not yazıldı, ancak diske kalıcılığı doğrulanamadı. Yenile ve güncel notu kontrol et; yeniden kaydetme.','The note was written, but durability was not confirmed. Refresh and inspect it before saving again.'):interfaceChoice('Not kaydedilemedi. Taslağın korunuyor; bağlantıyı kontrol edip yeniden dene.','The note could not be saved. Your draft is kept; check the connection and retry.')});renderResearchLibrary(captureResearchLibraryDrafts());logLine(`Araştırma notu kaydedilemedi: ${result?.error || 'bilinmeyen hata'}`, 'error'); return result; }
+  researchConflicts.delete(annotation.id);researchOpenNotes.delete(annotation.id);
+  const edits = captureResearchLibraryDrafts(), liveCard = [...($('playerLibraryList')?.querySelectorAll('[data-research-id]') || [])].find(row=>row.dataset.researchId===annotation.id);
+  const liveFields = liveCard && researchCardFields(liveCard, annotation);
+  if (JSON.stringify(liveFields) === JSON.stringify(fields)) { edits.delete(annotation.id); researchDraftCache.delete(annotation.id); }
+  else if (edits.has(annotation.id)) edits.set(annotation.id, {...edits.get(annotation.id), revision:result.annotation?.revision || annotation.revision});
+  const at=researchAnnotations.findIndex(row=>row.id===annotation.id);
+  if(at>=0&&result.annotation)researchAnnotations[at]=result.annotation;
+  for(const [id,draft]of edits)researchDraftCache.set(id,draft);
+  renderResearchLibrary(edits); osd('Araştırma notu kaydedildi'); await loadResearchLibrary();
+  return result;
 }
 
 function researchTypeLabel(type) {
@@ -19626,7 +19735,7 @@ function researchLinksFromText(value) {
 }
 
 function captureResearchLibraryDrafts() {
-  const drafts = new Map();
+  const drafts = new Map(researchDraftCache);
   for (const card of $('playerLibraryList')?.querySelectorAll('[data-research-id]') || []) {
     const row = researchAnnotations.find(item => item.id === card.dataset.researchId);
     if (!row) continue;
@@ -19636,16 +19745,19 @@ function captureResearchLibraryDrafts() {
       note: row.note || '', tags: (row.tags || []).join(', '),
       links: (row.links || []).map(link => link.label ? `${link.label} | ${link.url}` : link.url).join('\n'),
     };
-    if (Object.keys(saved).some(field => saved[field] !== values[field])) drafts.set(row.id, values);
+    if (Object.keys(saved).some(field => saved[field] !== values[field])) drafts.set(row.id, {...values,revision:drafts.get(row.id)?.revision || row.revision,base: drafts.get(row.id)?.base || row});
+    else drafts.delete(row.id);
   }
+  researchDraftCache.clear(); for(const [id,draft]of drafts)researchDraftCache.set(id,draft);
   return drafts;
 }
-function renderResearchLibrary(drafts = captureResearchLibraryDrafts()) {
+function renderResearchLibraryBody(drafts) {
   const list = $('playerLibraryList');
   const status = $('playerLibraryStatus');
   if (!list || !status) return;
   list.replaceChildren();
   const reviewMode = playerLibraryView === 'reviews';
+  const mediaSelect=$('researchMedia');if(mediaSelect){mediaSelect.setAttribute('aria-label',interfaceChoice('Kaynak türü','Source type'));for(const option of mediaSelect.options)option.textContent=({all:interfaceChoice('Tüm kaynaklar','All sources'),podcast:'Podcast',youtube:'YouTube',local:interfaceChoice('Yerel dosya','Local file'),browser:interfaceChoice('Tarayıcı','Browser')})[option.value]||option.textContent;}
   status.textContent = reviewMode
     ? `${researchAnnotations.length} tekrar kartı şimdi çalışılabilir.`
     : `${researchAnnotations.length} araştırma kaydı.`;
@@ -19656,31 +19768,45 @@ function renderResearchLibrary(drafts = captureResearchLibraryDrafts()) {
       : 'Kaydettiğiniz replikler, kelimeler ve notlar burada görünecek.';
     list.appendChild(empty); return;
   }
+  const tools=document.createElement('div');tools.className='research-selection-bar';
+  const compare=document.createElement('button');compare.className='link-btn';compare.textContent=interfaceChoice('Seçili notları asistanla karşılaştır','Compare selected notes with the assistant');
+  const selected=researchAnnotations.filter(row=>researchSelected.has(row.id));compare.disabled=!selected.length||selected.length>8;
+  const count=document.createElement('span');count.textContent=interfaceChoice(`${selected.length} not seçili · en fazla 8`,`${selected.length} notes selected · up to 8`);
+  compare.onclick=()=>{const question=interfaceChoice('Yalnız şu kayıtlı notları read_research_notes ile oku ve ortak fikir, karşıt noktalar ve yetersiz kanıtı ayır. Özgün alıntıyla kişisel yorumu karıştırma. Kalıcı kayıt yapma. Not kimlikleri: ','Use read_research_notes to read only these saved note IDs; compare common ideas, contrary points and insufficient evidence. Keep source quotations and personal interpretation separate. Do not save anything. IDs: ')+JSON.stringify(selected.map(row=>row.id));window.api.showAssistant?.();void aiChatSend(question);};
+  tools.append(count,compare);list.append(tools);
   for (const annotation of researchAnnotations) {
     const card = document.createElement('article'); card.className = 'research-card'; card.dataset.researchId = annotation.id;
     const head = document.createElement('div'); head.className = 'research-card-head';
     const title = document.createElement('strong'); title.dataset.uiUntranslated = '';
     title.textContent = annotation.mediaTitle || annotation.mediaId || uiText('İsimsiz içerik');
     const meta = document.createElement('span');
-    meta.textContent = `${uiText(researchTypeLabel(annotation.type))} · ${uiText(researchStatusLabel(annotation.status))} · ${annotation.timed === false ? interfaceChoice('Zamansız metin', 'Untimed text') : pSecToTime(annotation.start || 0)}`;
-    head.append(title, meta); card.appendChild(head);
+    meta.textContent = `${researchSourceLabel(annotation)}${uiText(researchTypeLabel(annotation.type))} · ${uiText(researchStatusLabel(annotation.status))} · ${researchTimeLabel(annotation)}`;
+    const select=document.createElement('input');select.type='checkbox';select.dataset.researchField='selected';select.checked=researchSelected.has(annotation.id);select.setAttribute('aria-label',interfaceChoice('Karşılaştırmak için seç: ','Select to compare: ')+(annotation.mediaTitle||annotation.id));
+    select.onchange=()=>{if(select.checked)researchSelected.add(annotation.id);else researchSelected.delete(annotation.id);renderResearchLibrary(captureResearchLibraryDrafts());};
+    head.append(select,title, meta); card.appendChild(head);
     if (annotation.source) {
+      card.appendChild(researchCardLabel(interfaceChoice('Özgün alıntı', 'Original quote')));
       const quote = document.createElement('blockquote'); quote.dataset.uiUntranslated = '';
       quote.textContent = annotation.source; card.appendChild(quote);
     }
     if (annotation.translation) {
+      card.appendChild(researchCardLabel(interfaceChoice('Kayıtlı çeviri', 'Saved translation')));
       const translation = document.createElement('p'); translation.className = 'research-card-translation';
       translation.dataset.uiUntranslated = '';
       translation.textContent = annotation.translation; card.appendChild(translation);
     }
-    const note = document.createElement('textarea'); note.rows = 2; note.dataset.researchField = 'note';
+    card.appendChild(researchCardLabel(interfaceChoice('Notun', 'Your note')));
+    const note = document.createElement('textarea'); note.rows = 2; note.dataset.researchField = 'note'; note.setAttribute('aria-label', interfaceChoice('Notun', 'Your note'));
     note.value = drafts.get(annotation.id)?.note ?? annotation.note ?? ''; note.placeholder = 'Bu alıntı veya kelime hakkında notunuz…';
     const tags = document.createElement('input'); tags.type = 'text'; tags.dataset.researchField = 'tags';
     tags.value = drafts.get(annotation.id)?.tags ?? (annotation.tags || []).join(', '); tags.placeholder = 'Etiketler (virgülle ayırın)';
     const links = document.createElement('textarea'); links.rows = 2; links.dataset.researchField = 'links';
     links.value = drafts.get(annotation.id)?.links ?? (annotation.links || []).map((link) => link.label ? `${link.label} | ${link.url}` : link.url).join('\n');
     links.placeholder = 'Kaynak bağlantıları — her satıra bir URL';
-    card.append(note, tags, links);
+    const extra=document.createElement('details');extra.className='research-card-extra';const extraLabel=document.createElement('summary');extraLabel.textContent=interfaceChoice('Etiketler ve bağlantılar','Tags & links');extra.append(extraLabel,tags,links);
+    card.append(note, extra);
+    appendResearchConflict(card, annotation);
+    appendResearchOpenNote(card, annotation);
     if ((annotation.tags || []).length) {
       const tagList = document.createElement('div');
       for (const tag of annotation.tags) {
@@ -19720,12 +19846,16 @@ async function loadResearchLibrary() {
   if (seq !== researchLoadSeq || !['research', 'reviews'].includes(playerLibraryView)) return;
   $('playerLibraryList')?.setAttribute('aria-busy', 'false');
   if (!result?.ok) {
+    $('playerLibraryStatus').textContent=interfaceChoice('Defter yenilenemedi. Önceki kayıtlar ve taslakların korunuyor; yeniden dene.','The notebook could not refresh. Previous notes and your drafts are kept; retry.');
     logLine(`Araştırma defteri okunamadı: ${result?.error || 'bilinmeyen hata'}`, 'error');
     return;
   }
   const drafts = captureResearchLibraryDrafts();
   researchAnnotations = result?.annotations || [];
-  renderResearchLibrary(drafts);
+  for(const row of researchAnnotations){const draft=drafts.get(row.id);if(draft?.revision&&draft.revision!==row.revision)researchConflicts.set(row.id,{current:row});}
+  // The remembered place is used only once, only with the same filters, and not when it is old.
+  const remembered = researchReturnState; researchReturnState = null;
+  renderResearchLibrary(drafts, remembered && remembered.filters === JSON.stringify(researchLibraryFilters()) && Date.now() - remembered.at < 600000 ? remembered : null);
 }
 
 async function handleResearchLibraryAction(event) {
@@ -19741,30 +19871,54 @@ async function handleResearchLibraryAction(event) {
     else { osd('Tekrar planı güncellendi'); await loadResearchLibrary(); }
     return;
   }
+  const conflictAction = event.target.closest('[data-research-conflict]')?.dataset.researchConflict;
+  if (conflictAction) {
+    const conflict = researchConflicts.get(annotation.id);
+    if (!conflict) return;
+    if (conflictAction === 'reload') {
+      researchConflicts.delete(annotation.id);
+      const at = researchAnnotations.findIndex(item => item.id === annotation.id);
+      if (at >= 0 && conflict.current) researchAnnotations[at] = conflict.current; else if (at >= 0) researchAnnotations.splice(at, 1);
+      const drafts = captureResearchLibraryDrafts(); drafts.delete(annotation.id); researchDraftCache.delete(annotation.id); renderResearchLibrary(drafts);
+    } else if (conflictAction === 'overwrite') {
+      const fields = researchCardFields(card, annotation);
+      if (!fields) { logLine(window.UiLocale?.get?.() === 'tr' ? 'Kaynak bağlantısı geçersiz. Not kaydedilmedi; bağlantıyı düzeltin.' : 'Invalid source link. The note was not saved; correct the link.', 'error'); return; }
+      await saveResearchCard(card, annotation, fields, conflict.current?.revision || 'new');
+    }
+    return;
+  }
   const action = event.target.closest('[data-research-action]')?.dataset.researchAction;
   if (action === 'save') {
-    const note = card.querySelector('[data-research-field="note"]')?.value || '';
-    const tagText = card.querySelector('[data-research-field="tags"]')?.value || '';
-    const tags = tagText === (annotation.tags || []).join(', ') ? annotation.tags : tagText;
-    const linkText = card.querySelector('[data-research-field="links"]')?.value || '';
-    const savedLinks = (annotation.links || []).map(link => link.label ? `${link.label} | ${link.url}` : link.url).join('\n');
-    const links = linkText === savedLinks ? annotation.links : researchLinksFromText(linkText);
-    if ((links || []).some(link => {try {return !['http:', 'https:'].includes(new URL(link.url).protocol);} catch (_) {return true;}})) {
+    const fields = researchCardFields(card, annotation);
+    if (!fields) {
       logLine(window.UiLocale?.get?.() === 'tr' ? 'Kaynak bağlantısı geçersiz. Not kaydedilmedi; bağlantıyı düzeltin.' : 'Invalid source link. The note was not saved; correct the link.', 'error');
       return;
     }
-    const result = await window.api.upsertResearchAnnotation({ ...annotation, note, tags, links })
-      .catch((error) => ({ ok: false, error: error.message }));
-    if (!result?.ok) logLine(`Araştırma notu kaydedilemedi: ${result?.error || 'bilinmeyen hata'}`, 'error');
-    else { osd('Araştırma notu kaydedildi'); await loadResearchLibrary(); }
+    await saveResearchCard(card, annotation, fields, researchDraftCache.get(annotation.id)?.revision || annotation.revision);
   } else if (action === 'open') {
-    await openUnifiedLibraryResult({
-      id: annotation.id, annotationId: annotation.id, kind: 'notes', anchor: annotation.anchor,
-      mediaId: annotation.mediaId, mediaType: annotation.mediaType, title: annotation.mediaTitle,
-      url: annotation.mediaUrl, seconds: annotation.start,
-      timed: annotation.timed, sourceVersion: annotation.sourceVersion, sourceBinding: annotation.sourceBinding,
-      episodeIdentity: annotation.episodeIdentity, playbackOwner: annotation.playbackOwner, sourceEntryId: annotation.sourceEntryId,
-    });
+    // One open per note at a time. The place in the list is remembered for the way back; a source that cannot be opened is said
+    // on the card itself with the next step, and the saved quote and note stay readable and editable.
+    if (researchOpening.has(annotation.id)) return;
+    researchOpening.add(annotation.id);
+    researchReturnState = { ...researchUiState($('playerLibraryList')), filters: JSON.stringify(researchLibraryFilters()), at: Date.now() };
+    researchOpenNotes.set(annotation.id, { tone: 'info', text: interfaceChoice('Kaynak açılıyor…', 'Opening the source…') });
+    renderResearchLibrary(captureResearchLibraryDrafts());
+    let opened = false;
+    try {
+      opened = await openUnifiedLibraryResult({
+        id: annotation.id, annotationId: annotation.id, kind: 'notes', anchor: annotation.anchor,
+        mediaId: annotation.mediaId, mediaType: annotation.mediaType, title: annotation.mediaTitle,
+        url: annotation.mediaUrl, seconds: annotation.timed === true ? annotation.start : null,
+        timed: annotation.timed, sourceVersion: annotation.sourceVersion, sourceBinding: annotation.sourceBinding,
+        episodeIdentity: annotation.episodeIdentity, playbackOwner: annotation.playbackOwner, sourceEntryId: annotation.sourceEntryId,
+      });
+    } catch (_) { opened = false; }
+    researchOpening.delete(annotation.id);
+    if (opened === false) {
+      researchReturnState = null;
+      researchOpenNotes.set(annotation.id, { tone: 'bad', text: interfaceChoice('Kaynak açılamadı. Alıntın ve notun korunuyor. Kaynağı kütüphanede yeniden aç veya yeniden bağla, sonra tekrar dene.', 'The source could not be opened. Your quote and note are kept. Reopen or relink the source in the library, then try again.') });
+    } else researchOpenNotes.delete(annotation.id);
+    renderResearchLibrary(captureResearchLibraryDrafts());
   }
 }
 
@@ -20686,13 +20840,13 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
   const assistantConfig=assistantProviderSelection();
   const chatConfig=independentAgent?assistantConfig:{apiKey:opts.translateApiKey,endpoint:opts.translateBaseUrl};
   if (!translationEndpointReady(chatConfig.apiKey, chatConfig.endpoint)) {
+    if(requestOptions.responseContract==='review-analysis')throw Error(window.UiLocale?.get?.()==='tr'?'Asistan sağlayıcısı hazır değil. Ayarlar → Asistan ve çeviri bölümünü kontrol edin.':'The assistant provider is not ready. Check Settings → Assistant & translation.');
     aiChatAdd('ai', window.UiLocale?.get?.()==='tr'?'Asistan için API anahtarı gerekli: Ayarlar → Asistan ve çeviri.':'An assistant API key is required: Settings → Assistant & translation.', 'ai-msg-err');
     return;
   }
 
   if (!translationTarget && expectedScope === null && window.AssistantAgentUI?.send) {
-    await window.AssistantAgentUI.send(q, chatContext, history, sourceScope, undefined, requestOptions);
-    return;
+    return await window.AssistantAgentUI.send(q, chatContext, history, sourceScope, undefined, requestOptions);
   }
 
   aiChatAdd('user', translationTarget ? translationTarget.displayQuestion : q);
@@ -22610,7 +22764,7 @@ function setPlayerHls(manifestUrl, title, key, meta, preserveMediaState = false)
         player.hlsQualityPreference = String(hls.levels[pick].height);
       }
     }
-    video.play().catch(() => {});
+    if(meta?.autoplay!==false)video.play().catch(() => {});
     logLine(`Yayin basladi (indirilmedi) — ${hls.levels.length} kalite mevcut`, 'success');
   });
   // Olumcul hatada hemen pes etme. YouTube'un HLS adresi GECICIDIR (birkac saat);
@@ -27350,7 +27504,7 @@ for (const id of ['researchQuery', 'researchTag']) {
     researchSearchTimer = setTimeout(loadResearchLibrary, 250);
   });
 }
-for (const id of ['researchType', 'researchStatus']) $(id)?.addEventListener('change', loadResearchLibrary);
+for (const id of ['researchType', 'researchStatus', 'researchMedia']) $(id)?.addEventListener('change', loadResearchLibrary);
 $('researchExport')?.addEventListener('click', async () => {
   const result = await window.api.exportResearchAnnotations(researchLibraryFilters(), 'Whisper Local araştırma defteri')
     .catch((error) => ({ ok: false, error: error.message }));
@@ -34229,3 +34383,5 @@ async function releasePodcastQueueItem(item){
  await window.api.feedsRequest({action:'podcast-audio-release',downloadToken:token});
 }
 $('cancelBtn')?.addEventListener('click',()=>{const item=state.queue.find(row=>row.id===state.currentQueueId);if(item?.podcastBinding?.acquireRequestId)void window.api.feedsRequest({action:'cancel',requestId:item.podcastBinding.acquireRequestId});});
+
+document.addEventListener('research-notes-changed',()=>{if(['research','reviews'].includes(playerLibraryView))void loadResearchLibrary();});

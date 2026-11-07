@@ -12,10 +12,11 @@ function world(){
  const srt=path.join(root,'Türkçe.srt');fs.writeFileSync(srt,'fixture');
  const app=new EventEmitter();app.getPath=name=>name==='desktop'?desktop:root;
  const spawns=[];
- function boot(){
+ function boot(extra={}){
   const handlers={},events=[],listeners=new Set(),sender={id:7,isDestroyed:()=>false,send:(_c,e)=>{events.push(e);for(const listener of [...listeners])listener(e);}};let child=null;
   const service=registerDubService({app,ipcMain:{handle:(name,fn)=>handlers[name]=fn},dialog:{},owner:()=>null,authorized:()=>true,authorizeSubtitle:async p=>{assert.equal(p,srt,'only the user\'s own SRT is ever authorized through the picker');return p;},
    busy:()=>false,grantMedia:()=>{},environment:()=>({PATH:'x'}),translateGroup:async()=>'',shorten:async()=>'',resolveSourceContext:async()=>({groups:[]}),setRate:async()=>({ok:true}),prepareProsody:async()=>{},prepareBackground:async()=>{},
+   ...extra,
    spawn:(exe,args,opts)=>{const proc=new EventEmitter();proc.exitCode=null;proc.stdout=new EventEmitter();proc.stderr=new EventEmitter();proc.stdout.setEncoding=proc.stderr.setEncoding=proc.stderr.resume=()=>{};
     spawns.push({args,proc});child=proc;queueMicrotask(()=>proc.emit('spawn'));return proc;},terminate:()=>true});
   const call=(name,request)=>handlers[name]({sender},request);

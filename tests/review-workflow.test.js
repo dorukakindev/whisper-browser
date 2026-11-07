@@ -131,7 +131,7 @@ test('Manual source actions, editor, append and spoiler controls remain usable i
 
 test('Loaded reviews can be read without AI and spoiler text stays hidden until explicitly included',async()=>{
  const rows=[{id:'plain',author:'Reader',text:'Strong acting and a memorable atmosphere.'},{id:'spoiler',author:'Another',text:'SECRET ENDING should stay out of the reader.',spoiler:true}],u=ui({reviews:JSON.stringify(rows)});
- try{const desk=u.w.document.querySelector('.mrv-loaded-sample');assert(!desk.hidden);assert.match(desk.textContent,/1 reviews ready/);const reader=desk.querySelector('details');assert(reader.open,'Loaded source is readable immediately');reader.querySelector('summary').click();assert(!reader.open);reader.querySelector('summary').click();assert(reader.open);assert.match(reader.textContent,/Strong acting/);assert.doesNotMatch(reader.textContent,/SECRET ENDING/);assert.equal(u.calls.length,0);
+ try{const desk=u.w.document.querySelector('.mrv-loaded-sample');assert(!desk.hidden);assert.match(desk.textContent,/1 loaded reviews/);const reader=desk.querySelector('details');assert.equal(reader.open,false,'Reading is optional and does not bury the analysis action');reader.querySelector('summary').click();assert(reader.open);assert.match(reader.textContent,/Strong acting/);assert.doesNotMatch(reader.textContent,/SECRET ENDING/);assert.equal(u.calls.length,0);
   const spoiler=u.w.document.querySelector('[name=review-spoilers]');spoiler.checked=true;spoiler.dispatchEvent(new u.w.Event('change'));assert(desk.querySelector('details').open,'Reading position disclosure survives policy update');assert.match(desk.textContent,/SECRET ENDING/);assert.equal(u.calls.length,0);
  }finally{u.w.close();}
 });
@@ -359,4 +359,17 @@ test('An analysis built with spoilers on is hidden, not copyable and dropped fro
   toggle(false);assert(doc.querySelector('[data-review-spoiler-gate]'),'turning spoilers off again hides it again');assert.doesNotMatch(output(),/hero dies/);
   toggle(true);assert.match(output(),/hero dies/,'with spoilers on again nothing is lost');
  }finally{u.w.close();}
+});
+
+test('Native review analysis reports the actual provider failure instead of waiting for a legacy player job',async()=>{
+ const u=ui();try{u.click('Use reviews from open Browser page');await u.wait();u.click('Preview & analyze');await u.wait();u.w.AssistantAgentUI={send:async()=>{}};u.w.aiChatSend=async()=>({ok:false,error:'Provider fixture unavailable'});u.click('Send this sample');await u.wait();await u.wait();assert.match(u.draft.attempt.error,/Provider fixture unavailable/);assert(u.draft.reviews.includes('Strong acting'));}finally{u.w.close();}
+});
+test('All fifteen loaded reviews reach analysis even when the reader shows only its first review',async()=>{
+ const rows=Array.from({length:15},(_,i)=>({id:'r'+i,text:'Distinct review '+i+' with a thoughtful source opinion.'})),u=ui({reviews:JSON.stringify(rows)});let sent;
+ try{u.click('Preview & analyze');await u.wait();u.w.document.querySelector('[name=review-title-confirmed]').checked=true;u.w.aiChatSend=async()=>{sent=JSON.parse(u.context().reviewAnalysis);};u.click('Send this sample');await u.wait();await u.wait();assert.equal(sent.reviews.length,15);assert.deepEqual(sent.reviews.map(r=>r.id),rows.map(r=>r.id));}finally{u.w.close();}
+});
+
+test('Implausible future review dates are not shown as verified publication dates',()=>{
+ const parsed=reviews.parseLetterboxdReviews(html.replace('<li>','<li><time datetime="2565-08-18"></time>'));
+ assert.equal(parsed.reviews.length,1);assert.equal(Object.hasOwn(parsed.reviews[0],'date'),false);const valid=reviews.parseLetterboxdReviews(html.replace('<li>','<li><time datetime="2018-08-18"></time>'));assert.equal(valid.reviews[0].date,'2018-08-18');
 });

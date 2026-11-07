@@ -68,7 +68,7 @@ test('Assistant passage navigation keeps its originating conversation and reject
 test('Research library renders untimed notes without a fake zero timestamp',()=>{
  const {JSDOM}=require('jsdom');const dom=new JSDOM('<div id="playerLibraryList"></div><p id="playerLibraryStatus"></p>');
  try{const context={document:dom.window.document,$:id=>dom.window.document.getElementById(id),researchAnnotations:[{id:'note-A',timed:false,start:null,mediaTitle:'Episode',type:'quote',status:'new'}],playerLibraryView:'research',captureResearchLibraryDrafts:()=>new Map(),uiText:value=>value,interfaceChoice:(_,en)=>en,researchTypeLabel:()=> 'Quote',researchStatusLabel:()=> 'New',pSecToTime:()=>{throw Error('Untimed note formatted as timestamp');}};
- const start=source.indexOf('function renderResearchLibrary('),end=source.indexOf('async function loadResearchLibrary(',start);vm.runInNewContext(source.slice(start,end)+';renderResearchLibrary();',context);assert.match(context.document.querySelector('.research-card-head').textContent,/Untimed text/);
+ const start=source.indexOf('const researchDraftCache'),end=source.indexOf('async function loadResearchLibrary(',start);vm.runInNewContext(source.slice(start,end)+';renderResearchLibrary();',context);assert.match(context.document.querySelector('.research-card-head').textContent,/Untimed text/);
  }finally{dom.window.close();}
 });
 

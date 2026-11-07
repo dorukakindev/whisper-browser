@@ -33,7 +33,7 @@
  const dialog=section.closest('dialog');
  let epoch=0,listSeq=0,detailSeq=0,runs=[],loaded=false,loading=false,listError=false,extra={unreadable:[],orphans:[],orphanNote:null},active=null;
  let selected=null,detail=null,detailState='idle',loadable=null,audio=null;
- const messages=new Map(),previews={pinned:null,current:null},pending=new Set();
+ const messages=new Map(),previews={pinned:null,current:null},pending=new Set(),sourceNotes=new Map();
  const call=async request=>{try{return await window.api.dubRuns(request);}catch(_){return {ok:false,code:'transport'};}};
  const guard=(ep,seq,counter,id)=>ep===epoch&&(counter===undefined||seq===counter())&&(id===undefined||selected===id);
 
@@ -138,6 +138,20 @@
   list.querySelector(`[data-preview="${mode}"] [role="status"]`)?.scrollIntoView?.({block:'nearest'});
  }
  const dismissPreview=(mode,id)=>{previews[mode]=null;render();focusRow(id);};
+ // Open the run's recorded source through the one owner (dub-source-return.js). The answer is only ever shown for the panel that
+ // asked: a closed/reset panel (epoch change) drops it, and a superseded request is shown as such, never as a failure.
+ async function openSource(id,allowChanged=false){
+  if(pending.has('source:'+id))return;
+  if(!window.DubSourceReturn){sourceNotes.set(id,{tone:'bad',text:L('Kaynak açıcı kullanılamıyor. Hiçbir şey açılmadı.','The source opener is unavailable. Nothing was opened.')});render();return;}
+  pending.add('source:'+id);sourceNotes.set(id,{tone:'info',text:L('Kaynak açılıyor…','Opening the source…')});render();
+  const ep=epoch,result=await window.DubSourceReturn.open(id,{allowChanged,isCancelled:()=>ep!==epoch});
+  pending.delete('source:'+id);
+  if(ep!==epoch)return;
+  if(result?.ok){sourceNotes.delete(id);render();if(typeof dialog?.close==='function')dialog.close();return;}
+  sourceNotes.set(id,{tone:result?.code==='superseded'?'info':'bad',text:result?.message||'',next:result?.next||'',canOpenCurrent:result?.canOpenCurrent===true,opened:result?.opened===true});
+  render();
+  list.querySelector('[data-source-open]')?.focus?.({preventScroll:true});
+ }
 
  // ---------- rendering ----------
  function metaLine(row){
@@ -162,6 +176,30 @@
   if(selected===row.id)li.append(renderDetail(row));
   return li;
  }
+ // Source evidence (what the run was made from and whether it can be reopened) is its own flat band, apart from the tools below.
+ const KIND={podcast:['Podcast bölümü','Podcast episode'],catalog:['Kütüphane videosu','Library video'],youtube:['YouTube videosu','YouTube video']};
+ function renderSource(row){
+  const source=row.source||{state:'none'},note=sourceNotes.get(row.id);
+  if(source.state==='none'&&!note)return null;
+  const band=node('section','dub-run-source');band.dataset.state=source.state;
+  const what=node('div','dub-run-source-what');
+  what.append(node('span','dub-run-source-label',L('Kaynak','Source')),node('strong','',source.state==='recorded'?L(...(KIND[source.kind]||['Kayıtlı kaynak','Recorded source'])):source.state==='legacy'?L('Eski kayıt: yalnız opak kimlik','Older record: opaque identity only'):L('Bu sürümün okuyamadığı kaynak bilgisi','Source information this version cannot read')));
+  band.append(what);
+  if(source.state==='recorded'){
+   const busy=pending.has('source:'+row.id),open=button(busy?L('Açılıyor…','Opening…'):L('Kaynağı aç','Open source'),()=>openSource(row.id),'btn btn-primary btn-sm');
+   open.dataset.sourceOpen='true';open.disabled=busy;band.append(open);
+  }else if(source.state==='legacy'){
+   band.append(node('p','dub-run-note',L('Bu eski kayıt başka bir bölümü veya dosyayı yeniden açacak adres tutmaz. Özgün kaynağı kendin aç, sonra yeni üretim başlat; kayıt ve sesi korunur.','This older record has no locator to reopen another episode or file. Open the original source yourself, then start a new generation; the record and its audio are kept.')));
+  }else if(source.state==='unsupported'){
+   band.append(node('p','dub-run-note',L('Bu kayıttaki kaynak bilgisi farklı bir uygulama sürümünce yazılmış; kullanılmıyor, kayıt değişmeden kalır.','The source information in this record was written by a different app version; it is not used and the record stays unchanged.')));
+  }
+  if(note){
+   const p=node('p','dub-run-message',note.text);p.dataset.tone=note.tone;p.setAttribute('role','status');band.append(p);
+   if(note.next)band.append(node('p','dub-run-note',note.next));
+   if(note.canOpenCurrent)band.append(button(L('Güncel sürümü başvuru için aç','Open the current version for reference'),()=>openSource(row.id,true),'btn btn-secondary btn-sm'));
+  }
+  return band;
+ }
  function renderDetail(row){
   const box=node('div','dub-run-detail');
   box.addEventListener('keydown',event=>{
@@ -179,7 +217,7 @@
   if(detail.dictionary)add(L('Sözlük','Dictionary'),detail.dictionary+L(' kayıt',' entries'));
   if(row.error)add(L('Hata bilgisi','Error detail'),row.error);
   box.append(facts);
-  box.append(node('p','dub-run-note',L('Kaynağa dönüş yalnız aynı medya açıkken kullanılabilir. Bu kayıt başka bir bölümü veya dosyayı yeniden açacak adres tutmaz.','Source return is available only while the same media is open. This record has no locator to reopen another episode or file.')));
+  const sourceBand=renderSource(row);if(sourceBand)box.append(sourceBand);
   for(const item of detail.why||[]){const p=node('p','dub-run-why',part(item.text));p.dataset.code=item.code;box.append(p);}
   if(detail.newerResult)box.append(node('p','dub-run-why',L('Bu işin daha yeni bir denemesi tamamlandı; önceki sonuç ayrı bir kayıt olarak durur.','A newer attempt of this run completed; the earlier result stays as its own record.')));
   const message=messages.get(row.id);if(message){const p=node('p','dub-run-message',message.text);p.dataset.tone=message.tone;p.setAttribute('role','status');box.append(p);}
@@ -259,7 +297,7 @@
  // ---------- lifecycle ----------
  section.querySelector('#dubRunsRefresh').addEventListener('click',()=>void refresh());
  section.addEventListener('toggle',()=>{if(section.open&&!loaded&&!loading)void refresh();});
- const reset=()=>{epoch++;listSeq++;detailSeq++;closeDetail();for(const key of Object.keys(previews))previews[key]=null;pending.clear();messages.clear();render();};
+ const reset=()=>{epoch++;listSeq++;detailSeq++;closeDetail();for(const key of Object.keys(previews))previews[key]=null;pending.clear();messages.clear();sourceNotes.clear();render();};
  if(dialog){
   new MutationObserver(()=>{
    if(dialog.open){epoch++;void refresh();}      // a newly opened panel always shows the service's current truth

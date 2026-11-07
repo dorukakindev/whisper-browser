@@ -142,7 +142,8 @@ for (const f of files) {
       const declaration = new RegExp('(?:const|let)\\s+' + named[1] + '\\s*=|function\\s+' + named[1] + '\\s*\\(').exec(src);
       head = declaration ? src.slice(declaration.index, declaration.index + 500) : '';
     }
-    if (!ON_VERIFY.test(head)&&!(/if\(!owner\(event\)\)return/.test(head)&&/const owner = event => event.sender === window.webContents && event.senderFrame === window.webContents.mainFrame/.test(src))&&!(/if\(!ownView\(event\)\)return/.test(head)&&/const ownView = event => event.sender === view.webContents && event.senderFrame === view.webContents.mainFrame/.test(src))) ON_UNVERIFIED.push(`${f}:${m[1]}`);
+    const checkedMainFrame=/const scope=ownedFrame\(event\);if\(!scope\|\|scope.url!==input.url\|\|scope.frame!==scope.wc.mainFrame\)/.test(head)&&/function ownedFrame\(event\).*event\?\.senderFrame.*getTabForContents\(wc\).*if\(!tab\|\|tab.closing\|\|!frame\|\|wc.isDestroyed\(\)\)return null/.test(src);
+    if (!checkedMainFrame&&!ON_VERIFY.test(head)&&!(/if\s*\(\s*!owner\(event\)\s*\)\s*return/.test(head)&&/const owner = event => event.sender === window.webContents && event.senderFrame === window.webContents.mainFrame/.test(src))&&!(/if\s*\(\s*!ownView\(event\)\s*\)\s*return/.test(head)&&/const ownView = event => event.sender === view.webContents && event.senderFrame === view.webContents.mainFrame/.test(src))) ON_UNVERIFIED.push(`${f}:${m[1]}`);
   }
 }
 assert.deepStrictEqual(ON_UNVERIFIED, [],

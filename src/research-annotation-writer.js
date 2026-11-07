@@ -9,7 +9,7 @@ const {normalizeAnnotation}=require('./browser-learning');
 
 // Revision of the note a save would replace: 'new' when there is none. Shared by preview and write boundary.
 function annotationRevision(existing){
- return existing?createHash('sha256').update(JSON.stringify([existing.updatedAt,existing.note])).digest('hex').slice(0,24):'new';
+ return existing?createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(existing).filter(([key])=>key!=='revision').sort(([a],[b])=>a.localeCompare(b))))).digest('hex').slice(0,24):'new';
 }
 
 function createAnnotationWriter({store,index=()=>null,indexMedia=()=>{},now=Date.now}){
@@ -39,6 +39,23 @@ function createAnnotationWriter({store,index=()=>null,indexMedia=()=>{},now=Date
  function get(id){
   try{const {target,error}=usable();return error?null:target.get(id);}catch(_){return null;}
  }
- return {save,get,revisionOf:annotationRevision};
+ // Every note the notebook lists carries the revision a later save must name.
+ const withRevision=annotation=>({...annotation,revision:annotationRevision(annotation)});
+ // Compare-and-set save for the notebook: a note changed (or removed) since the list was read is NOT overwritten. The answer then carries
+ // the current note (or null if it is gone) so the person can decide; nothing is written on a conflict.
+ function saveChecked(raw,expectRevision){
+  if(typeof expectRevision!=='string'||!/^[a-f0-9]{24}$|^new$/.test(expectRevision))return {ok:false,code:'revision-required',error:'A note revision is required. / Not revizyonu gerekli.'};
+  // Notebook editing may change personal fields only. An explicit conflict overwrite must not roll the quote/source back.
+  const existing=raw?.id?get(normalizeAnnotation(raw).id):null;
+  const input=existing?{...existing,note:raw.note,tags:raw.tags,links:raw.links}:raw;
+  const result=save(input,{expectRevision});
+  if(result?.code==='target-changed'){
+   let id='';try{id=normalizeAnnotation(raw||{}).id||'';}catch(_){}
+   const current=id?get(id):null;
+   return {...result,current:current?withRevision(current):null};
+  }
+  return result?.annotation?{...result,annotation:withRevision(result.annotation)}:result;
+ }
+ return {save,saveChecked,withRevision,get,revisionOf:annotationRevision};
 }
 module.exports={createAnnotationWriter,annotationRevision};

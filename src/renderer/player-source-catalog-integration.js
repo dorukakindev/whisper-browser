@@ -58,7 +58,7 @@
       rebuild();query=PlayerSourceCatalog.normalizeQuery({...query,cursor:null});
     }catch(error){toast=error.message;}finally{if(request===epoch){loading=false;draw();}}
   }
-  async function play(item,mode,{isCancelled=()=>false,exactVersion}={}){
+  async function play(item,mode,{isCancelled=()=>false,exactVersion,autoplay=true}={}){
     const initialOwner={intent:player.openIntent,mediaKey:player.mediaKey,generation:player.generation};
     const ownerCurrent=()=>player.mediaKey===initialOwner.mediaKey&&player.generation===initialOwner.generation;
     const intentCurrent=()=>!isCancelled()&&ownerCurrent()&&player.openIntent===initialOwner.intent;
@@ -88,7 +88,7 @@
     // The old owner is checked immediately before handing off. MediaHubUI then
     // owns its openIntent and generation; its own Browser -> player transition
     // must not invalidate itself against the preceding Browser generation.
-    close();stream.title=entry.title;await window.MediaHubUI.playStream(stream,0,{isCancelled});
+    close();stream.title=entry.title;await window.MediaHubUI.playStream(stream,0,{isCancelled,autoplay});
     if(isCancelled()||player.mediaKey!==stream.key)return;
     const owner={mediaKey:player.mediaKey,generation:player.generation};
     player.workspaceAudio={...owner,title:entry.title,publisher:entry.sourceFeed?.title||'',image:entry.imageUrl||'',entryId:entry.id,revision:entry.revision,sourceVersion:saved.sourceVersion,sourceBinding:exact?.sourceBinding||saved.sourceBinding,episodeIdentity:saved.episodeIdentity||saved.sourceBinding?.episodeIdentity||entry.id,transcriptState:'none',...(exact?{exactAudio:true}:{})};
@@ -281,7 +281,7 @@
     action(t('Yayıncı RSS ekle','Add publisher RSS'),()=>{dialog.close();return window.MediaHomeUI.navigate('feeds');});action(t('Kapat','Close'),()=>dialog.close());dialog.append(title,note,urlField,controls,message,results);document.body.append(dialog);window.PlayerUiKit?.bindDialog?.(dialog);dialog.addEventListener('close',()=>{dialog.remove();if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();},{once:true});dialog.showModal();if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();
   }
   let podcastOpenIntent=0;
-  async function openPodcastEntry(entryId,{view='podcast',restart=false,reload=false,isCancelled=()=>false,presentation,exactVersion}={}){
+  async function openPodcastEntry(entryId,{view='podcast',restart=false,reload=false,isCancelled=()=>false,presentation,exactVersion,autoplay=true}={}){
     if(typeof entryId!=='string'||!entryId||!['podcast','bilingual'].includes(view))throw Error(t('Geçerli bir RSS bölümü seçin.','Choose a valid RSS episode.'));
     if(isCancelled())return;
     const intent=++podcastOpenIntent,cancelled=isCancelled;
@@ -298,7 +298,7 @@
       if(current.workspace?.translation?.timeline?.sha256===confirmed.sourceBinding.sha256)await loadSavedPodcastResult('translation');
     }
     if(reload||active?.entryId!==entryId||active.mediaKey!==player.mediaKey||active.generation!==player.generation||exactVersion&&(!active.exactAudio||active.sourceVersion!==exactVersion)){
-      const result=await play({entry:{id:entryId}},'play',{isCancelled,exactVersion});
+      const result=await play({entry:{id:entryId}},'play',{isCancelled,exactVersion,autoplay});
       if(result?.readOnly)return result;
     }
     if(isCancelled())return;

@@ -474,3 +474,20 @@ test('A card that is no longer active never claims it did not run, and an expire
   assert.deepEqual([unknown.ok,unknown.unconfirmed],[false,true]);assert.match(unknown.error,/cannot be confirmed/);assert.doesNotMatch(unknown.error,/did not run|nothing ran/i);assert.equal(dispatches(h),0);
  }finally{h.app.emit('will-quit');}
 });
+
+test('real agent searches selected notebook evidence and returns an editable unsaved source-backed draft',async()=>{
+ let turn=0,ids=[];const stored=[{id:'a',mediaId:'episode-a',mediaType:'podcast',mediaTitle:'A',source:'Source A',translation:'Translation A',note:'Personal interpretation A',timed:false},{id:'b',mediaId:'episode-b',mediaType:'youtube',mediaTitle:'B',source:'Source B',note:'Personal interpretation B',timed:false}];
+ const writer=require('../src/research-annotation-writer');let writes=0;
+ const h=fixture(async(_url,options)=>{const body=JSON.parse(options.body);turn++;
+  if(turn===1)return reply({role:'assistant',tool_calls:[{id:'search',type:'function',function:{name:'read_research_notes',arguments:JSON.stringify({note_ids:['a','b']})}}]});
+  if(turn===2){const tool=body.messages.findLast(row=>row.role==='tool'),data=JSON.parse(tool.content);assert.equal(data.matches[0].personalNote,'Personal interpretation A');assert.equal(data.matches[0].text,'Source A');assert.equal(data.matches[0].translation,'Translation A');assert.equal(data.matches[0].timed,false);ids=data.matches.map(row=>row.id);return reply({role:'assistant',tool_calls:[{id:'draft',type:'function',function:{name:'prepare_research_draft',arguments:JSON.stringify({source_ids:ids,text:'Limited comparison ['+ids[0]+'] ['+ids[1]+']. These are interpretations.'})}}]});}
+  return reply({role:'assistant',content:'A sourced draft is ready for your review; it is not saved.'});
+ },{researchNotes:{get:id=>stored.find(row=>row.id===id),list:()=>stored,save:()=>{writes++;return {ok:true};}}});
+ const result=await h.call('agentRun',{requestId:'notes-chain',owner:h.owner,question:'Compare my two selected saved notes, then prepare an editable draft.',context:{}});assert.equal(result.ok,true,result.error);assert.equal(result.researchCitations.length,3);assert.equal(result.researchCitations[2].kind,'research-draft');assert.equal(writes,0);
+ const clean=require('../src/assistant-thread-store').citationsOf(result.researchCitations);assert.equal(clean.length,3);assert.equal(clean[0].personalNote,'Personal interpretation A');
+});
+
+test('watched-content questions cannot retrieve archived notebook notes or synthesize around the cutoff',async()=>{
+ let turn=0,reads=0;const h=fixture(async()=>reply(++turn===1?{role:'assistant',tool_calls:[{id:'notes',type:'function',function:{name:'search_research_notes',arguments:JSON.stringify({query:'future'})}}]}:{role:'assistant',content:'Only the frozen watched scope is available.'}),{researchNotes:{get:()=>{reads++;},list:()=>{reads++;return [];},save:()=>{throw Error('No save');}}});
+ const result=await h.call('agentRun',{requestId:'bounded-notes',owner:h.owner,question:'Bu ana kadar olanı özetle',context:{}});assert.equal(result.ok,true,result.error);assert.equal(reads,0);assert.equal(result.researchCitations.length,0);
+});

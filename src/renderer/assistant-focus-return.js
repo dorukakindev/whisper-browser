@@ -10,7 +10,7 @@
   if(!pending)return;
   if(Date.now()-pending.at>15000){clear();return;}
   if(document.visibilityState==='hidden')return;
-  const target=[...document.querySelectorAll('[data-note-control="open"]')].find(node=>node.dataset.noteKey===pending.key&&node.isConnected&&!node.disabled);
+  const target=pending.key.startsWith('citation:')?[...document.querySelectorAll('[data-citation-control]')].find(node=>node.dataset.citationControl===pending.key.slice(9)&&node.isConnected&&!node.disabled):[...document.querySelectorAll('[data-note-control="open"]')].find(node=>node.dataset.noteKey===pending.key&&node.isConnected&&!node.disabled);
   if(!target)return;
   // The user had this source open when they pressed the button; a re-render may have folded it, and a control in a folded card cannot take focus.
   const card=target.closest('details');if(card&&!card.open)card.open=true;

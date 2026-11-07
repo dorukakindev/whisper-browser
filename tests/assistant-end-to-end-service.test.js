@@ -495,10 +495,10 @@ test('D: "go back to the source" and "open the result" are different targets; a 
  try{
   const opened=[];h.alwaysRenderer(packet=>{if(packet.name==='open_voice_run'){opened.push(packet.args);return {status:'completed',run_id:packet.args.run_id,target:packet.args.target,selected:true,audio_ready_paused:true};}return panelAnswer('run-ok')(packet);});
   const result=await h.call('agentRun',{requestId:'d3',question:'Go back to the source, then open the result',owner:h.owner});assert(result.ok,result.error);
-  assert.equal(seen[0].status,'blocked');assert.match(seen[0].note,/not known to be the currently open media/);assert.match(seen[0].note,/only a source identity/);
+  assert.equal(seen[0].status,'blocked');assert.match(seen[0].note,/cannot be reopened now/);assert.match(seen[0].note,/opaque source identity/);assert.doesNotMatch(seen[0].note,/[A-Za-z]:\\|\/Users\/|stream:/,'the blocked reason carries no path or locator');
   const proposals=h.events.filter(row=>row.packet.type==='proposal').map(row=>row.packet.action);
   assert.deepEqual(proposals.map(a=>a.tool),['open_voice_run','open_voice_run'],'the blocked ones made no card');assert.equal(seen[3].status,'blocked','no valid finished audio for the failed run');
-  assert.notEqual(proposals[0].summary,proposals[1].summary,'source and result cards say different things');assert.match(proposals[0].summary,/kaynağı açık medyayla eşleşiyor|source matches the open media/);assert.match(proposals[1].summary,/listening-only|yalnız dinleyerek/);
+  assert.notEqual(proposals[0].summary,proposals[1].summary,'source and result cards say different things');assert.match(proposals[0].summary,/kayıtlı kaynağı açılır|recorded source/);assert.match(proposals[1].summary,/listening-only|yalnız dinleyerek/);
   const spawns=v.spawns();
   const applied=await h.call('agentApply',{proposalId:proposals[1].proposalId,owner:h.owner});assert.equal(applied.ok,true,applied.error);
   assert.deepEqual(opened,[{run_id:'run-ok',target:'result'}],'the result card opened the result target of that exact run');

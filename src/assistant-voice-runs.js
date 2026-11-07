@@ -12,9 +12,18 @@ const KNOWN={
  partial:'The record has a result with failed groups, incomplete quality data or a worker error exit.',completed:'The record says the run completed.',
  'output-missing':'The record says completed, but the audio file is missing or invalid.'
 };
-function createVoiceRunsApi({ledger,current=()=>({}),active=()=>null,identity=()=>null}){
+function createVoiceRunsApi({ledger,current=()=>({}),active=()=>null,identity=()=>null,locators=null}){
  const same=(id,openSource)=>{if(!openSource)return null;let open=null;try{open=identity(openSource);}catch(_){return null;}const pinned=ledger.sourceIdentityOf(id);return open&&pinned?open===pinned:null;};
- const row=(item,openSource)=>({run_id:item.id,title:String(item.label||'').slice(0,120),state:item.state,state_reason:item.reason?.code||null,started_at:item.startedAt,
+ // One truth for "can this run's source be reopened?": the recorded versioned locator (resolved against today's library record,
+ // read-only) or, for older records, the open media whose recorded identity matches. Ids, paths and locators are never exposed.
+ const navigation=(id,openSource)=>{
+  const match=same(id,openSource)===true,rec=ledger.locatorOf(id),resolved=locators?locators.resolve(rec.raw,{}):{ok:false,code:'no-locator'};
+  const kind=resolved.ok?resolved.kind:locators?.view?.(rec.raw,rec.hasIdentity)?.kind||null;
+  if(resolved.ok)return {available:true,via:'recorded-locator',kind,code:null,reason:'The run recorded a versioned source locator; the recorded '+kind+' can be reopened through the library after the user approves. Nothing is played, attached or generated.',can_open_current_version:false};
+  if(match)return {available:true,via:'matching-open-media',kind:null,code:resolved.code||null,reason:'Can return to the matching currently open media.',can_open_current_version:false};
+  return {available:false,via:null,kind,code:resolved.code||'no-locator',reason:en(resolved.error)+' '+en(resolved.next),can_open_current_version:resolved.canOpenCurrent===true};
+ };
+ const row=(item,openSource)=>({run_id:item.id,source_return:item.source||{state:'none',kind:null},title:String(item.label||'').slice(0,120),state:item.state,state_reason:item.reason?.code||null,started_at:item.startedAt,
   range_seconds:item.pinned?.range??null,profile:item.pinned?.profile??null,attempt:item.attempt,retry_of:item.retryOf||null,recovered:item.recovered===true,
   audio_file:{check:item.output.state,seconds:item.output.seconds},recoverable:item.recoverable,retryable:item.retryable,audio_unproven:item.unconfirmedOutput===true,
   error:item.error?{code:/\b(ENOENT|EACCES|EPERM|ENOSPC|ETIMEDOUT|ECONNRESET)\b/.exec(String(item.error))?.[1]||'recorded-error',message:'The run recorded a failure. Original details are available in the local production panel; raw worker text is not sent to the model.'}:null,source_matches_current_media:same(item.id,openSource)});
@@ -30,7 +39,7 @@ function createVoiceRunsApi({ledger,current=()=>({}),active=()=>null,identity=()
    if(item.output.state==='valid'&&!['running','running-elsewhere'].includes(item.state))next.push('open_voice_run target=result: opens the run in the panel for listening-only review');
    if(item.retryable)next.push('preview_voice_retry shows the differences; open_voice_run target=retry_preview opens the panel preview, where the user approves');
    if(item.recoverable)next.push('The user can press "Recover the output" in the panel; the assistant cannot recover or start anything');
-   return {run:row(item,openSource),source_navigation:{available:same(id,openSource)===true,reason:same(id,openSource)===true?'Can return to the matching currently open media.':'The record keeps an opaque source identity, not a locator to reopen another media. Open the original source first.'},what_the_record_establishes:KNOWN[item.state]||KNOWN.uncertain,why:(found.why||[]).map(entry=>en(entry.text)),settings:found.settings,dictionary_entries:found.dictionary,
+   return {run:row(item,openSource),source_navigation:navigation(id,openSource),what_the_record_establishes:KNOWN[item.state]||KNOWN.uncertain,why:(found.why||[]).map(entry=>en(entry.text)),settings:found.settings,dictionary_entries:found.dictionary,
     newer_attempt_completed:found.newerResult===true,later_attempts:(found.retries||[]).map(entry=>({run_id:entry.id,state:entry.state,attempt:entry.attempt})),
     unknown:[...(['uncertain','running-elsewhere'].includes(item.state)?['whether the run is still active']:[]),...(item.output.state==='valid'?['what the audio sounds like','whether its content matches the source']:[])],next_steps:next,note:NOTE};
   },
@@ -40,7 +49,7 @@ function createVoiceRunsApi({ledger,current=()=>({}),active=()=>null,identity=()
    return {ok:true,mode:result.mode,attempt:result.attempt,original_options:result.pinned,current_options:result.current,differences:result.differences,voice:{state:result.voice.state},
     cannot_be_rebuilt:result.unrebuildable.map(entry=>en(entry.text)),determinism:en(result.determinism),starts_nothing:true,note:'This is a read-only preview; no approval exists. Starting a retry needs the user\'s explicit approval in the panel.'};
   },
-  sourceMatch:same,
+  sourceMatch:same,sourceNavigation:navigation,
   exists:id=>!!ledger.find(id)
  };
 }

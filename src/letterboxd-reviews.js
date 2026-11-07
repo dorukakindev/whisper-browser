@@ -71,7 +71,7 @@ function cardMetadata(card){
  const links=[...card.matchAll(/<a\b[^>]*>/gi)].map(m=>m[0]);
  const permalink=links.map(tag=>reviewPermalink(attr(tag,'href'))).find(Boolean);
  const time=/<time\b[^>]*>/i.exec(card)?.[0],rawDate=time&&attr(time,'datetime');
- const date=rawDate&&/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(rawDate)&&Number.isFinite(Date.parse(rawDate))&&new Date(rawDate.slice(0,10)).toISOString().slice(0,10)===rawDate.slice(0,10)?rawDate.slice(0,10):'';
+ const date=rawDate&&Number(rawDate.slice(0,4))<=new Date().getFullYear()+1&&/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(rawDate)&&Number.isFinite(Date.parse(rawDate))&&new Date(rawDate.slice(0,10)).toISOString().slice(0,10)===rawDate.slice(0,10)?rawDate.slice(0,10):'';
  const ratingTag=/<(?:span|i)\b[^>]*class=["'][^"']*\brating\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:span|i)>/i.exec(card);
  const rated=ratingTag&&/\brated-(10|[1-9])\b/.exec(attr(ratingTag[0].split('>')[0],'class'));
  const stars=ratingTag?plain(ratingTag[1]).replace(/\s/g,''):'';

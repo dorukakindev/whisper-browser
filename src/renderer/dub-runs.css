@@ -70,3 +70,22 @@
   #dubRuns .dub-run-main { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'state' 'title' 'meta' 'tags'; }
   #dubRuns .dub-run-meta { white-space: normal; }
 }
+
+/* Kaynak kanıtı: düz bir bant. Solda kaynağın türü ve durumu, sağda tek ana eylem; araçlardan çizgiyle ayrılır. */
+#dubRuns .dub-run-source { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-content: start; gap: 4px 14px; padding: 9px 0; border-block: 1px solid var(--border); }
+#dubRuns .dub-run-source > :not(.dub-run-source-what):not(.btn) { grid-column: 1 / -1; }
+#dubRuns .dub-run-source-what { display: grid; gap: 1px; min-width: 0; }
+#dubRuns .dub-run-source-label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); }
+#dubRuns .dub-run-source-what strong { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+#dubRuns .dub-run-source[data-state="legacy"] .dub-run-source-what strong, #dubRuns .dub-run-source[data-state="unsupported"] .dub-run-source-what strong { color: var(--text-dim); font-weight: 600; }
+#dubRuns .dub-run-source .btn { border: 1px solid var(--border-strong); background: transparent; color: var(--text); justify-self: start; }
+#dubRuns .dub-run-source .btn-primary { background: var(--accent); color: var(--accent-contrast, #17130d); border-color: var(--accent); font-weight: 650; justify-self: end; }
+#dubRuns .dub-run-source .btn:disabled { opacity: .55; cursor: not-allowed; }
+#dubRuns .dub-run-source .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 720px) { #dubRuns .dub-run-source { grid-template-columns: minmax(0, 1fr); } #dubRuns .dub-run-source .btn-primary { justify-self: start; } }
+
+/* Eylem düğmeleri doğal genişlikte kalır; satırı kaplayan tek bir ‘Dinle’ düğmesi ana eylemle yarışmaz. */
+#dubRuns .dub-run-actions .btn { width: auto; flex: 0 0 auto; }
+#dubRuns .dub-run-source p { margin: 0; }
+#dubRuns .dub-run-actions { justify-content: flex-start; }
+#dubRuns .dub-run-actions .btn { margin: 0; }

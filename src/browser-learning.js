@@ -33,6 +33,7 @@ function normalizeAnnotation(raw = {}) {
   const fingerprint = crypto.createHash('sha1').update(identity + trackIdentity + (anchor ? JSON.stringify(anchor) : ''), 'utf8').digest('hex').slice(0, 16);
   const review = normalizeReviewState(raw);
   return {
+    researchSources: Array.isArray(raw.researchSources)?raw.researchSources.slice(0,8).filter(r=>r&&typeof r.noteId==='string'&&/^[a-f0-9]{24}$/.test(r.revision||'')).map(r=>({noteId:r.noteId.slice(0,180),revision:r.revision})):[],
     id: String(raw.id || `annotation:${fingerprint}`).slice(0, 180),
     type,
     mediaId,

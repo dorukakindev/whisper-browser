@@ -17,6 +17,7 @@ const ENUMS={profile:['fast','quality'],verification:['fast','balanced','detaile
  expression:['reference','calm','warm','lively'],deliveryStrength:['gentle','balanced','strong'],resultMode:['natural','custom']};
 const FLAGS=['followDelivery','autoFit','naturalSpeech','forceAll','narration','sample','deliveryAutomatic'];
 const MAX_RUNS=60,MAX_TAIL=64*1024,TOKEN_TTL=10*60*1000;
+const locators=require('./dub-source-locator');
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const text=(en,tr)=>en+' / '+tr;
 const REASONS={
@@ -55,6 +56,8 @@ function pinOptions(raw={}){
  if(raw.range&&Number.isFinite(raw.range.start)&&Number.isFinite(raw.range.end)&&raw.range.start>=0&&raw.range.end>raw.range.start)out.range={start:raw.range.start,end:raw.range.end};
  if(typeof raw.sourceDuration==='number'&&raw.sourceDuration>0&&raw.sourceDuration<=86400)out.sourceDuration=raw.sourceDuration;
  if(typeof raw.sourceIdentity==='string'&&raw.sourceIdentity.length<=200)out.sourceIdentity=raw.sourceIdentity;
+ // A versioned locator is kept only if it validates; an unusable one is dropped here, never repaired or guessed.
+ if(raw.sourceLocator){const found=locators.clean(raw.sourceLocator);if(found.state==='ok')out.sourceLocator=found.locator;}
  if(/^[a-f0-9]{64}$/.test(raw.subtitleHash||''))out.subtitleHash=raw.subtitleHash;
  if(typeof raw.referenceFingerprint==='string'&&raw.referenceFingerprint.length<=200)out.referenceFingerprint=sha(raw.referenceFingerprint);
  if(typeof raw.referenceName==='string')out.referenceName=raw.referenceName.slice(0,120);
@@ -153,7 +156,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
   return {id,label:typeof summary.label==='string'?summary.label:'',state,reason:reason?{code:reason}:null,startedAt:summary.startedAt||null,finishedAt:summary.finishedAt||null,
    elapsedSeconds:Number.isFinite(summary.elapsedSeconds)?summary.elapsedSeconds:null,sample:summary.sample===true,attempt:summary.attempt||1,retryOf:summary.retryOf||null,
    recovered:summary.recovered===true,output:{state:out.state,seconds:out.seconds??null,size:out.size??null},unconfirmedOutput:!recoverable&&out.state==='valid'&&['interrupted','uncertain'].includes(state),
-   recoverable,retryable,pinned:safeView(pinned),legacy:!pinned,error:result==='error'?String(summary.error||'').slice(0,300):null};
+   recoverable,retryable,pinned:safeView(pinned),legacy:!pinned,source:locators.view(pinned?.sourceLocator,typeof pinned?.sourceIdentity==='string'),error:result==='error'?String(summary.error||'').slice(0,300):null};
  }
  function list({activeRunId=null,limit=30}={}){
   const runs=[],unreadable=[],ids=new Set();
@@ -284,6 +287,9 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
   return {ok:true,...planBody(view,options)};
  }
  function sourceIdentityOf(id){const found=find(id);return found?.summary?.pinned?.sourceIdentity??null;}
+ // The stored locator of one run as written (main only; never sent to a renderer or a model). found=false means no such run.
+ function locatorOf(id){const found=find(id);if(!found)return {found:false,raw:null};return {found:true,raw:found.summary?.pinned?.sourceLocator??null,hasIdentity:typeof found.summary?.pinned?.sourceIdentity==='string'};}
+ function locatorFingerprint(id){const row=locatorOf(id);if(!row.found)return null;const checked=locators.clean(row.raw);return checked.state==='ok'?locators.fingerprint(checked.locator):null;}
  // The caller supplies start(request, trusted) → {ok,...}. Claimed before any await; a repeated or concurrent approval never starts a second run.
  async function approve(token,{newId,start,current={},activeRunId=null,busy=()=>false}){
   const entry=typeof token==='string'?tokens.get(token):null;
@@ -305,7 +311,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
     followDelivery:use.followDelivery,deliveryStrength:use.deliveryStrength,resultMode:use.resultMode,autoFit:use.autoFit,naturalSpeech:use.naturalSpeech,forceAll:false,
     forceGroups:entry.pinned.forceGroups||[],sample:entry.pinned.sample===true,range:entry.pinned.range,sourceDuration:entry.pinned.sourceDuration};
    for(const key of Object.keys(request))if(request[key]===undefined)delete request[key];
-   const result=await start(request,{srt:entry.copy,sourceIdentity:entry.pinned.sourceIdentity??null,pronunciations:entry.pinned.pronunciations||[],retryOf:entry.runId,attempt:entry.attempt});
+   const result=await start(request,{srt:entry.copy,sourceIdentity:entry.pinned.sourceIdentity??null,sourceLocator:entry.pinned.sourceLocator??null,pronunciations:entry.pinned.pronunciations||[],retryOf:entry.runId,attempt:entry.attempt});
    // A failed start may have left a partial run behind: the approval is consumed and a new preview is required.
    if(result?.ok===false){entry.state='failed';return {ok:false,code:'start-failed',error:String(result.error||'').slice(0,300)};}
    entry.state='settled';entry.result={ok:true,runId:newId,retryOf:entry.runId,attempt:entry.attempt};
@@ -317,6 +323,6 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
    return {ok:false,code:'start-failed',error:String(error?.message||error).slice(0,300)};
   }
  }
- return {instanceId,begin,heartbeat,end,settle,mark,list,find,detail,review,recover,plan,previewView,sourceIdentityOf,approve,outputInfo,staleAfter,get active(){return active;}};
+ return {instanceId,begin,heartbeat,end,settle,mark,list,find,detail,review,recover,plan,previewView,sourceIdentityOf,locatorOf,locatorFingerprint,approve,outputInfo,staleAfter,get active(){return active;}};
 }
 module.exports={createRunLedger,pinOptions,safeView,REASONS};

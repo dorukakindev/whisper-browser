@@ -16,6 +16,12 @@
   if(args.target==='source'){
    // Main revalidates the recorded run/source identity before dispatch. Returning
    // reveals that same visible media; selecting a run is a different action.
+   // A recorded versioned locator reopens the exact library record through the existing opener. Only an older record without one
+   // falls back to the matching media that is already open (which main verified by recorded identity).
+   const reopened=await window.DubSourceReturn?.open?.(args.run_id,{isCancelled:stale});
+   if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
+   if(reopened?.ok){if(dialog()?.open)dialog().close();return {status:'completed',run_id:args.run_id,target:'source',kind:reopened.kind,version_matches:reopened.versionMatches===true,note:t('Opened the recorded source. Nothing was played or generated, and no dubbed audio was attached.','Kayıtlı kaynak açıldı. Hiçbir şey çalınmadı veya üretilmedi; dublaj sesi bağlanmadı.')};}
+   if(reopened&&!['no-locator','unsupported'].includes(reopened.code))throw Error(reopened.message||t('Opening the source was not confirmed.','Kaynağın açıldığı doğrulanamadı.'));
    const context=window.BrowserDubAudioUI?.context?.();
    if(!context?.hasMedia||context.visible===false)throw Error(t('Open the matching source first. This record cannot reopen another source.','Önce eşleşen kaynağı açın. Bu kayıt başka bir kaynağı yeniden açamaz.'));
    if(dialog()?.open)dialog().close();

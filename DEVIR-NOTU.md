@@ -1,3 +1,5 @@
+Güncel teslim: [Kaynağa dönüş, araştırma defteri ve kaynaklı çok-not](docs/devir/2026-11-07-2010.md)
+Güncel yerel düzeltme: [Yorum analizi ve kompakt okuyucu](docs/devir/2026-11-07-1907.md)
 Güncel entegrasyon: [Asistan kaynak/not, üretim kurtarma ve son görsel kabul](docs/devir/2026-11-07-1840.md)
 Güncel paket: [Asistan ↔ üretim çalışmaları, gerçek köprü ve not penceresi — paket 6](docs/devir/2026-11-07-1800.md)
 Güncel paket: [Üretim paneli “Son çalışmalar”, kurtarma ve iki yeniden deneme — paket 5](docs/devir/2026-11-07-1640.md)

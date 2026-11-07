@@ -26,6 +26,8 @@
   if(!current(owner))throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
   if(['seek_to_time','open_subtitle_editor','search_subtitles','get_current_subtitle'].includes(name)&&owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track changed. Ask for a new action.','Altyazı izi değişti. Yeni bir işlem isteyin.'));
   if(isCancelled()||Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
+  if(name==='open_research_note'){const result=await window.AssistantResearchNotesUI.reveal(raw.source_id,owner);return result.ok?{status:'completed'}:{status:'failed',error:result.error};}
+  if(name==='validate_research_owner')return {status:'completed'};
   if(name==='get_voice_panel')return window.AssistantVoiceRuns.panel();
   const args=registry.validate(name,JSON.parse(JSON.stringify(raw)),snapshot());
   const stale=()=>isCancelled()||Date.now()>=deadline||!current(owner);

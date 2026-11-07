@@ -76,6 +76,9 @@ function filterResearchAnnotations(rows, filters = {}, now = Date.now()) {
   return (Array.isArray(rows) ? rows : []).filter((row) => {
     if(filters.podcastSource){const id=String(filters.podcastSource.sourceEntryId||''),identity=String(filters.podcastSource.episodeIdentity||'');if(row.mediaType!=='podcast'||!((id&&row.sourceEntryId===id)||(identity&&(row.episodeIdentity||row.sourceBinding?.episodeIdentity)===identity)))return false;}
     if (type !== 'all' && row.type !== type) return false;
+    // Source kind (podcast / youtube / local / browser…) and one exact source; the saved record keeps both, so no guessing.
+    if (filters.mediaType && filters.mediaType !== 'all' && row.mediaType !== String(filters.mediaType)) return false;
+    if (filters.mediaId && row.mediaId !== String(filters.mediaId)) return false;
     if (status !== 'all' && row.status !== status) return false;
     const tags = normalizeResearchTags(row.tags);
     if (tag && !tags.some((value) => value.toLocaleLowerCase('tr-TR').replace(/ı/g,'i').includes(tag))) return false;

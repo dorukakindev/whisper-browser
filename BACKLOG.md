@@ -6,10 +6,19 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Kaynağa dönüş, araştırma defteri ve çok-not — 2026-11-07
+
+- Tamamlanan ürün: `b893eef9c812dbb8e51aeb164cf496c2740070b2`; dal `codex/source-return-notebook-20261107`. Claude pkg3, pkg1/pk2 dosyalarının tamamını kapsayarak entegre edildi; önceki yerel yorum düzeltmeleri korundu. [Teslim](docs/devir/2026-11-07-2010.md).
+- Podcast/katalog/YouTube kaynağına sürümlü dönüş; defterde kaynak süzgeci, kaynak/çeviri/not ayrımı, revizyon çatışması ve taslak/odak korunması; asistanda yerel not araması, seçili karşılaştırma, kaynak açma ve düzenlenebilir/önizlemeli kaynaklı yeni not tamamlandı. 237 hedefli test geçti. Gerçek Windows LG Electron'da kontrollü modelle iki not → taslak → elle düzenleme → önizleme/onay → tek kayıt; gerçek Browser sahibiyle yerel autoplay sayfasında sessiz/duraklatılmış kaynak açma doğrulandı.
+- **Kalan gerçek ortam kabulü:** canlı YouTube, mpv sesi ve gerçek VoxCPM2 üretimi bu görevde denenmedi. Kesin sonraki adım: izole LG profiliyle kayıtlı bir üretimden Podcast/yerel/YouTube kaynağına dön; doğru sürüm/konum ve manuel oynatmaya kadar sessizliği kısa gerçek denemeyle gözle. Yeni ücretli model/ASR işi otomatik başlatılmaz.
+- **Eski kayıt sınırı:** güvenilir konumlayıcısı olmayan üretimler başlık/dosya adı benzerliğinden açılmaz; aynı açık kaynak veya açıklamalı elle açma yolu korunur. Yeni kayıtlar mevcut main-owned kimliklerden konumlayıcı üretir; eski kayıtlara tahmini toplu göç yok.
+- **Not kapsamı:** yerel düz metin eşleşmesi; bir istekte en fazla 8 seçili not. Kaynaklar değişince taslak onayı reddedilir. Geçici asistan kartı/taslağı 10 dakika sonra yeniden aranmalıdır; kaydedilmiş not ve dayanak kimlikleri kalıcıdır.
+- Yorum analizi: gerçek hata/sonuç bağlantısı ve kompakt okuyucu düzeltmeleri bu teslimdedir. 15/15 yorumun kontrollü gerçek istek gövdesine gittiği önceki yerel kabul korunur. Mevcut 48 yorum/60 bin karakter bütçesi ve spoiler dışlaması önizlemede açıklanır; kullanıcının canlı sağlayıcısı bu tur denenmedi.
+
 ## Asistan kümülatif entegrasyonu — 2026-11-07
 
 - Doğrulanmış ürün `65e3a0ee564d2acda8a06b7a66bd3d7f471d9146`; dal `codex/assistant-pkg7b-completion-20261107`. [Teslim](docs/devir/2026-11-07-1840.md). Pkg7b önceki paketleri kapsar; yinelenen yamalar uygulanmadı. Kodda yarım kalan yeni entegrasyon yok.
-- **Kaynak dönüşü sınırı:** üretim kaydı yalnız opak kaynak kimliği tutar; başka bölümü/dosyayı yeniden açacak güvenilir konumlayıcı içermez. Eşleşen açık medyaya dönüş artık gerçekten üretim penceresini kapatır; oynatma/üretim başlatmaz. Başka kaynak için kullanıcı önce ilgili kaynağı açmalıdır; bu sınır hem panelde hem asistan verisinde açıklanır. Gelecekte otomatik dönüş istenirse mevcut katalog/podcast kayıt kimliğiyle sürümlü güvenilir konumlayıcı tasarlayıp eski kayıtlara sahte adres eklemeden ayrı iş olarak doğrula.
+- **Kaynak dönüşü sınırı güncellendi:** yeni Podcast/katalog/YouTube kayıtları için sürümlü konumlayıcı ve doğrulanmış açıcı tamamlandı; konumlayıcısız geçmiş kayıtların güvenli ret sınırı üstteki teslimde açıklanır.
 - **Kalan gerçek ortam kabulü:** canlı model, gerçek VoxCPM2 işçisi, mpv sesi ve Windows uyku/süreç yeniden kullanımıyla kira davranışı bu turda yeni canlı üretimle gözlenmedi. Kesin sonraki adım izole LG profili ve mevcut yetkili sağlayıcıyla kısa bir kesitte üretim → kesinti → yeniden açılış → geçmişten sonuç/önizleme → onay akışını gözlemek; yeni ücretli otomatik tekrar yok, Podcast işlemi 3–4 dakikayı aşmasın. Kitap bölümü ve groupTakes gibi birebir yeniden kurulamayan işler mevcut açıklamalı ret sınırını korur.
 
 ## Asistan kaynak, onay ve iş dayanıklılığı — paket 1–3 (2026-11-07)
