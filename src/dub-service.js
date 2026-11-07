@@ -11,10 +11,16 @@ const { atomicWriteFileSync } = require('./fsync-utils');
 const { validVoiceOutput, inspectVoiceOutput } = require('./voice-output');
 const {normalize: normalizePronunciations} = require('./dub-pronunciation');
 const {identity: sourceIdentity} = require('./dub-source-identity');
+const {createRunLedger} = require('./dub-run-ledger');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, translateGroup, resolveSourceContext, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {} }) {
   let job = null, releasingEngine=false;
+  // One persistent record per run (dub-logs/<id>-<ts>.json) plus an instance lease; see dub-run-ledger.js.
+  const instanceId = randomBytes(12).toString('hex');
+  let ledgerInstance = null;
+  const runLedger = () => ledgerInstance || (ledgerInstance = createRunLedger({ logsDir: path.join(app.getPath('userData'), 'dub-logs'),
+    outputDir: voiceStorage(app).output, inputDir: voiceStorage(app).input, instanceId }));
   const referenceSelectionSecret=randomBytes(32);
   const groupTakes=require('./dub-group-takes').createGroupTakes({app,grantMedia});
   const pronunciationStore=()=>require('./dub-pronunciation-store').createStore(path.join(app.getPath('userData'),'dub-source-pronunciations.json'));
@@ -123,6 +129,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     s.sender.once?.('destroyed', s.onDestroyed);
   }
   function finish(s, type, data = {}) {
+    // A late or repeated terminal event must not rewrite a finished run or clean up another run's files.
+    if (s.finished) return;
+    s.finished = true;
+    if (s.heartbeat) { clearInterval(s.heartbeat); s.heartbeat = null; }
     s.sender.removeListener?.('destroyed', s.onDestroyed);
     if (type === 'error' || type === 'cancelled') cleanupArtifacts(s);
     const summary = { id: s.id, startedAt: s.startedAt, finishedAt: new Date().toISOString(),
@@ -138,9 +148,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       stdoutTail: s.stdout || '', stderrTail: s.stderr || ''
     };
     if (s.summaryPath) {
-      try { fs.writeFileSync(s.summaryPath, JSON.stringify(summary, null, 2), 'utf8'); }
+      try { runLedger().settle(s.summaryPath, summary); }
       catch (error) { s.logError = error.message; }
     }
+    if (s.ledgerRun) runLedger().end(s.id);
     if (type === 'done' && data.path && s.settings?.kind !== 'text') onOutput({...data,id:s.id});
     emit(s, type, { ...data, elapsedSeconds: summary.elapsedSeconds,
       metrics:s.metrics || null, logPath: s.summaryPath || null, logError: s.logError || null });
@@ -467,7 +478,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true, ...c, storageRoot: voiceStorage(app).root, ready: [path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py'),path.join(c.engine, 'kitap_ortak.py'),
       path.join(c.engine, '.venv', 'Scripts', 'python.exe'), c.reference, c.transcript].every(p => fs.existsSync(p)) };
   }));
-  ipcMain.handle('dub:start', guard(async (e, request = {}) => {
+  // `trusted` is supplied only by in-process callers (an approved retry), never by IPC: it carries the stored
+  // input copy and the pinned identity so the renderer cannot name a path or an identity.
+  async function startGeneration(e, request = {}, trusted = null) {
     if (textUI) throw new Error('SRT üretimi için önce metin stüdyosunu kapatın.');
     if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
@@ -515,7 +528,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       c.followDelivery = request.followDelivery ?? c.followDelivery;
       c.deliveryStrength = request.deliveryStrength ?? c.deliveryStrength;
       if (typeof c.followDelivery !== 'boolean' || !['gentle','balanced','strong'].includes(c.deliveryStrength)) throw new Error('Invalid delivery option.');
-      s.sourceIdentity = sourceIdentity(request.source);
+      s.sourceIdentity = trusted ? trusted.sourceIdentity : sourceIdentity(request.source);
+      if (trusted) { s.retryOf = trusted.retryOf; s.attempt = trusted.attempt; }
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech, forceAll, forceGroupCount:forceGroups.length });
       s.settings.referenceName = path.basename(c.reference);
@@ -541,13 +555,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if(!previous||previous!==referenceRecipe)throw staleReferenceRecipe();
       }
       emit(s, 'voice', {reference:c.reference,transcript:c.transcript,engine:c.engine});
-      const srt = await authorizeSubtitle(request.srt);
+      const srt = trusted ? trusted.srt : await authorizeSubtitle(request.srt);
       if (path.extname(srt).toLowerCase() !== '.srt') throw new Error('Bir SRT altyazı dosyası seçin.');
       if (fs.statSync(srt).size > 4000000) throw new Error('SRT çok büyük.');
       const sourceBytes = fs.readFileSync(srt);
       s.subtitleHash = require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex');
       if (sourceBytes.length > 4000000) throw new Error('SRT çok büyük.');
-      const effectivePronunciations=pronunciationStore().resolve(pronunciationScope(request.source,sourceBytes),c.pronunciations).pronunciations;
+      const effectivePronunciations=trusted?normalizePronunciations(trusted.pronunciations||[]):pronunciationStore().resolve(pronunciationScope(request.source,sourceBytes),c.pronunciations).pronunciations;
       const prepared = plans.get(e.sender.id);
       if (prepared?.srt === srt && JSON.stringify(prepared.range) === JSON.stringify(s.range)
           && prepared.sourceHash !== require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex')) {
@@ -601,8 +615,15 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         const logBase = `${s.id}-${Date.now()}`;
         s.logPath = path.join(logDir, `${logBase}.ndjson`);
         s.summaryPath = path.join(logDir, `${logBase}.json`);
-        fs.writeFileSync(s.summaryPath, JSON.stringify({ id: s.id, startedAt: s.startedAt,
-          result: 'running', sample: s.sample }, null, 2), 'utf8');
+        // The start record pins what this run was asked to do, so an interrupted run can be understood and retried exactly.
+        runLedger().begin({ summaryPath: s.summaryPath, id: s.id, startedAt: s.startedAt, sample: s.sample, retryOf: s.retryOf, attempt: s.attempt, label: path.basename(srt, '.srt'),
+          pinned: { profile: s.settings.profile, verification, timingMode, grouping: c.grouping, expression: c.expression, deliveryStrength: c.deliveryStrength, resultMode: c.resultMode,
+            concurrency, autoFit: c.autoFit, naturalSpeech: c.naturalSpeech, followDelivery: c.followDelivery, deliveryAutomatic: s.settings.deliveryAutomatic, forceAll, forceGroups,
+            narration: request.narration === true, sample: s.sample, range: s.range, sourceDuration, sourceIdentity: s.sourceIdentity, subtitleHash: s.subtitleHash,
+            referenceFingerprint: referenceRecipe, referenceName: s.settings.referenceName, pronunciations: effectivePronunciations,
+            groupTakesCount: Object.keys(selectedTakes || {}).length, speechSourceStatus: s.settings.speechSourceStatus } });
+        s.ledgerRun = true;
+        s.heartbeat = setInterval(() => { runLedger().heartbeat(s.id); }, 5000); s.heartbeat.unref?.();
       } catch (error) { s.logError = error.message; }
       const inputDir = path.join(voiceStorage(app).input, s.id);
       fs.mkdirSync(inputDir, { recursive: true });
@@ -758,7 +779,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         }
         s.tail = (s.tail + '\n' + value).slice(-6000);
         // Evidence for recovering a file, never proof of acoustic quality.
-        if (value.startsWith('Tamamlandi: ') && path.resolve(value.slice(12).trim()) === path.resolve(output)) s.completedMarker = true;
+        if (value.startsWith('Tamamlandi: ') && path.resolve(value.slice(12).trim()) === path.resolve(output)) {
+          s.completedMarker = true;
+          // Durable evidence: if the app dies before the terminal record, a valid output can still be recovered safely.
+          if (s.summaryPath) runLedger().mark(s.summaryPath, { workerCompleted: true, completedAt: new Date().toISOString() });
+        }
         if (value.startsWith('DUB_REWRITE ') && (c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
           try {
             const r = JSON.parse(value.slice(12));
@@ -923,6 +948,42 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (error.code === 'DUB_START_CANCELLED') { finish(s, 'cancelled'); return { ok: false, cancelled: true, error: 'İptal edildi.' }; }
       finish(s, s.cancelled ? 'cancelled' : 'error', { error: error.message }); throw error;
     }
+  }
+  ipcMain.handle('dub:start', guard((e, request = {}) => startGeneration(e, request)));
+  // Current settings as the retry preview compares them (same keys as the pinned options; no paths).
+  function currentRunSettings() {
+    const c = config();
+    let fingerprint = null; try { fingerprint = referenceFingerprint(c); } catch (_) {}
+    return { profile: c.profile, verification: c.verification, timingMode: c.timingMode, grouping: c.grouping, expression: c.expression, deliveryStrength: c.deliveryStrength,
+      resultMode: c.resultMode, concurrency: c.concurrency, autoFit: c.autoFit, naturalSpeech: c.naturalSpeech, followDelivery: c.followDelivery, referenceFingerprint: fingerprint, referenceMissing: fingerprint === null, referenceName: path.basename(c.reference || '') };
+  }
+  // Run records: list / recover / retry-preview / retry-approve. Reading changes nothing; every other action is explicit,
+  // validated and bound to a run id (never a path).
+  ipcMain.handle('dub:runs', guard(async (e, request = {}) => {
+    const ledger = runLedger(), runId = request?.runId, action = request?.action, active = job?.id || null;
+    const safe = value => typeof value === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(value);
+    if (action === 'list') return { ok: true, active, ...ledger.list({ activeRunId: active, limit: Number.isSafeInteger(request.limit) ? request.limit : 30 }) };
+    if (action === 'detail') { if (!safe(runId)) throw Error('Invalid run identity.'); return ledger.detail(runId, { activeRunId: active }); }
+    if (action === 'review') {
+      if (!safe(runId)) throw Error('Invalid run identity.');
+      const checked = ledger.review(runId, { activeRunId: active });
+      if (!checked.ok) return checked;
+      // The same grant the saved-output lookup uses; listening only, nothing is attached to a source or a timeline here.
+      grantMedia(checked.file);
+      return { ok: true, name: checked.name, url: pathToFileURL(checked.file).href, seconds: checked.seconds, use: checked.use, state: checked.state, recovered: checked.recovered };
+    }
+    if (action === 'recover') { if (!safe(runId)) throw Error('Invalid run identity.'); return ledger.recover(runId, { activeRunId: active }); }
+    if (action === 'retry-preview') {
+      if (!safe(runId) || !['pinned', 'current'].includes(request.settings ?? 'pinned')) throw Error('Invalid retry request.');
+      return ledger.plan(runId, { settings: request.settings ?? 'pinned', current: currentRunSettings(), activeRunId: active });
+    }
+    if (action === 'retry-approve') {
+      if (typeof request.token !== 'string' || !/^[a-f0-9]{64}$/.test(request.token)) throw Error('Invalid retry approval.');
+      const newId = require('node:crypto').randomUUID();
+      return ledger.approve(request.token, { newId, current: currentRunSettings(), activeRunId: active, busy: () => !!(job || textUI || releasingEngine || busy()),
+        start: (retryRequest, trusted) => startGeneration(e, retryRequest, trusted) });
+    }
+    throw Error('Invalid run action.');
   }));
   async function cancel() {
     const s = job;
@@ -966,6 +1027,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (job) emit(job, 'warning', { text: 'Üretim durdurulamadı; pencere açık kaldı. Durdur düğmesiyle tekrar deneyin.' });
     });
   });
-  return { running: () => !!job || !!textUI || releasingEngine, cancel, releaseIdle:async()=>{if(job||textUI||releasingEngine)throw Error('Voice generation is active.');releasingEngine=true;try{return await warmEngine.release();}finally{releasingEngine=false;}} };
+  const voiceRunsApi = () => require('./assistant-voice-runs').createVoiceRunsApi({ ledger: runLedger(), current: currentRunSettings, active: () => job?.id || null, identity: sourceIdentity });
+  return { runs: { list: o => voiceRunsApi().list(o), detail: (id, o) => voiceRunsApi().detail(id, o), preview: (id, mode) => voiceRunsApi().preview(id, mode), sourceMatch: (id, source) => voiceRunsApi().sourceMatch(id, source), exists: id => voiceRunsApi().exists(id) },
+    running: () => !!job || !!textUI || releasingEngine, cancel, releaseIdle:async()=>{if(job||textUI||releasingEngine)throw Error('Voice generation is active.');releasingEngine=true;try{return await warmEngine.release();}finally{releasingEngine=false;}} };
 }
 module.exports = { registerDubService };

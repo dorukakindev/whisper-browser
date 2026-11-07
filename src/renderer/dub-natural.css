@@ -76,7 +76,7 @@
 #dubGeneratorDialog .dub-card { padding: 0; border: 0; border-radius: 0; background: none; }
 #dubGeneratorDialog .dub-source-card { padding-inline-end: 32px; }
 #dubGeneratorDialog .dub-voice-card { padding-inline-start: 32px; border-inline-start: 1px solid var(--border); }
-#dubGeneratorDialog .dub-studio-main > :is(#dubPreviewCard, .dub-natural-card, .dub-edit-card) { grid-column: 1 / -1; }
+#dubGeneratorDialog .dub-studio-main > :is(#dubRuns, #dubPreviewCard, .dub-natural-card, .dub-edit-card) { grid-column: 1 / -1; }
 #dubGeneratorDialog .dub-natural-card, #dubGeneratorDialog .dub-edit-card { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--border); }
 #dubGeneratorDialog .dub-card-heading { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
 #dubGeneratorDialog .dub-card-heading h3 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.005em; }

@@ -31,6 +31,7 @@
   <link rel="stylesheet" href="media-discovery.css" />
   <link rel="stylesheet" href="media-experience.css" />
   <link rel="stylesheet" href="dub-natural.css" />
+  <link rel="stylesheet" href="dub-runs.css">
   <link rel="stylesheet" href="media-taste.css" />
   <link rel="stylesheet" href="media-hub.css" />
   <link rel="stylesheet" href="media-tools.css" />
@@ -3832,6 +3833,8 @@
   <header class="dub-studio-header"><div class="dub-title-block"><h2 id="dubGeneratorTitle" data-ui-untranslated data-tr="Doğal dublaj" data-en="Natural dubbing">Doğal dublaj</h2><p data-ui-untranslated data-tr="Altyazıyı, sesi ve kapsamı doğrulayın; hazırsa üretin." data-en="Confirm the subtitles, voice and scope, then generate.">Altyazıyı, sesi ve kapsamı doğrulayın; hazırsa üretin.</p></div><div class="dub-header-actions"><span class="dub-state" id="dubStateChip" data-state="notready" role="status" aria-live="polite"><i aria-hidden="true"></i><span id="dubStateLabel" data-ui-untranslated>Hazır değil</span></span><button class="btn btn-secondary" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></div></header>
   <div class="dub-readiness dub-slate" role="group" aria-label="Üretim hazırlığı"><div data-cell="source"><small>Altyazı</small><strong id="dubReadySource" data-ui-untranslated>—</strong><em class="dub-ready-note" id="dubReadySourceNote" data-ui-untranslated></em></div><div data-cell="voice"><small>Ses</small><strong id="dubReadyVoice" data-ui-untranslated>—</strong><em class="dub-ready-note" id="dubReadyVoiceNote" data-ui-untranslated></em></div><div data-cell="scope"><small>Kapsam</small><strong id="dubReadyRange" data-ui-untranslated>—</strong><em class="dub-ready-note" id="dubReadyRangeNote" data-ui-untranslated></em></div></div>
   <div class="dub-studio-scroll"><div class="dub-studio-grid"><main class="dub-studio-main">
+    <details class="dub-card dub-runs" id="dubRuns" data-ui-untranslated data-state="idle"><summary><span class="dub-runs-title" id="dubRunsTitle" data-tr="Son çalışmalar" data-en="Recent runs">Son çalışmalar</span><span class="dub-runs-count" id="dubRunsCount" hidden></span><span class="dub-runs-attention" id="dubRunsSummary" hidden></span></summary>
+      <div class="dub-runs-body"><div class="dub-runs-bar"><p id="dubRunsNotice" role="status" aria-live="polite" hidden></p><button class="btn btn-ghost btn-sm" id="dubRunsRefresh" type="button">Yenile</button></div><ul class="dub-runs-list" id="dubRunsList" aria-labelledby="dubRunsTitle"></ul></div></details>
     <section class="dub-card" id="dubPreviewCard" hidden><div class="dub-card-heading"><h3 id="dubResultTitle" data-ui-untranslated data-tr="Dublaj hazır" data-en="Dubbing ready">Dublaj hazır</h3></div><p id="dubNaturalReview" data-ui-untranslated></p><button id="dubNaturalReviewOpen" class="btn btn-secondary" type="button" data-ui-untranslated data-tr="Grupları dinle ve kayıtları karşılaştır" data-en="Review groups and compare takes">Grupları dinle ve kayıtları karşılaştır</button><p id="dubGeneratedName" data-ui-untranslated></p><audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio></section>
     <section class="dub-card dub-source-card"><div class="dub-card-heading"><h3 data-ui-untranslated data-tr="Altyazı ve kapsam" data-en="Subtitles and scope">Altyazı ve kapsam</h3></div>
 <div class="dub-generator-row"><button class="btn btn-secondary" id="dubChooseSrt" type="button">SRT seç</button><span id="dubSrtName" data-ui-untranslated>—</span></div>
@@ -4041,6 +4044,8 @@
 <script src="../dub-pronunciation.js"></script>
 <script src="dub-run-info.js"></script>
 <script src="dub-generator-ui.js"></script>
+<script src="dub-runs-ui.js"></script>
+<script src="assistant-voice-runs.js"></script>
 <script src="dub-experience-ui.js"></script>
 <script src="dub-group-takes-ui.js"></script>
 <script src="voice-reference-compare.js"></script>
@@ -4135,6 +4140,8 @@
 <script src="../assistant-source-preview.js"></script>
 <script src="assistant-feed-sources.js"></script>
 <script src="assistant-recall-sources.js"></script>
+<script src="assistant-podcast-sources.js"></script>
+<script src="assistant-podcast-note-ui.js"></script>
 <script src="assistant-runtime-controls.js"></script>
 <script src="global-assistant.js"></script>
 <script src="media-experience.js"></script>

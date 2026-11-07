@@ -162,3 +162,14 @@
 }
 .dub-review-headline{margin:10px 0;padding:10px 12px;border-left:2px solid var(--accent);background:var(--bg-0);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
 .dub-readability-note{font-size:12px;line-height:1.6;color:var(--text-dim);overflow-wrap:anywhere}
+
+/* Source-bound note dialog opened from an assistant source card. */
+.assistant-note-dialog{width:min(640px,92vw);max-height:88vh;overflow:auto;padding:20px 22px;gap:10px}
+.assistant-note-dialog[open]{display:grid}
+.assistant-note-dialog .note-source{white-space:pre-line;color:var(--muted,inherit);font-size:13px;margin:0}
+.assistant-note-dialog .note-quote{margin:0;padding:10px 12px;border-left:3px solid var(--accent);max-height:160px;overflow:auto;overflow-wrap:anywhere}
+.assistant-note-dialog label{display:grid;gap:6px;font-size:13px}
+.assistant-note-dialog textarea{width:100%;min-height:8em;resize:vertical;font:inherit;color:inherit}
+.assistant-note-dialog .note-preview-text{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,currentColor 6%,transparent);max-height:200px;overflow:auto}
+.assistant-note-dialog .note-status,.assistant-note-dialog .note-access,.assistant-note-dialog .note-existing{margin:0;font-size:13px;overflow-wrap:anywhere}
+.assistant-note-dialog .note-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}

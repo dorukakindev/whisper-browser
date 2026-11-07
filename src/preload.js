@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('api', {
   shortenDub: (request) => ipcRenderer.invoke('dub:shorten', request),
   setDubVideoRate: (request) => ipcRenderer.invoke('dub:rate', request),
   cancelDub: (request) => ipcRenderer.invoke('dub:cancel', request),
+  dubRuns: (request) => ipcRenderer.invoke('dub:runs', request),
   onDubEvent: (cb) => {
     const listener = (_e, value) => cb(value);
     ipcRenderer.on('dub:event', listener);
@@ -106,6 +107,7 @@ contextBridge.exposeInMainWorld('api', {
   restoreLearningAnnotationAnchor: (tabId, annotationId) => ipcRenderer.invoke('library:annotations:restoreAnchor', { tabId, annotationId }),
   listResearchAnnotations: (filters = {}, limit = 500) => ipcRenderer.invoke('browser:research:list', { filters, limit }),
   upsertResearchAnnotation: (annotation) => ipcRenderer.invoke('browser:research:upsert', annotation),
+  assistantPodcastNote: (input) => ipcRenderer.invoke('assistant:podcastNote', input),
   reviewResearchAnnotation: (id, rating) => ipcRenderer.invoke('browser:research:review', { id, rating }),
   exportResearchAnnotations: (filters = {}, title = '') => ipcRenderer.invoke('browser:research:export', { filters, title }),
   exportResearchAnnotationsAnki: (filters = {}, deckName = '') => ipcRenderer.invoke('browser:research:exportAnki', { filters, deckName }),

@@ -40,7 +40,8 @@
   if(text.length>32000)text=t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n')+text.slice(-31800);
   task.trace=(task.trace||[]).map(row=>row.state==='running'?{...row,state:'stopped'}:row);window.AssistantWorkspace?.steps?.(task.job,task.trace);
   task.job.bubble.classList.remove('is-loading');if(state!=='complete')task.job.bubble.classList.add('ai-msg-err');
-  if(result?.ok&&current)window.AssistantWorkspace?.citations?.(task.job,[...new Map([...task.citations,...(result.bookCitations||[]),...(result.filmCitations||[])].map(row=>[row.id,row])).values()]);
+  if(result?.ok&&current)window.AssistantWorkspace?.citations?.(task.job,[...new Map([...task.citations,...(result.bookCitations||[]),...(result.filmCitations||[]),...(result.podcastCitations||[])].map(row=>[row.id,row])).values()]);
+  if(result?.ok&&current)window.AssistantWorkspace?.basis?.(task.job,{unverified:result.podcastUnverified||0});
   if(result?.runtime?.pending?.length){task.runtimeMessages=task.runtimeMessages||[];for(const row of result.runtime.pending){const pendingRow={...row,status:'not-delivered'},at=task.runtimeMessages.findIndex(old=>old.id===row.id&&old.runId===row.runId);if(at<0)task.runtimeMessages.push(pendingRow);else task.runtimeMessages[at]=pendingRow;}window.AssistantWorkspace?.runtime?.(task.job,task.runtimeMessages);text+='\n\n'+t('Some queued messages were not delivered before this task ended. They remain in the activity record.','Görev bitmeden bazı sıradaki mesajlar iletilemedi. İşlem kaydında korunuyor.');}
   renderAiText(task.job.bubble,text);window.AssistantWorkspace?.finish(task.job,text,state);
   if(result?.ok&&current){player.chatHistory=[...history,{role:'user',content:question},...(task.runtimeMessages||[]).filter(row=>row.status==='delivered').map(row=>({role:'user',content:row.text})),{role:'assistant',content:text}].slice(-24);player.chatHistoryScope=scope;document.dispatchEvent(new CustomEvent('assistant-answer',{detail:{text,context}}));}
@@ -98,13 +99,17 @@
  async function apply(proposal){
   if(pending||applying)throw Error(t('Wait for the current assistant action.','Geçerli asistan işlemini bekle.'));
   const task={id:proposal.proposalId,owner:window.AssistantAppActions.snapshot(),phase:'applying'};applying=task;changed();let result;
-  try{const response=await window.api.assistantAgentApply({proposalId:proposal.proposalId,owner:task.owner});result=response?.ok?response.result:{status:task.cancelled?'stopped':'failed',refreshable:response?.refreshable===true,error:response?.error||t('Action failed.','İşlem başarısız oldu.')};if(typeof result.error==='string')result.error=errorText(result.error);
+  try{const response=await window.api.assistantAgentApply({proposalId:proposal.proposalId,owner:task.owner});
+   // The same approval is still running: keep the card as it is; nothing is marked failed or applied.
+   if(response?.pending)throw Error(errorText(response.error)||t('This action is still running.','Bu işlem hâlâ sürüyor.'));
+   result=response?.ok?response.result:response?.uncertain||response?.unconfirmed?{status:'unknown',error:response.error}:{status:task.cancelled?'stopped':'failed',refreshable:response?.refreshable===true,error:response?.error||t('Action failed.','İşlem başarısız oldu.')};
+   if(response?.ok&&response.replayed)result={...result,note:[result.note,t('This approval was already applied; it was not applied again.','Bu onay zaten uygulanmıştı; yeniden uygulanmadı.')].filter(Boolean).join(' ')};if(typeof result.error==='string')result.error=errorText(result.error);
    if(result.continuationState==='unverified')result.note=(result.note||'')+' '+t('Follow this job in Jobs; its completion cannot be linked to an automatic next step.','Bu işi İşler bölümünden takip et; tamamlanması sonraki adıma güvenle bağlanamıyor.');
    if(result.continuationState==='limit')result.note=(result.note||'')+' '+t('Eight applied steps reached. Ask a new question to continue.','Sekiz uygulanan adıma ulaşıldı. Devam etmek için yeni bir soru sor.');
    window.AssistantWorkspace?.actionResult(proposal.proposalId,result);
    for(const id of result.invalidatedProposalIds||[])window.AssistantWorkspace?.actionResult(id,{status:'stopped',note:t('Previous results changed. Continue the latest applied step to plan again.','Önceki sonuçlar değişti. Yeniden planlamak için uygulanan son adımdan devam et.')});
    const origin=proposalTasks.get(proposal.proposalId);if(result.continuationId&&origin&&window.AssistantAppActions.current(task.owner))continuations.set(proposal.proposalId,{token:result.continuationId,proposalId:proposal.proposalId,owner:task.owner,origin,expires:Date.now()+600000,maxExpires:Date.now()+86400000,waiting:result.continuationState==='waiting',jobId:result.continuationJobId||null});while(continuations.size>50)continuations.delete(continuations.keys().next().value);
-   if(['failed','stopped'].includes(result.status))throw Error(result.error||t('Action stopped. A started media job remains separately controlled in Jobs.','Asistan işlemi durdu. Başlamış medya işi İşler bölümünden ayrıca yönetilir.'));return result;
+   if(['failed','stopped','unknown'].includes(result.status))throw Error(result.error||t('Action stopped. A started media job remains separately controlled in Jobs.','Asistan işlemi durdu. Başlamış medya işi İşler bölümünden ayrıca yönetilir.'));return result;
   }finally{if(applying===task)applying=null;changed();}
  }
  async function refresh(proposal){
@@ -141,7 +146,7 @@
  }
  const canRetry=()=>!!retryPacket&&window.AssistantAppActions.current(retryPacket.owner);
  async function retry(){if(!canRetry()||pending||applying)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope,undefined,row.options);}
- window.AssistantAgentUI=Object.freeze({send,message,status,busy:()=>!!pending||!!applying,cancel,apply,refresh,flowInfo,continueAction,canRetry,retry,bookPreparation});
+ window.AssistantAgentUI=Object.freeze({send,message,status,busy:()=>!!pending||!!applying,applyingId:()=>applying?.id||null,cancel,apply,refresh,flowInfo,continueAction,canRetry,retry,bookPreparation});
  document.addEventListener('media-context-changed',()=>{const task=pending||applying;
   if(task===applying&&task&&!task.cancelled&&task.bookHandoff&&window.globalAssistantContext?.()?.id===task.bookHandoff){
    const next=window.AssistantAppActions.snapshot();

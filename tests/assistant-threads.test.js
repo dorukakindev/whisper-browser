@@ -39,3 +39,25 @@ test('persisted book citations keep bounded original page identities',()=>{
  const cleaned=cleanThread(t);assert.deepEqual(cleaned.messages[1].citations,[{id:'B3-0',page:3,sourceId:'pdf-hash',kind:'page',text:'quote'}]);
  assert.deepEqual(cleanThread(cleaned).messages[1].citations,cleaned.messages[1].citations);
 });
+
+test('thread persistence keeps valid saved-podcast source cards and drops malformed ones or unexpected fields',()=>{
+ const id=n=>'P'+String(n).repeat(8)+'-'+String(n).repeat(4)+'-'+String(n).repeat(4)+'-'+String(n).repeat(4)+'-'+String(n).repeat(12);
+ const card=(n,extra={})=>({id:id(n),kind:'podcast',usage:'cited',show:'Coastal',episode:'Episode',role:'source',timed:false,seconds:null,end:null,quote:'The lighthouse.',locator:{action:'podcast-search-resolve',query:'lighthouse',episode:'entry',token:'c'.repeat(64)},scope:{limit:6,more:true},...extra});
+ const base=thread(),rows=cleanThread({...base,messages:[base.messages[0],{id:'answer',parentId:'question',role:'assistant',text:'x',status:'complete',citations:[
+  card(1),card(2,{id:'P-bad'}),card(3,{locator:{...card(3).locator,token:'short'}}),card(4,{role:'narrator'}),card(5,{quote:' '}),
+  card(6,{html:'<script>x</script>',url:'file:///c:/secret',locator:{...card(6).locator,path:'C:\\secret',url:'https://evil.example'}})]}]}).messages[1].citations;
+ assert.deepEqual(rows.map(row=>row.id),[id(1),id(6)]);
+ assert.equal(rows[1].html,undefined);assert.equal(rows[1].url,undefined);assert.deepEqual(Object.keys(rows[1].locator).sort(),['action','episode','query','token']);
+ assert.deepEqual(rows[0].scope,{limit:6,more:true});
+});
+
+test('thread persistence keeps an unknown approval result and its note',()=>{
+ const base=thread(),action={kind:'app_action',proposalId:'proposal-1',tool:'open_settings',label:'Open settings',summary:'x',resultStatus:'unknown',resultText:'Check the current state.'};
+ const row=cleanThread({...base,messages:[base.messages[0],{id:'answer',parentId:'question',role:'assistant',text:'x',status:'complete',actions:[action]}]}).messages[1].actions[0];
+ assert.deepEqual([row.resultStatus,row.resultText],['unknown','Check the current state.']);
+});
+
+test('thread persistence keeps a bounded count of unverified references',()=>{
+ const base=thread(),rows=cleanThread({...base,messages:[base.messages[0],{id:'answer',parentId:'question',role:'assistant',text:'x',status:'complete',basis:{unverified:2,extra:'x'}},{id:'two',parentId:'answer',role:'assistant',text:'y',basis:{unverified:-4}}]}).messages;
+ assert.deepEqual(rows[1].basis,{unverified:2});assert.equal(rows[2].basis,null);
+});

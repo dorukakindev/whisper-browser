@@ -88,3 +88,13 @@ test('cited replies become bounded outputs with protected edits and reply-owned 
   thread = (await threads('owner', { action: 'save', sourceKey, thread })).thread;
   assert.equal((await artifacts('owner', request)).code, 'reply-unavailable');
 });
+
+test('saved podcast citations become podcast sources, not books, and never enter the subtitle timeline',()=>{
+ const {fromMessage}=require('../src/assistant-message-artifact'),id='P'+'1'.repeat(8)+'-1111-1111-1111-'+'1'.repeat(12);
+ const card={id,kind:'podcast',role:'translation',quote:'The lighthouse blinks.',timed:true,seconds:12,end:15,locator:{token:'b'.repeat(64),episode:'entry-1'}};
+ const thread={id:'t',sourceKey:'s',title:'Podcast question'},message={id:'m',role:'assistant',status:'complete',text:'The lighthouse blinks ['+id+'].',citations:[card]};
+ const dossier=fromMessage(thread,message,'dossier');
+ assert.deepEqual(dossier.body.evidence.map(row=>[row.id,row.sourceKind,row.text]),[[id,'podcast','The lighthouse blinks.']]);
+ assert.equal(dossier.body.evidence[0].time,undefined);
+ assert.deepEqual(fromMessage(thread,message,'timeline'),{ok:false,code:'no-cited-content'});
+});

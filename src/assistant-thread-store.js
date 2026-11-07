@@ -34,6 +34,7 @@ function feedEvidenceOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,3).filter
 
 function pageEvidenceOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,80).filter(row=>row&&/^S[0-9]{1,5}$/.test(row.id)&&typeof row.text==='string').map(row=>({id:row.id,text:text(row.text,2000),source:{tabId:text(row.source?.tabId,100),generation:Number.isSafeInteger(row.source?.generation)&&row.source.generation>=0?row.source.generation:null,pageUrl:text(row.source?.pageUrl,1000)}}));}
 function citationsOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,40).flatMap(c=>{
+ if(c?.kind==='podcast'){const card=require('./renderer/assistant-podcast-sources').cleanOne(c);return card?[card]:[];}
  if(c?.kind==='film-review')return /^F[a-f0-9]{20}$/.test(c.id||'')&&/^(catalog:[\w-]{1,120}|discovery:(film|series):tt\d{7,12})$/.test(c.itemId||'')&&typeof c.reviewId==='string'&&c.reviewId.length>0&&c.reviewId.length<=200&&!c.reviewId.includes('\0')&&/^[a-f0-9]{64}$/.test(c.revision||'')&&typeof c.text==='string'&&c.text.length>0&&c.text.length<=2000&&!c.text.includes('\0')?[{id:c.id,kind:'film-review',itemId:c.itemId,reviewId:c.reviewId,revision:c.revision,text:c.text,title:text(c.title,300),author:text(c.author,200)}]:[];
  return c&&/^B[0-9]+-[0-9]+$/.test(c.id)&&typeof c.sourceId==='string'&&c.sourceId.length>0&&c.sourceId.length<=500&&!c.sourceId.includes('\0')&&Number.isInteger(c.page)&&c.page>0&&c.page<=100000?[{id:c.id,sourceId:c.sourceId,page:c.page,kind:c.kind==='page'?'page':'chapter',text:text(c.text,600)}]:[];
  });}
@@ -44,13 +45,14 @@ function actionsOf(raw){
     if(row?.kind==='app_action'){
       if(!id(row.proposalId)||require('./assistant-capabilities').get(row.tool)?.policy!=='proposal')return [];
       return [{kind:'app_action',proposalId:row.proposalId,tool:row.tool,label:text(row.label,120),summary:text(row.summary,1000),
-        resultStatus:['accepted','completed','failed','stopped'].includes(row.resultStatus)?row.resultStatus:'',refreshable:row.resultStatus==='failed'&&row.refreshable===true,resultText:text(row.resultText,500)}];
+        resultStatus:['accepted','completed','failed','stopped','unknown'].includes(row.resultStatus)?row.resultStatus:'',refreshable:row.resultStatus==='failed'&&row.refreshable===true,resultText:text(row.resultText,500)}];
     }
     if(!row||!['seek_to_time','preview_translation_change','open_voice_preparation'].includes(row.kind))return [];
     const result={kind:row.kind,source:evidenceOf(row.source?[row.source]:[])[0]||null,translation:text(row.translation,2000)};
     return result.kind==='open_voice_preparation'||result.source?[result]:[];
   });
 }
+function basisOf(raw){return Number.isInteger(raw?.unverified)&&raw.unverified>0&&raw.unverified<=40?{unverified:raw.unverified}:null;}
 function artifactRefs(raw) {
   if (raw === undefined) return [];
   if (!Array.isArray(raw) || raw.length > 8 || raw.some(ref => !require('./assistant-artifact-store').validateThreadRef(ref)) ||
@@ -62,7 +64,7 @@ function cleanThread(raw){
   if(!raw||!id(raw.id)||typeof raw.sourceKey!=='string'||!raw.sourceKey||raw.sourceKey.length>6000||!Array.isArray(raw.messages)||raw.messages.length>200)throw Error('Invalid assistant conversation.');
   const messages=parentsFirst(raw.messages.map(row=>{
     if(!row||!id(row.id)||row.parentId!==null&&!id(row.parentId)||!['user','assistant'].includes(row.role)||typeof row.text!=='string'||row.text.length>32000)throw Error('Invalid assistant message.');
-    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,artifacts:artifactRefs(row.artifacts),runtimeMessages:runtimeMessagesOf(row.runtimeMessages),status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),pageEvidence:pageEvidenceOf(row.pageEvidence),feedEvidence:feedEvidenceOf(row.feedEvidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps),citations:citationsOf(row.citations)};
+    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,artifacts:artifactRefs(row.artifacts),runtimeMessages:runtimeMessagesOf(row.runtimeMessages),status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),pageEvidence:pageEvidenceOf(row.pageEvidence),feedEvidence:feedEvidenceOf(row.feedEvidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps),citations:citationsOf(row.citations),basis:basisOf(row.basis)};
   }));
   const seen=new Set();for(const row of messages){if(seen.has(row.id)||row.parentId!==null&&!seen.has(row.parentId))throw Error('Conversation contains a cycle, duplicate or missing parent.');seen.add(row.id);}
   if(raw.headId!==null&&!seen.has(raw.headId))throw Error('Conversation head is missing.');

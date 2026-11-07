@@ -20823,8 +20823,8 @@ function explainCacheKey(kind, index, word) {
 
 async function openPodcastResearchResult(result, { beforeSeek, isCancelled = () => false, receipt } = {}) {
   const message = (tr, en) => window.UiLocale?.get?.() === 'tr' ? tr : en;
-  const unavailable = () => { logLine(message('Podcast bölümü artık bulunamıyor; kayıtlı not korunuyor.', 'Podcast episode is unavailable; the saved note is preserved.'), 'warn'); return false; };
-  const readOnly = () => {
+  const unavailable = () => { logLine(message('Podcast bölümü artık bulunamıyor; kayıtlı not korunuyor.', 'Podcast episode is unavailable; the saved note is preserved.'), 'warn'); return receipt ? readOnly('missing') : false; };
+  const readOnly = (why) => {
     if(isCancelled())return false;
     const quote=result.quote||result.excerpt||result.source||result.text;
     if(!quote)return false;
@@ -20834,12 +20834,12 @@ async function openPodcastResearchResult(result, { beforeSeek, isCancelled = () 
     const heading=document.createElement('h2'),body=document.createElement('blockquote'),reason=document.createElement('p'),close=document.createElement('button');
     heading.textContent=result.episodeTitle||result.mediaTitle||message('Kayıtlı podcast pasajı','Saved podcast passage');
     body.textContent=quote;
-    reason.textContent=message('Bu pasaj salt okunur. Ses kopyası veya zaman bağı doğrulanamadı.','This passage is read-only. The audio copy or timestamp could not be verified.');
+    reason.textContent=why==='missing'?message('Bölüm artık kitaplığında yok. Kayıtlı alıntı salt okunur gösteriliyor.','The episode is no longer in your library. The saved quote is shown read-only.'):message('Bu pasaj salt okunur. Ses kopyası veya zaman bağı doğrulanamadı.','This passage is read-only. The audio copy or timestamp could not be verified.');
     close.className='mh-action';close.textContent=message('Kapat','Close');close.onclick=()=>d.close();
     d.append(heading,reason,body,close);
     d.addEventListener('close',()=>{d.remove();void syncBrowserOcclusion();},{once:true});
     document.body.append(d);d.showModal();void syncBrowserOcclusion();
-    if(receipt)receipt.mode='read-only';
+    if(receipt){receipt.mode='read-only';receipt.reason=why||'unverified';}
     return true;
   };
   const exact=result.sourceBinding?.fingerprintStatus==='cached-playback';

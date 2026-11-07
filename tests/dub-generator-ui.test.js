@@ -55,7 +55,9 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubDeliveryStrength').disabled,false);
   el('dubRangeEnabled').checked=true;el('dubRangeEnabled').dispatchEvent(new w.Event('input'));
   el('dubRangeNow').click();assert.equal(el('dubRangeStart').value,'42');
-  assert.equal(el('dubGeneratorStart').disabled,true);assert.equal(el('dubStartRequirement').hidden,false);assert.match(el('dubStartRequirement').textContent,/SRT/);
+  assert.equal(el('dubGeneratorStart').disabled,true);assert.equal(el('dubStartRequirement').hidden,false);
+  // The disabled primary action names its one real missing piece: subtitles. The voice is ready here, so it must not be blamed.
+  assert.equal(el('dubStartRequirement').textContent.trim(),'Başlamak için altyazı seçin.');assert.doesNotMatch(el('dubStartRequirement').textContent,/ses/i);
   w.api.selectFile=async()=> 'test.partial.srt';
   readyAction('dubReadySource').click();await tick();
   assert.equal(el('dubInputNotice').hidden,false);assert.match(el('dubInputNotice').textContent,/kısmi/);

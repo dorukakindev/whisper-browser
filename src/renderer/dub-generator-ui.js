@@ -362,7 +362,7 @@
     fileName('dubVoiceName',basename(voice?.reference || ''));
     el('dubTranscriptName').textContent = basename(voice?.transcript || '');
     if (!current && (referenceQualityPendingReset || lastReferenceQuality && lastReferenceIdentity !== cfg?.reference)) { referenceInfo(null); referenceQualityPendingReset=false; }
-    const locked = !!current || referenceBusy || planning || choosing || workspaceBusy;
+    const locked = !!current || referenceBusy || planning || choosing || workspaceBusy || externalBusy;
     el('dubGeneratorUse').disabled = locked;
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubKeepEngine', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
     el('dubGrouping').disabled = locked;
@@ -683,27 +683,58 @@
       if (srt) { try { lookup.srt=srt; lookup.range=selectedRange(); } catch (_) { return; } }
       const r = await window.api.latestDub(lookup).catch(() => null);
       if (openedMedia !== requestIdentity() || requestedSelection !== selection() || current || output || !r?.output) return;
-      output = r.output;outputOwner=srt;runtimeMetrics=output.metrics||null;runInfo();
-      if (!srt) {
-        el('dubRangeEnabled').checked=!!output.range;
-        if(output.range){const format=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el('dubRangeStart').value=format(output.range.start);el('dubRangeEnd').value=format(output.range.end);}
-      }
-      controls(); window.DubWorkspaceUI?.setOutput(output); logPath = output.logPath; preview(output);
-      el('dubGeneratorOutput').classList.remove('hidden');
-      el('dubGeneratorUse').classList.toggle('hidden', output.sample === true || output.syncInvalid === true);
-      results.clear(); for (const row of output.quality?.groups || []) results.set(row.key, row); showResults();
-      el('dubGeneratorLog').classList.toggle('hidden', !logPath);
-      fileName('dubGeneratedName',output.name);
-      el('dubGeneratorProgress').value = 100;
-      elapsed(output.elapsedSeconds || 0);
-      if (output.timing) el('dubGeneratorTiming').textContent = `${output.timing.accelerated} / ${output.timing.clipped}`;
-      status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.'
-        : output.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.'
-        : output.qualityUnavailable ? qualityWarning(output)
-        : [...results.values()].some(row => row.status !== 'ready') ? 'Ses hazır; işaretli parçaları kontrol edin veya yeniden üretin.'
-        : 'Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.');
+      adoptSavedOutput(r.output);
     }
   }
+  // Shows an already validated saved output (same code for the dialog's own lookup and an explicit run load). It never plays audio.
+  function adoptSavedOutput(saved) {
+    output = saved;outputOwner=srt;runtimeMetrics=output.metrics||null;runInfo();
+    if (!srt) {
+      el('dubRangeEnabled').checked=!!output.range;
+      if(output.range){const format=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el('dubRangeStart').value=format(output.range.start);el('dubRangeEnd').value=format(output.range.end);}
+    }
+    controls(); window.DubWorkspaceUI?.setOutput(output); logPath = output.logPath; preview(output);
+    el('dubGeneratorOutput').classList.remove('hidden');
+    el('dubGeneratorUse').classList.toggle('hidden', output.sample === true || output.syncInvalid === true);
+    results.clear(); for (const row of output.quality?.groups || []) results.set(row.key, row); showResults();
+    el('dubGeneratorLog').classList.toggle('hidden', !logPath);
+    fileName('dubGeneratedName',output.name);
+    el('dubGeneratorProgress').value = 100;
+    elapsed(output.elapsedSeconds || 0);
+    if (output.timing) el('dubGeneratorTiming').textContent = `${output.timing.accelerated} / ${output.timing.clipped}`;
+    status(output.syncInvalid ? 'Ses dosyası hazır; zaman haritası geçersiz. Videoyla senkron garanti edilemez.'
+      : output.sample ? 'Kısa örnek hazır; tüm video için örnek seçimini kapatın.'
+      : output.qualityUnavailable ? qualityWarning(output)
+      : [...results.values()].some(row => row.status !== 'ready') ? 'Ses hazır; işaretli parçaları kontrol edin veya yeniden üretin.'
+      : 'Son üretilen ses hazır. Sesi kullan ile açık videoya bağlayabilirsiniz.');
+  }
+  const lookupSelection=()=>JSON.stringify([srt,el('dubRangeEnabled').checked,el('dubRangeStart').value,el('dubRangeEnd').value]);
+  const runLookup=id=>{const context=window.BrowserDubAudioUI?.context();return {id,source:context?.source||context?.mediaKey||'',srt,range:selectedRange()};};
+  // Bridge for the recent-runs list: the service itself checks the source identity, track digest and range (the same saved-output lookup the dialog uses).
+  window.DubGeneratorBridge=Object.freeze((() => {
+    let loadSeq = 0;
+    const same = before => modal.open && before[0] === requestIdentity() && before[1] === lookupSelection() && !current && !planning;
+    return {
+      openPanel(){return open();},
+      async probe(id){
+        if(!srt||current||planning)return false;let lookup;try{lookup=runLookup(id);}catch(_){return false;}
+        const before=[requestIdentity(),lookupSelection()],r=await window.api.latestDub(lookup).catch(()=>null);
+        return !!r?.output&&same(before);
+      },
+      // Loads one saved run into the CURRENT section. A newer load, a changed section/range/source, a closed panel, a running
+      // production or a caller that is no longer current (isCurrent) all discard the answer before anything is shown.
+      async load(id,{isCurrent=()=>true}={}){
+        if(current||planning||referenceBusy||choosing||workspaceBusy)return {ok:false,code:'busy'};
+        if(!srt)return {ok:false,code:'no-subtitle'};let lookup;try{lookup=runLookup(id);}catch(_){return {ok:false,code:'not-this-section'};}
+        const seq=++loadSeq,before=[requestIdentity(),lookupSelection()],r=await window.api.latestDub(lookup).catch(()=>null);
+        if(seq!==loadSeq||!isCurrent()||!same(before))return {ok:false,code:'stale'};
+        if(!r?.output)return {ok:false,code:'not-this-section'};
+        adoptSavedOutput(r.output);return {ok:true};
+      }
+    };
+  })());
+  let externalBusy=false;
+  window.addEventListener('dub-runs:busy',event=>{externalBusy=!!event.detail;controls();});
   el('browserDubGenerate').addEventListener('click', open);
   window.addEventListener('dub-workspace:busy', event => { workspaceBusy=!!event.detail; controls(); });
   window.addEventListener('voice-reference:changed', () => { if(current)referenceQualityPendingReset=true;else referenceInfo(null);void configure(undefined,true); });

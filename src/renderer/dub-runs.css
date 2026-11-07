@@ -1,0 +1,72 @@
+/* Üretim paneli — "Son çalışmalar". Dublaj stüdyosunun düz bölüm diline uyar (kart içinde kart yok):
+   bir çizgiyle ayrılmış satırlar, seçili satırın altında açılan ayrıntı, iki ayrı yeniden deneme önizlemesi.
+   Renk ve ölçüler dub-natural.css / theme-palette.css değişkenlerinden gelir; hareket yalnız gerçek duruma bağlıdır. */
+
+#dubGeneratorDialog #dubRuns { margin: 0 0 18px; padding: 0 0 14px; border-bottom: 1px solid var(--border); }
+/* Açılış oku ve özet satırı stüdyonun ortak details/summary stilinden gelir. */
+#dubRuns > summary { min-height: 36px; padding-block: 2px; }
+#dubRuns .dub-run-tech > summary { min-height: 28px; font-size: 12px; color: var(--text-dim); }
+#dubRuns .dub-runs-title { font-size: 15px; font-weight: 650; letter-spacing: -.005em; }
+#dubRuns .dub-runs-count { min-width: 20px; padding: 1px 7px; border-radius: 999px; font-size: 11.5px; text-align: center; background: var(--dub-row); color: var(--text-dim); }
+#dubRuns .dub-runs-attention { font-size: 12px; color: var(--dub-warn); }
+#dubRuns .dub-runs-bar { display: flex; align-items: flex-start; gap: 12px; margin: 8px 0 6px; }
+#dubRuns .dub-runs-bar p { flex: 1; margin: 0; font-size: 12.5px; color: var(--text-dim); }
+#dubRuns .dub-runs-bar button { margin-left: auto; flex: none; }
+#dubRuns[data-state="loading"] .dub-runs-list { opacity: .6; }
+#dubRuns .dub-runs-list { list-style: none; margin: 0; padding: 0; display: grid; }
+
+#dubRuns .dub-run { border-top: 1px solid var(--border); --tone: var(--text-muted); }
+#dubRuns .dub-run[data-tone="ok"] { --tone: var(--success); }
+#dubRuns .dub-run[data-tone="warn"] { --tone: var(--dub-warn); }
+#dubRuns .dub-run[data-tone="bad"] { --tone: var(--danger); }
+#dubRuns .dub-run[data-tone="live"] { --tone: var(--accent); }
+#dubRuns .dub-run-empty { padding: 14px 2px; font-size: 12.5px; color: var(--text-dim); border-top: 1px solid var(--border); }
+#dubRuns .dub-run-main { display: grid; grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) auto; grid-template-areas: 'state title tags' 'state meta tags'; column-gap: 14px; row-gap: 1px; width: 100%; padding: 10px 6px; text-align: left; background: none; border: 0; border-radius: 10px; color: inherit; font: inherit; cursor: pointer; }
+#dubRuns .dub-run-main:hover { background: var(--dub-row); }
+#dubRuns .dub-run-main:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#dubRuns .dub-run[data-selected="true"] > .dub-run-main { background: var(--dub-row); }
+#dubRuns .dub-run-state { grid-area: state; display: flex; align-items: center; gap: 8px; align-self: center; font-size: 12.5px; font-weight: 600; color: var(--tone); }
+#dubRuns .dub-run-state i { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); flex: none; }
+#dubRuns .dub-run[data-state="running"] .dub-run-state i { animation: dub-run-live 1.6s ease-in-out infinite; }
+#dubRuns .dub-run-title { grid-area: title; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#dubRuns .dub-run-meta { grid-area: meta; font-size: 12px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#dubRuns .dub-run-tags { grid-area: tags; display: flex; gap: 6px; align-self: center; }
+#dubRuns .dub-run-tags em { font-style: normal; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-dim); }
+
+#dubRuns .dub-run-detail { margin: 0 6px 14px 6px; padding: 4px 0 4px 18px; border-left: 2px solid color-mix(in srgb, var(--tone) 60%, var(--border)); display: grid; gap: 10px; animation: dub-run-open .2s var(--dub-ease, ease); }
+#dubRuns .dub-run-facts { display: grid; grid-template-columns: minmax(96px, max-content) minmax(0, 1fr); gap: 3px 16px; margin: 0; font-size: 12.5px; }
+#dubRuns .dub-run-facts dt { color: var(--text-dim); }
+#dubRuns .dub-run-facts dd { margin: 0; overflow-wrap: anywhere; }
+#dubRuns .dub-run-note, #dubRuns .dub-run-why, #dubRuns .dub-run-message, #dubRuns .dub-run-warn { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); }
+#dubRuns .dub-run-why { color: var(--text); }
+#dubRuns .dub-run-warn { color: var(--dub-warn); }
+#dubRuns .dub-run-message[data-tone="ok"] { color: var(--success); }
+#dubRuns .dub-run-message[data-tone="bad"] { color: var(--danger); }
+#dubRuns .dub-run-message[data-tone="info"] { color: var(--text-dim); }
+#dubRuns .dub-run-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#dubRuns .dub-run-actions .btn { border: 1px solid var(--border-strong); background: transparent; color: var(--text); }
+#dubRuns .dub-run-actions .btn:hover:not(:disabled) { border-color: var(--accent); }
+#dubRuns .dub-run-actions .btn-secondary { background: var(--dub-row); }
+#dubRuns .dub-run-actions .btn-primary { background: var(--accent); color: var(--accent-contrast, #17130d); border-color: var(--accent); font-weight: 650; }
+#dubRuns .dub-run-actions .btn-primary:disabled { background: var(--dub-row); color: var(--text-dim); border-color: var(--border); }
+#dubRuns .dub-run-actions .btn:disabled { opacity: .5; cursor: not-allowed; }
+#dubRuns .dub-run-audio { width: 100%; max-width: 420px; }
+
+/* İki ayrı önizleme yan yana: farklı vurgu ve farklı başlık; her onay düğmesi yalnız kendi paketine aittir. */
+#dubRuns .dub-run-previews { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+#dubRuns .dub-run-preview { display: grid; gap: 8px; align-content: start; padding: 12px 14px; border-radius: 12px; background: var(--dub-row); border-top: 3px solid var(--border-strong); }
+#dubRuns .dub-run-preview[data-mode="current"] { border-top-color: var(--accent); }
+#dubRuns .dub-run-preview h5 { margin: 0; font-size: 13px; font-weight: 650; outline: none; }
+#dubRuns .dub-run-diff { margin: 0; padding-left: 18px; font-size: 12.5px; }
+#dubRuns .dub-run-tech { font-size: 11.5px; color: var(--text-dim); }
+#dubRuns .dub-run-tech p { margin: 4px 0 0; }
+
+@keyframes dub-run-live { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes dub-run-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  #dubRuns .dub-run[data-state="running"] .dub-run-state i, #dubRuns .dub-run-detail { animation: none; }
+  }
+@media (max-width: 720px) {
+  #dubRuns .dub-run-main { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'state' 'title' 'meta' 'tags'; }
+  #dubRuns .dub-run-meta { white-space: normal; }
+}

@@ -186,3 +186,165 @@ test('Go to source: only podcast and library contexts offer it, the panel button
  }finally{w.close();}
  const ui=overlay();try{ui.snapshot({locale:'tr',sourceTarget:null});assert.equal(ui.$('openSource').hidden,true);ui.snapshot({locale:'tr',sourceTarget:{kind:'podcast'}});assert.equal(ui.$('openSource').hidden,false);assert.equal(ui.$('openSource').textContent,'Kaynağa git');ui.$('openSource').click();assert.equal(ui.commands.at(-1).action,'open-source');}finally{ui.w.close();}
 });
+
+test('Saved podcast source cards show usage, timing, scope and the last open result as plain text',()=>{
+ const ui=overlay();try{
+  const link=(extra={})=>({id:'b:one:answer:0',label:'Coastal · Episode',title:'Coastal show · A much longer episode title',excerpt:'<img src=x onerror=bad> The lighthouse blinks.',meta:'Original · 0:12–0:15',scope:'Search “lighthouse”: complete result',action:'seek',usage:'cited',state:'',note:'',...extra});
+  const show=(extra,locale='en')=>{ui.snapshot({locale,messages:[{id:'answer',role:'ai',text:'Answer '+Math.random(),links:[link(extra)]}]});return ui.w.document.querySelector('.source-card');};
+  let card=show();
+  assert.equal(card.dataset.usage,'cited');assert.match(card.querySelector('.source-usage').textContent,/^Cited$/);
+  assert.equal(card.querySelector('.source-title').title,'Coastal show · A much longer episode title');
+  assert.equal(card.querySelector('.source-meta').textContent,'Original · 0:12–0:15\nSearch “lighthouse”: complete result');
+  assert.equal(card.querySelector('img'),null,'the excerpt is text, never markup');assert.match(card.querySelector('p').textContent,/<img src=x onerror=bad>/);
+  const button=card.querySelector('button');assert.match(button.textContent,/^Go to moment$/);assert.equal(button.getAttribute('aria-label'),'Go to moment: Coastal show · A much longer episode title');button.click();
+  assert.deepEqual([ui.commands.at(-1).action,ui.commands.at(-1).text],['citation','b:one:answer:0']);
+  card.querySelector('[data-note-control="open"]').click();assert.deepEqual([ui.commands.at(-1).action,ui.commands.at(-1).text],['note','b:one:answer:0']);
+  card=show({usage:'found',action:'text',meta:'Original · Read-only text · no verified time'});
+  assert.match(card.querySelector('.source-usage').textContent,/^Not cited$/);assert.match(card.querySelector('button').textContent,/^Open text$/);
+  card=show({state:'opening'});assert.equal(card.querySelector('button').disabled,true);assert.match(card.querySelector('button').textContent,/Opening/);
+  card=show({state:'stale',note:'This saved source was changed or removed. Nothing was opened; search again.'});
+  const note=card.querySelector('.source-state');assert.equal(note.getAttribute('role'),'status');assert.equal(note.dataset.state,'stale');assert.match(note.textContent,/Nothing was opened/);
+  assert.match(card.querySelector('button').textContent,/Check again/);assert.equal(card.querySelector('button').disabled,false);
+  card=show({usage:'carried'},'tr');assert.match(card.querySelector('.source-usage').textContent,/nceki arama/);assert.match(card.querySelector('button').textContent,/^Ana git$/);
+ }finally{ui.dom.window.close();}
+});
+
+test('Settled approval cards show their real result instead of a dead Apply button; a running one is marked and Activity is offered when it helps',()=>{
+ const ui=overlay();try{
+  let n=0;const show=(action,locale='en')=>{ui.snapshot({locale,messages:[{id:'answer'+(++n)+locale,role:'ai',text:'Review',actions:[{id:'p1',kind:'app_action',label:'Open settings',...action}]}]});return ui.w.document.querySelector('.tool-card');};
+  let card=show({});assert.equal(card.dataset.status,'pending');assert.equal(card.querySelector('[data-tool-control="apply"]').disabled,false);
+  card=show({live:'running'});assert.equal(card.dataset.status,'running');assert.match(card.querySelector('.tool-status').textContent,/Applying now/);assert.equal(card.querySelector('[data-tool-control="apply"]').disabled,true);assert.match(card.querySelector('[data-tool-control="apply"]').textContent,/Applying…/);
+  card=show({resultStatus:'completed',resultText:'Opened.'});assert.equal(card.dataset.status,'completed');assert.equal(card.querySelector('[data-tool-control="apply"]'),null,'a completed action is never offered for applying again');assert.match(card.querySelector('.action-receipt').textContent,/Opened\./);
+  card=show({resultStatus:'unknown',resultText:'Check the current state before asking again.',activity:true});
+  assert.equal(card.dataset.status,'unknown');assert.match(card.querySelector('.tool-status').textContent,/Result unknown — not re-applied/);assert.equal(card.querySelector('[data-tool-control="apply"]'),null);
+  assert.match(card.querySelector('[role="status"].action-receipt').textContent,/Check the current state/);
+  card.querySelector('[data-tool-control="activity"]').click();assert.equal(ui.commands.at(-1).action,'open-activity');
+  card=show({resultStatus:'failed',resultText:'Refused.'});assert.equal(card.querySelector('[data-tool-control="apply"]'),null);assert.equal(card.querySelector('[data-tool-control="activity"]'),null,'no Activity link when it cannot show this action');
+  card=show({resultStatus:'unknown',resultText:'x',activity:true},'tr');assert.match(card.querySelector('.tool-status').textContent,/Sonuç bilinmiyor/);assert.match(card.querySelector('[data-tool-control="activity"]').textContent,/İşlemleri aç/);
+ }finally{ui.dom.window.close();}
+});
+test('The basis separates cited, earlier and uncited sources, and states what is incomplete, failed or unverified',()=>{
+ const ui=overlay();try{
+  const link=(i,usage,extra={})=>({id:'b:one:answer:'+i,label:'Show · Episode '+i,title:'Show · Episode '+i,excerpt:'Quote '+i,meta:'Original · 0:01–0:03',scope:'Search “x”',action:'seek',usage,state:'',note:'',more:false,...extra});
+  const show=(row,key)=>{ui.snapshot({messages:[{id:'answer'+key,role:'ai',text:'Answer',...row}]});return ui.w.document.querySelector('.sources');};
+  let sources=show({links:[link(0,'cited'),link(1,'carried'),link(2,'found'),link(3,'found',{more:true})],steps:[{id:'s1',name:'search_saved_podcasts',state:'failed'},{id:'s2',name:'x',state:'completed'}],basis:{unverified:1}},1);
+  const text=sources.querySelector('.source-basis').textContent;
+  assert.match(text,/1 cited in the answer · 1 cited from an earlier search · 2 found, not cited/);assert.match(text,/more exist that were not read/);assert.match(text,/1 tool check failed, was blocked or has an unknown result/);assert.match(text,/1 reference in the answer could not be verified and is not shown as a source/);
+  const group=sources.querySelector('.source-group');assert.match(group.querySelector('summary').textContent,/Found, not cited · 2/);assert.equal(group.querySelectorAll('.source-card').length,2);
+  assert.equal([...sources.children].filter(n=>n.classList.contains('source-card')).length,2,'cited and earlier sources stay in the main list');
+  group.open=true;group.dispatchEvent(new ui.w.Event('toggle'));
+  sources=show({text:'Answer, still streaming',links:[link(0,'cited'),link(1,'carried'),link(2,'found'),link(3,'found',{more:true})],steps:[],basis:{unverified:1}},1);
+  assert.equal(sources.querySelector('.source-group').open,true,'the disclosure survives a streaming update');
+  // nothing cited: the uncited results are the content, shown flat
+  sources=show({links:[link(0,'found'),link(1,'found')]},3);assert.equal(sources.querySelector('.source-group'),null);assert.match(sources.querySelector('.source-basis').textContent,/2 found, not cited/);
+  // legacy sources without usage keep the plain list
+  sources=show({links:[{id:'e:1',label:'1:23',excerpt:'Line'}]},4);assert.equal(sources.querySelector('.source-basis'),null);assert.equal(sources.querySelector('.source-note'),null);
+  sources=show({links:[link(0,'cited')],locale:'tr'},5);
+  ui.snapshot({locale:'tr',messages:[{id:'tr',role:'ai',text:'a',links:[link(0,'cited'),link(1,'found')]}]});assert.match(ui.w.document.querySelector('.source-basis').textContent,/1 yanıtta atıf yapıldı · 1 bulundu, atıf yok/);
+ }finally{ui.dom.window.close();}
+});
+
+test('A podcast source card travels from the overlay command through global-assistant and the real opener, and shows its true result',async()=>{
+ const rendererSource=fs.readFileSync(path.join(root,'renderer.js'),'utf8'),vm=require('node:vm');
+ const opener=rendererSource.slice(rendererSource.indexOf('async function openPodcastResearchResult('),rendererSource.indexOf('async function openUnifiedLibraryResult('));
+ const token='d'.repeat(64),id='P'+'2'.repeat(8)+'-2222-2222-2222-'+'2'.repeat(12);
+ const card={id,kind:'podcast',usage:'cited',show:'Show',episode:'Episode',role:'source',timed:true,seconds:12,end:15,quote:'The lighthouse blinks.',locator:{action:'podcast-search-resolve',query:'lighthouse',episode:'entry-A',token},scope:{limit:6,more:true}};
+ const binding={episodeIdentity:'episode-A',resource:'https://example.test/audio.mp3',revision:1,mime:'audio/mpeg',sha256:'unknown'};
+ async function harness(options={}){
+  const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Film</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;
+  const state={thread:'t1',calls:[],shelf:[],noted:[],activity:0,last:null,listener:null,snapshot:{mediaKey:'stream-A',generation:2,sourceVersion:'version-A',sourceBinding:binding,episodeIdentity:'episode-A',entryId:'entry-A'}};
+  const row=()=>({mediaType:'podcast',mediaId:'stream-A',sourceEntryId:'entry-A',sourceVersion:'version-A',sourceBinding:binding,episodeIdentity:'episode-A',playbackOwner:'player',timed:true,seconds:12,end:15,role:'source',quote:card.quote,token});
+  Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'stream-A',generation:2,get workspaceAudio(){return state.snapshot;}},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>null,aiSourceScope:()=> 'A',buildOptsFromUI:()=>({translateModel:'fixture'}),AssistantJobsUI:{snapshot:()=>({jobs:[]})},
+   osd(){},logLine(){},syncBrowserOcclusion(){},subtitleSourceTime:value=>value,subtitleContextLanguage:()=> '',MediaExperience:{openTasks:()=>{state.activity++;}},AssistantPodcastNoteUI:{open:async value=>{state.noted.push(value);}},
+   AssistantWorkspace:{snapshot:()=>({current:{id:state.thread,messages:[{id:'answer',role:'assistant',status:'complete',text:'See ['+id+'].',citations:[card]}]},threads:[]}),key:()=> 'conversation',activeId:()=>state.thread},
+   PlayerSourceCatalogIntegration:{openPodcastEntry:async entry=>{state.calls.push(['open',entry]);options.afterOpen?.(state);}},PlayerWorkspaceIntegration:{executeExisting:async packet=>{state.calls.push(['seek',packet.time]);return {ok:true};}},CinemaSahne:{open(){},openShelf(){}},
+   api:{updateAssistant:value=>state.last=value,onAssistantCommand:fn=>state.listener=fn,mediaShelf:async input=>{state.shelf.push(input);return options.shelf?options.shelf(state.shelf.length,row):{ok:true,row:row()};}}});
+  w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));
+  w.eval(fs.readFileSync(path.join(root,'assistant-podcast-sources.js'),'utf8'));
+  w.eval(opener);   // the real helper, exactly as renderer.js defines it
+  w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));
+  const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
+  const link=()=>state.last.messages[0].links[0];
+  const click=async action=>{state.listener({action,text:link().id,sourceToken:state.last.sourceToken});await wait();};
+  return {w,state,link,click,wait,close:()=>dom.window.close()};
+ }
+ // verified time: resolver gets the exact locator twice (open + re-check before the seek), the episode opens, then the seek happens
+ let h=await harness();try{
+  assert.deepEqual([h.link().usage,h.link().state,h.link().more],['cited','',true]);
+  await h.click('citation');
+  assert.deepEqual(h.state.shelf.map(input=>input.token),[token,token]);assert.deepEqual(h.state.shelf[0].query,'lighthouse');
+  assert.deepEqual(h.state.calls,[['open','entry-A'],['seek',12]]);assert.equal(h.link().state,'opened');assert.match(h.link().note,/0:12/);
+  await h.click('note');assert.equal(h.state.noted.length,1);assert.equal(h.state.noted[0].locator.token,token);
+  await h.click('open-activity');assert.equal(h.state.activity,1);
+ }finally{h.close();}
+ // removed or changed source: nothing opens and the card says so
+ h=await harness({shelf:()=>({ok:false,sourceChanged:true,error:'changed'})});try{
+  await h.click('citation');assert.deepEqual(h.state.calls,[]);assert.equal(h.link().state,'stale');assert.match(h.link().note,/Nothing was opened/);
+ }finally{h.close();}
+ // the conversation changes while the episode opens: no seek, and the card reports it was cancelled
+ h=await harness({afterOpen:state=>{state.thread='t2';}});try{
+  await h.click('citation');assert.deepEqual(h.state.calls,[['open','entry-A']],'no seek after the switch');
+  assert.equal(h.link().state,'','the late answer never changes the new conversation\'s card (the cancelled state stays on the card it belongs to)');
+ }finally{h.close();}
+ // a different playback version opens read-only and is never sought
+ h=await harness();try{
+  h.state.snapshot={...h.state.snapshot,sourceVersion:'replacement'};h.w.document.body.append(h.w.document.createElement('div'));
+  h.w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+  await h.click('citation');assert.deepEqual(h.state.calls,[['open','entry-A']]);assert.equal(h.link().state,'read-only');
+ }finally{h.close();}
+});
+
+test('COMPOSITION: answer markers become source buttons of the same message (never inside code, never for unknown labels); the evidence strip states coverage as chips and keeps the explanation one tap away',()=>{
+ const ui=overlay();try{
+  const messages=[{id:'a',role:'ai',status:'complete',basis:{unverified:1},text:'Claim [F1] and an unknown [Z9] and a found one [F2] and `code [F1]`.',steps:[{id:'s1',name:'search_saved_podcasts',state:'failed'}],
+   links:[{id:'F1',label:'F1',title:'Show · Episode 12',excerpt:'Exact excerpt one.',usage:'cited',more:true},{id:'F2',label:'F2',title:'Show · Episode 9',excerpt:'Exact excerpt two.',usage:'found'},{id:'F3',label:'F3',title:'Cited too',excerpt:'Third.',usage:'cited'}]}];
+  ui.snapshot({messages});const doc=ui.w.document;
+  const refs=[...doc.querySelectorAll('.cite-ref')];assert.deepEqual(refs.map(b=>b.textContent),['F1','F2'],'known labels only; the one inside code and the unknown label stay text');
+  assert.match(doc.querySelector('.message.ai').textContent,/\[Z9\]/);assert.match(doc.querySelector('code').textContent,/\[F1\]/);
+  const chips=[...doc.querySelectorAll('.evidence-chip')].map(c=>[c.dataset.tone,c.textContent]);
+  assert.deepEqual(chips.map(c=>c[0]),['ok','muted','warn','bad','bad']);assert.match(chips[0][1],/2 cited/);assert.match(chips[3][1],/1 check failed/);assert.match(chips[4][1],/1 reference unverified/);
+  const coverage=doc.querySelector('details.evidence-more');assert.equal(coverage.open,false,'the long explanation is collapsed');assert.match(coverage.textContent,/limited number of matches; more exist that were not read/);assert.match(coverage.textContent,/not verified/);
+  refs[1].click();const group=doc.querySelector('details.source-group'),card=[...doc.querySelectorAll('.source-card')].find(c=>c.dataset.citeLabel==='F2');
+  assert.equal(group.open,true,'the found-not-cited group opens for its marker');assert.equal(card.open,true);assert.equal(doc.activeElement,card.querySelector('summary'),'focus moves to the matching source');
+  refs[0].click();assert.equal([...doc.querySelectorAll('.source-card')].find(c=>c.dataset.citeLabel==='F1').open,true);
+  ui.snapshot({messages:[{...messages[0],text:messages[0].text+' more'}]});assert.equal(doc.querySelectorAll('.source-card[open]').length,2,'open sources survive the next streaming update');
+ }finally{ui.w.close();}
+});
+
+test('COMPOSITION: a status update never takes focus or the draft from the user who is typing',()=>{
+ const ui=overlay();try{
+  ui.snapshot({messages:[{id:'a',role:'ai',text:'First',links:[]}]});const field=ui.$('text');field.focus();field.value='half a question';
+  ui.snapshot({busy:true,phase:'tool',activity:'Reading sources',messages:[{id:'a',role:'ai',text:'First',links:[]},{id:'b',role:'ai',text:'Streaming…',loading:true,links:[]}]});
+  assert.equal(ui.w.document.activeElement,field);assert.equal(field.value,'half a question');
+  ui.snapshot({busy:false,messages:[{id:'a',role:'ai',text:'First',links:[]},{id:'b',role:'ai',status:'complete',text:'Done',links:[{id:'F1',label:'F1',excerpt:'E',usage:'cited'}]}]});
+  assert.equal(ui.w.document.activeElement,field,'the finished answer and its sources did not steal focus');assert.equal(field.value,'half a question');
+ }finally{ui.w.close();}
+});
+
+test('COMPOSITION: action cards are flat rows: one primary action while waiting, a settled row shows only its real result, expired cards offer a refresh, unknown stays unknown',()=>{
+ const ui=overlay();try{
+  const card=(id,extra)=>({id,live:'',activity:false,kind:'app_action',label:'Open production run',canContinue:false,waiting:false,retryable:false,partial:false,flowNote:'',resultStatus:'',refreshable:false,resultText:'',excerpt:'',translation:'',...extra});
+  ui.snapshot({messages:[{id:'m',role:'ai',text:'Prepared.',links:[],steps:[],actions:[card('p1',{flowNote:'Opens the panel; nothing starts.'}),card('p2',{live:'running'}),card('p3',{resultStatus:'completed',resultText:'Selected; nothing plays.'}),card('p4',{resultStatus:'unknown',resultText:'Result unknown; not re-applied.'}),card('p5',{refreshable:true,resultStatus:'failed',resultText:'Expired; nothing ran.'})]}]});
+  const doc=ui.w.document,by=id=>doc.querySelector(`.tool-card[data-proposal-id="${id}"]`);
+  assert(by('p1').querySelector('.tool-head > .tool-status'));assert.equal(by('p1').dataset.settled,undefined);assert.match(by('p1').querySelector('[data-tool-control=apply]').textContent,/Apply/);
+  assert.equal(by('p2').querySelector('[data-tool-control=apply]').disabled,true,'a running card cannot be applied again');
+  for(const id of ['p3','p4','p5'])assert.equal(by(id).dataset.settled,'1',id);
+  for(const id of ['p3','p4','p5'])assert.equal(by(id).querySelector('[data-tool-control=apply]'),null,id+' has no dead Apply button');
+  assert.match(by('p4').querySelector('.tool-status').textContent,/Result unknown/);assert.equal(by('p4').dataset.status,'unknown');
+  assert(by('p5').querySelector('[data-tool-control=refresh]'),'an expired card offers a refresh from current settings');
+  by('p1').querySelector('[data-tool-control=apply]').click();assert.equal(ui.commands.filter(c=>c.action==='apply-tool').length,0,'Apply opens a review first; it never applies directly');
+ }finally{ui.w.close();}
+});
+
+test('COMPOSITION: the saved run RECORD and the open MEDIA are two separate lines in the activity card, visible while it is collapsed, EN and TR',()=>{
+ for(const [locale,record,media,not] of [['en','Run record','Open media',/NOT the record/],['tr','Çalışma kaydı','Açık medya',/DEĞİL/]]){
+  const ui=overlay();try{
+   for(const f of ['../assistant-run-steps.js','assistant-run-card.js'])ui.w.eval(fs.readFileSync(path.join(root,f),'utf8'));
+   ui.snapshot({locale,messages:[{id:'m',role:'ai',text:'Answer',links:[],actions:[],steps:[{id:'r1',name:'inspect_voice_run',state:'completed',voiceRun:{kind:'record',runId:'run-cut',title:'Chapter 5',state:'interrupted',audio:'valid',selected:true,matches:false,mediaTitle:'Film now playing',unknown:true}}]}]});
+   const strip=ui.w.document.querySelector('.assistant-run-card summary .run-context');assert(strip&&!strip.hidden,'inside the summary, so it shows while collapsed');
+   const rows=[...strip.querySelectorAll('.run-fact')];assert.deepEqual(rows.map(r=>r.dataset.kind),['record','audio','unknown','media']);
+   assert.equal(rows[0].querySelector('b').textContent,record);assert.equal(rows[3].querySelector('b').textContent,media);assert.match(rows[3].textContent,not);assert.match(rows[0].textContent,/Chapter 5/);
+   assert.match(rows[1].textContent,/not listened|dinlenmedi/);
+  }finally{ui.w.close();}
+ }
+});
