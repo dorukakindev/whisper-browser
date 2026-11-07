@@ -121,6 +121,14 @@
     rows.forEach((row, i) => { if (row.videoStart <= mediaTime && mediaTime < row.videoEnd && (at < 0 || row.videoStart >= rows[at].videoStart)) at = i; });
     return at;
   }
+  /** Cümleye atlamanın hedef zamanı: cümlenin 10 ms içi (kısa cümlede yarısı). Medya öğeleri hedefin biraz gerisine
+   *  oturabildiği için tam başlangıca atlamak vurguyu önceki satıra düşürür; her atlama yolu bu hesabı paylaşır. */
+  const LANDING_SECONDS = 0.01;
+  function landingTime(start, end, offsetSeconds = 0) {
+    const s = num(start) + num(offsetSeconds); const e = typeof end === 'number' && Number.isFinite(end) ? end + num(offsetSeconds) : NaN;
+    const room = Number.isFinite(e) && e > s ? (e - s) / 2 : LANDING_SECONDS;
+    return Math.max(0, s + Math.min(LANDING_SECONDS, room));
+  }
   /** Seçili cue kimliklerinden en yakın satır (arama/aktif satıra dön için). */
   function rowIndexByCueId(rows, cueId) { return rows.findIndex((r) => r.cueId === cueId); }
   /** Filtre dışı aktif satırda filtre silinmez; yalnız "aktif satıra dön" eylemi bilgisi. */
@@ -132,6 +140,6 @@
 
   return Object.freeze({
     rowKey, resolveSourceRole, explainSourceRole, buildTranscriptRows, activeRowIndex, rowIndexByCueId, activeRowVisibility,
-    activeCueIdAt, OVERLAP_CAP_SECONDS, OVERLAP_FRACTION,
+    activeCueIdAt, landingTime, LANDING_SECONDS, OVERLAP_CAP_SECONDS, OVERLAP_FRACTION,
   });
 });

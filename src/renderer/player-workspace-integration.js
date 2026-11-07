@@ -141,7 +141,7 @@
     const current=snapshot();if(command.mediaKey&&command.mediaKey!==current.mediaKey||command.generation!==undefined&&command.generation!==current.generation)return {ok:false,code:'source-changed'};
     if(player.workspaceMode==='browser'){
       const commands={seek:'seek',togglePlay:player.browserPaused?'play':'pause',setRate:'speed',setVolume:'volume-set'};
-      if(command.type==='seekCue'){const source=sourceRole(),cue=source.cues.find(c=>c.id===command.cueId);return cue?browserCommand('seek',cue.start+source.offsetSeconds):{ok:false,code:'unknown-cue'};}
+      if(command.type==='seekCue'){const source=sourceRole(),cue=source.cues.find(c=>c.id===command.cueId);return cue?browserCommand('seek',PlayerTranscriptModel.landingTime(cue.start,cue.end,source.offsetSeconds)):{ok:false,code:'unknown-cue'};}
       if(!commands[command.type])return {ok:false,code:'unsupported'};
       return browserCommand(commands[command.type],command.time??command.rate??command.volume);
     }
@@ -150,7 +150,7 @@
         const [source] = tracks(); const index = source.cues.findIndex(c => c.id === command.cueId);
         if (index < 0) return { ok: false, code: 'unknown-cue' };
         if (source.id.startsWith('primary:')) seekToCue(index);
-        else { player.loopCueId = ''; video.currentTime = Math.max(0, source.cues[index].start + source.offsetSeconds + .01); }
+        else { player.loopCueId = ''; video.currentTime = PlayerTranscriptModel.landingTime(source.cues[index].start, source.cues[index].end, source.offsetSeconds); }
         break;
       }
       case 'seek': player.loopCueId = ''; video.currentTime = command.time; break;

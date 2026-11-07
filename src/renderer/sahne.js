@@ -116,7 +116,7 @@
       const loopChip = this.caps.loop ? `<button class="sh-chip" data-a="loop" type="button" aria-pressed="false">${ic('loop')}${T('Cümle döngüsü', 'Loop sentence')}</button>` : '';
       const follow = `<button class="sh-follow" data-a="follow" type="button" hidden>${ic('down')}${T('Konuşmaya dön', 'Back to speech')}</button>`;
       if (study) {
-        main.append(this.el(`<div class="sh-theater"><div class="sh-audio-summary"><div class="sh-cover"><div class="sh-cover-art" data-r="cover"></div></div><div class="sh-meta"><span class="sh-eyebrow" data-r="eyebrow"></span><h1 class="sh-title" data-r="title"></h1><p class="sh-sub" data-r="sub"></p><div data-r="chaps" class="sh-chaps"></div></div></div><div class="sh-screenwrap"><div class="sh-ambi" aria-hidden="true"></div><div class="sh-screen"><div class="slot" data-r="slot"></div><div class="frame"></div></div></div>
+        main.append(this.el(`<div class="sh-theater"><div class="sh-audio-summary"><div class="sh-cover"><div class="sh-cover-art" data-r="cover"></div></div><div class="sh-meta"><span class="sh-eyebrow" data-r="eyebrow"></span><h1 class="sh-title" data-r="title"></h1><p class="sh-sub" data-r="sub"></p><div class="sh-meta-next" data-r="upnext" hidden></div><div data-r="chaps" class="sh-chaps"></div></div></div><div class="sh-screenwrap"><div class="sh-ambi" aria-hidden="true"></div><div class="sh-screen"><div class="slot" data-r="slot"></div><div class="frame"></div></div></div>
           <div class="sh-subs" data-r="subs" role="status" aria-live="off"><span class="lang l" data-r="ls"></span><span class="lang r" data-r="lt"></span><div class="s" data-r="s"></div><div class="t" data-r="t"></div></div>
           <div class="sh-dock"><div class="group"><button class="sh-tbtn" data-a="prev" type="button" aria-label="${T('Önceki cümle', 'Previous sentence')}">${ic('prev')}</button><button class="sh-tbtn play" data-a="toggle" type="button" aria-label="${T('Oynat', 'Play')}">${ic('play')}</button><button class="sh-tbtn" data-a="next" type="button" aria-label="${T('Sonraki cümle', 'Next sentence')}">${ic('next')}</button><button class="sh-tbtn" data-a="replay" type="button" aria-label="${T('Cümleyi tekrar dinle', 'Replay sentence')}">${ic('replay')}</button></div>${wave()}<div class="group"><button class="sh-chip" data-a="rate" type="button">1×</button>${loopChip}</div></div></div>`));
         main.append(this.el(`<aside class="sh-cardsbox"><div class="sh-cards-h"><span class="sh-lang" data-r="lsb"></span>${ic('swap')}<span class="sh-lang" data-r="ltb"></span><label class="sh-search">${ic('search')}<input data-r="q" placeholder="${T('Cümlelerde ara', 'Search sentences')}" aria-label="${T('Cümlelerde ara', 'Search sentences')}"></label>${seg()}</div><div class="sh-cards-wrap"><div class="sh-cards" data-r="scroll"></div>${follow}</div></aside>`));
@@ -252,7 +252,7 @@
           case 'noteSeek':if(this.s.note && this.canSeek)this.run('seekCue',this.s.note.row,this.s.note.rev);break;
           case 'advanced':this.run('advanced');break;
           case 'display':{const modes=['both','src','tr'];this.s.disp=modes[(modes.indexOf(this.s.disp)+1)%3];this.applyDisp();break;}
-          case 'queue':this.run('openQueued',Number(b.dataset.index));break;
+          case 'queue':this.run('openQueued',b.dataset.queueKey ? {index:Number(b.dataset.index),queueKey:b.dataset.queueKey} : Number(b.dataset.index));break;
           case 'wordClose':this.closeWord();break;
           case 'wordLookup': case 'wordSave': void this.runWordAction(b); break;
           case 'toggle': this.run('toggle'); break; case 'prev': this.navigateSentence('prevCue'); break; case 'next': this.navigateSentence('nextCue'); break; case 'replay': this.navigateSentence('replay'); break;
@@ -1009,6 +1009,8 @@
         s.key = key; this.rebuild(st, info); this.setTint(info.tint);
         const t = this.q('[data-r=title]'); if (t) { t.textContent = info.title || T('Başlıksız bölüm', 'Untitled episode'); this.q('[data-r=eyebrow]').textContent = info.eyebrow || T('Şimdi çalıyor', 'Now playing'); this.q('[data-r=sub]').textContent = info.sub || ''; const c = this.q('[data-r=cover]'); c.replaceChildren(info.cover ? this.el(`<img src="${esc(info.cover)}" alt="">`) : this.coverInitials()); this.drawChapters(info.chapters||[]); }
       }
+      const upNext = this.q('[data-r=upnext]');
+      if (upNext) { const next = (info.queue || [])[0], sig = next ? JSON.stringify([next.index,next.title,next.queueKey]) : ''; if (sig !== this.metaQueueSig) { this.metaQueueSig = sig; upNext.replaceChildren(); upNext.hidden = !next; if (next) upNext.append(this.el(`<button class="sh-next-item sh-next-inline" type="button" data-a="queue" data-index="${Number(next.index)}" data-queue-key="${esc(next.queueKey)}"><small>${T('SIRADAKİ', 'UP NEXT')}</small><strong>${esc(next.title)}</strong></button>`)); } }
       const dur = Number(st.duration) || 0, observedTime = Number(st.time) || 0;
       const time = Number.isFinite(st.displayTime) ? st.displayTime : observedTime;
       const position = this.drag ? this.dragR * dur : dur > 0 ? Math.max(0, Math.min(dur, time)) : Math.max(0, time);
@@ -1193,7 +1195,12 @@
     scrollToActive(force) {
       const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l || l.hidden || this.root.classList.contains('sh-chapters-open')) return;
       const target = l.offsetHeight > sc.clientHeight && l.contains(this.livePart) ? this.livePart : l;
-      const top = target.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - (sc.clientHeight - target.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2); sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
+      const base = sc.getBoundingClientRect().top - sc.scrollTop, targetTop = target.getBoundingClientRect().top - base;
+      let top = targetTop - (sc.clientHeight - target.offsetHeight) / (this.o.mode !== 'podcast' ? 3 : 2);
+      // Keep the sentence before the speaking one fully readable when both fit; never push the speaking one out of view.
+      let prev = null; for (let i = this.cur - 1; i >= 0 && !prev; i--) if (this.lines[i] && !this.lines[i].hidden) prev = this.lines[i];
+      if (prev && target === l) { const prevTop = prev.getBoundingClientRect().top - base - 12; if (prevTop < top && targetTop + target.offsetHeight - prevTop <= sc.clientHeight - 16) top = prevTop; }
+      sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
     }
     restoreReadingPosition() {
       const reading = this.readingScroll;
@@ -1430,7 +1437,7 @@
       this.root.classList.toggle('sh-native',!!info.native);const clearance=Math.ceil(this.q('.sh-dock').getBoundingClientRect().height)+40;if(this.dockClearance!==clearance){this.dockClearance=clearance;this.root.style.setProperty('--sh-local-dock-clearance',clearance+'px');}
       this.q('.sh-local-clock').textContent=fmt(st.time)+' / '+(Number(st.duration)>0?fmt(st.duration):'—');
       const language=this.q('[data-a=display]');language.textContent=this.s.disp==='both'?T('İki dil','Both languages'):this.s.disp==='src'?T('Kaynak','Source'):T('Çeviri','Translation');
-      const list=info.queue||[],signature=JSON.stringify(list);if(signature!==this.queueSig){this.queueSig=signature;const target=this.q('.sh-up-next');target.textContent='';list.forEach((item,i)=>{const button=this.el(`<button class="sh-next-item" type="button" data-a="queue" data-index="${item.index}"><small>${i?T('ARDINDAN','THEN'):T('SIRADAKİ','UP NEXT')}</small><strong>${esc(item.title)}</strong></button>`);target.append(button);});}
+      const list=info.queue||[],signature=JSON.stringify(list);if(signature!==this.queueSig){this.queueSig=signature;const target=this.q('.sh-up-next');target.textContent='';list.forEach((item,i)=>{const button=this.el(`<button class="sh-next-item" type="button" data-a="queue" data-index="${item.index}" data-queue-key="${esc(item.queueKey)}"><small>${i?T('ARDINDAN','THEN'):T('SIRADAKİ','UP NEXT')}</small><strong>${esc(item.title)}</strong></button>`);target.append(button);});}
       const chapters=info.chapters||[],sig=JSON.stringify(chapters)+':'+st.duration;if(sig!==this.chapterSig){this.chapterSig=sig;const strip=this.q('.sh-cinema-chapters');strip.textContent='';strip.hidden=!chapters.length;chapters.forEach((c,i)=>{const end=chapters[i+1]?.t||st.duration,button=this.el(`<button class="sh-chap" type="button" data-t="${c.t}" title="${esc(c.label)} · ${fmt(c.t)}" aria-label="${esc(c.label)} · ${fmt(c.t)}"><span>${esc(c.label)}</span></button>`);button.style.flex=String(Math.max(.01,end-c.t));strip.append(button);});}
       const paused=!!st.paused;if(this.lastPause!==paused){this.lastPause=paused;this.reveal?.();}
     }

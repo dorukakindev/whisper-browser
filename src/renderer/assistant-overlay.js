@@ -127,7 +127,7 @@
     $('threads').setAttribute('aria-label',t('Conversation','Sohbet'));$('newThread').textContent=t('New','Yeni');$('threadSettings').textContent=t('Manage','Yönet');$('threadNameLabel').textContent=t('Conversation name','Sohbet adı');$('renameThread').textContent=t('Save name','Adı kaydet');$('deleteThread').textContent=t('Delete conversation','Sohbeti sil');
     $('find').placeholder=t('Search conversation','Konuşmada ara');$('find').setAttribute('aria-label',$('find').placeholder);$('pinned').textContent=t('Pinned','Sabitlenen');$('export').textContent=t('Export','Dışa aktar');
     $('sourceLabel').textContent=(value.videoContext||value.transcriptScope?t('Video, subtitles & model','Video, altyazı ve model'):value.pageContext?t('Web page & model','Web sayfası ve model'):t('Source & model','Kaynak ve model'));$('assistantSettings').textContent=t('Assistant & translation settings','Asistan ve çeviri ayarları');$('conversationMenuLabel').title=t('Conversation tools','Sohbet araçları');$('conversationMenuLabel').setAttribute('aria-label',$('conversationMenuLabel').title);$('modelName').textContent=value.model||t('Your configured AI model','Ayarlı AI modelin');$('sourceDescription').textContent=value.sourceDescription||t('Only provided context is used.','Yalnız sağlanan bağlam kullanılır.');$('scope').hidden=value.transcriptScope===false;$('latest').textContent=t('Latest reply ↓','Son yanıta git ↓');
-    $('title').textContent = t('Assistant', 'Asistan'); $('context').textContent = value.context || '';
+    $('title').textContent = t('Assistant', 'Asistan'); $('context').textContent = value.context || '';$('openSource').hidden=!value.sourceTarget;$('openSource').textContent=t('Go to source','Kaynağa git');$('openSource').title=t('Open the source this conversation is about','Bu sohbetin konusu olan kaynağı aç');$('openSource').onclick=()=>action('open-source','');
     $('bubble').setAttribute('aria-label', t('Open assistant', 'Asistanı aç')); $('bubble').title = $('title').textContent;
     $('expand').title = t('Expand / restore', 'Genişlet / geri al'); $('expand').setAttribute('aria-label', $('expand').title);
     $('close').title = t('Minimize', 'Küçült'); $('close').setAttribute('aria-label', $('close').title);
@@ -139,18 +139,18 @@
     $('suggestionMenuLabel').textContent=t('More suggestions','Diğer öneriler');
     const nextSuggestions = JSON.stringify(value.suggestions || []);
     if (nextSuggestions !== suggestionKey) {
-      suggestionKey = nextSuggestions; $('primarySuggestion').replaceChildren();$('suggestionOptions').replaceChildren();$('suggestionMenu').open=false;$('suggestionMenu').hidden=(value.suggestions||[]).length<2; closeReview(false);
+      suggestionKey = nextSuggestions; $('primarySuggestion').replaceChildren();$('suggestionOptions').replaceChildren();$('suggestionMenu').open=false;const many=(value.suggestions||[]).length>4;$('suggestionMenu').hidden=!many; closeReview(false);
       for (const [index,row] of (value.suggestions || []).entries()) {
         const button = document.createElement('button'); button.type = 'button'; button.textContent = row.label;button.title=row.label;
         button.onclick = () => { $('suggestionMenu').open=false;if(index)$('suggestionMenuLabel').focus();if(row.direct){if(!busy&&!snapshot.blocked)action('suggestion',row.id);return;} openReview({action:'suggestion',id:row.id},row.review,button); };
-        (index?$('suggestionOptions'):$('primarySuggestion')).append(button);
+        (index&&many?$('suggestionOptions'):$('primarySuggestion')).append(button);
       }
     }
     $('reviewConfirm').disabled = !!value.busy;
     busy = !!value.busy;$('suggestions').hidden=busy||!!value.blocked||!(value.suggestions||[]).length;if($('suggestions').hidden)$('suggestionMenu').open=false;for(const button of $('suggestions').querySelectorAll('button'))button.disabled=busy||!!value.blocked;for(const id of ['threads','newThread','renameThread','deleteThread'])$(id).disabled=busy||!!value.blocked; $('send').disabled = busy || !!value.blocked || !!pending; $('clear').disabled = busy; $('cancel').hidden = !value.canCancel; $('retry').hidden = !value.retry || busy;
     $('runtimeControls').hidden=!value.canRuntimeMessage;$('steer').textContent=t('Steer now','Yön değiştir');$('followup').textContent=t('After this answer','Bitince ekle');for(const id of ['steer','followup'])$(id).disabled=!!pending;
     const queued=(value.runtimeMessages||[]).filter(row=>row.status==='queued').length;$('runtimeMessageStatus').textContent=queued?t(`${queued} queued message(s)`,`${queued} mesaj sırada`):'';
-    $('scope').value = value.scope || 'watched';
+    $('scope').value = value.scope || 'watched';$('scopeLabel').textContent=t('Context scope','Bağlam kapsamı');
     if(pending && value.receipt?.id===pending.id){
       if(value.receipt.accepted && pending.sourceToken===value.sourceToken && $('text').value.trim()===pending.text){$('text').value='';rememberDraft();}
       showStatus(value.receipt.message||'',!value.receipt.accepted);pending=null;$('send').disabled=busy||!!value.blocked;
@@ -208,7 +208,8 @@
         apply.textContent=proposed.refreshable&&proposed.resultStatus==='failed'?t('Settings changed','Ayarlar de\u011fi\u015fti'):proposed.resultStatus?t(({accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[proposed.resultStatus]||'Finished',({accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[proposed.resultStatus]||'Bitti'):proposed.kind==='preview_translation_change'?t('Copy suggestion','Öneriyi kopyala'):t('Apply','Uygula');
         apply.disabled=busy||!!proposed.resultStatus;
         apply.onclick=()=>openReview({action:'apply-tool',id:proposed.id},title.textContent+'\n'+detail.textContent+'\n'+(proposed.kind==='app_action'?t('Runs this application action on the attached source using your current settings.','Bu uygulama işlemini bağlı kaynakta mevcut ayarlarınla çalıştırır.'):t('Runs only this action. No file is modified and no voice is generated.','Yalnız bu işlem uygulanır. Dosya değişmez ve ses üretimi başlamaz.')),apply);
-        card.append(title,detail,apply);
+        const statusKey=proposed.refreshable&&proposed.resultStatus==='failed'?'changed':proposed.resultStatus||'pending',badge=document.createElement('small');card.dataset.status=proposed.resultStatus||'pending';badge.className='tool-status';badge.textContent=t(({pending:'Waiting for your approval',changed:'Source or settings changed',accepted:'Accepted',completed:'Applied',failed:'Failed',stopped:'Stopped'})[statusKey]||'Finished',({pending:'Onayını bekliyor',changed:'Kaynak veya ayarlar değişti',accepted:'Kabul edildi',completed:'Uygulandı',failed:'Başarısız',stopped:'Durduruldu'})[statusKey]||'Bitti');
+        card.append(badge,title,detail,apply);
         if(proposed.refreshable&&proposed.resultStatus==='failed'){
           const refresh=document.createElement('button');refresh.dataset.toolControl='refresh';refresh.className='flow-continue';
           refresh.textContent=t('Refresh from current settings','Güncel ayarlarla yenile');refresh.disabled=busy;

@@ -43,6 +43,15 @@ const evidence=require('../src/assistant-source-context').freezePodcast(snap,tra
  const speed=document.querySelector('.browser-podcast-speed');speed.trigger.click();player.generation++;const before=commands.length;speedChange('1.5');assert.equal(commands.length,before,'old speed menu cannot change another generation');
  player.mediaKey='browser:replacement';assert.equal(ui.isActive(),false);player.mediaKey='browser:one';assert.equal(ui.isActive(),true);
  player.browserActiveTabId='b';assert.equal(ui.isActive(),false);assert.equal((await ui.execute(command)).code,'stale-source');
+ { // A replay whose seek is still pending must not resume playback after the user moved to another tab.
+  ui.setMode(true);player.browserActiveTabId='a';player.mediaKey='browser:one';player.browserPaused=true;player.browserTime=6;
+  let release;commandResult=type=>type==='seek'?new Promise(resolve=>{release=()=>resolve({ok:true});}):{ok:true};
+  const now=ui.snapshot(),before=commands.length,pending=ui.execute({type:'replay',mediaKey:now.mediaKey,generation:now.generation,trackId:now.sourceTrack.id,trackRevision:now.sourceTrack.revision});await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(commands.length,before+1,'the replay issued its seek');assert.equal(commands.at(-1).type,'seek');assert.equal(commands.at(-1).tab,'a','the pending seek is addressed to its own tab');
+  player.browserActiveTabId='b';release();await pending;
+  assert(!commands.slice(before).some(row=>row.type==='play'),'no playback is started after the tab changed');
+  commandResult=()=>({ok:true});
+ }
  ui.setMode(true);player.browserPageUrl='https://open.spotify.com/episode/test';assert.equal(ui.snapshot().capabilities.ASR.support,'no');
  const previousCloses=menuCloses;ui.setMode(false);assert(menuCloses>previousCloses,'menu exit closes the originating menu too');assert.equal(ui.isActive(),false);assert.equal(document.getElementById('web'),video);dom.window.close();console.log('browser-podcast: existing owner/position/rate, mapped bilingual clocks, bounded assistant evidence, stale actions and Spotify boundary OK');
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

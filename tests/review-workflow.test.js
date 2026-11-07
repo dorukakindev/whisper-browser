@@ -236,3 +236,127 @@ for(const changed of ['replacement','disposed'])for(const outcome of ['resolved'
   const result=u.draft.result,attempt=u.draft.attempt;release();await u.wait();assert.equal(u.draft.result,result);assert.equal(u.draft.attempt,attempt);assert.equal(u.calls.includes('redraw'),false);
  }finally{u.w.close();}
 });
+
+test('A source for another year is never loaded, and blocked, empty, mismatched and failed reads are told apart',async()=>{
+ const u=ui({},{item:{id:'film',kind:'film',title:'The Matrix',year:1999}}),job=()=>u.w.document.querySelector('.mrv-job'),raw=()=>u.w.document.querySelector('[name=review-text]').value;
+ const good={ok:true,reviews:[{id:'1',text:'Strong acting and a memorable atmosphere.',author:'Fixture'}],identity:{title:'The Matrix',year:1999},match:{state:'matched'},url:'https://letterboxd.com/film/the-matrix/reviews/'};
+ const other={ok:true,reviews:[{id:'1',text:'A review of the later remake only.',author:'Elsewhere'}],identity:{title:'The Matrix',year:2021},match:{state:'mismatch'},url:'https://letterboxd.com/film/the-matrix-2021/reviews/'};
+ const read=async answer=>{u.w.api.mediaTools=async()=>answer;u.click('Use reviews from open Browser page');await u.wait();};
+ try{
+  await read(other);assert.equal(u.draft.attempt.state,'failed');assert.equal(u.draft.attempt.kind,'mismatch');assert.equal(raw(),'');assert.equal(u.draft.reviews,undefined);assert.equal(u.draft.source,undefined);
+  assert.match(job().textContent,/Different film or year · nothing was loaded/);assert.doesNotMatch(job().textContent,/sample is kept/);assert.doesNotMatch(u.w.document.body.textContent,/remake only/);
+  await read({ok:false,error:'Letterboxd HTTP 403. Full review continuations require Browser access.'});assert.equal(u.draft.attempt.kind,'blocked');assert.match(job().textContent,/Access blocked · nothing was loaded/);
+  await read({ok:false,error:'No readable non-spoiler reviews found. Try the Browser or import a sample.'});assert.equal(u.draft.attempt.state,'empty');assert.match(job().textContent,/No eligible reviews found/);
+  await read({ok:false,error:'Controlled failure'});assert.equal(u.draft.attempt.state,'failed');assert.equal(u.draft.attempt.kind,'');assert.match(job().textContent,/Could not finish · nothing was loaded/);
+  await read(good);assert.equal(u.draft.attempt.state,'ready');assert.equal(u.draft.attempt.kind,'');const kept=raw();assert.match(kept,/Strong acting/);
+  await read(other);assert.equal(u.draft.attempt.kind,'mismatch');assert.match(job().textContent,/Different film or year · your sample is kept/);assert.equal(raw(),kept);
+  await read({ok:false,error:'Letterboxd HTTP 403. Full review continuations require Browser access.'});assert.match(job().textContent,/Access blocked · your sample is kept/);assert.equal(raw(),kept);
+  await read({ok:false,error:'Controlled failure'});assert.match(job().textContent,/Could not finish · your sample is kept/);assert.equal(raw(),kept);assert.equal(u.draft.source.identity.year,1999);
+ }finally{u.w.close();}
+});
+test('Spoiler text stays out of the sample box, preview, provider request, assistant context, saved result and copied answer while spoilers are off',async()=>{
+ const secret='ZEBRA_SPOILER_SENTENCE the hero dies at the end.',u=ui(),requests=[];
+ u.w.api.mediaTools=async packet=>{requests.push(packet);if(packet.action==='decision-save')return {ok:true};return {ok:true,reviews:[{id:'1',text:'Strong acting and a memorable atmosphere.',author:'Fixture'},{id:'2',text:secret,author:'Other',spoiler:true}],identity:{title:'The Matrix',year:1999},match:{state:'matched'},url:'https://letterboxd.com/film/the-matrix/reviews/',sampling:{mode:'new',requestedMode:'high',orderApplied:false,requested:5,returned:1}};};
+ try{
+  u.click('Use reviews from open Browser page');await u.wait();const read=requests.find(row=>row.action==='reviews-browser');assert.equal(read.spoilers,false);
+  const doc=u.w.document;assert.doesNotMatch(doc.querySelector('[name=review-text]').value,/ZEBRA/);assert.doesNotMatch(doc.querySelector('.mrv-loaded-sample').textContent,/ZEBRA/);
+  assert.match(doc.querySelector('.mrv-loaded-sample').textContent,/1 of 5 requested/);assert.match(doc.querySelector('.mrv-provenance').textContent,/requested Highest rated order was not applied/);assert.match(doc.querySelector('.mrv-job').textContent,/1 spoiler reviews not loaded/);
+  u.click('Preview & analyze');await u.wait();assert.doesNotMatch(doc.querySelector('.mrv-sample').textContent,/ZEBRA/);
+  let sentContext='';u.w.aiChatSend=async()=>{sentContext=JSON.stringify(u.context());doc.dispatchEvent(new u.w.CustomEvent('assistant-answer',{detail:{context:u.context(),text:JSON.stringify({summary:'Acting praised.',fit:'preferencesConfigured=false; no personal preferences supplied.',points:[{id:'1',quote:'Strong acting',reason:'The source praises acting.',kind:'praise'}]})}}));};
+  u.click('Send this sample');await u.wait();assert(sentContext.includes('Strong acting'));assert.doesNotMatch(sentContext,/ZEBRA/);assert.doesNotMatch(JSON.stringify(u.context()),/ZEBRA/);
+  const copied=doc.querySelector('.mrv-output').textContent;assert.match(copied,/Strong acting/);assert.doesNotMatch(copied,/ZEBRA/);
+  u.click('Verify quotes & save');await u.wait();const saved=requests.find(row=>row.action==='decision-save');assert(saved);assert.doesNotMatch(JSON.stringify(saved),/ZEBRA/);
+ }finally{u.w.close();}
+});
+test('Changing the spoiler setting while a source is being read never lets spoiler text in',async()=>{
+ const secret='ZEBRA_LATE_SPOILER the hero dies.',reply=()=>({ok:true,reviews:[{id:'1',text:'Strong acting and a memorable atmosphere.',author:'Fixture'},{id:'2',text:secret,author:'Other',spoiler:true}],identity:{title:'The Matrix',year:1999},match:{state:'matched'},url:'https://letterboxd.com/film/the-matrix/reviews/'});
+ for(const startsOn of [true,false]){
+  const u=ui({spoiler:startsOn}),doc=u.w.document,box=doc.querySelector('[name=review-spoilers]'),asked=[];let release;
+  u.w.api.mediaTools=packet=>{asked.push(packet);return new Promise(resolve=>{release=()=>resolve(reply());});};
+  try{
+   assert.equal(box.checked,startsOn);u.click('Use reviews from open Browser page');await u.wait();assert.equal(asked[0].spoilers,startsOn);
+   box.checked=!startsOn;box.dispatchEvent(new u.w.Event('change'));release();await u.wait();
+   assert.equal(u.draft.attempt.state,'ready');assert.match(u.draft.attempt.message,/spoiler setting changed while reading/);
+   assert.doesNotMatch(doc.querySelector('[name=review-text]').value,/ZEBRA/,'start '+startsOn);assert.doesNotMatch(doc.querySelector('.mrv-loaded-sample').textContent,/ZEBRA/);
+  }finally{u.w.close();}
+ }
+});
+test('A late answer for film A cannot change film B, and reverse-ordered refreshes keep only the newest',async()=>{
+ const u=ui({},{item:{id:'a',kind:'film',title:'Film A',year:2001}}),pending=[];
+ const reply=(title,year,text)=>({ok:true,reviews:[{id:'1',text,author:title}],identity:{title,year},match:{state:'matched'},url:'https://letterboxd.com/film/'+title.toLowerCase().replace(/ /g,'-')+'/reviews/'});
+ u.w.api.mediaTools=packet=>{u.calls.push(packet);if(packet.action==='reviews-stop')return Promise.resolve({ok:true});return new Promise((resolve,reject)=>pending.push({packet,resolve,reject}));};
+ const clickIn=(root,text)=>[...root.querySelectorAll('button')].find(n=>n.textContent===text).click();
+ try{
+  u.click('Use reviews from open Browser page');await u.wait();assert.equal(pending.length,1);const first=pending.shift();
+  const holder=u.w.document.createElement('div');u.w.document.body.append(holder);const draftB={};
+  u.w.MediaReviewDecision.mount(holder,{id:'b',kind:'film',title:'Film B',year:2002},{},draftB,{current:()=>true,redraw(){},status(){}});
+  clickIn(holder,'Use reviews from open Browser page');await u.wait();assert.equal(pending.length,1);const second=pending.shift();second.resolve(reply('Film B',2002,'Film B has a very distinct review text.'));await u.wait();
+  const sample=draftB.reviews,line=holder.querySelector('.mrv-job').textContent,identityB=JSON.stringify(draftB.source.identity);assert.match(sample,/Film B has a very distinct/);assert.equal(draftB.attempt.state,'ready');
+  first.resolve(reply('Film A',2001,'Film A review text that must stay with A.'));await u.wait();
+  assert.equal(draftB.reviews,sample);assert.equal(holder.querySelector('.mrv-job').textContent,line);assert.equal(JSON.stringify(draftB.source.identity),identityB);assert.doesNotMatch(holder.textContent,/Film A review text/);assert.match(u.draft.reviews,/Film A review text/);
+  // A late error for a stopped request never replaces the visible state either.
+  u.draft.reviews='';u.w.document.querySelector('[name=review-text]').value='';
+  u.click('Use reviews from open Browser page');await u.wait();const third=pending.shift();u.click('Stop reading');await u.wait();
+  assert(u.calls.some(row=>row.action==='reviews-stop'),'the stopped request is cancelled in the service');
+  u.click('Use reviews from open Browser page');await u.wait();const fourth=pending.shift();
+  fourth.resolve(reply('Film A',2001,'Newest refresh text for film A.'));await u.wait();const newest=u.draft.reviews;assert.match(newest,/Newest refresh text/);
+  third.resolve(reply('Film A',2001,'Older refresh text finishing late.'));await u.wait();assert.equal(u.draft.reviews,newest);assert.equal(u.draft.attempt.state,'ready');assert.doesNotMatch(u.w.document.body.textContent,/Older refresh/);
+  u.click('Use reviews from open Browser page');await u.wait();const fifth=pending.shift();u.click('Stop reading');await u.wait();fifth.reject(Error('Late failure of a stopped request'));await u.wait();
+  assert.equal(u.draft.reviews,newest);assert.doesNotMatch(u.w.document.querySelector('.mrv-job').textContent,/Late failure/);
+ }finally{u.w.close();}
+});
+
+test('Evidence labels name a shared point only when separate reviews make the same claim, and keep contradictions visible',()=>{
+ const u=ui(),reviews=[{id:'1',author:'A',authorId:'a',text:'Strong acting carries every scene.'},{id:'2',author:'B',authorId:'b',text:'The acting is wonderful and subtle.'},{id:'3',author:'C',authorId:'c',text:'The lead performance feels flat.'},{id:'4',author:'D',authorId:'d',text:'The pacing drags badly in the middle.'}];
+ const analysis={summary:'Acting divides the sample.',fit:'Conditional.',points:[{id:'1',quote:'Strong acting',reason:'The acting is praised.',kind:'praise',topic:'characters'},{id:'2',quote:'acting is wonderful',reason:'The acting is praised',kind:'praise',topic:'characters'},{id:'3',quote:'performance feels flat',reason:'The lead performance is flat.',kind:'criticism',topic:'characters'},{id:'4',quote:'pacing drags',reason:'The middle section is slow.',kind:'criticism',topic:'pace'},{id:'4',quote:'drags badly',reason:'Another pace remark.',kind:'criticism'}]};
+ try{const host=u.w.document.createElement('section');u.w.document.body.append(host);u.w.MediaReviewDecision.resultView(host,analysis,reviews,{preferencesConfigured:false});
+  const tags=[...host.querySelectorAll('.mrv-point .mrv-support')];assert.equal(tags.length,5);
+  assert.deepEqual(tags.map(n=>n.dataset.support),['shared','shared','single','single','single']);assert.match(tags[0].textContent,/Same point in 2 reviews/);
+  assert.match(tags[2].textContent,/Observed in one review · another review takes the opposite view/);assert.equal(tags[0].dataset.contested,'true');
+  assert.equal(tags[3].dataset.contested,'false','one criticism of pace with no counter-evidence is not called a minority or contested');assert.doesNotMatch(host.textContent,/minority|azınlık/);
+  assert.equal(tags[4].dataset.contested,'false','a point without a topic never derives a contradiction');assert.match(host.querySelector('.mrv-assessment').textContent,/Small sample/);
+  const scope=host.querySelector('.mrv-summary .mrv-scope-line');assert.match(scope.textContent,/Based on 4 reviews from 4 identified authors · small sample, not a general consensus/);assert.equal(scope.dataset.limited,'true');
+ }finally{u.w.close();}
+});
+
+test('A refresh with zero eligible reviews keeps the previous valid sample and its analysis',async()=>{
+ const u=ui(),raw=()=>u.w.document.querySelector('[name=review-text]').value;
+ try{u.click('Use reviews from open Browser page');await u.wait();const kept=raw();assert.match(kept,/Strong acting/);u.draft.result={analysis:{points:[],summary:'kept',fit:''},reviews:JSON.parse(kept)};const analysis=u.draft.result,source=u.draft.source;
+  u.w.api.mediaTools=async()=>({ok:true,reviews:[],identity:{title:'The Matrix',year:1999},match:{state:'matched'},url:'https://letterboxd.com/film/the-matrix/reviews/',sampling:{requested:40,returned:0}});
+  u.click('Use reviews from open Browser page');await u.wait();
+  assert.equal(raw(),kept);assert.equal(u.draft.reviews,kept);assert.equal(u.draft.result,analysis,'the analysis bound to the kept sample survives');assert.equal(u.draft.source,source);
+  assert.equal(u.draft.attempt.state,'empty');assert.match(u.w.document.querySelector('.mrv-job').textContent,/previous sample and its analysis were kept/);
+ }finally{u.w.close();}
+});
+test('Turning spoilers off after a spoiler-inclusive load hides the text from the editor, preview, provider context and copied answer, and restores it when turned back on',async()=>{
+ const secret='ZEBRA_LOADED_SPOILER the twist ending.',u=ui({spoiler:true}),doc=u.w.document,box=doc.querySelector('[name=review-spoilers]'),editor=()=>doc.querySelector('[name=review-text]').value;
+ u.w.api.mediaTools=async packet=>{if(packet.action==='decision-save')return {ok:true};return {ok:true,reviews:[{id:'1',text:'Strong acting and a memorable atmosphere.',author:'Fixture'},{id:'2',text:secret,author:'Other',spoiler:true}],identity:{title:'The Matrix',year:1999},match:{state:'matched'},url:'https://letterboxd.com/film/the-matrix/reviews/'};};
+ try{
+  u.click('Use reviews from open Browser page');await u.wait();assert.match(editor(),/ZEBRA/,'loaded while spoilers were explicitly on');
+  box.checked=false;box.dispatchEvent(new u.w.Event('change'));
+  assert.doesNotMatch(editor(),/ZEBRA/);assert.doesNotMatch(u.draft.reviews,/ZEBRA/);assert.doesNotMatch(doc.querySelector('.mrv-loaded-sample').textContent,/ZEBRA/);assert.match(doc.querySelector('.mrv-loaded-sample').textContent,/1 spoiler reviews excluded/);
+  u.click('Preview & analyze');await u.wait();assert.doesNotMatch(doc.querySelector('.mrv-sample').textContent,/ZEBRA/);assert.match(doc.querySelector('.mrv-selection-audit').textContent,/Excluded: spoilers disabled/);
+  let sent='';u.w.aiChatSend=async()=>{sent=JSON.stringify(u.context());doc.dispatchEvent(new u.w.CustomEvent('assistant-answer',{detail:{context:u.context(),text:JSON.stringify({summary:'Acting praised.',fit:'Conditional.',points:[{id:'1',quote:'Strong acting',reason:'Acting praised.',kind:'praise'}]})}}));};
+  u.click('Send this sample');await u.wait();assert(sent.includes('Strong acting'));assert.doesNotMatch(sent,/ZEBRA/);assert.doesNotMatch(doc.querySelector('.mrv-output').textContent,/ZEBRA/);
+  u.click('Discard analysis');await u.wait();box.checked=true;box.dispatchEvent(new u.w.Event('change'));assert.match(editor(),/ZEBRA/,'turning spoilers back on restores the loaded text; nothing was lost');
+ }finally{u.w.close();}
+});
+
+test('An analysis built with spoilers on is hidden, not copyable and dropped from the assistant context when spoilers are turned off, including a result that arrives late',async()=>{
+ const secret='ZEBRA_ANALYSIS_SPOILER the hero dies at the end.',rows=[{id:'1',text:'Strong acting and a memorable atmosphere.',author:'Fixture'},{id:'2',text:secret,author:'Other',spoiler:true}];
+ const u=ui({reviews:JSON.stringify(rows),spoiler:true}),doc=u.w.document,box=doc.querySelector('[name=review-spoilers]'),output=()=>doc.querySelector('.mrv-output').textContent;
+ const toggle=on=>{box.checked=on;box.dispatchEvent(new u.w.Event('change'));};
+ const answer=JSON.stringify({summary:'Acting praised; the ending is revealed.',fit:'Conditional.',points:[{id:'1',quote:'Strong acting',reason:'Acting praised.',kind:'praise'},{id:'2',quote:'the hero dies',reason:'The ending is revealed.',kind:'criticism'}]});
+ let sent='',captured;
+ try{
+  u.click('Preview & analyze');await u.wait();doc.querySelector('[name=review-title-confirmed]').checked=true;
+  u.w.aiChatSend=async()=>{captured=u.context();sent=JSON.stringify(captured);u.w.player.job={chatContext:captured,running:true};};u.click('Send this sample');await u.wait();
+  assert.match(sent,/ZEBRA/,'with spoilers on the sample reaches the provider');assert.match(JSON.stringify(u.context()),/ZEBRA/);
+  toggle(false);assert.doesNotMatch(JSON.stringify(u.context()),/ZEBRA/,'turning spoilers off removes the spoiler evidence from the assistant context');
+  doc.dispatchEvent(new u.w.CustomEvent('assistant-answer',{detail:{context:captured,text:answer}}));await u.wait();
+  assert(doc.querySelector('[data-review-spoiler-gate]'),'a late result built with spoilers is gated');assert.doesNotMatch(output(),/ZEBRA|hero dies|Strong acting/);
+  u.click('Reveal this spoiler analysis');assert.match(output(),/hero dies/,'an explicit reveal shows it');
+  toggle(false);assert(doc.querySelector('[data-review-spoiler-gate]'),'turning spoilers off again hides it again');assert.doesNotMatch(output(),/hero dies/);
+  toggle(true);assert.match(output(),/hero dies/,'with spoilers on again nothing is lost');
+ }finally{u.w.close();}
+});

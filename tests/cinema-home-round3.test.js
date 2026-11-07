@@ -29,7 +29,7 @@ test('Home shows source with duration and moves functional row arrows outside ca
       hasArtwork: () => true, play: () => played++, details: () => {}, page: () => {}, addFolder: () => {},
       minutes: () => '13 dk', onFeature: () => {}
     });
-    assert.equal(h.d.querySelector('.cn-home-hero .cn-meta').textContent, 'YouTube13 dk');
+    assert.equal(h.d.querySelector('.cn-home-hero .cn-meta').textContent, 'Web videosuYouTube13 dk', 'the kind is named once, in the meta line');
     assert.equal(h.d.querySelector('.cn-poster-art .mv-art-fallback').textContent, 'TM');
     assert.equal(h.d.querySelector('.cn-source-mark').getAttribute('aria-label'), 'YouTube');
     const grid = h.d.querySelector('.cn-poster-row');
@@ -76,4 +76,30 @@ test('v2 home opens catalog details when no playable source exists and keeps sto
     h.d.querySelector('.cn-hero-actions button').click();await Promise.resolve();
     assert.deepEqual(opened,['catalog-a']);assert.equal(item.title,'Original_source.mp4');view.dispose();
   }finally{h.dom.window.close();}
+});
+
+test('Home hero says where and when you left off, names the source once, never shows a tab title as the video name, and offers the other unfinished items', async () => {
+  const h = setup(); try {
+    const played = [], now = Date.now(), art = (_, cls) => { const node = h.d.createElement('div'); node.className = cls; return node; };
+    const rows = [
+      { key: 'youtube:abcdefghijk', type: 'youtube', title: '(3) YouTube', duration: 1800, position: 610, lastWatched: now - 2 * 3600e3 },
+      { key: 'file:d:/a.mkv', type: 'local', title: 'Film A', duration: 6000, position: 2310, lastWatched: now - 86400e3, source: { type: 'local', value: 'D:/a.mkv' } },
+      { key: 'file:d:/b.mkv', type: 'local', title: 'Film B', duration: 6000, position: 600, lastWatched: now - 3 * 86400e3, source: { type: 'local', value: 'D:/b.mkv' } },
+      { key: 'file:d:/c.mkv', type: 'local', title: 'Film C', duration: 6000, position: 5900, lastWatched: now - 4 * 86400e3, source: { type: 'local', value: 'D:/c.mkv' } }];
+    h.w.CinemaUI.home(h.d.querySelector('main'), { items: [], continuing: rows, progress: h.w.MediaHomeModel.progress, art, hasArtwork: () => true,
+      play: item => played.push(item.key), details: () => {}, page: () => {}, addFolder: () => {}, minutes: s => Math.round(s / 60) + ' dk', onFeature: () => {} });
+    const hero = h.d.querySelector('.cn-home-hero');
+    assert.equal(hero.querySelector('h1').textContent, 'Başlıksız web videosu', 'a tab title like "(3) YouTube" is not the video name');
+    assert.match(hero.querySelector('.cn-eyebrow').textContent, /Kaldığın yerden · 2 saat önce/);
+    assert.match(hero.querySelector('.cn-hero-progress small').textContent, /Kaldığın yer 10:10 · 20 dk kaldı/);
+    assert.equal((hero.querySelector('.cn-home-hero .cn-meta, .cn-meta').textContent.match(/Web videosu/g) || []).length, 1, 'the kind is named once');
+    assert.equal(hero.querySelector('.cv2-browser-chrome span').textContent, 'youtube.com');
+    const chips = [...hero.querySelectorAll('.cv2-next-chip')];
+    assert.deepEqual(chips.map(chip => chip.querySelector('strong').textContent), ['Film A', 'Film B'], 'finished or nearly finished items are not offered as "in progress"');
+    assert.match(chips[0].querySelector('small').textContent, /38:30 · dün/);
+    chips[0].click(); await new Promise(setImmediate); assert.deepEqual(played, ['file:d:/a.mkv'], 'a chip resumes exactly its own item');
+    const long = h.d.createElement('main'); h.d.body.append(long);
+    h.w.CinemaUI.home(long, { items: [], continuing: [{ key: 'file:d:/l.mkv', type: 'local', title: 'U'.repeat(80), duration: 100, position: 10, source: { type: 'local', value: 'D:/l.mkv' } }], progress: h.w.MediaHomeModel.progress, art, hasArtwork: () => true, play() {}, details() {}, page() {}, addFolder() {}, minutes: () => '2 dk', onFeature() {} });
+    const heading = long.querySelector('.cn-home-hero h1'); assert(heading.classList.contains('cv2-title-long')); assert.equal(heading.title, 'U'.repeat(80), 'the full title stays available');
+  } finally { h.dom.window.close(); }
 });

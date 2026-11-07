@@ -132,3 +132,46 @@ test('Discovery review bridge resolves trusted metadata without requiring or wri
 });
 
 test('Identity-bound feedback shares the latest explicit assessment across surfaces and rejects a different film',async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'review-feedback-link-')),close=[],item={id:'film',kind:'film',title:'Verified film',year:2026,imdbId:'tt14173636'};try{const svc=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},authorized:()=>true,dialog:{},catalogStore:()=>({get:()=>item}),resolveDiscovery:async(_e,d)=>({ok:true,item:{kind:d.kind,providerId:d.id,title:'Verified film',year:2026}})}),call=v=>svc.handle({},v),discovery={kind:'film',id:'tt14173636'};assert((await call({action:'feedback-save',discovery,reaction:'like',note:'My discovery note'})).ok);const linked=await call({action:'decision-get',itemId:'film'});assert.equal(linked.value.feedback.note,'My discovery note');assert.equal(linked.value.feedbackSavedFrom,'discovery');item.imdbId='tt9999999';assert.equal((await call({action:'decision-get',itemId:'film'})).value.feedback,undefined);item.imdbId='tt14173636';assert((await call({action:'feedback-save',itemId:'film',reaction:'neutral',note:'My explicit local note'})).ok);assert.equal((await call({action:'decision-get',itemId:'film'})).value.feedback.note,'My explicit local note');assert.equal((await call({action:'decision-get',discovery})).value.feedback.note,'My explicit local note','A newer verified opinion is shared by the same film on both surfaces');}finally{close.forEach(fn=>fn());fs.rmSync(dir,{recursive:true,force:true});}});
+
+test('Browser and fetched review pages apply count, spoiler choice, duplicates and order honestly, and withhold another film',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'review-shape-')),close=[],film={id:'film',kind:'film',title:'Film',year:2020,tmdbId:'movie:42'};
+ const rows=[{id:'1',text:'First distinct opinion about the film.',author:'A',authorId:'a'},{id:'2',text:'SPOILER_SENTENCE_ZEBRA the hero dies at the end.',author:'B',authorId:'b',spoiler:true},{id:'3',text:'First distinct opinion about the film.',author:'C',authorId:'c'},{id:'4',text:'Another opinion from the same author.',author:'A',authorId:'a'},{id:'5',text:'Second distinct opinion about the film.',author:'D',authorId:'d'},{id:'6',text:'Third distinct opinion about the film.',author:'E',authorId:'e'}];
+ let identity={title:'Film',year:2020,tmdbId:'movie:42'};
+ const page='<meta property="og:title" content="Reviews of Film (2020) • Letterboxd"><div data-tmdb-id="42"></div>'+[['Ann','Visible opinion number one is long enough.',''],['Bob','HIDDEN_SPOILER_SENTENCE the ending twist.',' contains-spoilers'],['Cy','Visible opinion number two is long enough.','']].map(([n,t,c])=>`<li class="film-detail${c}"><a class="name">${n}</a><div class="body-text js-review-body"><p>${t}</p></div></li>`).join('');
+ try{
+  const service=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},owner:()=>null,dialog:{},authorized:()=>true,catalogStore:()=>({get:()=>film}),
+   readOpenReviews:async()=>({reviews:rows.map(row=>({...row})),identity,url:'https://letterboxd.com/film/film/reviews/',origin:'browser',excluded:{duplicate:0,unreadable:0}}),
+   fetchImpl:async()=>({ok:true,body:(async function*(){yield Buffer.from(page);})()})});
+  const browser=await service.handle({}, {action:'reviews-browser',itemId:'film',id:'b1',count:2,sort:'high',spoilers:false});
+  assert(browser.ok);assert.deepEqual(browser.reviews.map(row=>[row.id,row.text]),[['1','First distinct opinion about the film.'],['2','Second distinct opinion about the film.']]);
+  assert.equal(browser.excluded.spoiler,1);assert.equal(browser.excluded.duplicate,1);assert.equal(browser.excluded.author,1);assert.equal(browser.excluded.requested,1);
+  assert.equal(browser.sampling.requested,2);assert.equal(browser.sampling.returned,2);assert.equal(browser.sampling.mode,'new');assert.equal(browser.sampling.requestedMode,'high');assert.equal(browser.sampling.orderApplied,false);
+  assert(!JSON.stringify(browser).includes('ZEBRA'),'a spoiler review must not leave the service when spoilers are off');
+  const matching=await service.handle({}, {action:'reviews-browser',itemId:'film',id:'b2',count:6,sort:'new',spoilers:true});
+  assert.equal(matching.sampling.orderApplied,true);assert(matching.reviews.some(row=>row.spoiler&&/ZEBRA/.test(row.text)),'an explicit spoiler choice keeps the flagged review');
+  const defaults=await service.handle({}, {action:'reviews-browser',itemId:'film',id:'b3'});assert.equal(defaults.sampling.requested,40);assert(!JSON.stringify(defaults).includes('ZEBRA'));
+  identity={title:'Film',year:2021,tmdbId:'movie:99'};
+  const other=await service.handle({}, {action:'reviews-browser',itemId:'film',id:'b4',count:6,spoilers:true});
+  assert(other.ok);assert.equal(other.match.state,'mismatch');assert.deepEqual(other.reviews,[]);assert.equal(other.withheld,'mismatch');assert.equal(other.excluded.identity,6);
+  const fetched=await service.handle({}, {action:'reviews-fetch',itemId:'film',id:'f1',url:'https://letterboxd.com/film/film/reviews/by/entry-rating/',count:1,sort:'high',spoilers:false});
+  assert(fetched.ok);assert.equal(fetched.match.state,'matched');assert.equal(fetched.reviews.length,1);assert.match(fetched.reviews[0].text,/number one/);assert.equal(fetched.excluded.spoiler,1);assert.equal(fetched.excluded.requested,1);
+  assert.equal(fetched.sampling.mode,'high');assert.equal(fetched.sampling.orderApplied,true);assert(!JSON.stringify(fetched).includes('HIDDEN_SPOILER'));
+  const reordered=await service.handle({}, {action:'reviews-fetch',itemId:'film',id:'f2',url:'https://letterboxd.com/film/film/reviews/by/entry-rating/',count:2,sort:'low',spoilers:true});
+  assert.equal(reordered.sampling.orderApplied,false);assert.equal(reordered.sampling.mode,'high');assert.equal(reordered.reviews.length,2);
+ }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('Reading or fetching reviews never writes catalog, watch, reaction or membership records',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'review-readonly-')),close=[],touched=[],film={id:'film',kind:'film',title:'Film',year:2020,tmdbId:'movie:42'};
+ const store=new Proxy({get:()=>film},{get(target,key){if(key==='get')return target.get;if(typeof key==='symbol'||['then','toJSON','constructor'].includes(key))return undefined;return (...args)=>{touched.push(String(key));};}});
+ const page='<meta property="og:title" content="Reviews of Film (2020) • Letterboxd"><div data-tmdb-id="42"></div><li class="film-detail"><a class="name">Ann</a><div class="body-text js-review-body"><p>A visible opinion that is long enough.</p></div></li>';
+ try{
+  const service=tools.registerMediaTools({app:{getPath:()=>dir,on:(_,fn)=>close.push(fn)},ipcMain:{handle(){}},owner:()=>null,dialog:{},authorized:()=>true,catalogStore:()=>store,saveWatch:()=>touched.push('saveWatch'),
+   readOpenReviews:async()=>({reviews:[{id:'1',text:'Open page review text here.',author:'A',authorId:'a'}],identity:{title:'Film',year:2020,tmdbId:'movie:42'},url:'https://letterboxd.com/film/film/reviews/',origin:'browser'}),
+   fetchImpl:async()=>({ok:true,body:(async function*(){yield Buffer.from(page);})()})});
+  const before=fs.readdirSync(dir).sort().join();
+  assert((await service.handle({}, {action:'reviews-browser',itemId:'film',id:'r1',count:5})).ok);
+  assert((await service.handle({}, {action:'reviews-fetch',itemId:'film',id:'r2',url:'https://letterboxd.com/film/film/reviews/',count:5})).ok);
+  assert.deepEqual(touched,[],'no catalog, watch or membership write while reading reviews');assert.equal(fs.readdirSync(dir).sort().join(),before,'no file was created');
+ }finally{for(const fn of close)fn();fs.rmSync(dir,{recursive:true,force:true});}
+});

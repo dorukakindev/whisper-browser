@@ -204,3 +204,16 @@ test('a pending next page cannot repopulate results after changing the show',asy
   assert.equal(state.show,'old');
  }finally{w.close();}
 });
+
+test('The real listening queue names the next episode only while its current row plays, and plays exactly that row; a stale target does nothing',async()=>{
+ const h=await listeningFixture({rows:[{kind:'podcasts',id:'feed-A',entryId:'A',title:'Episode A'},{kind:'podcasts',id:'feed-B',entryId:'B',title:'Episode B'},{kind:'podcasts',id:'feed-C',entryId:'C',title:'Episode C'}],index:0,repeat:'off'});
+ try{
+  assert.equal(h.shelf.upNext(),null,'a restored queue that is not playing names no next episode');
+  h.shelf.openQueue();h.w.document.querySelector('.ms-queue-play').click();await tick();await tick();assert.equal(h.w.player.workspaceAudio.entryId,'A');
+  const next=h.shelf.upNext();assert.equal(next.index,1);assert.equal(next.title,'Episode B');
+  assert.equal((await h.shelf.playUpNext({index:2,queueKey:'stale'})).code,'stale-queue');assert.equal(h.w.player.workspaceAudio.entryId,'A','a stale target changes nothing');
+  assert.equal((await h.shelf.playUpNext(next)).ok,true);await tick();await tick();assert.equal(h.w.player.workspaceAudio.entryId,'B');
+  const after=h.shelf.upNext();assert.equal(after.title,'Episode C');assert.equal((await h.shelf.playUpNext(after)).ok,true);await tick();await tick();assert.equal(h.w.player.workspaceAudio.entryId,'C');
+  assert.equal(h.shelf.upNext(),null,'the last episode has no next one when repeat is off');
+ }finally{h.dom.window.close();}
+});

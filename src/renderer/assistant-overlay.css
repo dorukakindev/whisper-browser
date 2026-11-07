@@ -302,3 +302,30 @@ header{padding-inline:16px;gap:12px}
 
 /* Evidence is available on demand; the answer keeps the primary reading space. */
 .sources{display:flex;gap:8px;margin-top:14px;min-width:0}.sources-label{flex:0 0 100%;font-size:11px;color:var(--muted);line-height:1.5}.sources details.source-card{padding:0;border-radius:9px;min-width:0;background:transparent;margin:0;overflow:hidden}.sources .source-card>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;list-style:none;padding:11px 12px;font-size:12px;line-height:1.6;color:var(--text);min-width:0}.sources .source-card>summary::-webkit-details-marker{display:none}.sources .source-card>summary>span:first-child{min-width:0;overflow-wrap:anywhere}.source-excerpt-hint{font-size:11px;color:var(--muted);flex-shrink:0}.source-excerpt-hint::after{content:'';display:inline-block;width:5px;height:5px;border:solid currentColor;border-width:0 1.4px 1.4px 0;transform:rotate(-45deg);margin-left:10px;vertical-align:2px}.source-card[open] .source-excerpt-hint::after{transform:rotate(45deg)}.sources .source-card[open]{background:var(--raised)}.sources .source-card>p{margin:0 12px 12px;padding:0 8px 0 12px;border-left:2px solid var(--accent);font-size:13px;line-height:1.85;max-height:180px;color:var(--text)}.sources .source-card>small{margin:0 12px 12px;padding-left:14px}.sources .source-card>button{margin:0 12px 12px;text-align:left;max-width:calc(100% - 24px);white-space:normal;overflow-wrap:anywhere;line-height:1.6;background:transparent;font-size:11px}.message{min-width:0;flex-shrink:0}.message pre{max-width:100%;overscroll-behavior:contain}#log{overflow-anchor:none}#sourceBox summary:focus-visible,.sources summary:focus-visible{outline-offset:-3px}@media(max-width:360px){.sources .source-card>summary{gap:8px;flex-wrap:wrap}.source-excerpt-hint{font-size:10px}}@media(prefers-reduced-motion:no-preference){.source-card[open]>p{animation:evidenceOpen 140ms ease-out}@keyframes evidenceOpen{from{opacity:0}to{opacity:1}}}
+
+/* Visible quick actions, a labelled scope, and a scannable status on every action card. */
+#tools{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+#scopeLabel{font-size:11px;letter-spacing:.06em;color:var(--muted)}
+#primarySuggestion{display:contents}
+.tool-card{position:relative}
+.tool-card::before{content:'';position:absolute;inset:10px auto 10px 0;width:3px;border-radius:0 3px 3px 0;background:var(--line)}
+.tool-card[data-status=pending]::before{background:var(--accent)}
+.tool-card[data-status=completed]::before,.tool-card[data-status=accepted]::before{background:#6fbf8f}
+.tool-card[data-status=failed]::before{background:#d06b63}
+.tool-status{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tool-status::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor}
+.tool-card[data-status=pending] .tool-status{color:var(--accent)}
+.tool-card[data-status=completed] .tool-status,.tool-card[data-status=accepted] .tool-status{color:#6fbf8f}
+.tool-card[data-status=failed] .tool-status{color:#e08a82}
+@media (prefers-reduced-motion:no-preference){
+ .tool-card{animation:tool-in .38s cubic-bezier(.2,.7,.2,1) both}
+ .tool-card[data-status=pending] .tool-status::before{animation:tool-pulse 1.9s ease-in-out infinite}
+}
+@keyframes tool-in{from{opacity:0;transform:translateY(8px)}}
+@keyframes tool-pulse{50%{opacity:.35;transform:scale(.7)}}
+:root:is([data-motion=off],[data-motion=reduced],[data-motion=reduce]) .tool-card,:root:is([data-motion=off],[data-motion=reduced],[data-motion=reduce]) .tool-status::before{animation:none!important}
+#suggestions button{flex:0 0 auto;max-width:100%;white-space:normal;text-align:left;height:auto}
+#panel:has(.empty) #suggestions{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+
+.source-return{display:inline-flex;margin-top:4px;padding:2px 9px;min-height:24px;font-size:11px;letter-spacing:.02em;border-radius:12px;background:transparent;border:1px solid var(--line);color:var(--accent)}
+.source-return:hover,.source-return:focus-visible{border-color:var(--accent);background:rgba(213,163,92,.08)}

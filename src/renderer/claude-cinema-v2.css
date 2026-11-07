@@ -226,3 +226,27 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
     position: relative;
   }
 }
+
+/* Home hero: long titles are clamped (the full title stays in the tooltip), and "also in progress" sits under the actions. */
+.cv2-home .cn-hero-copy h1{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;line-clamp:4;overflow:hidden}
+.cv2-home .cn-hero-copy h1.cv2-title-long{font-size:clamp(30px,3.1vw,46px);line-height:1.08}
+.cv2-home-next{display:grid;gap:8px;margin-top:24px;max-width:540px}
+.cv2-home-next>small{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted,#b0b4bd)}
+.cv2-next-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cv2-home-next .cv2-next-chip{display:grid;align-content:start;gap:4px;min-width:0;height:auto;padding:10px 12px;text-align:left;border:1px solid var(--border,#383c43);border-radius:10px;background:rgba(255,255,255,.03);transition:border-color .2s,background .2s,transform .2s}
+.cv2-home-next .cv2-next-chip:hover,.cv2-home-next .cv2-next-chip:focus-visible{border-color:var(--primary,#d5a35c);background:rgba(213,163,92,.08);transform:translateY(-2px)}
+.cv2-next-chip strong{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cv2-next-chip small{font-size:11px;color:var(--text-muted,#b0b4bd)}
+.cv2-next-chip .cn-progress{width:100%;height:3px;margin-top:2px}
+@media (prefers-reduced-motion:no-preference){
+ .cv2-home-hero .cn-hero-copy>*{animation:cv2-rise .62s cubic-bezier(.2,.7,.2,1) both}
+ .cv2-home-hero .cn-hero-copy>*:nth-child(2){animation-delay:.05s}.cv2-home-hero .cn-hero-copy>*:nth-child(3){animation-delay:.1s}.cv2-home-hero .cn-hero-copy>*:nth-child(4){animation-delay:.15s}
+ .cv2-home-hero .cn-hero-copy>*:nth-child(5){animation-delay:.2s}.cv2-home-hero .cn-hero-copy>*:nth-child(6){animation-delay:.26s}
+ .cv2-home-hero .cn-hero-progress{animation:cv2-rise .62s .15s both cubic-bezier(.2,.7,.2,1),cv2-sweep .95s .3s both cubic-bezier(.2,.7,.2,1)}
+ .cv2-home-hero .cv2-home-stage>*{animation:cv2-stage-in .85s cubic-bezier(.2,.7,.2,1) both}
+}
+@keyframes cv2-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes cv2-sweep{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes cv2-stage-in{from{opacity:0;transform:scale(.985) translateY(8px)}to{opacity:1;transform:none}}
+/* The user's motion setting wins over the entrance motion. */
+:is(html[data-motion=off],html[data-motion=reduce],html[data-motion=reduced],[data-cinema-motion=off],[data-cinema-motion=reduced]) .cv2-home-hero *{animation:none!important;transition:none!important}

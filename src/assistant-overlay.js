@@ -38,6 +38,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
       palette:Object.fromEntries(['surface','raised','hover','line','strong','text','muted','accent'].flatMap(key=>/^#[a-f0-9]{6}$/i.test(value.palette?.[key]||'')?[[key,value.palette[key]]]:[])),
       locale: value.locale === 'tr' ? 'tr' : 'en', theme: value.theme === 'light' ? 'light' : 'dark',
       sourceToken:String(value.sourceToken||'').slice(0,8000),
+      sourceTarget:['podcast','library'].includes(value.sourceTarget?.kind)?{kind:value.sourceTarget.kind}:null,
       sourcePreview:{attached:typeof value.sourcePreview?.attached==='boolean'?value.sourcePreview.attached:null,summary:typeof value.sourcePreview?.summary==='string'?value.sourcePreview.summary.slice(0,300):'',detail:typeof value.sourcePreview?.detail==='string'?value.sourcePreview.detail.slice(0,900):''},
       model:String(value.model||'').slice(0,200),sourceDescription:String(value.sourceDescription||'').slice(0,1400),
       pageContext:!!value.pageContext,videoContext:!!value.videoContext,transcriptScope:!!value.transcriptScope,blocked:!!value.blocked,canCancel:!!value.canCancel,
@@ -70,7 +71,7 @@ function createAssistantOverlay({ window, WebContentsView, ipcMain }) {
     if (modalBlocked) return;
     if (action === 'toggle') { expanded = !expanded; window.webContents.send('assistant:visibility',{expanded}); layout(); if (!expanded) window.webContents.focus(); return; }
     if (action === 'expand') { large = !large; layout(); return; }
-    if (!['steer','followup','send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','save-dossier','save-timeline','open-artifact','apply-tool','refresh-tool','continue-tool','cancel-job','settings'].includes(action)) return;
+    if (!['steer','followup','send', 'web-search', 'cancel', 'retry', 'clear', 'scope', 'citation', 'suggestion', 'copy', 'export','new-thread','select-thread','rename-thread','delete-thread','branch','save-dossier','save-timeline','open-artifact','apply-tool','refresh-tool','continue-tool','cancel-job','settings','open-source'].includes(action)) return;
     window.webContents.send('assistant:command', { action, sourceToken:String(packet.sourceToken||'').slice(0,8000),requestId:String(packet.requestId||'').slice(0,80),text: String(packet.text || '').slice(0, action==='export'?8000000:action==='copy'?32000:16000) });
   }
   const show = event => { if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||modalBlocked)return; expanded=true; snapshot.opened=true; view.webContents.send('assistant:snapshot',snapshot); window.webContents.send('assistant:visibility',{expanded}); layout(); };

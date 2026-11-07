@@ -4,7 +4,7 @@ function harness(){
  const dom=new JSDOM('<div id="aiChatLog"></div><div id="aiChatEmpty"></div>',{runScripts:'outside-only'}),w=dom.window;
  const disk=new Map(),calls=[],timers=new Map();let timerId=0;
  w.structuredClone=structuredClone;w.player={source:'A'};w.globalAssistantContext=()=>null;w.aiSourceScope=()=>w.player.scope||w.player.source;w.aiChatPreparing=null;
- w.AssistantSourceContext={conversation:p=>p.source};w.AssistantRunSteps={clean:rows=>structuredClone(rows||[])};w.renderAiText=(node,text)=>node.textContent=text;
+ w.AssistantSourceContext={conversation:p=>p.source};w.AssistantRunSteps=require('../src/assistant-run-steps');w.renderAiText=(node,text)=>node.textContent=text;
  w.setTimeout=fn=>{timers.set(++timerId,fn);return timerId;};w.clearTimeout=id=>timers.delete(id);
  w.api={assistantThreads:async input=>{calls.push(structuredClone(input));if(input.action==='list')return {ok:true,threads:[...disk.values()].filter(t=>t.sourceKey===input.sourceKey).map(thread=>structuredClone(thread))};
  if(input.action==='delete'){disk.delete(input.id);return {ok:true};}const old=disk.get(input.thread.id);assert.equal(input.thread.revision,old?.revision||0);const thread={...structuredClone(input.thread),revision:(old?.revision||0)+1,updatedAt:(old?.updatedAt||1000)+1};disk.set(thread.id,thread);return {ok:true,thread};}};

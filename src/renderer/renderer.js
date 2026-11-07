@@ -20633,6 +20633,8 @@ async function aiChatSend(soru, translationTarget = null, expectedScope = null, 
     ? { video: $('playerTitle')?.textContent || '', zaman: pSecToTime(
         requestOptions.playerEvidence ? (requestOptions.playerEvidence.scopeEnd ?? requestOptions.playerEvidence.range.end) : watchPacket.horizon) }
     : aiChatContext());
+  // The cutoff of a "so far" question is the moment of the click. It is carried to the agent request, which may start later.
+  if(watchPacket?.ok&&Number.isFinite(watchPacket.horizon))chatContext.watched_cutoff=player.workspaceMode==='browser'?watchPacket.horizon:subtitleSourceTime(watchPacket.horizon,false);
   const assistantTools=window.AssistantWorkspace?.toolContext();if(assistantTools)chatContext.assistant_tools=assistantTools;
   const sourceScope=aiSourceScope();
   if(player.chatHistoryScope&&player.chatHistoryScope!==sourceScope)player.chatHistory=[];
