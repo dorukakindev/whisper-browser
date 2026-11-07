@@ -9,9 +9,16 @@ Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmam
 ## Claude kümülatif teslimi — açık canlı kabuller
 
 - Paket temeli `a97dc03bbbac83105492c9c777acc0d7dc2b3cda`, teslim dalı `codex/claude-cumulative-20261107`. [Devir ve kanıt](docs/devir/2026-11-07-0605.md).
-- Keşfet, film/dizi detayı ve Browser araç çubuğu için paket görsel kabul sağlamadı. Sonraki adım kontrollü iki aynı adlı yapımla detay ve yorum dönüşünü çalıştırmak, ardından normal masaüstünde bu üç yüzeyi karşılaştırmak.
+- Keşfet ve film/dizi detayı sonraki Claude paketinde geliştirildi; aynı adlı 2019/2023 yapımların yarışı, üyelik ve geri dönüş kontrollü Windows Chrome’da doğrulandı. [Yeni entegrasyon](docs/devir/2026-11-07-0808.md). Gerçek Electron/sağlayıcı ve yorum dönüşü kabulü açık; sonraki adım LG’de izole profilde iki gerçek yapımın detay/yorum/geri akışını ve Browser araç çubuğunu karşılaştırmak. Kontrollü katalog ve afişler canlı metadata kanıtı değildir.
 - Gerçek YouTube ve Letterboxd sağlayıcılarından bu paket için yeni canlı kanıt yok. Yetkili erişimle aynı sekmede yeni video, iki sekmede geciken altyazı/çeviri ve site altyazısının Shadow DOM tam ekran dönüşünü kısa izole turda sına. Letterboxd için doğru film/yıl, gerçek sayı ve spoiler seçimini izinli Browser yoluyla kontrol et.
 - İlk Podcast “bu ana kadar” isteği ve yorum örneği kimliği için sonraki adım gerçek girişten sağlayıcı isteğini izole ve yetkili koşulda yakalamak. Asistanın çok adımlı kaynak zinciri ve özgün yorum kartı bu paketle eklenmedi.
+
+### Claude Keşfet görsel teslimi — 2026-11-07
+
+- Ürün `f3950c8445eeda709ab672405e4df58b966429af`, dal `codex/claude-discovery-delivery-20261107`; yerel commit. Kullanıcının commit/push ayrımı korunuyor; push, PR ve merge yapılmadı. [Devir](docs/devir/2026-11-07-0808.md).
+- Üçüncü ZIP ilk iki teslimin tamamını kapsıyor; yinelenen arşivler ikinci kez uygulanmadı. Teslim edilen ürün farklarının tamamı alındı. Entegrasyonda erken çıkarma isteği, bayat hero üyeliği/odak, açma simgesi ve kaynak okuma hatasının yanlış etiketlenmesi ayrıca düzeltildi.
+- **Kalan gerçek kabul:** Windows Chrome’da gerçek renderer ve kontrollü servisler kullanıldı; gerçek Electron IPC, Cinemeta/TMDB/Letterboxd ve kişisel katalogla canlı kabul yapılmadı. Kesin sonraki adım LG’de izole profilde aynı adlı iki yapımda ekle → geri → detay → çıkar → vazgeç → yeniden çıkar → onay yolunu çalıştırmak; liste konumu, üyelik, kişisel alanlar ve kaynak şeridini karşılaştırmak. Dosya seçme/yeniden bağlama penceresi açma.
+- **Paket dışı önceki kapsam:** Yeni Browser/Sahne, Asistan ve Podcast bağlamlı çeviri/VTT/dublaj dilimleri bu ZIP’lerde yok; tamamlandı sayılmıyor. Devam koşulu ilgili mevcut sahiplerden ayrı bir uygulama turu: `browser-study.js`/`browser-podcast.js`/`cinema-sahne.js` bağlam yarışları, ardından asistan bağlamı ve Podcast çeviri/dublaj girişlerinin ortak profil/iş sahipleriyle karşılaştırılması. Çalışan önceki teslimleri yeniden kurma; canlı sağlayıcı gerektiren kabulü kontrollü testten ayrı kaydet.
 
 ## Sahne ve Browser — güncel kabul
 
