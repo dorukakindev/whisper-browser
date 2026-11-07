@@ -8,6 +8,8 @@
   const linkIds = new WeakMap(), links = new Map();
   let suggestionScope = '', suggestionSequence = 0;
   const suggestions = new Map();
+  // Where "Go to source" leads: only contexts that have a real owner to return to.
+  const sourceTarget=()=>{const ctx=window.globalAssistantContext?.()||null;if(ctx?.workspace==='podcast')return {kind:'podcast'};if(ctx?.catalogId&&ctx.type==='library-title')return {kind:'library'};return null;};
   function publish() {
     clearTimeout(timer);
     timer = setTimeout(() => {
@@ -77,7 +79,7 @@
         && sidebarIsVisible()
         && (!player.narrowViewport || responsivePanelTakeoverActive())
         && !document.getElementById('playerSide')?.classList.contains('side-rail');
-      window.api.updateAssistant({ locale: tr ? 'tr' : 'en', theme: document.documentElement.dataset.theme,
+      window.api.updateAssistant({ locale: tr ? 'tr' : 'en', sourceTarget: sourceTarget(), theme: document.documentElement.dataset.theme,
         palette:Object.fromEntries(Object.entries({surface:'--bg-1',raised:'--bg-2',hover:'--bg-3',line:'--border',strong:'--border-strong',text:'--text',muted:'--text-muted',accent:'--accent'}).map(([key,token])=>[key,getComputedStyle(document.body).getPropertyValue(token).trim()])),
         sourcePreview:window.AssistantSourcePreview.build({locale:tr?'tr':'en',selection:selectionContext,page:pageContext,video:videoContext,transcript:!!transcriptScope,scope:$('aiTranscriptScope')?.value,position:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),sourceLanguage:selectionContext?'':subtitleContextLanguage('source'),targetLanguage:selectionContext?'':subtitleContextLanguage('translation'),range:videoContext?currentBrowserWhisperRange():null}),
         suggestions: specs,receipt,sourceToken:commandToken(),pinScope,threads:workspace?.threads||[],activeThread:threadId,
@@ -136,6 +138,21 @@
       const task=packet.action==='open-artifact'?window.AssistantWorkspace.openArtifact(packet.text):window.AssistantWorkspace.artifact(packet.text,packet.action==='save-dossier'?'dossier':'timeline');
       void task.then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});
     }
+    else if(packet.action==='open-source')void Promise.resolve().then(async()=>{
+      if(packet.sourceToken!==commandToken())return;
+      const target=sourceTarget(),tr=window.UiLocale?.get?.()==='tr';
+      if(!target)throw Error(tr?'Bu bağlamın açılacak bir kaynağı yok.':'This context has no source to open.');
+      const unavailable=tr?'Kaynak açılamadı.':'The source could not be opened.';
+      let result;
+      if(target.kind==='podcast'){
+        if(window.MediaShelfUI?.isPodcastMode?.()&&window.CinemaSahne?.openShelf)result=await window.CinemaSahne.openShelf({mode:'podcast'});
+        else if(window.CinemaSahne?.open)window.CinemaSahne.open({mode:'podcast'});
+        else throw Error(unavailable);
+      }else result=await window.MediaTitleUI.open(window.globalAssistantContext().catalogId);
+      if(packet.sourceToken!==commandToken())return;
+      if(result?.ok===false)throw Error(unavailable);
+      toolNotice='';publish();
+    }).catch(error=>{if(packet.sourceToken===commandToken()){toolNotice=error.message;publish();}});
     else if(packet.action==='continue-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void window.AssistantAgentUI.continueAction(proposal).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='refresh-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void window.AssistantAgentUI.refresh(proposal).then(()=>{toolNotice='';publish();}).catch(error=>{toolNotice=error.message;publish();});}
     else if(packet.action==='apply-tool'){const proposal=proposedActions.get(packet.text);if(proposal)void applyProposal(proposal).catch(error=>{toolNotice=error.message;publish();});}

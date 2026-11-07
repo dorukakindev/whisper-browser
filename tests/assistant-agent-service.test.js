@@ -344,3 +344,23 @@ test('General taste preference cards capture revision without writing and apply 
  try{const result=await h.call('agentRun',{requestId:'taste-change',question:'Set my global story priority to 5 and avoid pace.',owner:h.owner});assert.equal(result.ok,true,result.error);assert.equal(writes,0);const cards=h.events.filter(e=>e.value.type==='proposal');assert.equal(cards.length,1);assert.match(cards[0].value.action.summary,/Story: 5/);assert.equal(packets[0].name,'get_taste_profile');const applied=await h.call('agentApply',{proposalId:cards[0].value.action.proposalId,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert.equal(writes,1);
  }finally{h.app.emit('will-quit');}
 });
+
+test('A resumed "so far" video flow keeps the cutoff of its question on every provider channel',async()=>{
+ const rows=[{id:'U1',start:590,end:595,text:'HEARD_EARLY_LINE alpha',translation:''},{id:'U2',start:596,end:612,text:'ACTIVE_LATE_LINE alpha',translation:''},{id:'U3',start:700,end:710,text:'FUTURE_LINE alpha',translation:''}];
+ let phase='first',turn=0;const bodies=[],call=(id,name,args)=>({role:'assistant',content:null,tool_calls:[{id,type:'function',function:{name,arguments:JSON.stringify(args)}}]});
+ const h=fixture(async(_url,options)=>{bodies.push({phase,text:JSON.stringify(JSON.parse(options.body).messages)});
+  if(phase==='first')return reply(turn++===0?call('c1','restore_original_audio',{}):{role:'assistant',content:'Prepared.'});
+  return reply(turn++===0?call('c2','search_subtitles',{query:'alpha'}):{role:'assistant',content:'Done.'});});
+ h.owner.time=600;const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:packet.callId,result:{status:'completed'}}));};
+ const question='Bu ana kadar ne söylendi? Sonra özgün sese dön.';
+ try{
+  const first=await h.call('agentRun',{requestId:'so-far',question,owner:h.owner,pool:rows,context:'FULL_TRANSCRIPT_MARKER',history:[{role:'assistant',content:'HISTORY_MARKER'}]});assert.equal(first.ok,true,first.error);
+  const card=h.events.find(e=>e.value.type==='proposal').value.action,applied=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert(applied.result.continuationId);
+  phase='resume';turn=0;h.events.length=0;
+  const resumed=await h.call('agentRun',{requestId:'so-far-2',question,owner:{...h.owner,time:1200},pool:rows,continuationId:applied.result.continuationId});assert.equal(resumed.ok,true,resumed.error);
+  const all=bodies.map(row=>row.text).join('\n'),late=bodies.filter(row=>row.phase==='resume').map(row=>row.text).join('\n');
+  for(const marker of ['FUTURE_LINE','ACTIVE_LATE_LINE','FULL_TRANSCRIPT_MARKER','HISTORY_MARKER'])assert(!all.includes(marker),marker+' must never reach the provider');
+  assert(late.includes('HEARD_EARLY_LINE'),'the finished line before the question moment stays available');
+  assert(!JSON.stringify(h.events.filter(e=>e.value.type==='evidence')).match(/FUTURE_LINE|ACTIVE_LATE_LINE/));
+ }finally{h.app.emit('will-quit');}
+});

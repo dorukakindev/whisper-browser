@@ -162,3 +162,11 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) .cv2-review-item 
 .cv2-reading-desk.mrv-reader-shell { max-width:none;background:transparent;padding:0;border:0;border-radius:0; }
 @media(max-width:850px){.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-analysis-overview.film-analysis-scene { grid-template-columns:1fr;gap:26px; }}
 @media(max-width:620px){.media-title-page .film-dossier .cv2-review-analysis .fw-contrast-pair { grid-template-columns:1fr; }.media-title-page .film-dossier .film-review-content.cv2-review-analysis .film-analysis-scene > .mrv-fit,.media-title-page .film-dossier .cv2-review-analysis .fw-contrasts { padding:22px; }}
+.media-title-page .mrv-control-room .mrv-job[data-kind=blocked] { border-top-color:var(--accent); }
+.media-title-page .mrv-control-room .mrv-job[data-kind=mismatch] strong::before { content:'≠';display:inline-block;margin-right:8px;color:var(--danger,var(--accent)); }
+.media-title-page .mrv-control-room .mrv-job[data-kind=blocked] strong::before { content:'⏸';display:inline-block;margin-right:8px;color:var(--accent); }
+.mrv-provenance .mrv-order-note { display:block;margin-top:4px;color:var(--text-dim);line-height:1.6; }
+.mrv-point .mrv-support { display:inline-block;margin:6px 0 2px;color:var(--text-dim);font-size:12px;letter-spacing:.02em; }
+.mrv-point .mrv-support[data-support=single] { color:var(--accent); }
+.mrv-summary .mrv-scope-line { margin:4px 0 14px;font-size:13px;line-height:1.6;color:var(--text-dim); }
+.mrv-summary .mrv-scope-line[data-limited=true] { color:var(--accent); }

@@ -141,7 +141,9 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    // provider history. Old explicit wording must not resolve a later ambiguity.
    flow.humanIntent??={question:flow.question,revision:0};
    const watchedOnly=owner.kind==='video'&&watchedQuestion(flow.question);
-   const sourcePool=manifest.pool(reviewMode?[]:input.pool).filter(row=>!watchedOnly||row.end<=owner.time);
+   // The watched cutoff belongs to the original question. A resumed flow keeps it, and never reaches past the current position.
+   const horizon=Number.isFinite(flow.owner?.time)?Math.min(flow.owner.time,owner.time):owner.time;
+   const sourcePool=manifest.pool(reviewMode?[]:input.pool).filter(row=>!watchedOnly||row.end<=horizon);
    const sourceContext=watchedOnly?{title:owner.title,sinir:'Only timed excerpts ending by the frozen playback position are available.'}:input.context;
    owner.hasSubtitles=sourcePool.length>0;
    const config=getConfig();
@@ -202,13 +204,13 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
     if(name==='search_subtitles'||name==='get_current_subtitle'){
      if(watchedOnly){
       const terms=transcriptTokens(args.query||'');
-      const matches=name==='get_current_subtitle'?sourcePool.filter(row=>row.end===owner.time).slice(0,3):sourcePool.map(row=>{
+      const matches=name==='get_current_subtitle'?sourcePool.filter(row=>row.end===horizon).slice(0,3):sourcePool.map(row=>{
        const body=foldTranscriptText(`${row.text} ${row.translation}`);
        return {row,score:terms.filter(term=>body.includes(term)).length};
       }).filter(hit=>hit.score>0).sort((a,b)=>b.score-a.score||a.row.start-b.row.start).slice(0,8).map(hit=>hit.row);
       for(const row of matches)evidence.set(row.id,row);
       emit(event.sender,{type:'evidence',requestId:session.id,evidence:[...evidence.values()]});
-      return {status:'completed',matches,transcriptScope:'watched',position:owner.time,searchedCues:sourcePool.length,scope:'Only available excerpts ending by the frozen playback position were searched. An empty result does not establish absence in the complete watched transcript.'};
+      return {status:'completed',matches,transcriptScope:'watched',position:horizon,searchedCues:sourcePool.length,scope:'Only available excerpts ending by the frozen playback position were searched. An empty result does not establish absence in the complete watched transcript.'};
      }
      const result=await requestRenderer(event.sender,owner,name,args,controller.signal);
      controller.signal.throwIfAborted();requireOwner(owner);

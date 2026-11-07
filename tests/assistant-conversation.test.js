@@ -164,3 +164,23 @@ test('empty greeting updates as an attached source becomes available without rep
 
 
 test('Evidence disclosure keeps answers compact and survives streaming updates without losing the source action',()=>{const ui=overlay();try{const messages=[{id:'reply',role:'ai',text:'Answer',links:[{id:'F1',label:'Cinema journal',excerpt:'Actual source excerpt.',translation:'Kaynak çevirisi.'}]}];ui.snapshot({messages});const card=ui.w.document.querySelector('details.source-card');assert(card);assert.equal(card.open,false);assert.equal(card.querySelector('summary').textContent,'Cinema journalRead excerpt');card.open=true;card.querySelector('summary').focus();ui.snapshot({messages:[{...messages[0],text:'Answer continued'}]});const restored=ui.w.document.querySelector('details.source-card');assert.equal(restored.open,true);assert.equal(ui.w.document.activeElement,restored.querySelector('summary'));restored.querySelector('button').click();assert.equal(ui.commands.at(-1).action,'citation');assert.equal(ui.commands.at(-1).text,'F1');ui.snapshot({conversation:'B',messages});assert.equal(ui.w.document.querySelector('details.source-card').open,false);}finally{ui.w.close();}});
+
+test('Go to source: only podcast and library contexts offer it, the panel button sends the action, and the main window opens exactly that source behind a stale-source guard',async()=>{
+ const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Episode</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let listener,last,context=null;const opened=[];
+ try{
+  Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'file:fixture'},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>context,aiSourceScope:()=> 'A',buildOptsFromUI:()=>({translateModel:'fixture'}),AssistantJobsUI:{snapshot:()=>({jobs:[]}),cancel:async()=>{}},
+   MediaShelfUI:{isPodcastMode:()=>true},CinemaSahne:{openShelf:async options=>{opened.push(['sahne',options.mode]);return {ok:true};}},MediaTitleUI:{open:async id=>{opened.push(['title',id]);}},api:{updateAssistant:v=>last=v,onAssistantCommand:fn=>listener=fn},aiChatSend:async()=>{}});
+  w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.subtitleSourceTime=value=>value;w.subtitleContextLanguage=()=>'';
+  w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
+  assert.equal(last.sourceTarget,null,'a plain video has no source card to return to');
+  listener({action:'open-source',sourceToken:'A'});await wait();assert.match(last.workspaceError,/no source to open/);assert.deepEqual(opened,[]);
+  context={workspace:'podcast',page:'podcast',title:'Episode'};w.document.dispatchEvent(new w.Event('media-context-changed'));listener({action:'send',text:'x',sourceToken:'A',requestId:'r'});await wait();assert.equal(last.sourceTarget.kind,'podcast');
+  listener({action:'open-source',sourceToken:'OLD'});await wait();assert.deepEqual(opened,[],'a stale conversation token opens nothing');
+  listener({action:'open-source',sourceToken:'A'});await wait();assert.deepEqual(opened,[['sahne','podcast']]);assert.equal(last.workspaceError,'');
+  context={type:'library-title',catalogId:'film-1',title:'Film'};listener({action:'send',text:'y',sourceToken:'A',requestId:'r2'});await wait();assert.equal(last.sourceTarget.kind,'library');
+  listener({action:'open-source',sourceToken:'A'});await wait();assert.deepEqual(opened.at(-1),['title','film-1']);
+  w.MediaTitleUI.open=async()=>({ok:false});
+  listener({action:'open-source',sourceToken:'A'});await wait();assert.match(last.workspaceError,/source could not be opened/i);
+ }finally{w.close();}
+ const ui=overlay();try{ui.snapshot({locale:'tr',sourceTarget:null});assert.equal(ui.$('openSource').hidden,true);ui.snapshot({locale:'tr',sourceTarget:{kind:'podcast'}});assert.equal(ui.$('openSource').hidden,false);assert.equal(ui.$('openSource').textContent,'Kaynağa git');ui.$('openSource').click();assert.equal(ui.commands.at(-1).action,'open-source');}finally{ui.w.close();}
+});

@@ -168,5 +168,31 @@ async function readBrowserReviews({getTab,execute,signal}){
  const result=parseLetterboxdReviews(expanded.html,{url});if(!result.reviews.length)throw Error('No complete public reviews found. Full review loading may have failed; retry or paste/import the complete text.');
  return {...result,url,origin:'browser',partial:!!result.excluded?.incomplete,warning:result.excluded?.incomplete?'Some full review continuations could not be loaded; incomplete excerpts were excluded.':''};
 }
-return {parseLetterboxdReviews,decode,matchFilm,publicFilmUrl,reviewPermalink,reviewPageSource,reviewPageScript,readBrowserReviews,fullTextUrl,expandReviewHtml,fullTextFetchScript};
+// A loaded page (Browser tab or fetched URL) already has the provider's own order. The requested pool,
+// count and spoiler choice are applied here with the same rules as the automatic reader. A requested order
+// that differs from the page order is reported, never presented as applied.
+function pageSample(item,result,{count,spoilers=false,sort='popular',url}={}){
+ const want=Number.isInteger(count)&&count>=1&&count<=48?count:40,wanted=['popular','new','high','low','balanced'].includes(sort)?sort:'popular';
+ const provider=reviewPageSource(url||result?.url)?.sort||'unknown',match=matchFilm(item,result?.identity||{});
+ const rows=Array.isArray(result?.reviews)?result.reviews:[],excluded={...(result?.excluded||{})},bump=key=>{excluded[key]=(excluded[key]||0)+1;};
+ const reviews=[],seenText=new Set(),seenLinks=new Set(),authors=new Set();
+ const base={requested:want,scope:'single-page',mode:provider,requestedMode:wanted,orderApplied:wanted===provider,representative:false};
+ if(match.state==='mismatch'){
+  // Another title or year never reaches a sample, analysis or assistant context.
+  excluded.identity=(excluded.identity||0)+rows.length;
+  return {...result,reviews:[],excluded,match,partial:false,warning:'',withheld:'mismatch',sampling:{...base,returned:0,independentAuthors:0,unknownAuthors:0,coverage:{}}};
+ }
+ for(const row of rows){
+  if(!spoilers&&row.spoiler){bump('spoiler');continue;}
+  const key=String(row.text).normalize('NFKC').replace(/\s+/g,' ').trim().toLowerCase();
+  if(seenText.has(key)||row.permalink&&seenLinks.has(row.permalink)){bump('duplicate');continue;}
+  if(row.authorId&&authors.has(row.authorId)){bump('author');continue;}
+  if(reviews.length>=want){bump('requested');continue;}
+  seenText.add(key);if(row.permalink)seenLinks.add(row.permalink);if(row.authorId)authors.add(row.authorId);
+  reviews.push({...row,id:String(reviews.length+1)});
+ }
+ const sampling={...base,returned:reviews.length,independentAuthors:new Set(reviews.map(row=>row.authorId).filter(Boolean)).size,unknownAuthors:reviews.filter(row=>!row.authorId).length,coverage:{[provider]:reviews.length}};
+ return {...result,reviews,excluded,match,sampling};
+}
+return {parseLetterboxdReviews,decode,matchFilm,pageSample,publicFilmUrl,reviewPermalink,reviewPageSource,reviewPageScript,readBrowserReviews,fullTextUrl,expandReviewHtml,fullTextFetchScript};
 });

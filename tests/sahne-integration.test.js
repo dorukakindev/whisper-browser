@@ -306,7 +306,7 @@ test('Translation-only tracks remain translation rows and seek by their own cloc
   assert.deepEqual(Array.from(row.trs), ['Birinci']);
   assert.equal(row.start, 2);
   assert.equal((await a.cmd('seekCue', 0)).ok, true);
-  assert.equal(f.commands.at(-1).time, 2);
+  assert.equal(f.commands.at(-1).time, 2.01, 'a translation jump uses the shared landing margin (its own clock + 10 ms)');
 });
 
 test('Sahne forwards local/native transport to the existing identity-bound bridge', async t => {
@@ -414,14 +414,14 @@ test('translation seek uses the paired track offset and rejects the previous rev
   const before=adapter.state();
   assert.equal(before.rows[0].translationStart,2);
   assert.equal((await adapter.cmd('seekTranslation',{row:0,part:1},before.rev)).ok,true);
-  assert.equal(f.commands.pop().time,5);
+  assert.equal(f.commands.pop().time,5.01,'paired offset applied, plus the shared landing margin');
   f.secondary.offsetSeconds=2;
   const after=adapter.state();
   assert.equal(after.rows[0].translationStart,3);
   assert.equal((await adapter.cmd('seekTranslation',0,before.rev)).code,'stale-track');
   assert.equal(f.commands.length,0);
   assert.equal((await adapter.cmd('seekTranslation',0,after.rev)).ok,true);
-  assert.equal(f.commands.at(-1).time,3);
+  assert.equal(f.commands.at(-1).time,3.01,'edited paired track: new offset plus the shared landing margin');
 });
 test('translation without a source match stays searchable and seekable without changing original navigation', async t => {
   const f = fixture(t);
@@ -435,7 +435,7 @@ test('translation without a source match stays searchable and seekable without c
   assert.equal(row.translationStart, 20);
   assert.equal((await a.cmd('nextCue')).ok, false);
   assert.equal((await a.cmd('seekTranslation', index, state.rev)).ok, true);
-  assert.equal(f.commands.at(-1).time, 20);
+  assert.equal(f.commands.at(-1).time, 20.01, 'translation-only row: own clock plus the shared landing margin');
   assert.equal(a.state().translationTargets.replay, 20);
   assert.equal((await a.cmd('replay')).ok, false);
 });
@@ -771,4 +771,41 @@ test('Browser playback retry seeks before playing and retires a late seek after 
     await Promise.resolve();
     assert.deepEqual(commands,switched ? [['seek',9]] : [['seek',9],['play',undefined]]);
   }
+});
+
+test('A late shelf Stage open cannot remount a Stage the user closed meanwhile, nor one whose podcast view was closed',async t=>{
+ for(const interruption of ['stage-closed','podcast-view-closed']){
+  const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let release,podcast=false;
+  f.window.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf:one',generation:1,title:'Episode',time:0,duration:30,paused:true,rate:1,capabilities:{seek:{support:'yes'}}}),isPodcastMode:()=>podcast,
+   openPodcastMode:()=>new Promise(resolve=>{release=()=>{podcast=interruption!=='podcast-view-closed';resolve();};}),getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true}),closePodcastMode(){podcast=false;}};
+  const opening=f.window.CinemaSahne.openShelf();await new Promise(setImmediate);
+  if(interruption==='stage-closed')f.window.CinemaSahne.close();
+  release();const result=await opening;
+  assert.equal(result.ok,false,interruption);assert.equal(f.window.CinemaSahne.current,null,interruption+': the Stage stays closed');assert.equal(f.document.querySelector('.sh-shelf-host'),null,interruption);
+ }
+ // A normal open still mounts.
+ const g=fixture(t);g.document.getElementById('playerLayer').classList.add('hidden');let on=false;
+ g.window.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf:one',generation:1,title:'Episode',time:0,duration:30,paused:true,rate:1,capabilities:{seek:{support:'yes'}}}),isPodcastMode:()=>on,openPodcastMode:async()=>{on=true;},getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true})};
+ assert.equal((await g.window.CinemaSahne.openShelf()).ok,true);assert(g.window.CinemaSahne.current);
+});
+
+test('Podcast Stage names the next episode of the real listening queue and opens exactly that one',async t=>{
+ const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');const played=[];let next={index:1,title:'Dizgi Odası',queueKey:'k1'};
+ f.window.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf:one',generation:1,title:'Episode',time:0,duration:30,paused:true,rate:1,capabilities:{seek:{support:'yes'}}}),isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true}),upNext:()=>next,playUpNext:async expected=>{if(expected.queueKey!==next?.queueKey)return {ok:false,code:'stale-queue'};played.push(expected);return {ok:true};}};
+ await f.window.CinemaSahne.openShelf();const a=f.window.CinemaSahne.current.a;
+ const shown=a.info().queue[0];
+ assert.deepEqual(JSON.parse(JSON.stringify(shown)),{index:1,title:'Dizgi Odası',queueKey:'k1'});
+ assert.equal((await a.cmd('openQueued',shown)).ok,true);assert.equal(played.length,1);
+ next={index:1,title:'Dizgi Odası',queueKey:'k2'};
+ assert.equal((await a.cmd('openQueued',shown)).code,'stale-queue','the replacement at the same index cannot be opened by an old button');assert.equal(played.length,1);
+ next=null;assert.deepEqual(JSON.parse(JSON.stringify(a.info().queue)),[],'no next episode, no indicator');
+});
+
+test('Two overlapping Podcast Stage opens: the newest user choice stays even when the older one finishes last',async t=>{
+ const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');const releases=[];let podcast=false;
+ f.window.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf:one',generation:1,title:'Episode',time:0,duration:30,paused:true,rate:1,capabilities:{seek:{support:'yes'}}}),isPodcastMode:()=>podcast,
+  openPodcastMode:()=>new Promise(resolve=>releases.push(()=>{podcast=true;resolve();})),getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true})};
+ const older=f.window.CinemaSahne.openShelf({mode:'podcast'}),newer=f.window.CinemaSahne.openShelf({mode:'study'});await new Promise(setImmediate);assert.equal(releases.length,2);
+ releases[1]();assert.equal((await newer).ok,true);assert.equal(f.window.CinemaSahne.current.o.mode,'study');
+ releases[0]();const late=await older;assert.equal(late.ok,false);assert.equal(late.code,'superseded');assert.equal(f.window.CinemaSahne.current.o.mode,'study','the older open does not replace the newer view');
 });

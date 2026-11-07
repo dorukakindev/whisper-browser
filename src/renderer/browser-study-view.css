@@ -556,3 +556,14 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 }
 
 .sh-browser-study .sh-toast.on { transform: translateY(0); }
+
+/* Keep the footer on one row at desktop width: the size selector keeps its aria-label, the shortcut guide stays reachable. */
+.sh-browser-study .bp-footer{gap:8px;flex-wrap:nowrap}
+.sh-browser-study .bp-footer:has(.sh-key-guide[open]){flex-wrap:wrap}
+.sh-browser-study .bp-footer .sh-key-guide{flex:0 0 auto}
+.sh-browser-study .bp-footer .sh-reading-size>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sh-browser-study .sh-key-guide:not([open]){margin-left:auto;white-space:nowrap}
+/* Desktop side panel: one calm row. Reading focus becomes an icon button; its visible text stays as the accessible name. */
+.sh-browser-study .bp-footer button{white-space:nowrap}
+.sh-browser-study .bp-footer [data-a=focus]{flex:0 0 36px;width:36px;padding-inline:0;justify-content:center}
+.sh-browser-study .bp-footer [data-a=focus]>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

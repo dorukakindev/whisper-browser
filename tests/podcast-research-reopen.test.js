@@ -82,3 +82,15 @@ test('saved passage applies the selected track offset and keeps the same playbac
  assert.equal(focused,10.75);
  assert.equal(receipt.mode,'seek');
 });
+
+test('An assistant-approved passage never seeks or reports success after another media, episode or tab replaced the opened one',async()=>{
+ for(const change of ['other-media','other-episode','browser-tab']){
+  const h=setup(),receipt={};
+  h.context.window.PlayerSourceCatalogIntegration.openPodcastEntry=async id=>{h.calls.push(['open-rss',id]);
+   if(change==='other-media')h.setSnapshot({...h.snapshot,mediaKey:'stream-B',generation:3,episodeIdentity:'episode-B',sourceVersion:'version-B',entryId:'entry-B'});
+   else if(change==='other-episode')h.setSnapshot({...h.snapshot,episodeIdentity:'episode-B'});
+   else h.context.player.workspaceMode='browser';};
+  const opened=await h.context.openPodcastResearchResult(h.result,{beforeSeek:async()=>{},receipt});
+  assert.equal(opened,false,change+': the assistant action must not report success');assert(!h.calls.some(row=>String(row[0]).startsWith('seek')),change+': no seek');assert.equal(receipt.mode,undefined,change+': no success receipt');
+ }
+});

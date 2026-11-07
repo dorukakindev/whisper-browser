@@ -213,7 +213,8 @@
       return cache;
     }
     const dispatch = (type, args = {}, rowIdx = -1) => { const m = rowIdx >= 0 ? cache.meta[rowIdx] : null; return Promise.resolve(F.dispatch({ type, mediaKey: bound.mediaKey, generation: bound.generation, ...(m ? { trackId: m.trackId, trackRevision: m.trackRevision } : {}), ...args })).then(norm); };
-    const seekRow = i => cache.meta[i]?.trackId===F.snap()?.sourceTrack?.id ? dispatch('seekCue',{cueId:cache.rows[i].id},i) : dispatch('seek',{time:cache.rows[i].start});
+    const landing = (start, end) => (window.PlayerTranscriptModel?.landingTime ? window.PlayerTranscriptModel.landingTime(start, end) : Math.max(0, num(start) + .01));
+    const seekRow = i => cache.meta[i]?.trackId===F.snap()?.sourceTrack?.id ? dispatch('seekCue',{cueId:cache.rows[i].id},i) : dispatch('seek',{time:landing(cache.rows[i].start,cache.rows[i].end)});
     const idxAt = (t) => { let at = -1; cache.rows.forEach((r, i) => { if (r.timed && !r.standaloneTranslation && r.start <= t && t < r.end && (at < 0 || r.start >= cache.rows[at].start)) at = i; }); return at; };
     const neighbor = (t, dir) => { const timed = cache.rows.map((r, i) => r.timed && !r.standaloneTranslation ? i : -1).filter((i) => i >= 0); if (!timed.length) return -1; const cur = idxAt(t); if (dir < 0) { if (cur >= 0 && t - cache.rows[cur].start > 1.5) return cur; const before = timed.filter((i) => cache.rows[i].start < (cur >= 0 ? cache.rows[cur].start : t) - .01); return before.length ? before[before.length - 1] : timed[0]; } const after = timed.filter((i) => cache.rows[i].start > (cur >= 0 ? cache.rows[cur].start : t) + .01); return after.length ? after[0] : -1; };
     function translationNavigation(s) {
@@ -425,7 +426,7 @@
           captionTrackCount: kind === 'browser' ? (player.browserTracks || []).filter(track => track.path).length : 0,
           youtubeCaptions: kind === 'browser' && /^browser:youtube:/.test(s?.mediaKey || ''),
         chapters:podcast?(audio.publisherChapters||[]).map(chapter=>({...chapter,t:chapterTiming&&chapter.t!==null&&chapter.t<duration?chapter.t:null})):kind!=='local'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
-        queue:kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[],native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:mode==='podcast'||kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
+        queue:(()=>{const next=window.MediaShelfUI?.upNext?.();return next&&next.title?[{index:next.index,title:next.title,queueKey:next.queueKey}]:null;})()||(kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[]),native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:mode==='podcast'||kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
       state: () => {
         const s = F.snap();
         if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false };
@@ -505,7 +506,11 @@
             return Promise.resolve({ok:false,code:'unsupported'});
           }
           case 'wordInfo':case 'wordSave':case 'wordLookup':return wordAction(t,v);
-          case 'openQueued': if(kind!=='local'||!Number.isInteger(v)||v<=player.playlistIndex||v>=player.playlist.length)return Promise.resolve({ok:false,code:'invalid-range'});return Promise.resolve(playPlaylistDelta(v-player.playlistIndex)).then(()=>({ok:true}));
+          case 'openQueued':
+            if (v?.queueKey) return window.MediaShelfUI.playUpNext(v).then(result => result?.code === 'stale-queue'
+              ? {...result,message:T('Kuyruk değişti. Güncel sıradaki bölümü seçin.','The queue changed. Select the current next episode.')}
+              : result);
+            if(kind!=='local'||!Number.isInteger(v)||v<=player.playlistIndex||v>=player.playlist.length)return Promise.resolve({ok:false,code:'invalid-range'});return Promise.resolve(playPlaylistDelta(v-player.playlistIndex)).then(()=>({ok:true}));
           case 'toggle': return dispatch('togglePlay');
           case 'pause': return s.paused ? Promise.resolve({ ok: true }) : dispatch('togglePlay');
           case 'seek': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, v)) });
@@ -515,7 +520,7 @@
             const row = cache.rows[typeof v === 'object' && v ? v.row : v];
             const time = typeof v === 'object' && v ? row?.translationStarts?.[v.part] : row?.translationStart;
             return s.capabilities?.seek?.support === 'yes' && Number.isFinite(time) && time < s.duration
-              ? dispatch('seek', {time: Math.max(0, time)})
+              ? dispatch('seek', {time: Math.min(num(s.duration) || Infinity, landing(time))})
               : Promise.resolve({ok:false,code:'untimed',message:T('Çevirinin zamanı doğrulanamadı.', 'Translation timing is unverified.')});
           }
           case 'prevCue': case 'nextCue': { const i = neighbor(num(s.time), t === 'prevCue' ? -1 : 1); return i >= 0 ? seekRow(i) : Promise.resolve({ ok: false, code: 'none', message: T('Zamanlı cümle yok.', 'No timed sentence.') }); }
@@ -607,6 +612,7 @@
         if(restoreTabFocus)inst?.root.querySelector('[role="tab"][aria-selected="true"]')?.focus({preventScroll:true});
       },
       onClose: () => {
+        stageEpoch++;
         const opener=stageOpener;stageOpener=null;
         if(kind==='shelf'){window.MediaShelfUI?.closePodcastMode?.();unmount();}
         else{
@@ -625,6 +631,8 @@
     if(!had&&stageOpener===active)inst.root.querySelector('[role=tab][aria-selected=true]')?.focus({preventScroll:true});
   }
   let sticky;
+  // Bumped whenever the user closes the Stage; a late asynchronous open compares it before mounting.
+  let stageEpoch = 0, openTicket = 0;
   const evaluate = safe(() => {
     if (!ready()) return; if(key.startsWith('shelf:')&&layer.classList.contains('hidden')){if(window.MediaShelfUI?.readSnapshot())return;unmount();} let want = null;
     if (!layer.classList.contains('hidden')) {
@@ -652,7 +660,8 @@
   doc.addEventListener('visibilitychange',()=>{doc.documentElement.dataset.sahneHidden=String(document.hidden);if(!document.hidden)evaluate();});
   window.addEventListener('resize',()=>{if(host&&!key.startsWith('shelf:'))host.style.top=headH()+'px';});
   doc.addEventListener('click',e=>{if(e.target.closest?.('[data-podcast-view]')){SS.set('cp-sahne-off','0');queueMicrotask(evaluate);}},true);
-  window.CinemaSahne = Object.freeze({async openShelf({mode='podcast'}={}){const owner=window.MediaShelfUI?.readSnapshot();if(!owner)return {ok:false,code:'no-source'};if(!window.MediaShelfUI.isPodcastMode?.())await window.MediaShelfUI.openPodcastMode();const now=window.MediaShelfUI.readSnapshot();if(now?.mediaKey!==owner.mediaKey||now?.generation!==owner.generation)return {ok:false,code:'stale-source'};mount('shelf',mode==='study'?'study':'podcast',false);return {ok:true};},open({mode='cinema'}={}){SS.set('cp-sahne-off','0');if(player.workspaceMode==='browser'){window.BrowserStudy?.open?.({preservePodcast:true});window.BrowserPodcastUI?.setMode(mode==='podcast');}else{localView=mode==='cinema'?'cinema':'study';PW()?.setPodcastMode(mode==='podcast');}evaluate();},close(){
+  window.CinemaSahne = Object.freeze({async openShelf({mode='podcast'}={}){const owner=window.MediaShelfUI?.readSnapshot();if(!owner)return {ok:false,code:'no-source'};const epoch=stageEpoch,ticket=++openTicket;if(!window.MediaShelfUI.isPodcastMode?.())await window.MediaShelfUI.openPodcastMode();const now=window.MediaShelfUI.readSnapshot();if(now?.mediaKey!==owner.mediaKey||now?.generation!==owner.generation)return {ok:false,code:'stale-source'};if(epoch!==stageEpoch||typeof window.MediaShelfUI.isPodcastMode==='function'&&!window.MediaShelfUI.isPodcastMode())return {ok:false,code:'closed'};if(ticket!==openTicket)return {ok:false,code:'superseded'};mount('shelf',mode==='study'?'study':'podcast',false);return {ok:true};},open({mode='cinema'}={}){SS.set('cp-sahne-off','0');if(player.workspaceMode==='browser'){window.BrowserStudy?.open?.({preservePodcast:true});window.BrowserPodcastUI?.setMode(mode==='podcast');}else{localView=mode==='cinema'?'cinema':'study';PW()?.setPodcastMode(mode==='podcast');}evaluate();},close(){
+    stageEpoch++;
     SS.set('cp-sahne-off','1');
     if (key.startsWith('browser:')) window.BrowserStudy?.close?.();
     unmount();

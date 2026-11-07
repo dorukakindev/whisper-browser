@@ -95,3 +95,12 @@ const cue = (id, start, end, text) => ({ id, start, end, text });
   assert.deepStrictEqual(M.activeRowVisibility(rows, new Set([rows[0].key]), 2.5), { index: 1, visible: false }, 'filtre silinmez; aktif satıra dön eylemi');
 }
 console.log('player-transcript-model.test.js: OK');
+
+{ // Her cümle atlaması cümlenin hemen içine iner; seçilen satır etkin satır olur
+ const M=require('../src/renderer/player-transcript-model'),rows=[{cueId:'a',videoStart:10,videoEnd:12},{cueId:'b',videoStart:12,videoEnd:14}].map(r=>({...r}));
+ assert.equal(M.landingTime(12,14),12.01);assert.equal(M.landingTime(12,14,0.5),12.51);assert.equal(M.landingTime(0,2,-1),0,'never negative');
+ assert.equal(M.landingTime(5,5.004),5.002,'a very short sentence lands at its midpoint');assert.equal(M.landingTime(7),7.01);
+ // A media element may settle a few milliseconds before the requested time; the landing margin keeps the chosen row active.
+ for(const settle of [0,0.004,0.009])assert.equal(M.activeRowIndex(rows,M.landingTime(rows[1].videoStart,rows[1].videoEnd)-settle),1);
+ assert.equal(M.activeRowIndex(rows,rows[1].videoStart-0.004),0,'jumping to the exact start can leave the previous row active');
+}

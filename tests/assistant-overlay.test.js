@@ -33,6 +33,12 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   assert.deepEqual(sent[0].value.palette,{accent:'#d5a35c'});
   assert.equal(sent[0].value.activeThread,'one');assert.equal(sent[0].value.pinScope,'media');assert.equal(sent[0].value.messages[0].links[0].id.length,85);
   assert.equal(sent[0].value.messages[0].text, '<img onerror=bad>', 'Rendered as text by the view, never HTML');
+  ipcMain.emit('assistant:update', parent, {sourceTarget:{kind:'podcast',id:'private-episode'},sourceToken:'podcast-thread'});
+  assert.deepEqual(sent.at(-1).value.sourceTarget,{kind:'podcast'});
+  ipcMain.emit('assistant:action', overlay, {action:'open-source',sourceToken:'podcast-thread'});
+  assert.equal(sent.at(-1).value.action,'open-source');
+  ipcMain.emit('assistant:update', parent, {sourceTarget:{kind:'unsupported'}});
+  assert.equal(sent.at(-1).value.sourceTarget,null);
   ipcMain.emit('assistant:update', parent, {toolbarDocked:true});
   assert.equal(view.visible,false,'A toolbar entry replaces the collapsed floating bubble');
   ipcMain.emit('assistant:update', foreign, {toolbarDocked:false});
