@@ -6,6 +6,13 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Claude kümülatif teslimi — açık canlı kabuller
+
+- Paket temeli `a97dc03bbbac83105492c9c777acc0d7dc2b3cda`, teslim dalı `codex/claude-cumulative-20261107`. [Devir ve kanıt](docs/devir/2026-11-07-0605.md).
+- Keşfet, film/dizi detayı ve Browser araç çubuğu için paket görsel kabul sağlamadı. Sonraki adım kontrollü iki aynı adlı yapımla detay ve yorum dönüşünü çalıştırmak, ardından normal masaüstünde bu üç yüzeyi karşılaştırmak.
+- Gerçek YouTube ve Letterboxd sağlayıcılarından bu paket için yeni canlı kanıt yok. Yetkili erişimle aynı sekmede yeni video, iki sekmede geciken altyazı/çeviri ve site altyazısının Shadow DOM tam ekran dönüşünü kısa izole turda sına. Letterboxd için doğru film/yıl, gerçek sayı ve spoiler seçimini izinli Browser yoluyla kontrol et.
+- İlk Podcast “bu ana kadar” isteği ve yorum örneği kimliği için sonraki adım gerçek girişten sağlayıcı isteğini izole ve yetkili koşulda yakalamak. Asistanın çok adımlı kaynak zinciri ve özgün yorum kartı bu paketle eklenmedi.
+
 ## Sahne ve Browser — güncel kabul
 
 - **Tamamlanan kabul.** İki gerçek altyazılı sekmede kimlik, konum, iz ve bağımsız kaymaların geri yüklenmesi; aynı YouTube bölümünde beş hızlı Browser/Podcast/Çift dilli geçişi; Podcast canlı satır, cümle döngüsü, 1,5× hız, elle kaydırma ve konuşmaya dönüş; dar video üzerindeki iki dil ve site altyazısının geri gelmesi doğrulandı. Önceki tur ayrıntıları devir indeksinde korunur.
