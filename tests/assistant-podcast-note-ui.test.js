@@ -184,3 +184,18 @@ test('Overlay focus return: the control that opened the dialog is focused again 
  w.AssistantFocusReturn.mark('GONE');w.dispatchEvent(new w.Event('focus'));assert.equal(w.document.activeElement.id,'other','a vanished opener never steals focus');
  w.close();
 });
+
+test('research draft UI keeps late previews off newer typing, reuses a lost-response confirmation and returns focus',async()=>{
+ const dom=new JSDOM('<button id="origin">Open</button>',{runScripts:'outside-only'}),w=dom.window;try{
+  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+  let current=true,finish,previews=0,saves=0;const tokens=[];w.UiLocale={get:()=> 'en'};w.AssistantAppActions={snapshot:()=>({owner:'a',thread:'one'}),current:()=>current};
+  w.api={assistantResearchNotes:async input=>{
+   if(input.action==='get')return {ok:true,draft:{text:'Model draft'},sources:[{title:'<img src=x>',text:'Real quote',personalNote:'Personal interpretation'}]};
+   if(input.action==='preview'){previews++;if(previews===1)return new Promise(r=>finish=r);return {ok:true,token:'exact-token',text:input.text};}
+   if(input.action==='save'){tokens.push(input.token);return ++saves===1?{ok:false,error:'Result unknown; retry this same confirmation.'}:{ok:true};}
+  }};w.eval(read('assistant-research-notes-ui.js'));w.document.getElementById('origin').focus();await w.AssistantResearchNotesUI.open({kind:'research-draft',draftId:'draft'});assert.equal(w.document.querySelector('img'),null);
+  const editor=w.document.querySelector('dialog textarea'),button=text=>[...w.document.querySelectorAll('dialog button')].find(b=>b.textContent===text);button('Preview this draft').click();editor.value='My newer text';editor.dispatchEvent(new w.Event('input'));finish({ok:true,token:'old',text:'Model draft'});await tick();assert.equal(button('Confirm & save new note').hidden,true);assert.equal(editor.value,'My newer text');
+  button('Preview this draft').click();await tick();button('Confirm & save new note').click();await tick();assert.match(w.document.querySelector('[role=status]').textContent,/Result unknown/);button('Confirm & save new note').click();await tick();assert.deepEqual(tokens,['exact-token','exact-token']);assert.match(w.document.querySelector('h2').textContent,/Note saved/);button('Close').click();assert.equal(w.document.activeElement.id,'origin');
+  await w.AssistantResearchNotesUI.open({kind:'research-draft',draftId:'draft'});current=false;button('Preview this draft').click();await tick();assert.match(w.document.querySelector('[role=status]').textContent,/Conversation or source changed/);assert.equal(previews,2);
+ }finally{dom.window.close();}
+});

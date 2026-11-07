@@ -14,13 +14,15 @@ const {identity: sourceIdentity} = require('./dub-source-identity');
 const {createRunLedger} = require('./dub-run-ledger');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
-  spawn, terminate, busy, grantMedia, environment, shorten, translateGroup, resolveSourceContext, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {} }) {
+  spawn, terminate, busy, grantMedia, environment, shorten, translateGroup, resolveSourceContext, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {}, sourceLocators = null }) {
   let job = null, releasingEngine=false;
   // One persistent record per run (dub-logs/<id>-<ts>.json) plus an instance lease; see dub-run-ledger.js.
   const instanceId = randomBytes(12).toString('hex');
   let ledgerInstance = null;
   const runLedger = () => ledgerInstance || (ledgerInstance = createRunLedger({ logsDir: path.join(app.getPath('userData'), 'dub-logs'),
     outputDir: voiceStorage(app).output, inputDir: voiceStorage(app).input, instanceId }));
+  // Main-derived, versioned source locators (see dub-source-locator.js). Without a configured Podcast store nothing is pinned.
+  const locators = sourceLocators || require('./dub-source-locator').createSourceLocator({});
   const referenceSelectionSecret=randomBytes(32);
   const groupTakes=require('./dub-group-takes').createGroupTakes({app,grantMedia});
   const pronunciationStore=()=>require('./dub-pronunciation-store').createStore(path.join(app.getPath('userData'),'dub-source-pronunciations.json'));
@@ -529,6 +531,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       c.deliveryStrength = request.deliveryStrength ?? c.deliveryStrength;
       if (typeof c.followDelivery !== 'boolean' || !['gentle','balanced','strong'].includes(c.deliveryStrength)) throw new Error('Invalid delivery option.');
       s.sourceIdentity = trusted ? trusted.sourceIdentity : sourceIdentity(request.source);
+      // The locator is derived here from main-owned records and corroborated by the bound source; a retry keeps the original's.
+      s.sourceLocator = trusted ? (trusted.sourceLocator ?? null) : await locators.pin(request);
       if (trusted) { s.retryOf = trusted.retryOf; s.attempt = trusted.attempt; }
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech, forceAll, forceGroupCount:forceGroups.length });
@@ -619,7 +623,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         runLedger().begin({ summaryPath: s.summaryPath, id: s.id, startedAt: s.startedAt, sample: s.sample, retryOf: s.retryOf, attempt: s.attempt, label: path.basename(srt, '.srt'),
           pinned: { profile: s.settings.profile, verification, timingMode, grouping: c.grouping, expression: c.expression, deliveryStrength: c.deliveryStrength, resultMode: c.resultMode,
             concurrency, autoFit: c.autoFit, naturalSpeech: c.naturalSpeech, followDelivery: c.followDelivery, deliveryAutomatic: s.settings.deliveryAutomatic, forceAll, forceGroups,
-            narration: request.narration === true, sample: s.sample, range: s.range, sourceDuration, sourceIdentity: s.sourceIdentity, subtitleHash: s.subtitleHash,
+            narration: request.narration === true, sample: s.sample, range: s.range, sourceDuration, sourceIdentity: s.sourceIdentity, sourceLocator: s.sourceLocator || undefined, subtitleHash: s.subtitleHash,
             referenceFingerprint: referenceRecipe, referenceName: s.settings.referenceName, pronunciations: effectivePronunciations,
             groupTakesCount: Object.keys(selectedTakes || {}).length, speechSourceStatus: s.settings.speechSourceStatus } });
         s.ledgerRun = true;
@@ -973,6 +977,21 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       return { ok: true, name: checked.name, url: pathToFileURL(checked.file).href, seconds: checked.seconds, use: checked.use, state: checked.state, recovered: checked.recovered };
     }
     if (action === 'recover') { if (!safe(runId)) throw Error('Invalid run identity.'); return ledger.recover(runId, { activeRunId: active }); }
+    // Source return. Resolving only reads: it re-validates the recorded locator against today's library record and returns the
+    // exact target for the existing open owner plus a one-shot ticket. Nothing is opened, played or attached here.
+    if (action === 'source-resolve') {
+      if (!safe(runId)) throw Error('Invalid run identity.');
+      const stored = ledger.locatorOf(runId);
+      if (!stored.found) return locators.unknownRun();
+      const result = locators.resolve(stored.raw, { allowChanged: request.allowChanged === true });
+      if (!result.ok) return result;
+      const { fingerprint, verify, ...visible } = result;
+      return { ...visible, runId, ticket: locators.issue({ runId, sender: e.sender?.id ?? 0, fingerprint, verify }) };
+    }
+    if (action === 'source-confirm') {
+      if (typeof request.ticket !== 'string' || !/^[a-f0-9]{32}$/.test(request.ticket)) throw Error('Invalid source ticket.');
+      return locators.confirm(request.ticket, { sender: e.sender?.id ?? 0, current: id => ledger.locatorFingerprint(id) });
+    }
     if (action === 'retry-preview') {
       if (!safe(runId) || !['pinned', 'current'].includes(request.settings ?? 'pinned')) throw Error('Invalid retry request.');
       return ledger.plan(runId, { settings: request.settings ?? 'pinned', current: currentRunSettings(), activeRunId: active });
@@ -1027,8 +1046,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (job) emit(job, 'warning', { text: 'Üretim durdurulamadı; pencere açık kaldı. Durdur düğmesiyle tekrar deneyin.' });
     });
   });
-  const voiceRunsApi = () => require('./assistant-voice-runs').createVoiceRunsApi({ ledger: runLedger(), current: currentRunSettings, active: () => job?.id || null, identity: sourceIdentity });
-  return { runs: { list: o => voiceRunsApi().list(o), detail: (id, o) => voiceRunsApi().detail(id, o), preview: (id, mode) => voiceRunsApi().preview(id, mode), sourceMatch: (id, source) => voiceRunsApi().sourceMatch(id, source), exists: id => voiceRunsApi().exists(id) },
+  const voiceRunsApi = () => require('./assistant-voice-runs').createVoiceRunsApi({ ledger: runLedger(), current: currentRunSettings, active: () => job?.id || null, identity: sourceIdentity, locators });
+  return { runs: { list: o => voiceRunsApi().list(o), detail: (id, o) => voiceRunsApi().detail(id, o), preview: (id, mode) => voiceRunsApi().preview(id, mode), sourceMatch: (id, source) => voiceRunsApi().sourceMatch(id, source), sourceNavigation: (id, source) => voiceRunsApi().sourceNavigation(id, source), exists: id => voiceRunsApi().exists(id) },
     running: () => !!job || !!textUI || releasingEngine, cancel, releaseIdle:async()=>{if(job||textUI||releasingEngine)throw Error('Voice generation is active.');releasingEngine=true;try{return await warmEngine.release();}finally{releasingEngine=false;}} };
 }
 module.exports = { registerDubService };

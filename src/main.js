@@ -13677,8 +13677,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     if (tab.id === browserActiveTabId || tab.id === browserSplitSecondaryTabId) applyBrowserViewsLayout();
     sendBrowserEvent(tab, { type: 'html-full-screen', active: false });
   });
+  wc.on('before-input-event',(_event,input)=>{if(input.type==='keyDown')releaseSourceReturnHold(tab);});
+  wc.on('before-mouse-event',(_event,input)=>{if(input.type==='mouseDown')releaseSourceReturnHold(tab);});
   wc.on('media-started-playing', () => {
     if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
+    if(tab.sourceReturnHold?.wc===wc){void executeBrowserViewFrames(view,buildBrowserMediaCommandScript('pause')).catch(()=>{});return;}
     updateBrowserPlaybackState(tab, true);
     if (tab.id === browserActiveTabId) {
       scheduleBrowserDiscoveryProbe(tab, 0);
@@ -15823,6 +15826,12 @@ ipcMain.handle('browser:setBounds', (event, payload) => {
   return { ok: true };
 });
 
+// A source-only history open must not let the provider's autoplay produce sound. This lease is released by
+// the first real user interaction or explicit playback command; it never changes a saved mute preference.
+function releaseSourceReturnHold(tab) {
+ const hold=tab?.sourceReturnHold;if(!hold)return;tab.sourceReturnHold=null;
+ const wc=tab.view?.webContents;if(wc===hold.wc&&!wc.isDestroyed()&&wc.isAudioMuted())wc.setAudioMuted(hold.priorMuted);
+}
 ipcMain.handle('browser:navigate', async (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = activeRequestedBrowserTab(payload && payload.tabId);
@@ -15843,6 +15852,8 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
   if (!requestIsCurrent()) return { ok: false, stale: true, error: 'Sekme değişti veya daha yeni gezinme isteği var.' };
   const view = ensureBrowserView(tab);
   if (!view) return { ok: false, error: 'Tarayıcı başlatılamadı.' };
+  releaseSourceReturnHold(tab);
+  if(payload?.pauseOnOpen===true){const wc=view.webContents;tab.sourceReturnHold={wc,priorMuted:wc.isAudioMuted()};wc.setAudioMuted(true);}
   applyBrowserViewBounds(tab, view);
   browserVisible = true;
   browserOverlay = { source: [], translation: [], mode: 'translation', offset: 0 };
@@ -16377,6 +16388,7 @@ ipcMain.handle('browser:command', async (event, payload) => {
   if (!mainWindow || event.sender !== mainWindow.webContents || !browserView
       || browserView.webContents.isDestroyed() || !tab) return { ok: false, error: 'Tarayıcı açık değil veya sekme değişti.' };
   const wc = browserView.webContents;
+  if(['play','play-pause','mute'].includes(command))releaseSourceReturnHold(tab);
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
   try {
     const { canGoBack, canGoForward } = browserNavigationCapabilities(wc);
@@ -16982,6 +16994,7 @@ ipcMain.handle('browser:tab:mute', (event, tabId, muted, lease) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   const tab = browserTabById(tabId), wc = tab?.view?.webContents;
   if (!wc || wc.isDestroyed()) return { ok: false, error: 'Sekme henüz yüklenmedi.' };
+  if(lease===undefined)releaseSourceReturnHold(tab);
   let priorMuted;
   if (lease !== undefined) {
     if (!lease || typeof lease !== 'object' || typeof muted !== 'boolean'
@@ -18513,6 +18526,8 @@ async function resolveDubSource(request) {
 const dubAssistantJobs=new WeakMap();
 const dubService = require('./dub-service').registerDubService({
   resolveSourceContext: require('./dub-source-resolver').createSourceResolver({getAssetStore:browserAssetStore,getIndex:watchIndex}),
+  // Versioned source locators come only from main-owned Podcast records; the feed service is created later, so it is read lazily.
+  sourceLocators: require('./dub-source-locator').createSourceLocator({podcasts:{store:()=>mediaFeedsService.store,exactAudio:entry=>mediaFeedsService.exactAudio(entry)},catalog:{store:()=>mediaCatalogService.store(),sources:item=>require('./film-watch-service').sources(item)}}),
   observeJob:(session,event,cancel)=>{
     if(event.type==='start'){const id=assistantJobs.start({kind:session.settings?.kind==='reference'?'reference':'voice',cancel});dubAssistantJobs.set(session,id);linkAssistantJob(session.id,id);}
     else {const id=dubAssistantJobs.get(session);if(id)assistantJobs.update(id,event);}
@@ -19341,7 +19356,8 @@ ipcMain.handle('browser:research:list', async (event, request = {}) => {
   try {
     const store = ensureBrowserNotesReady();
     if (store.loadError || store.migrationError) return { ok: false, error: store.loadError || store.migrationError, annotations: [] };
-    return { ok: true, annotations: store.filter(request.filters || {}, request.limit || 500), recoveredFromBackup: store.recoveredFromBackup };
+    // Each row carries the revision a later save must name (compare-and-set), so two surfaces editing one note cannot silently overwrite each other.
+    return { ok: true, annotations: store.filter(request.filters || {}, request.limit || 500).map(row => researchAnnotationWriter.withRevision(row)), recoveredFromBackup: store.recoveredFromBackup };
   } catch (error) { return { ok: false, error: error.message, annotations: [] }; }
 });
 
@@ -19356,6 +19372,12 @@ function saveResearchAnnotation(raw, options) { return researchAnnotationWriter.
 ipcMain.handle('browser:research:upsert', async (event, raw) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   try { return saveResearchAnnotation(raw); } catch (error) { return { ok: false, error: error.message }; }
+});
+
+// Save with a named revision (compare-and-set); the logic lives in research-annotation-writer.js so tests run the same code.
+ipcMain.handle('browser:research:save', async (event, request = {}) => {
+  if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
+  try { return researchAnnotationWriter.saveChecked(request.annotation, request.expectRevision); } catch (error) { return { ok: false, error: error.message }; }
 });
 
 ipcMain.handle('browser:research:review', async (event, request = {}) => {
@@ -20644,7 +20666,7 @@ require('./assistant-agent-service').register({app,ipcMain,authorized:authorized
   getJobs:()=>assistantJobs.snapshot(),resolveJobId:resolveAssistantJobId,cancelJob:id=>assistantJobs.cancel(id),
   researchWeb:assistantResearch,
   podcastSearch:input=>require('./media-shelf-service').readPodcastSearch(app.getPath('userData'),input,6),
-  researchNotes:{save:saveResearchAnnotation,get:id=>researchAnnotationWriter.get(id)},
+  researchNotes:{save:saveResearchAnnotation,get:id=>researchAnnotationWriter.get(id),list:(filters,limit)=>{const store=ensureBrowserNotesReady();if(store.loadError||store.migrationError)throw Error(store.loadError||store.migrationError);return store.filter(filters,limit);}},
   voiceRuns:dubService.runs,
   feedDigest:args=>require('./assistant-feed-digest').getFeedDigest(mediaFeedsService.store,args),
   feedEntry:async(args,event)=>{const entry=mediaFeedsService.store.entry(args.entry_id,args.revision);const result=await mediaFeedsService.handle(event,{action:'context',entryIds:[entry.id]});if(!result.ok||!result.sources?.some(s=>s.entryId===entry.id&&s.revision===entry.revision))throw Error('Feed source is unavailable or hidden by spoiler preferences.');return {entry_id:entry.id,revision:entry.revision,title:entry.title};},

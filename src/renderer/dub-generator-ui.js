@@ -1005,6 +1005,12 @@
       for(const key of forceGroups)delete payload.groupTakes[key];
     }
     payload.source = pending.context?.source || pending.context?.mediaKey || '';
+    // The renderer may only name the Podcast record it is showing. Main verifies it against its own records and against the bound
+    // source string; a path, URL or title is never accepted as a locator.
+    const named = podcastOwner();
+    if (named && pending.context?.mode === 'player' && named.mediaKey === pending.context.mediaKey && named.generation === pending.context.generation) payload.sourceRef = { kind: 'podcast', entryId: named.entryId, sourceVersion: named.sourceVersion };
+    else if (pending.context?.mode === 'player' && typeof player === 'object' && player.localPath && player.localPath === payload.source) payload.sourceRef = { kind: 'catalog' };   // main finds the library record by the exact file
+    else if (pending.context?.mode === 'browser' && typeof youtubeVideoId === 'function' && youtubeVideoId(payload.source)) payload.sourceRef = { kind: 'youtube', videoId: youtubeVideoId(payload.source) };   // main re-derives and compares
     if(Number.isFinite(pending.context?.duration)&&pending.context.duration>0&&pending.context.duration<=86400)payload.sourceDuration=pending.context.duration;
     pending.request=JSON.parse(JSON.stringify(payload));
     pending.settings={...payload};refreshOverview();

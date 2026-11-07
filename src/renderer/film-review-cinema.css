@@ -170,3 +170,19 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) .cv2-review-item 
 .mrv-point .mrv-support[data-support=single] { color:var(--accent); }
 .mrv-summary .mrv-scope-line { margin:4px 0 14px;font-size:13px;line-height:1.6;color:var(--text-dim); }
 .mrv-summary .mrv-scope-line[data-limited=true] { color:var(--accent); }
+
+/* Review workspace: analysis is the primary action; the reader is optional. */
+.media-title-page .mrv-control-room .mrv-loaded-reader { margin:14px 0; }
+.media-title-page .mrv-control-room .mrv-loaded-reader .mrv-reader-shell { max-height:400px;overflow:hidden;grid-template-columns:250px minmax(0,1fr);gap:22px; }
+.media-title-page .mrv-control-room .mrv-loaded-reader .mrv-reader-nav,.media-title-page .mrv-control-room .mrv-loaded-reader .mrv-reading-list { min-height:0;max-height:340px;overflow:auto; }
+.media-title-page .mrv-control-room .mrv-reader-text { font-size:15px;line-height:1.75; }
+.media-title-page .mrv-control-room [data-review-action=preview] { margin:12px 0;min-height:44px;padding:10px 22px; }
+.media-title-page .mrv-control-room .mrv-provenance { font-size:12px;line-height:1.6; }
+.media-title-page .mrv-control-room .mrv-manual { margin-top:18px;border-top:1px solid var(--border);padding-top:14px; }
+
+.media-title-page .mrv-control-room .mrv-sample-overview { display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 24px;padding:18px 0; }
+.media-title-page .mrv-control-room .mrv-sample-overview > :not(button) { grid-column:1;margin:0; }
+.media-title-page .mrv-control-room .mrv-sample-overview > button { grid-column:2;grid-row:1 / 4;margin:0;align-self:center; }
+.media-title-page .mrv-control-room .mrv-job { padding:14px 0;margin:0;border-bottom:1px solid var(--border); }
+.media-title-page .mrv-control-room .mrv-loaded-reader > summary { padding:10px 0;font-weight:600; }
+@media(max-width:700px){.media-title-page .mrv-control-room .mrv-sample-overview{grid-template-columns:1fr;}.media-title-page .mrv-control-room .mrv-sample-overview>button{grid-column:1;grid-row:auto;justify-self:start;}}

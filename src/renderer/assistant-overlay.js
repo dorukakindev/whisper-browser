@@ -248,7 +248,7 @@
         const stateText={opening:t('Opening…','Açılıyor…'),opened:t('Opened','Açıldı'),'read-only':t('Read-only','Salt okunur'),stale:t('Changed','Değişti'),unavailable:t('Unavailable','Yok'),unconfirmed:t('Unconfirmed','Doğrulanmadı'),cancelled:t('Cancelled','İptal')};
         for (const link of row.links) {
           const holder=group&&link.usage==='found'?group:sources;
-          const button=document.createElement('button');button.textContent=link.label;button.dataset.citationId=link.id;button.dataset.citationControl=JSON.stringify([row.id||'message-'+index,link.id,'open']);button.onclick=()=>action('citation',link.id);button.dataset.citeLabel=link.label;
+          const button=document.createElement('button');button.textContent=link.label;button.dataset.citationId=link.id;button.dataset.citationControl=JSON.stringify([row.id||'message-'+index,link.id,'open']);button.onclick=()=>{if(link.research)window.AssistantFocusReturn?.mark('citation:'+button.dataset.citationControl);action('citation',link.id);};button.dataset.citeLabel=link.label;
           if(link.excerpt){
             const card=document.createElement('details'),summary=document.createElement('summary'),excerpt=document.createElement('p');
             const sourceKey=String(row.id||index)+':'+String(link.id)+':'+String(link.excerpt);card.className='source-card';card.open=openSources.has(sourceKey);card.dataset.sourceKey=sourceKey;card.dataset.citeLabel=link.label;summary.dataset.citationControl=sourceKey;

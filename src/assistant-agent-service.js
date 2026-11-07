@@ -21,6 +21,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
  }
  const flows=require('./assistant-flows').createFlows({getJobs}),applications=new Map(),receipts=require('./assistant-receipts').createReceipts();
  const podcastNotes=require('./assistant-podcast-note').createNotes({podcastSearch,notes:researchNotes,manifest,validateOwner});
+ const notebook=require('./assistant-research-notes').createResearchNotes({notes:researchNotes,manifest,validateOwner});
  const sessions=new Map(),proposals=new Map(),pending=new Map(),refreshable=new Map(),captionProbes=new Map(),jobBindings=new Map();
  const emit=(sender,packet)=>{if(!sender.isDestroyed())sender.send('assistant:agentEvent',packet);};
  function sameJobSource(binding,owner){return !!binding&&manifest.same({...binding.owner,thread:owner.thread},owner);}
@@ -105,6 +106,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   }
   return row;
  }
+ ipcMain.handle('assistant:researchNotes',async(event,input={})=>{if(!authorized(event))return {ok:false,error:'Unauthorized'};try{const owner=manifest.clean(input.owner);const checked=await requestRenderer(event.sender,owner,'validate_research_owner',{});if(checked?.status!=='completed')return {ok:false,error:'Conversation or source changed / Sohbet veya kaynak değişti.'};return notebook.handle(event.sender.id,{...input,owner});}catch(error){return {ok:false,error:String(error.message).slice(0,300)};}});
  ipcMain.handle('assistant:podcastNote',async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized assistant action.'};
   try{return await podcastNotes.handle(event.sender.id,input);}catch(error){return {ok:false,code:'failed',error:String(error.message).slice(0,300)};}
@@ -171,6 +173,13 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      captionProbes.set(event.sender.id,{owner,languages,expires:Date.now()+300000});return {languages,truncated:available.length>languages.length,note:'Choose a listed caption ID. No captions means Whisper must be explicitly requested; it was not started.'};
     }
     if(name==='search_app_guide')return require('./assistant-guide').lookup(args.query);
+    if(['search_research_notes','read_research_notes','prepare_research_draft'].includes(name)){
+     if(watchedQuestion(flow.question))return {status:'blocked',scope:'Archive notebook records are outside the frozen watched-content boundary.'};
+     const result=notebook.read(event.sender.id,{owner,action:({search_research_notes:'search',read_research_notes:'read',prepare_research_draft:'draft'})[name],args});
+     if(!result.ok)return {status:'failed',...result};
+     session.researchCitations=[...(session.researchCitations||[]),...(result.matches||[]),...(result.draft?[result.draft]:[])].slice(-32);
+     return {status:'completed',...result};
+    }
     if(name==='search_saved_podcasts'){
      if(watchedQuestion(flow.question))return {status:'blocked',scope:'Use only the active episode excerpts frozen at the question watched cutoff. Archive results are outside this request.'};
      const query={action:'podcast-search',query:args.query,showName:args.show,role:args.role};
@@ -286,16 +295,17 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
      if(existing){const [proposalId,row]=existing,action={kind:'app_action',proposalId,tool:name,label:row.label,summary:row.summary};emit(event.sender,{type:'proposal',requestId:session.id,action});const receipt={status:'proposed',label:row.label,proposalId,tool:name,note:'The existing un-applied card was reused. It has not run.'};offered.set(signature,receipt);return receipt;}
      if(proposals.size>=100||session.proposalCount>=8)throw Error('Too many pending assistant actions.');
      session.proposalCount=(session.proposalCount||0)+1;
-     const proposalId=randomUUID();let libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,personalMediaIdentity,personalMediaSettings,comparisonIdentity,feedEntryIdentity,voiceRunIdentity;let {label,summary}=registry.describe(name,args,input.locale,owner);
+     const proposalId=randomUUID();let libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,personalMediaIdentity,personalMediaSettings,comparisonIdentity,feedEntryIdentity,voiceRunIdentity,researchIdentity;let {label,summary}=registry.describe(name,args,input.locale,owner);
 
+     if(name==='open_research_note'){const checked=notebook.handle(event.sender.id,{action:'inspect',id:args.source_id,owner});if(!checked.ok)throw Error(checked.error);researchIdentity=checked.card.revision;}
      if(name==='open_voice_run'){
       if(!voiceRuns.exists(args.run_id))throw Error('Unknown voice run id / Bilinmeyen çalışma kimliği.');
       const panel=await requestRenderer(event.sender,owner,'get_voice_panel',{},controller.signal);controller.signal.throwIfAborted();requireOwner(owner);
       const detail=voiceRuns.detail(args.run_id,{openSource:panel?.openSource||''});
-      if(args.target==='source'&&detail.run.source_matches_current_media!==true)return {status:'blocked',note:'This run\'s source is not known to be the currently open media (match: '+detail.run.source_matches_current_media+'). The record stores only a source identity, not a way to reopen another source; ask the user to open the source. / Bu çalışmanın kaynağı açık medya olarak doğrulanamadı; kayıt yalnız kaynak kimliği tutar, başka kaynağı yeniden açamaz.'};
+      if(args.target==='source'&&detail.source_navigation.available!==true)return {status:'blocked',note:'This run\'s source cannot be reopened now: '+detail.source_navigation.reason+' Ask the user to open the source; nothing was opened. / Bu çalışmanın kaynağı şu an yeniden açılamıyor; kullanıcıdan kaynağı açmasını iste, hiçbir şey açılmadı.'};
       if(args.target==='result'&&(detail.run.audio_file.check!=='valid'||['running','running-elsewhere'].includes(detail.run.state)))return {status:'blocked',note:'No valid finished audio file exists for this run; there is nothing to open for review. / Bu çalışma için geçerli, bitmiş ses dosyası yok.'};
       if(args.target==='retry_preview'&&!detail.run.retryable)return {status:'blocked',note:'This run cannot be retried now (state '+detail.run.state+'). / Bu çalışma şu an yeniden denenemez.'};
-      voiceRunIdentity=JSON.stringify([args.run_id,args.target,detail.run.state,detail.run.audio_file.check,detail.run.audio_file.seconds,detail.run.attempt,detail.run.source_matches_current_media]);
+      voiceRunIdentity=JSON.stringify([args.run_id,args.target,detail.run.state,detail.run.audio_file.check,detail.run.audio_file.seconds,detail.run.attempt,detail.run.source_matches_current_media,detail.source_navigation.via,detail.source_navigation.code]);
       summary=(detail.run.title||'')+' · '+summary;
      }
      if(args.translation_profile||name==='set_translation_profile'){const state=await requestRenderer(event.sender,owner,'get_translation_profile',{profile_id:args.translation_profile||args.profile_id},controller.signal);if(state.status!=='completed'||!state.profile)throw Error('Configured translation model unavailable.');translationIdentity=JSON.stringify(state.profile);summary+=' · '+state.profile.model+' ('+state.profile.provider+')';}
@@ -343,7 +353,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
       podcastLocator=selected.locator;
       summary=[row.showTitle,row.episodeTitle,row.timed?row.seconds.toFixed(1)+' s':input.locale==='tr'?'Salt okunur':'Read only',row.quote.slice(0,300)].filter(Boolean).join(' · ');
      }
-     const row=await captureSettings(event.sender,owner,{sender:event.sender,owner,name,args,flow,label,summary,locale:input.locale,libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,personalMediaIdentity,comparisonIdentity,feedEntryIdentity,voiceRunIdentity,podcastLocator,...(personalMediaSettings?{expectedSettings:personalMediaSettings}:{}),expires:Date.now()+10*60*1000},controller.signal);
+     const row=await captureSettings(event.sender,owner,{sender:event.sender,owner,name,args,flow,label,summary,locale:input.locale,libraryIdentity,collectionIdentity,workflowIdentity,translationIdentity,personalMediaIdentity,comparisonIdentity,feedEntryIdentity,voiceRunIdentity,researchIdentity,podcastLocator,...(personalMediaSettings?{expectedSettings:personalMediaSettings}:{}),expires:Date.now()+10*60*1000},controller.signal);
      summary=row.summary;const action={kind:'app_action',proposalId,tool:name,label,summary};
      row.runId=session.id;row.intentRevision=session.runtime.revision;proposals.set(proposalId,row);
      emit(event.sender,{type:'proposal',requestId:session.id,action});
@@ -391,7 +401,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const execution={cards:offered.size,pendingPlans:planned.size,attempted,blockedOrFailed:failed,appliedActions:0};
    let structuredAnswer=false;try{const parsed=JSON.parse(result.text);structuredAnswer=parsed!==null&&typeof parsed==='object';}catch{}
    if(!reviewMode&&(attempted||planned.size||(!structuredAnswer&&/kart|\bcard\b|başlat|started|tamamlan|completed/i.test(result.text)))){const tr=input.locale==='tr';const note=tr?'Uygulama doğrulaması: '+offered.size+' gerçek işlem kartı oluşturuldu; bu istek kartları uygulamadı, transkripsiyon/dublaj başlatmadı.':'Application verification: '+offered.size+' real action cards created; this request applied no cards and started no transcription/dubbing.';const extra=planned.size?(tr?' Koleksiyon planı yalnız veri; uygulanabilir kartı henüz yok.':' A collection plan is data only; its review card is still missing.'):'';result.text=result.text.slice(0,30500)+'\n\n'+note+extra;}
-   resumed?.settle?.(true);return {ok:true,...result,runtime:session.runtime.snapshot(),execution,bookCitations:session.bookCitations||[],filmCitations:session.filmCitations||[],podcastCitations:podcastCards,podcastUnverified};
+   resumed?.settle?.(true);return {ok:true,...result,runtime:session.runtime.snapshot(),execution,bookCitations:session.bookCitations||[],filmCitations:session.filmCitations||[],researchCitations:session.researchCitations||[],podcastCitations:podcastCards,podcastUnverified};
   }catch(error){const timedOut=controller?.signal.aborted&&controller.signal.reason==='timeout';return {ok:false,runtime:session?.runtime?.snapshot(),timedOut:!!timedOut,cancelled:!!controller?.signal.aborted&&!timedOut,error:timedOut?'Assistant timed out. Received text was kept; you can retry / Asistan zaman aşımına uğradı. Alınan metin korundu; yeniden deneyebilirsin.':controller?.signal.aborted?'Assistant stopped / Asistan durduruldu.':String(error.message).slice(0,300)};}
   finally{session?.runtime?.close();resumed?.settle?.(false);clearTimeout(timer);if(stop)event.sender.removeListener('destroyed',stop);if(sessions.get(event.sender.id)===session)sessions.delete(event.sender.id);}
  });
@@ -428,11 +438,12 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const stop=()=>controller.abort('closed');event.sender.once('destroyed',stop);if(event.sender.isDestroyed())stop();
    applications.set(event.sender.id,{id:input.proposalId,controller});
    try{
+    if(row.researchIdentity){const checked=notebook.handle(event.sender.id,{action:'inspect',id:row.args.source_id,owner:current});if(!checked.ok||checked.card.revision!==row.researchIdentity)throw Error(checked.error||'Notebook evidence changed.');}
     if(row.podcastLocator)await podcastSearch(row.podcastLocator);
     if(row.voiceRunIdentity){
      // The run, its audio check, its attempt or the open-source match must be exactly what was reviewed; an old card never opens a changed record.
      const panel=await requestRenderer(event.sender,current,'get_voice_panel',{},controller.signal),detail=voiceRuns.detail(row.args.run_id,{openSource:panel?.openSource||''});
-     if(!detail||JSON.stringify([row.args.run_id,row.args.target,detail.run.state,detail.run.audio_file.check,detail.run.audio_file.seconds,detail.run.attempt,detail.run.source_matches_current_media])!==row.voiceRunIdentity)throw Error('The run, its audio file or the open source changed since this suggestion; nothing was opened. Review it again. / Çalışma, ses dosyası veya açık kaynak bu öneriden sonra değişti; hiçbir şey açılmadı. Yeniden incele.');
+     if(!detail||JSON.stringify([row.args.run_id,row.args.target,detail.run.state,detail.run.audio_file.check,detail.run.audio_file.seconds,detail.run.attempt,detail.run.source_matches_current_media,detail.source_navigation.via,detail.source_navigation.code])!==row.voiceRunIdentity)throw Error('The run, its audio file or the open source changed since this suggestion; nothing was opened. Review it again. / Çalışma, ses dosyası veya açık kaynak bu öneriden sonra değişti; hiçbir şey açılmadı. Yeniden incele.');
     }
     if(row.feedEntryIdentity&&JSON.stringify(await feedEntry(row.args,event))!==row.feedEntryIdentity)throw Object.assign(Error('Feed entry changed; review again / Akış girdisi değişti; yeniden inceleyin.'),{stale:true});
     if(row.personalMediaIdentity){const state=await requestRenderer(event.sender,current,'read_personal_media',{item_id:row.args.item_id},controller.signal);if(state.status!=='completed'||state.personalIdentity!==row.personalMediaIdentity)throw Object.assign(Error('Personal media changed; review again / Kişisel kayıt değişti; yeniden inceleyin.'),{stale:true});}
