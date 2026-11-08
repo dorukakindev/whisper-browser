@@ -19,15 +19,31 @@ function endpoint(raw){
  url.pathname=/\/chat\/completions\/?$/i.test(url.pathname)?url.pathname.replace(/\/$/,''):url.pathname.replace(/\/$/,'')+'/chat/completions';url.search='';url.hash='';return url.href;
 }
 function part(previous,value){const next=typeof value==='string'?value:'';return !next||next===previous?previous:next.startsWith(previous)?next:previous+next;}
-async function boundedText(response,max=MAX_RESPONSE_BYTES){
+// A body may outlive its fetch promise. Caller cancellation must also stop
+// pending reads; transport cleanup must never delay a result or an abort.
+function readBody(reader,signal){
+ if(!signal)return reader.read();
+ signal.throwIfAborted();
+ return new Promise((resolve,reject)=>{
+  const finish=(fn,value)=>{signal.removeEventListener('abort',abort);fn(value);};
+  const abort=()=>finish(reject,signal.reason instanceof Error?signal.reason:new DOMException(String(signal.reason||'Assistant stopped'),'AbortError'));
+  signal.addEventListener('abort',abort,{once:true});
+  try{Promise.resolve(reader.read()).then(row=>finish(resolve,row),error=>finish(reject,error));}catch(error){finish(reject,error);}
+ });
+}
+function releaseBody(reader){
+ try{Promise.resolve(reader.cancel()).catch(()=>{});}catch{}
+ try{reader.releaseLock();}catch{}
+}
+async function boundedText(response,max=MAX_RESPONSE_BYTES,signal){
  const reader=response.body?.getReader();if(!reader)return '';
  const decoder=new TextDecoder();let result='',bytes=0;
- try{for(;;){const row=await reader.read();if(row.done)break;bytes+=row.value.byteLength;if(bytes>max)throw Error('Assistant response exceeded the size limit.');result+=decoder.decode(row.value,{stream:true});}return result+decoder.decode();}
- finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+ try{for(;;){const row=await readBody(reader,signal);if(row.done)break;bytes+=row.value.byteLength;if(bytes>max)throw Error('Assistant response exceeded the size limit.');result+=decoder.decode(row.value,{stream:true});}return result+decoder.decode();}
+ finally{releaseBody(reader);}
 }
 async function completion(response,{onDelta,onProgress=()=>{},signal,streamed}){
  if(!streamed||!String(response.headers.get('content-type')||'').toLowerCase().includes('text/event-stream')){
-  const data=JSON.parse(await boundedText(response));const choice=data.choices?.[0];if(!choice?.message)throw Error('Provider returned no assistant message.');
+  const data=JSON.parse(await boundedText(response,MAX_RESPONSE_BYTES,signal));const choice=data.choices?.[0];if(!choice?.message)throw Error('Provider returned no assistant message.');
   const text=typeof choice.message.content==='string'?choice.message.content:'';if(text.length>32000)throw Error('Assistant answer exceeded the size limit.');
   if(text){onProgress('writing');onDelta(text);}
   if(['length','content_filter'].includes(choice.finish_reason))throw Error('Provider stopped an incomplete answer / Sağlayıcı yanıtı tamamlamadı.');
@@ -64,7 +80,7 @@ async function completion(response,{onDelta,onProgress=()=>{},signal,streamed}){
  };
  try{
   for(;;){
-   signal?.throwIfAborted();const row=await reader.read();if(row.done)break;bytes+=row.value.byteLength;if(bytes>MAX_RESPONSE_BYTES)throw Error('Assistant stream exceeded the size limit.');
+   signal?.throwIfAborted();const row=await readBody(reader,signal);if(row.done)break;bytes+=row.value.byteLength;if(bytes>MAX_RESPONSE_BYTES)throw Error('Assistant stream exceeded the size limit.');
    buffer+=decoder.decode(row.value,{stream:true});
    let end;while((end=buffer.indexOf('\n'))>=0){const value=buffer.slice(0,end).replace(/\r$/,'');buffer=buffer.slice(end+1);line(value);if(finished)break;}
    // A network read may contain many complete events. Bound only the actual
@@ -75,7 +91,7 @@ async function completion(response,{onDelta,onProgress=()=>{},signal,streamed}){
   if(!finished){buffer+=decoder.decode();if(buffer.trim())line(buffer.replace(/\r$/,''));line('');}
   if(!finished)throw Error('Assistant stream ended before completion / Yanıt akışı tamamlanmadan kapandı.');
   return {role:'assistant',content:text||null,tool_calls:[...calls.values()],...(reasoning?{reasoning_content:reasoning}:{})};
- }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+ }finally{releaseBody(reader);}
 }
 
 async function run({question,responseContract,continuation=[],history=[],context={},owner,pool=[],locale='tr',config,signal,onDelta=()=>{},onReplace=()=>{},onCapability=()=>{},onProgress=()=>{},execute,fetchImpl=fetch,takeMessages=()=>[],onHumanMessages=()=>{}}){
@@ -127,7 +143,7 @@ async function run({question,responseContract,continuation=[],history=[],context
    response=await fetchImpl(url,{method:'POST',redirect:'error',signal,headers:{'Content-Type':'application/json',...(config.apiKey?{Authorization:'Bearer '+config.apiKey}:{})},
     body:JSON.stringify({model:config.model,messages,stream:streamed,max_tokens:2400,...(formatEnabled?{response_format:{type:'json_object'}}:{}),...require('./assistant-settings').requestOptions(config.endpoint,config),...(toolsEnabled&&round<5?{tools,tool_choice:'auto'}:{})})});
    if(response.ok)break;
-   const body=(await boundedText(response,16000)).toLowerCase();
+   const body=(await boundedText(response,16000,signal)).toLowerCase();
    if(!answer&&round===0&&[400,404,422].includes(response.status)&&formatEnabled&&/response[_ -]?format|json_object|json.schema/.test(body)){formatEnabled=false;continue;}
    if(!answer&&round===0&&[400,404,422].includes(response.status)&&toolsEnabled&&/\btools\b|tool_choice|function.call/.test(body)){
     toolsEnabled=false;observed.tools='unsupported';onCapability({...observed});
