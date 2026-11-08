@@ -1,8 +1,26 @@
 # Changelog
 
+- Birikmiş Sahne/Browser/Podcast sürekliliği, kaynaklı asistan/not ve sonuç/kurtarma düzeltmeleri `253cb1f2704fad704a86b0899441b80e925f3d7c` ürün commitinde toplandı; belgeler ayrı teslim edilir. 220 hedefli kontrol ve 26 JS sözdizimi kontrolü geçti; önceki gerçek LG kabulleri sınırlarıyla korundu. [GitHub teslim kaydı](docs/devir/2026-11-08-0935.md).
+
+- Önceki Sahne düzeltmesinin birleşik canlı YouTube kabulü kapandı: aynı kayıtlı gerçek altyazıyla 1.25×, +0.2s, B→A cümle döngüsü, sıfırlama ve nottan aynı videoya dönüş gerçek LG/native video saatiyle doğrulandı. Son kodla Podcast not/defter/kaynak ve Browser uzun transkript geçişleri, 159 hedefli kontrol geçti. Bu kapanış turunda ürün kodu değişmedi. [Kabul kaydı](docs/devir/2026-11-08-0925.md).
+
+- Not taslağı aynı cue kimlikli farklı izlere taşınmaz; reddedilen not açılışı özgün odağı korur, stale zaman düğmesi kapalı kalır. Kayıtlı dublajda okuma belirsizliği gerçek eşleşmezlikten ayrılır; yeniden denetleme/yükleme, önceki sonucu koruma ve çalışma kartı odağı düzeltildi. Sonuç ayrıntısının her güncellemede tekrar görünmez animasyon başlatması giderildi. Gerçek LG/IPC ve hedefli önce-kırmızı/sonra-yeşil kanıt; birleşik YouTube loop kabulü sonraki kapanışta doğrulandı. [Yerel teslim](docs/devir/2026-11-08-0909.md).
+
+- Sahne İşlemler'de kararlı eylem odağı/kaydırma ve kayıtlı notlar girişi; örtüşmeyen not/İşlemler paneli, görünür taslak işareti ve yenilenen satıra odak dönüşü. Eski Browser/yerel kurtarma callback'i yeni kaynağa işlem uygulamaz. Araştırma defteri alanları/sekmeleri ve açık-koyu tema mirası düzeltildi. 160 hedefli kontrol, gerçek LG not düzenleme/kaynak dönüşü ve kontrollü HTTP 503 → 18s'den toparlanma. [Yerel teslim](docs/devir/2026-11-08-0835.md).
+
+- Sahne görünüm geçişleri ve Browser'a dönüş aynı medyanın okuma durumunu, seçili pasajını ve not taslağını korur. Bekleyen not tek kez yazılır; iz değişince taslak korunup açık yeniden inceleme gerekir. Uzayan çeviride okunan satır/odak korunur; durdurulmuş/kısmi sonuç ve yalnız eksikleri tamamlama görünürdür. İşlemler/not eylem kontrastı düzeltildi. 163 hedefli kontrol ve gerçek LG izole Podcast/Browser/IPC zincirleri. [Yerel teslim](docs/devir/2026-11-08-0812.md).
+
+- Sahne’de kaynak/iz revizyonuna bağlı seçili pasaj mevcut asistana aktarılır; “bu ana kadar” kapsamını genişletmez. Geç komut/panel hataları yeni kaynağa bildirilmez; hazırlık durumu ve sabit aralık görünür, aralık uygulamasında klavye odağı geri döner. Asistan kaynak açıklaması model bilgisinden önce gösterilir. 165 hedefli test, 3 servis sınır testi ve gerçek LG Podcast/Browser/overlay kontrolleri. [Yerel teslim](docs/devir/2026-11-08-0745.md).
+
+- Browser kayıtlı çevirisinde yanlış başarısızlık ve yeni videoya taşınan tamamlama bildirimi; RSS son konumundan doğrudan tekrar sona atlama ve kuyruk hazırlığı sırasındaki kaybolan native hata düzeltildi. Üretim geçmişinde tek yükleme/bekleme durumu ve kompakt başlık. Gerçek LG/yerel/Podcast/mpv/Browser zincirleri, 84 hedefli test. [Yerel teslim](docs/devir/2026-11-08-0656.md).
+
+- Podcast kuyruğunda geçersiz kalan sıradaki bölüm açılışı artık ilgisiz oynatmayı sahiplenmez veya başarı bildirmez. 53 hedefli test; gerçek LG/YouTube zamanlı satır ve site CC yalıtımı, canlı sağlayıcıda 15/15 yorum analizi doğrulandı. [Yerel kabul](docs/devir/2026-11-08-0622.md).
+
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+- Kayıtlı alıntı kaynağına dönüşte gecikmiş sekme açılışının başka sekmeye seek göndermesi ve başarısız seek'in başarı sayılması düzeltildi; komut tam sekmeye adreslenir, medya/sürüm her beklemeden sonra doğrulanır ve ertelenmiş genel seek bırakılmaz. YouTube Sahne'de site CC'sinin uygulama altyazısıyla üst üste kalmasına neden olan CSS önceliği düzeltildi. Kaynaklı AI notlarının kalıcı dayanakları incelenebilir; değişmiş/eksik kayıtlar ayrılır, yeniden açılan sohbet kartı gerçek not revizyonuyla doğrulanır. 232 hedefli test ve izole Windows LG kontrolleri. [Yerel teslim](docs/devir/2026-11-07-2052.md).
 
 - Üretim geçmişinden Podcast, katalog yerel medya ve YouTube kaynağına sürümlü dönüş entegre edildi. Kaynak açma dublaj bağlamaz/üretmez; Podcast HLS ve yeni Browser sekmesi kaynak-only açılışta otomatik ses başlatmaz. Defterde kaynak süzgeci, revizyonlu kaydetme, açıklamalı çatışma ve taslak/odak korunması; asistanda kayıtlı not arama, seçili not karşılaştırma, kaynak kartı ve elle düzenlenebilir/önizlemeli/onaylı tek yeni not akışı tamamlandı. Gerçek Windows LG renderer zinciri ve 237 hedefli testle doğrulandı; model/işçi kontrollü, canlı sağlayıcı kabulü ayrı. [Teslim](docs/devir/2026-11-07-2010.md).
 

@@ -6,13 +6,72 @@ Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c5975741
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Birikmiş işlerin GitHub teslimi — 2026-11-08 09:35
+
+- Kullanıcı toplu commit/push/master teslimini onayladı. Ürün `253cb1f2704fad704a86b0899441b80e925f3d7c`; dal `codex/media-journey-hardening-20261107`. 34 ürün/test dosyası, 220/220 hedefli kontrol ve 26 JS sözdizimi kontrolü. [Kümülatif teslim](docs/devir/2026-11-08-0935.md).
+- Önceki Sahne/Browser/not/sonuç kabulleri kapalı; yeni engellenmiş ürün işi yok. Canlı asistan → kaynaklı podcast yanıtı → pasaj/not zinciri sonraki ayrı geliştirme turudur; bu GitHub tesliminde yeni model çağrısı yapılmaz. Tarihsel “commit bekliyor” ifadeleri kendi turunun anlık durumudur; bu kullanıcı onayı onların bekletmesini kaldırır.
+- Kişisel manifest/rapor indeksi, start.sh farkı ve eski kişisel DEVIR bağlantısı korunarak commit dışında kalır. Test çıktıları/görseller/loglar stage edilmez. PR/merge/yerel master eşitliği yayınlama sonrasında doğrulanır; sonuç gerçekleşmeden gerçekleşmiş sayılmaz.
+
+## Sahne birleşik kabul kapanışı — 2026-11-08 09:25 (yerel)
+
+- **Kapandı:** 09:09 turunun açık YouTube 1.25×/+0.2s/B→A/reset kabulü gerçek LG ve native video saatiyle tamamlandı. A=134.12s/B=139s, B yakınına atlamadan sonra gerçek video 135.253s'ye döndü; aynı medya/sekmede loop kapalı ve kaynak kayması sıfır. Aynı 2.129 satırlık gerçek kayıtlı iz; yeni canlı caption çekimi değildir. Not → aynı video/121.922s dönüş ve site CC yalıtımı geçti. [Devir](docs/devir/2026-11-08-0925.md).
+- Son kodla gerçek Podcast tek kayıt/defter düzenleme/yeniden açma/A→B→A/4s dönüş ve Browser 120/40 metin/taslak/odak geçişi geçti. 159 hedefli kontrol, JS sözdizimi ve diff temiz. Yeni somut görsel kusur veya engellenmiş ürün işi kalmadı; bu tur ürün kodu değişmedi.
+- Dal `codex/media-journey-hardening-20261107`; yerel/uzak master SHA `3ddf7522a0b6545a7c27abfc01dbc47ccb134ef4` + korunmuş farklar. Commit/push yok. Yeni üretim/model/ASR/çeviri, ses kalitesi ve start.bat/CUDA kabulü yapılmadı; bağımsız tarihsel sınırlar korunur.
+
+## Sahne sağlamlaştırma — 2026-11-08 09:09 (yerel)
+
+- Doğrulanan: aynı cue kimlikli farklı izde yanlış taslak/yeniden bağlama ve reddedilen not açılışı odağı düzeltildi; stale zaman eylemi transport yenilemesinde kapalı kalır. Kayıtlı üretim okuma hatası eşleşmezlik sayılmaz; yeniden denetleme/yükleme, önceki çıktıyı koruma, animasyon/odak ve gerçek sessiz yükleme/bağlama LG/IPC ile kontrol edildi. [Devir](docs/devir/2026-11-08-0909.md).
+- **09:25 kapanışında tamamlandı — önceki canlı kabul:** Browser cümle döngüsünde aralık içi seek'in B geçişini yutması testle yeniden üretildi/düzeltildi; aralık dışına kaçış, duraklatma, başka sahip ve başarısız/geç komut sınırları hedefli testte geçti. Bu not anında birleşik 1.25×/+0.2s/B→A/reset turu kesinti ve oturum beklemesi nedeniyle açıktı; yukarıdaki gerçek kapanışta tamamlandı. Yeni canlı altyazı çekimi iddiası yok.
+- Dal `codex/media-journey-hardening-20261107`, HEAD `3ddf7522a0b6545a7c27abfc01dbc47ccb134ef4` + korunmuş farklar; commit/push yapılmadı. Önceki kesin sonraki adım 09:25 kaydındaki gerçek kabulde uygulandı.
+
+## Sahne görevleri, defter ve kurtarma — 2026-11-08 08:35 (yerel)
+
+- Tamamlandı: kararlı İşlemler odağı/kaydırma, gizlenen iş düğmesinden doğru odak dönüşü, not/İşlemler örtüşmesini önleme ve görünür taslak işareti. Yerel/Browser Sahne'den mevcut araştırma defterine doğrudan giriş; aynı kaydı düzenleyip yeniden açma. Eski Browser/yerel kurtarma callback'i yürütmede doğrulanır; yeni kaynakta reload/load/relink/picker başlatmaz. Defter alan/sekmeleri ve yalnız bu yüzeyde açık/koyu tema mirası düzeltildi.
+- Kanıt: 160 hedefli kontrol; gerçek LG izole not/defter/kayıt/kaynak dönüşü; gerçek Browser WebContents ile 120/40 kaynak/çeviri, 1.5×/arama/takip/geçiş; kontrollü gerçek HTTP 503 → aynı kaynağın onaylı 18s konumundan oynatma → başka sekmede eski callback'in sıfır gezinmesi. [Devir](docs/devir/2026-11-08-0835.md).
+- Dal `codex/media-journey-hardening-20261107`; yerel HEAD ve bu tur salt okunur doğrulanan uzak master `3ddf7522a0b6545a7c27abfc01dbc47ccb134ef4` + korunan yerel farklar. Commit/push yok. Yeni engellenmiş ürün işi yok. Canlı yayıncı/üretim veya gerçek izin penceresi kabulü değildir; sınırlar ve başarısız ilk düzenek denemeleri devirde ayrıdır.
+
+## Sahne okuma ve not sürekliliği — 2026-11-08 08:12 (yerel)
+
+- Tamamlandı: Podcast/Çift dilli/Browser aynı medya okuma durumu, pasaj ve not taslağı; görünüm değişirken tek kayıt makbuzu; iz değişiminde taslak/uyarı ve açık yeniden inceleme; uzayan çeviride kaynak satırı/odak; durdurulmuş/kısmi iş ve eksik çeviriyi öncelikli tamamlama. Mevcut İşlemler ve ileri seçenekler korunur; not/panel ana ve pasif eylem kontrastı düzeltildi.
+- Kanıt: 163 hedefli kontrol; Windows LG izole gerçek main/preload/IPC not kaydı → başka bölüm → doğru kaynağa 4s dönüş; gerçek Browser WebContents saatinde takip/arama/geçiş, 120 satır + 40 çeviri altında okuma konumu ve odak, Browser'a dönüp aynı medyayı yeniden açınca taslak/pasaj korunması. [Devir](docs/devir/2026-11-08-0812.md).
+- Dal `codex/media-journey-hardening-20261107`; HEAD `3ddf7522a0b6545a7c27abfc01dbc47ccb134ef4` + korunan yerel farklar. Commit/push yapılmadı. Yeni engellenmiş ürün işi yok. Taslak bellektedir; süreç yeniden başlatmasından sonra kaydedilmemiş taslak iddiası yok. Kısmi iş durumu kontrollüdür; canlı model/Whisper/çeviri/üretim çağrılmadı. Önceki bağımsız canlı kabuller korunur.
+
+## Sahne günlük kullanım devamı — 2026-11-08 07:45 (yerel)
+
+- Tamamlandı: seçili kaynak pasajının revizyonlu/geçici asistan bağlamı ve görünür önizlemesi; so-far kapsamını genişletmeme. Kaynak değişiminde geç komut/panel hatası bastırma, hazırlık/kapsam kilidi, Enter/Uygula/odak ve modified-key korumaları. Kaynak açıklaması mevcut asistan disclosure'ında öne taşındı.
+- Gerçek LG Podcast: 1.5×/4–10s loop/aktif satır/odak, seçili pasaj → gerçek overlay, A→B sırasında eski hazırlık hatası ve pasajın taşınmaması geçti. Browser Podcast/Study, arama/seek/elle takip/Konuşmaya dön kontrol edildi. 165 hedefli test + 3 dondurulmuş sınır servis testi geçti.
+- Dal `codex/media-journey-hardening-20261107`; HEAD `3ddf7522a0b6545a7c27abfc01dbc47ccb134ef4` + korunan yerel farklar. Commit/push yok. [Devir](docs/devir/2026-11-08-0745.md). Yeni engellenmiş ürün işi yok; gerçek model/ASR/çeviri/üretim bu tur çağrılmadı, kontrollü hazırlık canlı iş başarısı sayılmaz.
+
+## Dublaj, kuyruk ve Browser devamı — 2026-11-08 06:56 (yerel)
+
+- Tamamlandı: mevcut kaynak/dublaj zinciri yerel ve Podcast oynatıcıda gerçek LG penceresiyle açıldı, kayıtlı ses doğru kaynağa yüklenip bağlandı; duraklatılmış kaldı. Podcast A sesi B'ye taşınmadı. Gerçek mpv ile otomatik devam, hata → aynı bölümde retry ve süreç yeniden açılışında 2 satır kuyruk/4.95s/1.25×/transkript doğrulandı.
+- Browser'ın geciken gerçek altyazı IPC yanıtı sekme/yeni video sınırında reddedildi; Sahne kullanıcı kapattıktan sonra geri açılmadı. Kayıtlı çeviri başarısı ve generation korunması, sona ulaşmış RSS resume, erken native hata, tek yükleme durumu/başlık görünümü düzeltildi. 84 hedefli test; son panel değişiminden sonra 18 ilgili test tekrar geçti.
+- Dal `codex/media-journey-hardening-20261107`; yerel HEAD/uzak master `3ddf7522a0b6545a7c27abfc01dbc47ccb134ef4` + yerel farklar. Commit/push yok. [Devir](docs/devir/2026-11-08-0656.md). Yeni engellenmiş ürün işi yok. İşçi/ses/ağ kontrollüdür; canlı yayıncı ve gerçek VoxCPM2 kalitesi başarısı sayılmaz.
+
+## Canlı kabul devamı — 2026-11-08 (yerel)
+
+- Dal/HEAD: `codex/media-journey-hardening-20261107`, `3ddf7522a0b6545a7c27abfc01dbc47ccb134ef4` + yerel farklar; commit/push yok. [Devir](docs/devir/2026-11-08-0622.md).
+- Önceki canlı yorum analizi engeli, özel kullanıcı onayıyla yalnız geçici şifreli Electron bağlamı kullanılarak kapandı: tek canlı istek HTTP 200, 15/15 kontrollü yorum kapsamı. Kopya işlem sonrası kaldırıldı. Canlı Letterboxd çekimi veya canlı hata/yeniden deneme kabulü sayılmaz.
+- CSS sonrası gerçek YouTube kabulü kapandı: 2.129 zamanlı satır, Podcast aktif satır, Study geçişi, site CC/metin gizleme, Browser'a dönüşte kapalı Sahne. LG üzerinde native gerçek video kompoziti incelendi.
+- Kuyrukta başka açıcıyla geçersizleşen sıradaki bölümün yanlış sahiplik/başarı kusuru düzeltildi. Önce kırmızı/sonra yeşil test ve ilgili toplam 53 test geçti.
+- **Kapandı — önceki native yükleme kabulü:** yerel ve Podcast kaynak/inceleme/yükleme/gerçek sese bağlama, sessiz açılış ve başka bölüme taşınmama bu turun kontrollü gerçek LG/oynatıcı kabulünde doğrulandı. [Devam teslimi](docs/devir/2026-11-08-0656.md).
+
+## Altı kullanıcı akışı — 2026-11-07 20:52 (yerel, commit edilmedi)
+
+- Dal `codex/media-journey-hardening-20261107`; taban/HEAD `3ddf7522a0b6545a7c27abfc01dbc47ccb134ef4` + yerel düzeltmeler. [Devir](docs/devir/2026-11-07-2052.md). Bu tur için commit/push yapılmadı; kullanıcının commit bekletme tercihi korunur.
+- Tamamlanan düzeltmeler: geciken kayıtlı alıntı açılışı başka sekmeye seek göndermez; aynı sekmede farklı medya/sürüm ve başarısız seek başarı sayılmaz. YouTube Sahne CSS'inin site CC yazısını yeniden görünür kıldığı çift yazı kusuru düzeltildi. Kalıcı kaynaklı taslakta dayanak inceleme/eksik-değişmiş sürüm görünümü var; yeniden açılan sohbetin not kartı geçici arama haritasına bağlı kalmadan gerçek kayıt/revizyonla doğrulanır.
+- Gerçek Windows LG: erişilebilir YouTube videosu + 2.129 gerçek zamanlı altyazı satırı → 2:05 civarında Podcast aktif satırı → Çift dilli → Podcast → Browser; kısa ve sessiz oynatma. İki yerel kontrollü Browser sekmesinde kaynak/konum/mod/bağımsız kayma, arka plan duraklatma; gerçek açıcıda gecikmiş A sonucu B'ye dokunmadan reddedildi. Not kaydı → süreç yeniden açılışı → iki dayanak → bağımsız düzenleme → bayat uyarısı; AI notu değişmedi. 232 hedefli test geçti.
+- **2026-11-08 tarihinde kapandı (yukarıdaki devam kaydı) — önceki canlı yorum analizi engeli:** izole Electron süreci mevcut şifreli sağlayıcı kasasını okuyamadı; sıfır API isteği gönderildi. Bu sağlayıcı/model arızası olarak sınıflanmaz. Kesin sonraki adım: aynı Windows kullanıcısının şifreleme bağlamında güvenli kasanın erişimini doğrula; anahtarı dışarı çıkarmadan mevcut yetkili ayar yükleyicisiyle 15 yorumluk tek isteği başlat ve tüm uygun yorumların kapsamını/gerçek alıntılarını kontrol et. Erişim yokken yeni ücretli istek veya anahtar taşıma yok.
+- **2026-11-08 tarihinde kapandı (yukarıdaki devam kaydı) — önceki canlı sınır:** YouTube altyazı izi her yeni oturumda gelmedi. İz geldiği oturumda gerçek zamanlı okuma/geçiş kabulü var; CSS düzeltmesinden sonraki canlı iz tekrarında iz gelmediği için tam sağlayıcı son karesi kapanmadı. Ürünün aynı CSS kuralları gerçek Chromium'da görünür → gizli → geri görünür olarak doğrulandı. Kesin sonraki adım: mevcut doğru sürümlü kayıtlı YouTube iziyle aynı videoyu aç, uygulama yazısı varken site CC'nin gizli olduğunu ve Browser'a dönüşte tercihin korunduğunu kısa kontrol et.
+- Gerçek VoxCPM2 üretimi/mpv ses kalitesi ve normal start.bat/CUDA bu tur çalıştırılmadı. Önceki üretim-geçmişi gerçek ortam kabulü ayrı kalır; yeni üretim gereksiz yere başlatılmadı.
+
 ## Kaynağa dönüş, araştırma defteri ve çok-not — 2026-11-07
 
 - Tamamlanan ürün: `b893eef9c812dbb8e51aeb164cf496c2740070b2`; dal `codex/source-return-notebook-20261107`. Claude pkg3, pkg1/pk2 dosyalarının tamamını kapsayarak entegre edildi; önceki yerel yorum düzeltmeleri korundu. [Teslim](docs/devir/2026-11-07-2010.md).
 - Podcast/katalog/YouTube kaynağına sürümlü dönüş; defterde kaynak süzgeci, kaynak/çeviri/not ayrımı, revizyon çatışması ve taslak/odak korunması; asistanda yerel not araması, seçili karşılaştırma, kaynak açma ve düzenlenebilir/önizlemeli kaynaklı yeni not tamamlandı. 237 hedefli test geçti. Gerçek Windows LG Electron'da kontrollü modelle iki not → taslak → elle düzenleme → önizleme/onay → tek kayıt; gerçek Browser sahibiyle yerel autoplay sayfasında sessiz/duraklatılmış kaynak açma doğrulandı.
 - **Kalan gerçek ortam kabulü:** canlı YouTube, mpv sesi ve gerçek VoxCPM2 üretimi bu görevde denenmedi. Kesin sonraki adım: izole LG profiliyle kayıtlı bir üretimden Podcast/yerel/YouTube kaynağına dön; doğru sürüm/konum ve manuel oynatmaya kadar sessizliği kısa gerçek denemeyle gözle. Yeni ücretli model/ASR işi otomatik başlatılmaz.
 - **Eski kayıt sınırı:** güvenilir konumlayıcısı olmayan üretimler başlık/dosya adı benzerliğinden açılmaz; aynı açık kaynak veya açıklamalı elle açma yolu korunur. Yeni kayıtlar mevcut main-owned kimliklerden konumlayıcı üretir; eski kayıtlara tahmini toplu göç yok.
-- **Not kapsamı:** yerel düz metin eşleşmesi; bir istekte en fazla 8 seçili not. Kaynaklar değişince taslak onayı reddedilir. Geçici asistan kartı/taslağı 10 dakika sonra yeniden aranmalıdır; kaydedilmiş not ve dayanak kimlikleri kalıcıdır.
+- **Not kapsamı:** yerel düz metin eşleşmesi; bir istekte en fazla 8 seçili not. Kaynaklar değişince taslak onayı reddedilir. Kaydedilmemiş asistan taslağı 10 dakika sonra yeniden hazırlanmalıdır; kalıcı not kartı güncel kayıt/revizyonla yeniden doğrulanabilir. Kaydedilmiş not ve dayanak kimlikleri kalıcıdır.
 - Yorum analizi: gerçek hata/sonuç bağlantısı ve kompakt okuyucu düzeltmeleri bu teslimdedir. 15/15 yorumun kontrollü gerçek istek gövdesine gittiği önceki yerel kabul korunur. Mevcut 48 yorum/60 bin karakter bütçesi ve spoiler dışlaması önizlemede açıklanır; kullanıcının canlı sağlayıcısı bu tur denenmedi.
 
 ## Asistan kümülatif entegrasyonu — 2026-11-07
