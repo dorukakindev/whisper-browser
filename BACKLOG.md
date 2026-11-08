@@ -1,5 +1,10 @@
 # Bekleyen işler
 
+## Asistan yanıt iptali ve canlı Podcast kabulü — 2026-11-08 18:29
+
+- **Tamamlandı:** takılan JSON/SSE gövdesi iptali ve tamamlanan yanıtın temizleme beklemesi giderildi. Altı mevcut dosyada116/116; LG1920×1080 gerçek DeepInfra model→onay→Bölüm A1.00s→makbuz, zamansız okuma, tek not/güncelleme ve gecikmiş kaynak/sohbet sınırları geçti.
+- Dal `codex/assistant-response-cancellation-20261108`; ürün commit `4e9da69bd288a46b891320e3f0598b3f5c1bb078`. Yeni engel yok; kontrollü medya canlı yayıncı/ses kalitesi sayılmaz. Başlangıç denemelerinin sınırları ve sonraki temiz kabul [devirde](docs/devir/2026-11-08-1829.md). Sürekli sağlayıcı yetkisi kaydedildi.
+
 ## Birikmiş doğrulanmış işlerin GitHub teslimi — 2026-11-08 18:14
 
 - Kullanıcının güncel talimatıyla commit bekletmesi kaldırıldı; doğrulanmış paket için commit/push/PR/master ve yerel ana kopya güncellemesi yetkilidir. Aşağıdaki eski saatli notlar tarihsel kalır.
