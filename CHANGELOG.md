@@ -1,5 +1,7 @@
 # Changelog
 
+- Asistanın takılan JSON/SSE yanıtı iptal edilebilir; tamamlanan yanıt bağlantı temizliğini bekleyerek kilitlenmez. Kısmi metin korunur, iptal yeni araç/istek başlatmaz.116/116 hedefli test ve gerçek DeepInfra→onay→Podcast1.00s kabulü; [kanıt ve sınırlar](docs/devir/2026-11-08-1829.md).
+
 - Birikmiş asistan/Podcast/Sahne/Browser ve dublaj bağlamı iyileştirmeleri toplu teslimde doğrulandı: değişen20 mevcut test dosyasında392/392, tüm değişen JS sözdizimi temiz. Kapsam ve canlı/kontrollü kanıt sınırları [teslim kaydında](docs/devir/2026-11-08-1814.md); ürün commit'i0869696e, [PR #902](https://github.com/dorukakindev/whisper-browser/pull/902).
 
 - Podcast↔Çift dilli devrinde bekleyen hız isteği tekrar gönderilmez; ses kuyruğundaki son seçim korunup güncel adaptörden uygulanır. Eski kaynak/kapanmış kontroller komut gönderemez. Son kodda195/195 ilgili test ve LG gerçek 1.5x/.8 komut kabulü. [Yerel teslim](docs/devir/2026-11-08-1806.md).

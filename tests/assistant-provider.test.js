@@ -118,3 +118,36 @@ test('Unsupported current-source duration receives one evidence correction witho
 test('Application workflow instructions stay in valid system content, never in a message role',async()=>{
  let captured;await run({question:'Prepare a media selection',owner:{...owner,kind:'library'},config,execute:async()=>{},fetchImpl:async(_,r)=>{captured=JSON.parse(r.body);return json({role:'assistant',content:'No action requested.'});}});assert(captured.messages.every(m=>['system','user','assistant','tool'].includes(m.role)));assert(captured.messages.some(m=>m.role==='system'&&m.content.includes('For a find/compare/collection request')));assert(captured.messages.some(m=>m.role==='system'&&m.content.startsWith('Untrusted source data')));
 });
+
+// A transport can deliver headers but leave its body or cancellation unresolved.
+test('Cancelling a stalled JSON or SSE body settles without waiting for transport cleanup',async()=>{
+ const {completion}=require('../src/assistant-provider');
+ for(const type of ['application/json','text/event-stream']){
+  const controller=new AbortController();let cancelled=0;
+  const response=new Response(new ReadableStream({cancel(){cancelled++;return new Promise(()=>{});}}),{headers:{'content-type':type}});
+  const pending=completion(response,{streamed:true,signal:controller.signal,onDelta:()=>{}});
+  controller.abort(new Error('source changed'));
+  let timer;try{await assert.rejects(Promise.race([pending,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('body remained pending')),120);})]),/source changed/);}finally{clearTimeout(timer);}
+  assert.equal(cancelled,1);
+ }
+});
+test('Completed SSE does not wait for an unresponsive cancellation acknowledgement',async()=>{
+ const {completion}=require('../src/assistant-provider');let cancelled=0;
+ const response=new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode(event({content:'Kept answer'})+'data: [DONE]\n\n'));},cancel(){cancelled++;return new Promise(()=>{});}}),{headers:{'content-type':'text/event-stream'}});
+ let timer;try{const result=await Promise.race([completion(response,{streamed:true,onDelta:()=>{}}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('cleanup remained pending')),120);})]);assert.equal(result.content,'Kept answer');}finally{clearTimeout(timer);}
+ assert.equal(cancelled,1);
+});
+
+test('Aborting a partial answer retains delivered text and never executes a proposed tool',async()=>{
+ const controller=new AbortController();let text='',executions=0,requests=0;
+ const response=new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode(event({content:'Received before stopping.'})));},cancel(){return new Promise(()=>{});}}),{headers:{'content-type':'text/event-stream'}});
+ const pending=run({question:'Find a passage',owner,config,signal:controller.signal,onDelta:part=>{text+=part;controller.abort(new Error('source changed'));},execute:async()=>{executions++;},fetchImpl:async()=>{requests++;return response;}});
+ let timer;try{await assert.rejects(Promise.race([pending,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('partial answer remained pending')),120);})]),/source changed/);}finally{clearTimeout(timer);}
+ assert.equal(text,'Received before stopping.');assert.equal(executions,0);assert.equal(requests,1);
+});
+test('Aborting a stalled provider error body does not retry the request',async()=>{
+ const controller=new AbortController();let requests=0,cancelled=0;
+ const pending=run({question:'Help',owner,config,signal:controller.signal,execute:async()=>{throw Error('No tool permitted');},fetchImpl:async()=>{requests++;queueMicrotask(()=>controller.abort(new Error('source changed')));return new Response(new ReadableStream({cancel(){cancelled++;return new Promise(()=>{});}}),{status:403});}});
+ let timer;try{await assert.rejects(Promise.race([pending,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('error body remained pending')),120);})]),/source changed/);}finally{clearTimeout(timer);}
+ assert.equal(requests,1);assert.equal(cancelled,1);
+});
