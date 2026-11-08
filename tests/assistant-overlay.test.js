@@ -38,6 +38,10 @@ test('native assistant accepts only its own frame; provider secrets and arbitrar
   assert.deepEqual([podcastLinks[0].usage,podcastLinks[0].state,podcastLinks[0].action,podcastLinks[0].note.length],['cited','stale','seek',400]);
   assert.equal(podcastLinks[0].path,undefined);assert.equal(podcastLinks[0].url,undefined);
   assert.deepEqual([podcastLinks[1].usage,podcastLinks[1].state,podcastLinks[1].action],['','','']);
+  const reference='P11111111-1111-1111-1111-111111111111';
+  ipcMain.emit('assistant:update',parent,{messages:[{role:'ai',text:'Complete original',displayText:'Readable answer',links:[{id:'b:1',action:'text',canSearchAgain:true,reference},{id:'b:2',action:'run',canSearchAgain:true,reference:'file:///private'}]},{role:'user',text:'User text',displayText:'Do not hide user text'}]});
+  const compact=sent.at(-1).value.messages;assert.equal(compact[0].displayText,'Readable answer');assert.equal(compact[0].text,'Complete original');assert.equal(compact[0].links[0].reference,reference);assert.equal(compact[0].links[0].canSearchAgain,true);assert.equal(compact[0].links[1].reference,'');assert.equal(compact[0].links[1].canSearchAgain,false);assert.equal(compact[1].displayText,undefined);
+  ipcMain.emit('assistant:action',overlay,{action:'search-podcast-source',text:'b:1',sourceToken:'context'});assert.equal(sent.at(-1).value.action,'search-podcast-source');
   ipcMain.emit('assistant:update', parent, {sourceTarget:{kind:'podcast',id:'private-episode'},sourceToken:'podcast-thread'});
   assert.deepEqual(sent.at(-1).value.sourceTarget,{kind:'podcast'});
   ipcMain.emit('assistant:action', overlay, {action:'open-source',sourceToken:'podcast-thread'});

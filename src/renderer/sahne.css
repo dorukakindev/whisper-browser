@@ -411,3 +411,13 @@ html[data-cinema-motion=off] .sh-workbar .sh-btn[aria-busy=true]::after,html[dat
 .sh .sh-note-card [data-a=noteSave]:disabled,.sh .sh-note-card [data-a=noteSeek]:disabled{opacity:1;cursor:not-allowed;background:var(--theme-bg-2);border-color:var(--sh-line2);color:var(--sh-mute)}
 .sh-pbtn.pri:disabled{background:var(--theme-bg-2);color:var(--sh-mute);border-color:var(--sh-line2)}
 .sh-pbtn.pri:disabled small{color:var(--sh-mute)}
+.sh .sh-panel .sh-pbtn[aria-busy=true]{opacity:1;color:var(--sh-ink);border-color:color-mix(in srgb,var(--sh-amber) 65%,var(--sh-line2));background:color-mix(in srgb,var(--sh-amber) 9%,var(--sh-bg));cursor:wait}.sh .sh-panel .sh-pbtn[aria-busy=true] small{color:var(--sh-amber)}
+.sh-processing summary [data-r=processingState]{font-size:11px;line-height:1.4;color:var(--sh-mute);font-weight:400}.sh-processing summary [data-state=ready],.sh-processing summary [data-state=busy]{color:var(--sh-amber)}
+.sh-browser-study :is(.sh-time-nav,.sh-sentence-nav)[data-group-label]{position:relative;padding-top:16px}.sh-browser-study [data-group-label]::before{content:attr(data-group-label);position:absolute;inset-block-start:0;inset-inline-start:0;font-size:10px;line-height:12px;font-weight:500;letter-spacing:.04em;color:var(--sh-mute);pointer-events:none}.sh-browser-study .sh-sentence-nav[data-group-label]::before{inset-inline-start:10px}
+/* Keep the operation state separate from its explanation and the available next action. */
+.sh .sh-job-state{flex:none;font:600 12px var(--sh-sans);color:var(--sh-amber);padding-inline-end:12px;border-inline-end:1px solid var(--sh-line2)}
+.sh .sh-job[data-state=failed] .sh-job-state{color:var(--sh-ink)}
+.sh .sh-job .sh-chip{flex-shrink:0}
+/* The recovery message owns the row; a pending action stays readable and distinct from an unavailable control. */
+.sh .sh-recovery>span{flex:1;min-width:0;overflow-wrap:anywhere}
+.sh .sh-recovery[aria-busy=true] .sh-chip,.sh .sh-job .sh-chip[aria-busy=true]{opacity:1;color:var(--sh-amber);border-color:var(--sh-line2);cursor:progress}

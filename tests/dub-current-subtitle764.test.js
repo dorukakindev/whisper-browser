@@ -15,8 +15,86 @@ function fixture(mode='browser',extra={}){
 }
 test('Normal browser button adopts the active translation and range without picking or generating',async()=>{const h=fixture();try{await h.open();assert.equal(h.el('dubSrtName').textContent,'translated.tr.srt');assert.equal(h.el('dubRangeStart').value,'5:00');assert.equal(h.el('dubRangeEnd').value,'10:00');assert.equal(h.picked,0);assert.equal(h.started,0);}finally{h.close();}});
 test('Local player and assistant share the same preparation entry',async()=>{const h=fixture('player');try{await h.w.DubGeneratorUI.prepareCurrent();assert.equal(h.el('dubSrtName').textContent,'translated.tr.srt');assert.equal(h.started,0);}finally{h.close();}});
+
+test('saved audio is not attached after the automatically selected subtitle changes behind the open panel',async()=>{
+ const h=fixture();try{let attached=0;h.w.api.latestDub=async()=>({ok:true,output:{id:'saved',name:'Saved voice',url:'file:///saved.wav'}});h.w.BrowserDubAudioUI.attachGenerated=async()=>{attached++;return true;};
+ await h.open();h.w.player.sub2Path='C:/another.tr.srt';h.w.player.browserTracks[1]={path:h.w.player.sub2Path};h.el('dubGeneratorUse').click();for(let i=0;i<6;i++)await tick();assert.equal(attached,0);
+ }finally{h.close();}
+});
 test('A manually selected SRT remains selected when reopening',async()=>{const h=fixture();try{await h.open();h.el('dubChooseSrt').click();await tick();await h.open();assert.equal(h.el('dubSrtName').textContent,'manual.srt');assert.equal(h.picked,1);}finally{h.close();}});
+
+test('reopening preparation adopts a changed automatic track on the same video and clears the previous track result',async()=>{
+ const h=fixture();try{
+  h.w.api.latestDub=async()=>({ok:true,output:{name:'Old track output',url:'file:///old.wav',syncInvalid:true}});
+  await h.open();assert.equal(h.el('dubSrtName').textContent,'translated.tr.srt');assert.equal(h.el('dubGeneratedPreview').getAttribute('src'),'file:///old.wav');
+  h.w.api.latestDub=async()=>({ok:true,output:null});
+  h.w.player.sub2Path='C:/new-translation.tr.srt';h.w.player.browserTracks[1]={id:'new-translation',path:h.w.player.sub2Path};h.w.player.browserLoadedTrackId2='new-translation';
+  await h.open();assert.equal(h.el('dubSrtName').textContent,'new-translation.tr.srt');assert.equal(h.started,0);assert.equal(h.picked,0);assert.equal(h.el('dubGeneratedPreview').getAttribute('src'),null);assert(h.el('dubGeneratorOutput').classList.contains('hidden'));
+ }finally{h.close();}
+});
 test('Source SRT is used when no translation is selected',async()=>{const h=fixture();try{h.w.player.sub2Role='comparison';await h.open();assert.equal(h.el('dubSrtName').textContent,'source.srt');}finally{h.close();}});
+
+test('a previously prepared plan cannot start on another media using the same subtitle path',async()=>{
+ const h=fixture();try{
+  h.w.api.planDub=async()=>({ok:true,groups:[{key:'g',seconds:1,text:'Hello',start:0,end:1000}],sourceHash:'hash',skipped:0});
+  await h.open();h.el('dubPlanPrepare').click();for(let i=0;i<8;i++)await tick();assert(h.w.DubGeneratorUI.experience().plan);
+  h.changeMedia();h.el('dubGeneratorStart').click();for(let i=0;i<8;i++)await tick();assert.equal(h.started,0);assert.equal(h.el('dubSrtName').textContent,'—');
+ }finally{h.close();}
+});
+
+test('an unscoped saved audio preview is cleared when the first automatic subtitle is adopted',async()=>{
+ const h=fixture();try{
+  h.w.player.subPath='';h.w.player.sub2Path='';h.w.player.browserTracks=[];
+  h.w.api.latestDub=async()=>({ok:true,output:{name:'Unscoped saved audio',url:'file:///unscoped.wav',syncInvalid:true}});
+  await h.open();assert.equal(h.el('dubGeneratedPreview').getAttribute('src'),'file:///unscoped.wav');
+  h.w.api.latestDub=async()=>({ok:true,output:null});h.w.player.subPath='C:/new.srt';h.w.player.browserTracks=[{id:'new',path:'C:/new.srt'}];
+  await h.open();assert.equal(h.el('dubSrtName').textContent,'new.srt');assert.equal(h.el('dubGeneratedPreview').getAttribute('src'),null);assert(h.el('dubGeneratorOutput').classList.contains('hidden'));
+ }finally{h.close();}
+});
+
+test('an open preparation never starts the previous subtitle after the media or selected track changes',async()=>{
+ for(const change of ['media','track']){
+  const h=fixture();try{
+   h.w.api.planDub=async()=>({ok:true,groups:[{key:'g',seconds:1,text:'Hello',start:0,end:1000}],sourceHash:'hash',skipped:0});
+   await h.open();
+   if(change==='media')h.changeMedia();else {h.w.player.sub2Path='C:/new.tr.srt';h.w.player.browserTracks[1]={path:'C:/new.tr.srt'};}
+   h.el('dubGeneratorStart').click();for(let i=0;i<50;i++)await tick();
+   assert.equal(h.started,0,change+' must invalidate the old preparation');
+  }finally{h.close();}
+ }
+});
+
+test('a plan finishing after the selected automatic track changes is not shown or generated',async()=>{
+ const h=fixture();let release;try{
+  h.w.api.planDub=()=>new Promise(resolve=>release=resolve);await h.open();h.el('dubGeneratorStart').click();
+  for(let i=0;i<8&&!release;i++)await tick();assert.equal(typeof release,'function');
+  h.w.player.sub2Path='C:/new.tr.srt';h.w.player.browserTracks[1]={path:'C:/new.tr.srt'};
+  release({ok:true,groups:[{key:'old',seconds:1,text:'Old track',start:0,end:1000}],sourceHash:'old',skipped:0});
+  for(let i=0;i<8;i++)await tick();assert.equal(h.started,0);assert.equal(h.w.DubGeneratorUI.experience().plan,null);
+ }finally{h.close();}
+});
+
+test('an old explicit preflight confirmation cannot approve a newly selected automatic track',async()=>{
+ const h=fixture();try{
+  h.w.Element.prototype.scrollIntoView=()=>{};
+  h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');
+  h.w.api.planDub=async()=>({ok:true,groups:[{key:'dense',seconds:1,text:'[untranslated] Long sentence '.repeat(50),start:0,end:1000}],sourceHash:'old',skipped:0});
+  await h.open();h.el('dubGeneratorStart').click();for(let i=0;i<12;i++)await tick();
+  const gate=h.el('dubGenerationGate');assert.equal(gate.hidden,false);const approval=gate.querySelector('button:last-child');
+  h.w.player.sub2Path='C:/changed.tr.srt';h.w.player.browserTracks[1]={path:'C:/changed.tr.srt'};
+  approval.click();for(let i=0;i<12;i++)await tick();assert.equal(h.started,0);assert.equal(gate.hidden,true);
+  assert.equal(h.el('dubSrtName').textContent,'changed.tr.srt');assert.match(h.el('dubGeneratorStatus').textContent,/seçimi değişti|selection changed/);
+ }finally{h.close();}
+});
+
+test('removing the automatic subtitle on the same video clears preparation and its saved output',async()=>{
+ const h=fixture();try{
+  h.w.api.latestDub=async()=>({ok:true,output:{name:'Old track output',url:'file:///old.wav',syncInvalid:true}});
+  await h.open();h.w.player.subPath='';h.w.player.sub2Path='';h.w.player.browserTracks=[];
+  await h.open();assert.equal(h.el('dubSrtName').textContent,'—');assert(h.el('dubGeneratorStart').disabled);
+  assert.equal(h.el('dubGeneratedPreview').getAttribute('src'),null);assert(h.el('dubGeneratorOutput').classList.contains('hidden'));
+ }finally{h.close();}
+});
 test('Browser rejects leftover paths and non-SRT sources',async()=>{for(const path of ['C:/stale.srt','C:/source.vtt']){const h=fixture();try{h.w.player.sub2Role='';h.w.player.subPath=path;await h.open();assert.notEqual(h.el('dubSrtName').textContent,path.split('/').pop());assert(h.el('dubGeneratorStart').disabled);}finally{h.close();}}});
 test('A source change while configuration loads never adopts the old subtitle',async()=>{const h=fixture();try{const pending=h.holdConfig();h.el('browserDubGenerate').click();const reply=await pending;h.changeMedia();reply({ok:true,ready:true});await tick();assert.notEqual(h.el('dubSrtName').textContent,'translated.tr.srt');}finally{h.close();}});
 

@@ -75,6 +75,30 @@ test('A removed or changed source blocks the note, keeps the quote visible and e
   assert.equal(outdated.button('Preview note').hidden,false,'back to editing: the user must preview again');assert.match(outdated.$('.note-status').textContent,/preview it again/);
  }finally{outdated.close();}
 });
+test('a late source check or preview after a conversation switch never enables approval in the newer context',async()=>{
+ for(const action of ['draft','preview']){
+  let thread='first',release;
+  const h=fixture(service({[action]:input=>new Promise(resolve=>{release=()=>resolve(action==='draft'?{ok:true,draftId:'held',source:source()}:{ok:true,previewToken:'held',note:input.text,source:source()});})}));
+  h.w.AssistantAppActions.snapshot=()=>({owner:'source',thread});h.w.AssistantAppActions.current=owner=>owner.thread===thread;
+  try{
+   const opened=h.w.AssistantPodcastNoteUI.open(card);
+   if(action==='preview'){await opened;h.$('textarea').value='Old note';h.button('Preview note').click();}
+   await h.wait();assert.equal(typeof release,'function');thread='second';release();await opened;await h.wait();
+   assert.match(h.$('.note-access').textContent,/conversation or source changed/);assert.equal(h.button('Save note').disabled,true);assert.equal(h.button('Preview note').disabled,true);
+   assert.equal(h.calls.filter(c=>c.action==='save').length,0);
+  }finally{h.close();}
+ }
+});
+
+test('a save already dispatched reports its real receipt even if the conversation changes before the reply',async()=>{
+ let thread='first',release;const h=fixture(service({save:()=>new Promise(resolve=>{release=()=>resolve({ok:true,created:true,annotationId:'saved'});})}));
+ h.w.AssistantAppActions.snapshot=()=>({owner:'source',thread});h.w.AssistantAppActions.current=owner=>owner.thread===thread;
+ try{
+  await h.w.AssistantPodcastNoteUI.open(card);h.$('textarea').value='Already sent';h.button('Preview note').click();await h.wait();h.button('Save note').click();await h.wait();thread='second';release();await h.wait();
+  assert.equal(h.$('h2').textContent,'Note saved');assert.match(h.$('.note-status').textContent,/saved to your research notebook/);assert.equal(h.calls.filter(c=>c.action==='save').length,1);
+ }finally{h.close();}
+});
+
 test('Escape cannot close a saving dialog, late answers for a closed dialog change nothing, and typing never reaches player shortcuts',async()=>{
  let release;const base=service();
  const h=fixture(input=>input.action==='save'?new Promise(resolve=>{release=()=>resolve(base(input));}):base(input));try{

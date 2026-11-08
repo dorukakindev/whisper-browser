@@ -5,6 +5,7 @@
   let suggestionKey = '', reviewing = null, snapshot={},onlyPinned=false,pins=[];
   const drafts=new Map();let conversation=null,requestSequence=0;
   const openMessageActions=new Set(),openSources=new Set();
+  const readingStates=new Map();
   let progressStarted=0,progressTimer=null;
   function renderProgress(value){
     const panel=$('agentProgress'),tr=value.locale==='tr';
@@ -38,13 +39,14 @@
   $('log').onscroll=()=>{$('latest').hidden=!$('log').querySelector('.message')||$('log').scrollHeight-$('log').scrollTop-$('log').clientHeight<80;};
   // Inline [P1]-style markers in the answer become buttons that open and focus the matching source card of the SAME message.
   function linkCitations(node,row,sources,t){
-    const labels=new Map(row.links.map(l=>[l.label,l]));
-    const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&!n.parentElement.closest('.sources,button,pre,code,summary,.message-actions')&&/\[[A-Za-z]\d+\]/.test(n.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});
+    const labels=new Map(row.links.flatMap(l=>[[l.label,l],...(l.reference?[[l.reference,l]]:[])]));
+    const uuid='P[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',marker='(?:[A-Za-z]\\d+|'+uuid+')',reference='(?:\\['+marker+'\\]|\\b'+uuid+'\\b)',matchMarker=new RegExp(reference);
+    const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&!n.parentElement.closest('.sources,button,pre,code,summary,.message-actions')&&matchMarker.test(n.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});
     const targets=[];while(walker.nextNode())targets.push(walker.currentNode);
     for(const textNode of targets){
       const frag=document.createDocumentFragment();
-      for(const part of textNode.nodeValue.split(/(\[[A-Za-z]\d+\])/g)){
-        const match=/^\[([A-Za-z]\d+)\]$/.exec(part),link=match&&labels.get(match[1]);
+      for(const part of textNode.nodeValue.split(new RegExp('('+reference+')','g'))){
+        const match=new RegExp('^\\[('+marker+')\\]$').exec(part),link=labels.get(match?match[1]:part);
         if(!link){if(part)frag.append(part);continue;}
         const b=document.createElement('button');b.type='button';b.className='cite-ref';b.textContent=link.label;b.dataset.citationControl=JSON.stringify([row.id||'message',link.id,'ref']);
         b.setAttribute('aria-label',t('Go to source ','Kaynağa git ')+link.label+(link.title?': '+link.title:''));
@@ -186,19 +188,27 @@
     renderJobs(value);
     const key = JSON.stringify([value.locale, value.conversation, value.pageContext, value.videoContext, value.transcriptScope, value.sourcePreview?.attached, value.busy, value.messages]);
     if (key === lastMessages) return; lastMessages = key;
-    const log = $('log'), previousScroll=log.scrollTop, threadChanged=renderedConversation!==value.conversation, bottom=threadChanged||log.scrollHeight-log.scrollTop-log.clientHeight<60;
+    const log = $('log'), threadChanged=renderedConversation!==value.conversation;
+    if(threadChanged&&renderedConversation!=null){
+      const sources=[...log.querySelectorAll('.source-card[open],.source-group[open]')].map(n=>n.dataset.sourceKey);
+      const actions=[...log.querySelectorAll('.message-more[open]')].map(n=>n.closest('.message-actions').dataset.messageKey);
+      readingStates.delete(renderedConversation);readingStates.set(renderedConversation,{scroll:log.scrollTop,bottom:log.scrollHeight-log.scrollTop-log.clientHeight<60,sources,actions});
+      while(readingStates.size>30)readingStates.delete(readingStates.keys().next().value);
+    }
+    const reading=threadChanged?readingStates.get(value.conversation):null;
+    const previousScroll=reading?.scroll??log.scrollTop,bottom=threadChanged?(reading?.bottom??true):log.scrollHeight-log.scrollTop-log.clientHeight<60;
     renderedConversation=value.conversation;
     const focused=document.activeElement,focusCard=log.contains(focused)?focused.closest('.tool-card'):null;
     const focusTarget=focusCard?{id:focusCard.dataset.proposalId,control:focused.dataset.toolControl}:null;
     const messageFocus=log.contains(focused)&&focused.closest('.message-actions')?{key:focused.closest('.message-actions').dataset.messageKey,control:focused.dataset.messageControl}:null;
-    if(threadChanged){openMessageActions.clear();openSources.clear();}else for(const more of log.querySelectorAll('.message-more[open]'))openMessageActions.add(more.closest('.message-actions').dataset.messageKey);
+    if(threadChanged){openMessageActions.clear();openSources.clear();for(const id of reading?.sources||[])openSources.add(id);for(const id of reading?.actions||[])openMessageActions.add(id);}else for(const more of log.querySelectorAll('.message-more[open]'))openMessageActions.add(more.closest('.message-actions').dataset.messageKey);
     if(!threadChanged)for(const source of log.querySelectorAll('.source-card,.source-group')){if(source.open)openSources.add(source.dataset.sourceKey);else openSources.delete(source.dataset.sourceKey);}
     const citationFocus=log.contains(focused)?focused.dataset.citationControl:null;
     const runFocus=log.contains(focused)?focused.dataset.runControl:null;
     log.replaceChildren();
     if (!value.messages?.length) { const empty=document.createElement('section');empty.className='empty';const heading=document.createElement('h2'),detail=document.createElement('p');heading.textContent=value.sourcePreview?.attached===false?t('How can I help?','Nasıl yardımcı olayım?'):value.videoContext?t('Your video, ready to work.','Videon hazır. Ne yapalım?'):value.pageContext?t('Read. Understand. Explore.','Oku. Anla. Keşfet.'):t('A closer look at your source.','Kaynağına birlikte bakalım.');detail.textContent=value.sourcePreview?.attached===false?t('Ask about the app or search your library. Open a video, book or title to explore its content.','Uygulama hakkında sor veya kütüphanende ara. İçeriğini incelemek için bir video, kitap veya yapım aç.'):value.videoContext?t('Translate existing captions or start Whisper. The selected video range is used; progress appears in this conversation.','Mevcut altyazıyı çevir veya Whisper başlat. Seçili video aralığı kullanılır; ilerleme bu sohbette gösterilir.'):value.pageContext?t('Summarize this page, ask about its claims, or translate it directly on the page.','Bu sayfayı özetle, iddialarını sor veya doğrudan sayfanın üzerinde çevir.'):value.transcriptScope?t('Ask about the dialogue, compare translations, or revisit a scene with subtitle evidence.','Konuşmayı sor, çevirileri karşılaştır veya altyazı kanıtlarıyla bir sahneye dön.'):t('Ask about the selected text or title. Only the supplied source is used.','Seçili metni veya yapımı sor. Yalnız sağlanan kaynak kullanılır.');empty.append(heading,detail);log.append(empty); }
     for (const [index,row] of (value.messages || []).entries()) {
-      const node = document.createElement('div'); node.className = 'message ' + row.role; node._searchText=row.text;const role=document.createElement('span');role.className='message-role';role.textContent=row.role==='user'?t('YOU','SEN'):t('ASSISTANT','ASİSTAN');node.append(role);const runCard=window.AssistantRunCard?.create(row.steps,value.conversation+':'+row.id,value.locale);if(runCard)node.append(runCard);renderText(node,row.text,row.loading);if(row.loading)node.classList.add('loading');if(row.error)node.classList.add('failed');node.dataset.pinned=String(isPinned(row));
+      const node = document.createElement('div'); node.className = 'message ' + row.role; node._searchText=row.text;const role=document.createElement('span');role.className='message-role';role.textContent=row.role==='user'?t('YOU','SEN'):t('ASSISTANT','ASİSTAN');node.append(role);const runCard=window.AssistantRunCard?.create(row.steps,value.conversation+':'+row.id,value.locale);if(runCard)node.append(runCard);renderText(node,row.displayText??row.text,row.loading);if(row.loading)node.classList.add('loading');if(row.error)node.classList.add('failed');node.dataset.pinned=String(isPinned(row));
       const actionGroup=messageActions(row.id||'message-'+index,()=>action('copy',row.text)),actions=actionGroup.box,addAction=actionGroup.add;
       const pin=addAction(isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle'),()=>{if(isPinned(row))pins=pins.filter(p=>p.scope!==(value.pinScope||value.conversation)||p.text!==row.text);else pins=[...pins,{scope:value.pinScope||value.conversation,text:row.text}].slice(-100);try{localStorage.setItem('assistant-pins-v1',JSON.stringify(pins));}catch{}node.dataset.pinned=String(isPinned(row));pin.textContent=isPinned(row)?t('Unpin','Sabitlemeyi kaldır'):t('Pin','Sabitle');filter();});
       if(row.id&&!row.loading)addAction(t('Branch from here','Buradan dallandır'),()=>action('branch',row.id));
@@ -255,18 +265,22 @@
             // One scannable line: the marker used in the answer, what the source is, and its role/state.
             const marker=document.createElement('span');marker.className='cite-chip';marker.textContent=link.label;
             const title=document.createElement('span');title.className='source-title';title.textContent=link.title||'';if(link.title)title.title=link.title;
+            if(link.action&&link.meta){const location=document.createElement('small');location.className='source-location';location.textContent=link.meta;title.append(location);}
             const tags=document.createElement('span');tags.className='source-tags';
             if(link.usage){const u=document.createElement('span');u.className='source-usage';u.dataset.usage=link.usage;u.textContent=usageText[link.usage];tags.append(u);}
             if(link.state){const s=document.createElement('span');s.className='source-state-chip';s.dataset.state=link.state;s.textContent=stateText[link.state];tags.append(s);}
             if(!link.usage&&!link.state){const hint=document.createElement('span');hint.className='source-excerpt-hint';hint.textContent=t('Read excerpt','Alıntıyı oku');tags.append(hint);}
-            summary.append(marker,title,tags);card.dataset.usage=link.usage||'';card.dataset.state=link.state||'';card.append(summary);
-            if(link.meta||link.scope){const detail=document.createElement('small');detail.className='source-meta';detail.textContent=[link.meta,link.scope].filter(Boolean).join('\n');card.append(detail);}
+            summary.append(marker,title,tags);card.dataset.usage=link.usage||'';card.dataset.state=link.state||'';card.setAttribute('aria-busy',String(link.state==='opening'));card.append(summary);
+            if(link.meta||link.scope){const detail=document.createElement('small');detail.className='source-meta';detail.textContent=[link.action?null:link.meta,link.scope].filter(Boolean).join('\n');card.append(detail);}
             excerpt.textContent=link.excerpt;card.append(excerpt);
             if(link.translation){const translated=document.createElement('small');translated.textContent=link.translation;card.append(translated);}
             button.textContent=link.state==='opening'?t('Opening…','Açılıyor…'):['stale','unavailable'].includes(link.state)?t('Check again','Yeniden kontrol et'):link.action==='text'?t('Open text','Metni aç'):link.action==='seek'?t('Go to moment','Ana git'):t('Open source: ','Kaynağa git: ')+link.label;button.disabled=link.state==='opening';if(link.action)button.setAttribute('aria-label',button.textContent+': '+(link.title||link.label));
             if(link.note){const note=document.createElement('p');note.className='source-state';note.dataset.state=link.state;note.setAttribute('role','status');note.textContent=link.note;card.append(note);}
             const bar=document.createElement('div');bar.className='source-actions';bar.append(button);
-            if(link.action){const noteButton=document.createElement('button');noteButton.className='source-note';noteButton.dataset.noteControl='open';noteButton.dataset.noteKey=link.id;noteButton.textContent=t('Save as note…','Not olarak kaydet…');noteButton.setAttribute('aria-label',noteButton.textContent+': '+(link.title||link.label));noteButton.onclick=()=>{window.AssistantFocusReturn?.mark(link.id);action('note',link.id);};bar.append(noteButton);}
+            if(link.canSearchAgain&&['stale','unavailable','unconfirmed'].includes(link.state)){
+              const search=document.createElement('button');search.className='source-search';search.textContent=t('Search saved text again','Kayıtlı metinlerde yeniden ara');search.onclick=()=>action('search-podcast-source',link.id);bar.append(search);
+            }
+            if(link.action){const noteButton=document.createElement('button');noteButton.className='source-note';noteButton.dataset.noteControl='open';noteButton.dataset.noteKey=link.id;noteButton.disabled=link.state==='opening';noteButton.textContent=t('Save as note…','Not olarak kaydet…');noteButton.setAttribute('aria-label',noteButton.textContent+': '+(link.title||link.label));noteButton.onclick=()=>{window.AssistantFocusReturn?.mark(link.id);action('note',link.id);};bar.append(noteButton);}
             card.append(bar);
             card.addEventListener('toggle',()=>{if(!card.isConnected)return;if(card.open)openSources.add(sourceKey);else openSources.delete(sourceKey);while(openSources.size>100)openSources.delete(openSources.keys().next().value);});holder.append(card);
           }else holder.append(button);

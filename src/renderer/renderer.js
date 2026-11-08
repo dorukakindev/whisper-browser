@@ -15610,6 +15610,7 @@ function browserPlaybackRecovery(event) {
       player.pendingLibrarySeek = seek;
       const result = await runBrowserChromeCommand('reload');
       if (!result?.ok && player.pendingLibrarySeek === seek) player.pendingLibrarySeek = null;
+      return result;
     }
   };
   return 'playback-recovery';
@@ -15632,13 +15633,20 @@ function settleBrowserPlaybackRecovery(media, previousTime) {
   }
 }
 
-async function runPlaybackRecovery() {
+async function runPlaybackRecovery(options = {}) {
   const recovery = activePlaybackRecovery();
-  if (!recovery || recovery.busy) return;
+  if (!recovery || options?.expected && options.expected !== recovery) return {ok:false,code:'stale-source'};
+  if (recovery.busy) return {ok:false,code:'busy',message:interfaceChoice('Oynatma toparlanması sürüyor.','Playback recovery is in progress.')};
   recovery.busy = true;
-  try { await recovery.run(); }
+  try {
+    const result=await recovery.run();
+    if(result?.ok===false&&options?.report!==false&&activePlaybackRecovery()===recovery)osd(result.message||interfaceChoice('Oynatma yeniden başlatılamadı.','Playback could not be restarted.'),4000);
+    return result;
+  }
   catch (_) {
-    if (activePlaybackRecovery() === recovery) osd(interfaceChoice('Oynatma yeniden başlatılamadı.', 'Playback could not be restarted.'), 4000);
+    const message=interfaceChoice('Oynatma yeniden başlatılamadı.', 'Playback could not be restarted.');
+    if (options?.report !== false && activePlaybackRecovery() === recovery) osd(message, 4000);
+    return {ok:false,code:'playback-recovery-failed',message};
   } finally { recovery.busy = false; }
 }
 
@@ -15656,7 +15664,8 @@ async function showLocalPlaybackRecovery(video, { code, manifest, position, nati
   let label = interfaceChoice('Oynatmayı yeniden dene', 'Retry playback');
   let run = async () => {
     if (nativeFailure) {
-      if (!await window.NativePlayerUI.start() || !current()) return;
+      if (!await window.NativePlayerUI.start()) return {ok:false,code:'native-start-failed',message:interfaceChoice('Yerel oynatıcı başlatılamadı.','Native player could not start.')};
+      if (!current()) return {ok:false,code:'stale-source'};
       video.currentTime = seconds;
       return video.play();
     }
@@ -16692,7 +16701,8 @@ function renderCue() {
       highlightCueRow();
     }
     updateCueMeta();
-    if (!$('aiChat').classList.contains('hidden')) aiChatCtxLabel();
+    const attachedChat=$('aiChat');
+    if (attachedChat && !attachedChat.classList.contains('hidden')) aiChatCtxLabel();
     // Düzenleme açıkken metni değiştirme — kullanıcı yazarken altından kaymasın
     if (!player.editing) overlayChanged = setOverlayText(overlay, i >= 0 ? player.cues[i].text : '') || overlayChanged;
     renderActiveCueWord(i, i >= 0 ? player.cues[i] : null, t, overlay);
@@ -20322,21 +20332,27 @@ async function openHistoryResult(h, button) {
     const files = result?.files || [];
     if (!result?.ok || !files.length) throw Error(interfaceChoice('Kayıtlı altyazı artık açılamıyor.', 'The saved subtitle is no longer available.'));
     const dialog = document.createElement('dialog');
-    dialog.className = 'timing-review';
+    dialog.className = 'timing-review history-result-reader';
+    dialog.setAttribute('aria-label',interfaceChoice('Kayıtlı sonucu oku','Read saved result'));
     const title = document.createElement('h2');title.textContent = h.title;
     const close = document.createElement('button');close.className = 'tool-button';close.textContent = interfaceChoice('Kapat','Close');
     close.onclick = () => dialog.close();
-    dialog.append(title,close);
+    const header = document.createElement('header');header.className='history-result-head';header.append(title,close);
+    const hint = document.createElement('p');hint.className='history-result-hint';hint.textContent=interfaceChoice('Kayıtlı altyazı dosyaları · Salt okunur. Yeni işlem başlatılmaz.','Saved subtitle files · Read only. No new job is started.');
+    const content = document.createElement('div');content.className='history-result-files';
+    dialog.append(header,hint,content);
     const append = async (file,index) => {
       const details = document.createElement('details'); details.open = index === 0;
       const summary = document.createElement('summary'); summary.textContent = file.split(/[\\/]/).pop();
       const text = document.createElement('pre');text.style.whiteSpace='pre-wrap';
-      details.append(summary,text);dialog.append(details);
+      details.append(summary,text);content.append(details);
+      text.textContent=interfaceChoice('Sonuç okunuyor…','Reading result…');text.setAttribute('aria-busy','true');
       const read = await window.api.readSubtitle(file).catch(() => null);
       text.textContent = read?.ok ? read.text.slice(0,100000) + (read.text.length>100000 ? '\n…' : '') :
         interfaceChoice('Sonuç dosyası okunamadı.', 'Could not read the result file.');
+      text.removeAttribute('aria-busy');
     };
-    dialog.addEventListener('close',()=>{dialog.remove();button.focus({preventScroll:true});},{once:true});
+    dialog.addEventListener('close',()=>{dialog.remove();button.disabled=false;if(button.isConnected)button.focus({preventScroll:true});},{once:true});
     document.body.append(dialog);dialog.showModal();
     await Promise.all(files.slice(0,12).map(append));
   } catch (error) {
@@ -20359,6 +20375,7 @@ async function openHistoryItem(h) {
   const subs = (authorization.files || []).filter((f) => /\.(srt|vtt|ass|ssa)$/i.test(f));
   if (!authorization.ok) {
     logLine(`Geçmiş altyazıları hazırlanamadı: ${authorization.error || 'bilinmeyen hata'}`, 'warn');
+    return;
   } else if (authorization.skipped) {
     logLine(`${authorization.skipped} geçmiş altyazı dosyası artık bulunamadığı veya geçersiz olduğu için atlandı.`, 'warn');
   }
@@ -20371,8 +20388,8 @@ async function openHistoryItem(h) {
     logLine('YouTube videosu ve bu işin altyazısı hazırlanıyor.', 'info');
     return;
   }
-  state.lastJobVideo = authorization.video || h.video || null;
-  state.outputFiles = (h.files || []).slice();
+  state.lastJobVideo = authorization.video || null;
+  state.outputFiles = subs.slice();
   openPlayer();
 }
 
@@ -21117,10 +21134,13 @@ async function openUnifiedLibraryResult(result) {
       if (!restored?.ok) logLine(restored?.error || 'Alıntı sayfada bulunamadı; not korunuyor.', 'warn');
       return restored?.ok===true;
     }
-    if (result.timed!==false && Number(result.seconds)>0) {
+    if (result.timed!==false && result.seconds!==undefined && result.seconds!==null) {
+      if(typeof result.seconds!=='number'&&(typeof result.seconds!=='string'||!result.seconds.trim()))return false;
+      const seconds=Number(result.seconds);
+      if(!Number.isFinite(seconds)||seconds<0)return false;
       // A loaded tab is commanded directly. A global deferred seek could survive this action and be replayed later.
       if(!result.mediaId||!expected.mediaId)return false;
-      const outcome=await browserCommand('seek',Number(result.seconds),expected.id);
+      const outcome=await browserCommand('seek',seconds,expected.id);
       return outcome?.ok===true&&stillTarget();
     }
     return stillTarget();
@@ -23212,7 +23232,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       if (typeof updatePlayerTaskCenter === 'function') updatePlayerTaskCenter();
     }
     if (player.workspaceMode === 'browser') setBrowserSignal(message, false);
-    return;
+    return {ok:false,error:message};
   }
   let cues = parseSubtitles(res.text);
   const browserTrackForPath = player.workspaceMode === 'browser'
@@ -29133,7 +29153,12 @@ function quickDrafts() {
         start: String(item?.start || '').slice(0, 32), end: String(item?.end || '').slice(0, 32),
       }));
       if (values.some(item => !item.channel || !Number.isFinite(Number(item.start)) || !Number.isFinite(Number(item.end)))) continue;
-      cleaned[key.slice(0, 2000)] = { values, at: draft.at, signature: draft.signature };
+      const remap=draft.remap;
+      const validRemap=remap&&typeof remap.scope==='string'&&remap.scope.length<=2000
+        &&values.some(row=>row.channel===remap.channel)&&remap.record&&typeof remap.record==='object'
+        &&!Array.isArray(remap.record)&&JSON.stringify(remap.record).length<=30000;
+      cleaned[key.slice(0, 2000)] = { values, at: draft.at, signature: draft.signature,
+        ...(validRemap?{remap:{scope:remap.scope,channel:remap.channel,record:remap.record}}:{}) };
     }
     return cleaned;
   } catch (_) { return {}; }
@@ -29291,6 +29316,7 @@ function openBrowserQuickEditor(secondary = false, target = null) {
       const value = draft.values.find(item => item.channel === row.channel);
       if (value) { row.text.value = String(value.text ?? '').slice(0, NOTE_DRAFT_MAX_LENGTH); row.start.value = value.start; row.end.value = value.end; }
     }
+    if(draft.remap&&rows.some(row=>row.channel===draft.remap.channel))editor.remap=draft.remap;
   }
   for (const row of rows) for (const input of [row.text, row.start, row.end]) {
     input.addEventListener('focus',()=>{editor.selectedChannel=row.channel;});

@@ -38,6 +38,16 @@ function ui(svc,{locale='tr',loadable=false}={}){
   text:()=>section.textContent,count:action=>log.filter(item=>item[0]===action).length,close_:()=>w.close()};
 }
 const failRun=async(w,svc,id,extra={})=>{const index=w.spawns.length;assert.equal((await svc.call('dub:start',{...w.request(id),...extra})).ok,true);const proc=w.spawns[index].proc;proc.stderr.emit('data','worker exploded');proc.exitCode=1;proc.emit('close',1);await tick();};
+test('assistant result opening cannot report another selected run audio as its own success',async()=>{
+ const w=world();try{
+  await interrupted(w,'run-a');await interrupted(w,'run-b');const svc=w.boot(),page=ui(svc);await page.open();
+  const slow=page.hold(req=>req.action==='review'&&req.runId==='run-a');
+  const first=page.w.DubRunsUI.focusRun('run-a','result');await slow.reached;
+  assert.equal((await page.w.DubRunsUI.focusRun('run-b','result')).ok,true);
+  slow.release();const old=await first;assert.equal(old.ok,false);assert.equal(page.w.DubRunsUI.state().selected,'run-b');
+  page.close_();
+ }finally{w.close();}
+});
 const interrupted=async(w,id,{evidence=true,audio=true}={})=>{ // a run whose app died; returns the lease edit so a new "app" sees a dead instance
  const first=w.boot(),index=w.spawns.length;assert.equal((await first.call('dub:start',w.request(id))).ok,true);
  const output=outputOf(w.spawns[index]);if(audio)fs.writeFileSync(output,wav(2));if(audio&&evidence)w.spawns[index].proc.stdout.emit('data','Tamamlandi: '+output+'\n');

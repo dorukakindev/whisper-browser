@@ -1,5 +1,16 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+test('final verified action cards survive missing events and deduplicate a late event',async()=>{
+ const h=fixture(),seen=[];try{
+  h.w.AssistantWorkspace.evidence=(_job,value)=>seen.push(value.actions.map(a=>a.proposalId));
+  const action={kind:'app_action',proposalId:'verified-card',tool:'open_saved_podcast_passage',label:'Open passage',summary:'Exact saved source'};
+  const run=h.ui.send('Find and open the quote',{},[],'scope');await new Promise(setImmediate);
+  const requestId=h.ui.status().id;h.settle({ok:true,text:'Review the card',actions:[action,action]});await run;
+  assert.deepEqual(Array.from(seen.at(-1)),['verified-card']);
+  h.event({type:'proposal',requestId,action});assert.deepEqual(Array.from(seen.at(-1)),['verified-card']);
+ }finally{h.close();}
+});
+
 function fixture(){
  const dom=new JSDOM('<body><textarea id="aiChatText"></textarea></body>',{runScripts:'outside-only'}),w=dom.window;
  let onEvent,settle,requests=0,locale='tr';const runs=[];const owner={owner:'source-A',thread:'thread-A'};

@@ -530,10 +530,15 @@
     return candidate;
   }
   function adoptCurrentSubtitle(candidate) {
-    if (!candidate || srt || current || planning || choosing || workspaceBusy) return;
+    if (candidate===srt || ['manual','podcast'].includes(srtOrigin) || current || planning || choosing || workspaceBusy) return;
+    if(srt||output){
+      resetComparison();output=null;outputOwner='';window.DubWorkspaceUI?.setOutput(null);preview(null);
+      el('dubGeneratorOutput').classList.add('hidden');el('dubGeneratorUse').classList.add('hidden');
+    }
     srt = candidate; srtOrigin = ''; lastRequest = null; completedRequest = null;qualityFilter='all'; results.clear(); showResults(); invalidatePlan();
-    void loadPronunciations();
-    fileName('dubSrtName',basename(candidate)); refreshOverview(); status('Hazır');
+    if(candidate)void loadPronunciations();
+    fileName('dubSrtName',candidate?basename(candidate):'—'); refreshOverview(); controls();
+    status(candidate?L('Hazır','Ready'):L('Başlamak için altyazı seçin.','Select subtitles to begin.'));
   }
   function currentSubtitleSelection() {
     if (typeof player === 'undefined') return '';
@@ -675,7 +680,10 @@
     if (openedMedia !== requestIdentity()) return;
     await loadPodcast();
     if (openedMedia !== requestIdentity()) return;
-    if (candidateSelection && candidateSelection === currentSubtitleSelection()) adoptCurrentSubtitle(currentSubtitle());
+    const hadAutomaticSubtitle=!!srt&&!['manual','podcast'].includes(srtOrigin);
+    if (!podcastOwner() && candidateSelection === currentSubtitleSelection()) adoptCurrentSubtitle(currentSubtitle());
+    // Removing an automatically inherited track must not fall back to its unscoped saved result.
+    if(hadAutomaticSubtitle&&!srt)return;
     if (!current && !output) {
       const selection = () => JSON.stringify([srt,el('dubRangeEnabled').checked,el('dubRangeStart').value,el('dubRangeEnd').value]);
       const requestedSelection = selection();
@@ -829,11 +837,15 @@
   el('dubResetDeliverySource').addEventListener('click',()=>{deliverySource='';el('dubDeliverySourceName').textContent='';refreshOverview();});
   async function preparePlan() {
     if (planning || current || referenceBusy || choosing || !srt) return;
-    const media = requestIdentity(), selection = planSelection();
+    const media = requestIdentity(), selection = planSelection(),automatic=srtOrigin==='',track=currentSubtitleSelection();
     planning = true; controls();
     try {
       const r = await window.api.planDub({ srt, range: selectedRange(), grouping: el('dubGrouping').value });
       if (media !== requestIdentity() || selection !== planSelection()) return;
+      if(automatic&&(currentSubtitle()!==srt||track!==currentSubtitleSelection())){
+        status(L('Altyazı seçimi değişti; eski önizleme kullanılmadı. Paneli yeniden açıp güncel izi kontrol edin.','Subtitle selection changed; the previous preview was discarded. Reopen the panel and review the current track.'));
+        return;
+      }
       if (!r?.ok) throw new Error(r?.error || 'SRT planı okunamadı.');
       plan = r; edits = {}; el('dubPlanGroup').replaceChildren();
       r.groups.forEach((g, i) => { const option = document.createElement('option'); option.value = String(i);
@@ -953,13 +965,23 @@
   }
   async function start(retry = false, forceGroups = [], takeChoices = null, job = {}) {
     if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
+    if(mediaContextKey!==null&&mediaContextKey!==mediaIdentity()){
+      inheritSubtitleRange();
+      status(L('Kaynak değişti. Güncel bölümün dublaj panelini yeniden açın.','The source changed. Reopen voice preparation for the current episode.'));
+      return {ok:false,code:'source-changed'};
+    }
+    if(!retry&&srtOrigin===''&&currentSubtitle()!==srt){
+      adoptCurrentSubtitle(currentSubtitle());
+      status(L('Altyazı seçimi değişti. Güncel izi ve kapsamı kontrol edip yeniden başlatın.','Subtitle selection changed. Review the current track and range, then start again.'));
+      return {ok:false,code:'subtitle-changed'};
+    }
     const recipe=retry?(completedRequest||lastRequest):null;
     if(retry&&!recipe)return {ok:false};
     artifactOpenVersion++;
     // A one-job override never writes retained controls. Reject an obsolete
     // preflight rather than borrowing options edited while its plan was loading.
-    const sourceBefore=requestIdentity(),selectionBefore=startSelection();
-    const obsolete=()=>sourceBefore!==requestIdentity()||selectionBefore!==startSelection()||job.isCancelled?.();
+    const sourceBefore=requestIdentity(),selectionBefore=startSelection(),automaticTrack=!retry&&srtOrigin==='',trackBefore=currentSubtitleSelection();
+    const obsolete=()=>sourceBefore!==requestIdentity()||selectionBefore!==startSelection()||(automaticTrack&&(currentSubtitle()!==srt||trackBefore!==currentSubtitleSelection()))||job.isCancelled?.();
     if(!retry&&srtOrigin==='podcast'&&!(await podcastFresh()))return {ok:false};
     if(!retry&&!plan){await preparePlan();if(!plan||obsolete()||current)return {ok:false};}
     if(obsolete())return {ok:false};
@@ -1113,6 +1135,9 @@
   async function attachSelectedOutput(selected,isCancelled=()=>false) {
     const context=window.BrowserDubAudioUI?.context(),owner=requestIdentity();
     if(!selected||selected.sample||selected.syncInvalid||!context?.tabId||!context.hasMedia||!context.visible)return false;
+    const selection=lookupSelection(),track=currentSubtitleSelection();
+    const selectionCurrent=()=>selection===lookupSelection()&&(srtOrigin!==''||(mediaContextKey===null||mediaContextKey===mediaIdentity())&&currentSubtitle()===srt&&track===currentSubtitleSelection());
+    if(!selectionCurrent())return false;
     // Generated audio belongs to its recorded source, even when its job
     // finishes after the user has opened another video. Imported projects have
     // no production id and remain an intentional manual attachment.
@@ -1122,7 +1147,7 @@
       if(!proof?.ok||proof.output?.id!==selected.id||proof.output.sample||proof.output.syncInvalid)return false;
       file=proof.output;
     }
-    if(isCancelled()||output!==selected||current||owner!==requestIdentity())return false;
+    if(isCancelled()||output!==selected||current||owner!==requestIdentity()||!selectionCurrent())return false;
     el('dubGeneratedPreview').pause();
     return await window.BrowserDubAudioUI.attachGenerated({...file,...window.DubWorkspaceUI?.attachment(selected)},context)===true;
   }

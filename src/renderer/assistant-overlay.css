@@ -396,11 +396,13 @@ html[data-theme=light] .tool-card[data-status=pending] .tool-status,html[data-th
 .evidence-more>summary{cursor:pointer;min-height:28px;display:flex;align-items:center}
 .evidence-more .source-basis{display:grid;gap:4px;margin:2px 0 6px;padding:6px 10px;border:0;border-left:2px solid var(--line);border-radius:0;background:none;line-height:1.55}
 .sources.evidence .source-card{margin-top:0;padding:0;border:0;border-top:1px solid var(--line);border-radius:0;background:none}
-.source-card>summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:44px;cursor:pointer;list-style:none;padding:6px 2px}
+.sources .source-card>summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:44px;cursor:pointer;list-style:none;padding:6px 2px}
 .source-card>summary::-webkit-details-marker{display:none}
 .source-card>summary:focus-visible,.cite-ref:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .cite-chip{font:600 11.5px/1 ui-monospace,Consolas,monospace;padding:4px 7px;border-radius:6px;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
 .source-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--text)}
+.source-location{display:block;margin-top:3px;font-size:12px;line-height:1.5;font-weight:400;white-space:normal;color:var(--muted);font-variant-numeric:tabular-nums}
+.source-card[aria-busy="true"] .source-location{color:var(--accent)}
 .source-tags{display:flex;gap:5px}
 .source-usage,.source-state-chip{font-size:11px;line-height:1.5;padding:0 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .source-usage[data-usage=cited],.source-usage[data-usage=carried]{color:var(--text);border-color:color-mix(in srgb,#6fbf8f 50%,var(--line))}
@@ -458,3 +460,7 @@ html[data-theme=light] .tool-card[data-status=pending] .tool-status,html[data-th
 /* Source evidence leads the disclosure; provider configuration remains secondary. */
 .source-detail-content .source-detail-description{margin-top:0;padding-top:0;border-top:0}
 .source-detail-content .source-model{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+/* Expanded evidence should identify the full source, while collapsed rows remain scannable. */
+.sources .source-card[open] .source-title{white-space:normal;overflow-wrap:anywhere;text-overflow:clip}
+.sources .source-card[open]>summary{align-items:start}
+.sources .source-card[open] .source-tags{flex-wrap:wrap;justify-content:flex-end}

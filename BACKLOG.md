@@ -1,12 +1,346 @@
 # Bekleyen işler
 
+## Birikmiş doğrulanmış işlerin GitHub teslimi — 2026-11-08 18:14
+
+- Kullanıcının güncel talimatıyla commit bekletmesi kaldırıldı; doğrulanmış paket için commit/push/PR/master ve yerel ana kopya güncellemesi yetkilidir. Aşağıdaki eski saatli notlar tarihsel kalır.
+- 45 ürün/test dosyası, 20 mevcut test dosyasında392/392 ve tüm değişen JS sözdizimi doğrulandı. Ürün commit'i `0869696e79ab512d8a031402104788c44928cd0e` gönderildi; [PR #902](https://github.com/dorukakindev/whisper-browser/pull/902). Belgeler ayrı commit; kişisel farklar/eski raporlar/start.sh/artifacts dışarıda. Birleşme ve yerel HEAD eşitliği son teslim yanıtında doğrulanır. Ürün kapsamında yeni engel yok. [Teslim notu](docs/devir/2026-11-08-1814.md).
+
+## Ses ve hız isteklerinin aynı kaynakta görünüm devri — 2026-11-08 18:06
+
+- **Düzeltildi:** hız beklemesi görünüm devrinde korunur, ikinci istek gönderilmez; ses kuyruğunun son seçimi düşmez ve yeni geçerli adaptörden tamamlanır. Dead/disconnected/farklı kaynak input reddedilir. Eski runtime iş JSON'dan canlandırılmaz.
+- Son kodda iki ilgili dosya 195/195; LG 1920×1080 gerçek komutlar/kontrollü gecikmiş yanıtlarla 1.5x/.8 ses iki yönlü devir kabulü geçti. Fiziksel ses/sağlayıcı kabulü değil. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1806.md).
+
+## Durum eylemlerinin aynı kaynakta görünüm devri — 2026-11-08 17:54
+
+- **Düzeltildi:** bekleyen toparlanma/iş retry/iptal kilidi Podcast↔Çift dilli geçişinde korunur; geç hata yalnız güncel kaynak/iş sahibine bir kez bildirilir. Eski adaptör dispose olsa da sonuç kaybolmaz; başka kaynak/işte eski hata susturulur.
+- 6 hedefli test ve LG 1920×1080 gerçek iki yönlü yeniden kurulum/kontrollü recovery sonucu kabulü geçti; gerçek ağ/sağlayıcı değil. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1754.md).
+
+## Oynatma toparlanmasında sonuç ve hata sahipliği — 2026-11-08 17:49
+
+- **Düzeltildi:** aynı kaynaktaki yeni hata eski retry kilidini devralmaz; eski sonuç yeni isteğin kilidini açamaz/hatasını gösteremez. Ana wrapper, Browser reload ve native start reddi gerçek sonuç döndürür; Sahne hata bildirimi tek sahipte kalır.
+- Son kodda iki ilgili dosya 192/192 ve LG 1920×1080 gerçek köprü/kontrollü A/B sonuç denemesi geçti. Gerçek ağ/YouTube/native mpv kabulü değil. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1749.md).
+
+## İş değişiminde yeniden deneme ve iptal kilidi — 2026-11-08 17:42
+
+- **Düzeltildi:** eski retry/cancel isteği yeni işin düğmesini kilitli bırakmaz; eski sonuç yeni isteğin kilidini açamaz. Hata iş sahibine bağlı kalır. Bekleyen retry etiketi okunur mevcut amber stili kullanır.
+- 5 hedefli test (retry+cancel) ve LG 1920×1080 gerçek iş şeridi/kontrollü A→B sonuç sırası kabulü geçti. Üretim/canlı sağlayıcı yok. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1742.md).
+
+## Bekleyen panel eyleminin görünüm devri — 2026-11-08 17:37
+
+- **Düzeltildi:** aynı kaynakta panel eyleminin kilidi iki görünüm arasında paylaşılır; yeniden tıklama ikinci işlemi başlatmaz. Geç hata güncel görünümde bir kez bildirilir ve kilit açılır; başka kaynak/JSON geri yüklemesi bu runtime işi taşımaz.
+- Açık panel hata toast'ı geniş ekranda eylemlerin dışına taşındı. 5 hedefli test ve LG 1920×1080 gerçek iki yönlü devir/kontrollü promise/yerleşim kabulü geçti; gerçek fullscreen veya canlı sağlayıcı başarısı değil. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1737.md).
+
+## Değişen panel sırasında bekleyen eylem kilidi — 2026-11-08 17:31
+
+- **Düzeltildi:** id'siz eylemlerin kilidi başka seçenek eklenince yanlış düğmeye taşınmaz. Mevcut pending sahibi eylem etiketine bağlı kararlı anahtar kullanır; tek dispatch korunur.
+- Son kodda iki ilgili test dosyası 188/188; LG 1920×1080 kontrollü pending/insert ve gerçek bölüm geçişinden sonra eski hata engeli geçti. Canlı sağlayıcı değil. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1731.md).
+
+## Yenilenen altyazı seçicisinde odak — 2026-11-08 17:28
+
+- **Düzeltildi:** açık altyazı menüsü yenilenince iç arama/seçenek odağı Kapat'a gitmez; güncel seçici tetikleyicisine döner. Kaydırma konumu korunur; dış odak çekilmez, seçim/yükleme/oynatma otomatik başlatılmaz.
+- 5 hedefli test ve LG 1920×1080 gerçek renderer/native popover kabulü geçti; seçenek verisi kontrollü, canlı Browser sağlayıcı kabulü değil. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1728.md).
+
+## Altyazı yenilenmesinde işlem paneli bağlamı — 2026-11-08 17:24
+
+- **Düzeltildi:** aynı görünen zaman/iz kontrolleri altyazı revizyonunda eski callback ile kalmaz; mevcut panel imzası iz sürümünü içerir. Eski kontrol inert, güncel kontrol odak/scroll korunarak yeni ize bağlıdır.
+- 4 hedefli test ve LG 1920×1080 gerçek panel/altyazı projeksiyonu/offset kabulü geçti. Canlı sağlayıcı değil. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1724.md).
+
+## Not kartında yenileme odağı — 2026-11-08 17:21
+
+- **Düzeltildi:** stale/pending eylem odaksız BODY bırakmaz; taslak veya Kapat kullanılabilir hedef olur. Geç hata daha yeni arama/dış odak sahibinden odak çalmaz. Taslak ve sürüm/kayıt korumaları sürer.
+- 6 hedefli test ve LG 1920×1080 gerçek renderer/kontrollü hata kabulü geçti; depo yazımı/model yok. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1721.md).
+
+## Oynarken görünüm devri ve takip kabulü — 2026-11-08 17:19
+
+- **Doğrulandı:** kontrollü kayıtlı WAV/VTT ile gerçek oynatma sırasında iki görünüm devri aynı medya/hız/A–B aralığını korur; her geçişten sonra gerçek döngü dönüşü gözlendi. Manuel metin seçiminde saat ilerlerken takip/scroll durur; Konuşmaya dön odağı korur. 4 mevcut test geçti, LG 1920×1080 bütün ekran incelendi.
+- Ürün/test kodu değişmedi. Canlı sağlayıcı/fiziksel ses ve örnek hassasiyetinde döngü kabulü değildir. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1719.md).
+
+## İşlem aralığında Escape sahipliği — 2026-11-08 17:14
+
+- **Düzeltildi:** açık aralık düğmesindeki Escape Sahne'ye sızmaz; mevcut scope alanı kapanır, taslak/odak kalır. 5 hedefli test ve gerçek Electron LG 1920×1080 iki görünüm/bölüm değişimi kabulü geçti; canlı sağlayıcı değil.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1714.md).
+
+## Arama seçiminde güncelleme kabulü — 2026-11-08 17:08
+
+- **Doğrulandı:** mevcut seçim kimliği çeviri/reorder ile korunur, silinen veya dil filtresinde gizlenen eşleşme bırakılır; sorgu kalır, seek yok. Yeni birleşik kontrol mevcut engine dosyasına eklendi; ürün kodu değiştirilmedi.
+- 4 hedefli test ve LG 1920×1080 kontrollü update/remove kabulü geçti. Canlı çeviri/provider değil. Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1708.md).
+
+## İşlem kapsamının görünüm devri — 2026-11-08 17:05
+
+- **Düzeltildi:** mevcut reading prefs içinde aynı kaynak için scope kipi, başlangıç/bitiş ham taslağı ve alanın açık durumu taşınır. Geçersiz taslak doğrulamadan geçmez; başka kaynak full varsayılanıyla başlar.
+- **Kanıt:** yeni test önce scopeRange=null ile kırmızı, sonra yeşil; 5 hedefli kontrol geçti. LG 1920×1080 iki yönlü görünümde 5.125–12.875 korundu; mevcut bölüm açıcısıyla A'ya geçince full. Yeni üretim yok.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1705.md).
+
+## Geçersiz cümle aralığında eylem güvenliği — 2026-11-08 17:03
+
+- **Güçlendirildi:** renderer'a hatalı timed satır ulaşırsa finite/pozitif aralık doğrulanmadan loop açılmaz; geçersiz seek/loop kapalı, metin okunur kalır. Çeviri parçası seek'i finite başlangıç ister. Offset ile negatif başlangıcı olan ama geçerli devam eden aralıklar toptan yasaklanmadı.
+- **Kanıt:** gerçek satır renderer'ında yeni test önce açık loop ile kırmızı, sonra yeşil; 5 hedefli test geçti. LG 1920×1080 kontrollü malformed satırda 0 loop komutu/metin korunması. Canlı sağlayıcı hatası gözlenmedi.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1703.md).
+
+## Seçili arama sonucunun görünüm devri — 2026-11-08 17:00
+
+- **Düzeltildi:** sorguyla birlikte seçili sonucun cue/track/iz sürümü kimliği mevcut okuma tercihlerinde taşınır. Yalnız aynı kaynak/sürüm ve görünür satırda geri gelir; otomatik seek/odak taşıma yok.
+- **Kanıt:** yeni kontrol önce matchLine=null ile kırmızı, sonra yeşil; 5 hedefli test geçti. LG 1920×1080 Podcast→Çift dilli→Podcast ile 2/20 seçimi kaldı ve gerçek medya zamanı değişmedi.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1700.md).
+
+## İşlem aralığında milisaniye ve panel alanı — 2026-11-08 16:34
+
+- **Düzeltildi:** mevcut scope stamp milisaniyeleri gösterir; 0.125–0.875 aralığı artık 0:00–0:00 görünmez. Sayısal kapsam/frozen seçenekler değişmez. Yüksek ekranda aralık alanı açıkken işlem paneline daha çok yer verilir; üretim eylemleri kesilmez.
+- **Kanıt:** yeni precision testi önce kırmızı, sonra yeşil; 6 hedefli kontrol geçti. LG 1920×1080 range={start:.125,end:.875}, özet 0:00.125–0:00.875/süre0:00.75; eylem bütünüyle görünür, yeni üretim yok.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1634.md).
+
+## Dil yenilemesinde arama odağı — 2026-11-08 16:30
+
+- **Düzeltildi:** aynı kaynakta locale rebuild, Sahne'ye ait transkript/başlık aramasının odağını ve selection aralığını geri verir. Dış odak korunur; gizli alan odaklanmaz. Arama seçimi mevcut amber token'ı kullanır.
+- **Kanıt:** yeni integration testi önce BODY odağıyla kırmızı, sonra yeşil; 4 hedefli kontrol geçti. LG 1920×1080 TR→EN geçişinde aynı fullscreen/query ve odaklı aramada selection=[2,5] doğrulandı, medya oynar kaldı.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1630.md).
+
+## Saniye ve cümle kontrollerinin görsel ayrımı — 2026-11-08 16:27
+
+- **Tamamlandı:** geri/ileri atlamada görünür 10 işareti; mevcut ikon/EN-TR aria-label ve Playback/Cümle grupları korunur. Yeni komut veya davranış sahibi yok.
+- **Kanıt:** 4 mevcut hedefli kontrol geçti. LG 1920×1080 iki görünümde gerçek medya 15→5→15 ve sonraki cümle→16.5 doğrulandı; bütün ekran son hizayla incelendi.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1627.md).
+
+## Tam ekranda arayüz dili yenileme — 2026-11-08 16:22
+
+- **Düzeltildi:** ui-locale-change önceden host'u kaldırarak tam ekranı düşürüyordu. Dil yenilemesi mevcut mount/rebuild ve aynı-kaynak fullscreen devrini kullanır; metin/arama/oynatma korunur.
+- **Kanıt:** yeni integration ve LG gerçek fullscreen turu önce kırmızı, sonra yeşil. 4 hedefli kontrol; TR→EN→TR aynı host/query/özgün metin ve paused=false.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1622.md).
+
+## Gerçek video yüzeyinde Sahne kabulü — 2026-11-08 16:17
+
+- **Doğrulandı:** LG 1920×1080 gerçek MP4 decode (640×360 H264), kayıtlı özgün altyazı/metin, DOM fullscreen, iki yönlü Podcast/Çift dilli ve panel dönüşünde medya oynar kaldı. Yeni arıza bulunmadı; ürün kodu değiştirilmedi.
+- 4 ilgili integration kontrolü geçti. Kontrollü video/protokol ve altyazı kullanıldı; canlı YouTube/yerel dosya izin akışı/native mpv kabulü değildir.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1617.md).
+
+## Tam ekranda Sahne görünüm geçişi — 2026-11-08 16:12
+
+- **Düzeltildi:** aynı tür/kaynakta aktif fullscreen host görünüm remount sırasında DOM'da korunur. Eski Sahne/adaptör temizlenir; yeni görünüm aynı host'a kurulur. Kaynak değişimi ve normal kapatma eski host'u kaldırır.
+- **Kanıt:** integration ve LG gerçek DOM fullscreen geçişi önce kırmızı, sonra yeşil. 4 hedefli test geçti; Podcast→Çift dilli→Podcast aynı fullscreen host, medya oynar, Escape sonrası Sahne açık.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1612.md).
+
+## Tam ekran eylem ve hata sahipliği — 2026-11-08 16:09
+
+- **Düzeltildi:** İşlemler paneli tam ekran Promise sonucunu artık döndürür; Escape aynı Sahne komut/hata yolunu kullanır. Bekleyen panel/transport isteği aynı Promise'i paylaşır; hata sonrası kilit kalkar, kaynak sonrası başarı kabul edilmez.
+- **Kanıt:** iki yeni test önce kırmızı, sonra yeşil; 5 hedefli kontrol geçti. LG 1920×1080 izole gerçek main/renderer'da İşlemler→DOM fullscreen→gerçek Escape ile Sahne açık ve oynatma sürüyor.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1609.md).
+
+## Yeniden deneme sonucunun iş sahipliği — 2026-11-08 16:05
+
+- **Düzeltildi:** jobretry/jobcancel hata bildirimi kaynak yanında ilgili iş sahibine de bağlı. Yeni iş aynı medyada başlamışsa eski denemenin geç hatası gösterilmez. RSS mevcut id'yi, yerel adaptör mevcut aktif iş nesnesi kimliğini kullanır; yeni iş deposu yok.
+- **Kanıt:** yeni engine testi önce eski hata bildirimiyle kırmızı, sonra yeşil; 6 hedefli test geçti. LG 1920×1080 gerçek renderer'da kontrollü eski retry→yeni running→geç hata ile yeni durum korunur. Üretim başlatılmadı.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1605.md).
+
+## Cümle kontrollerinde süre sınırı — 2026-11-08 16:02
+
+- **Düzeltildi:** aynı yuvarlanmış saniyede kalan süre değişimleri de transport uygunluğunu yeniler. Kaynak dışında başlayan cümlenin seek/döngüsü ve sonraki eylemi kapanır; süre geri geldiğinde yeniden açılır. Metin salt okuma olarak kalır.
+- **Kanıt:** doğru bağlı DOM düğümüyle 10.2→9.8→10.2 kontrolü önce kırmızı, sonra yeşil; 5 hedefli test geçti. LG 1920×1080 kontrollü 15.2→14.8→15.2 ile aynı düğüm, 0 geçersiz seek ve sonra gerçek 15. sn seek doğrulandı.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1602.md).
+
+## Birikmiş Sahne değişikliklerinin birleşik kabulü — 2026-11-08 15:58
+
+- **Doğrulandı:** mevcut engine/integration 171/171 test, 0 hata. LG 1920×1080 izole gerçek medya saatinde 1,5×, manuel okuma, arama→15. sn, konuşmaya dön, cümle döngüsü ve aktif döngüyle Podcast→Çift dilli geçişi aynı kısa zincirde geçti. Yeni regresyon bulunmadı; ürün kodu değiştirilmedi.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Canlı sağlayıcı/normal start.bat kabulü değildir. Yeni engel yok. [Devir](docs/devir/2026-11-08-1558.md).
+
+## Hız kontrolünün kaynak uygunluğu — 2026-11-08 15:55
+
+- **Düzeltildi:** mevcut snapshot rate capability ortak adaptörden Sahne'ye taşınır. Açık unknown/no hız seçicisini kapatır; yes geri açar. Eski capability alanı olmayan adaptörlerin davranışı korunur. Kapalı kontrol programatik change ile de komut göndermez; EN/TR açıklaması vardır.
+- **Kanıt:** iki yeni test önce kırmızı, sonra yeşil; 4 hedefli kontrol geçti. LG 1920×1080 kontrollü canRate=false'da komut 0; gerçek duruma dönüşte tek komutla media.playbackRate=1.5.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1555.md).
+
+## Kopyalama belirsiz sonucu — 2026-11-08 15:51
+
+- **Düzeltildi:** boş/biçimsiz kopyalama sonucu anlaşılır EN/TR bildirim verir; yalnız ok:true başarı sayılır. Görünen dil metni ve eski kaynak bildirim korumaları korunur.
+- **Kanıt:** yeni test önce sessiz sonuçla kırmızı, sonra yeşil; 4 hedefli kontrol geçti. LG 1920×1080 gerçek renderer'da kontrollü boş yanıt/hata bildirimi ve düğme odağı doğrulandı; kişisel OS panosuna dokunulmadı.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1551.md).
+
+## Döngü kapanışının kaynak sahipliği — 2026-11-08 15:48
+
+- **Düzeltildi:** destroy kaynak/iz eşleşirse mevcut döngü temizliğini revizyonla gönderir; eski bağlamda doğrudan loop komutu yok. Tekrarlanan destroy etkisiz; başarısız async cleanup yakalanır.
+- **Kanıt:** yeni test önce eski kaynakta 1!=0 komut ile kırmızı, sonra yeşil; 5 hedefli kontrol geçti. LG 1920×1080 gerçek A–B kurulumu ve kontrollü identity değişiminde eski komut 0/release 1. Gerçek ikinci bölüme geçiş bu native turda yok; mevcut owner release temizliği korunur.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1548.md).
+
+## Hızlı ses ve sessize alma — 2026-11-08 15:41
+
+- **Düzeltildi:** ses komutu beklerken hızlı sessize al/aç son seçilen pozitif düzeyi korur; eski tick sesine dönmez. Mevcut komut kuyruğu/hata uzlaştırması değiştirilmedi.
+- **Kanıt:** yeni iki-görünüm testi önce 0.42!=0.8 ile kırmızı, sonra yeşil; 4 hedefli kontrol geçti. LG 1920×1080 gerçek medya volume=.8, aynı kaynakta Podcast→Çift dilli sessize alma/geri açma ile .8 korundu.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1541.md).
+
+## Uzun kelime bağlamı ve işlem durumu — 2026-11-08 15:38
+
+- **Düzeltildi:** ortak Sahne kelime kartında kaydırılabilir klavye-okuma alanı, görünür başlık/eylemler; bekleyen işlemde aria-busy/aria-disabled ve EN/TR durum. Odak/tek gönderim korunur, bağlamda Boşluk oynatmayı tetiklemez.
+- **Kanıt:** yeni pending testi önce kırmızı, sonra yeşil; 8 hedefli test geçti. LG 1920×1080 uzun bağlam kartı önce top=-877 ile taştı; sonra top=169/bottom=1012 ve bodyScrollable=true. Kontrollü içerik; canlı sağlayıcı kabulü yok.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1538.md).
+
+## Kelime bağlamı gecikme ve iz sürümü — 2026-11-08 15:35
+
+- **Düzeltildi:** geç wordInfo sonucu yeni arama odağını çalmaz; kelime eylemi öncesinde ve sonucunda güncel iz sürümü doğrulanır. Tick henüz çalışmamış olsa da eski kelime kartı kapatılır, eski işlem yeni kayıtlı durumu göstermez.
+- **Kanıt:** iki yeni test önce kırmızı, sonra yeşil; 5 hedefli kontrol geçti. LG 1920×1080 izole gerçek renderer'da kontrollü wordInfo gecikmesi/iz revizyonu ile arama odağı korundu, eski kayıt çağrısı 0.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1535.md).
+
+## İşlem aralığı hata ve durum görünümü — 2026-11-08 15:31
+
+- **Tamamlandı:** hatalı aralık alanında aria-invalid/amber vurgu; Aralığı uygula hatalı alana odaklanır, düzeltmede işaret kalkar. Değişmeyen canlı kapsam metni yeniden yazılmaz. Süre kısalınca eski aralığın işi engellemesi korundu.
+- **Kanıt:** yeni kontrol önce kırmızı, sonra yeşil; 5 hedefli test geçti. LG 1920×1080 izole gerçek renderer'da hata→alan odağı→10–20 sn düzeltme; üretim/model çağrısı yok.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1531.md).
+
+## Sahne klavye ve gecikmiş odak — 2026-11-08 15:28
+
+- **Düzeltildi:** geciken tam-zaman seek kapanışı, kullanıcı aramaya geçmişse odağı geri çekmez. Native select Escape'i global Sahne kapatma işleyicisinden ayrıldı; normal menü/katman Escape davranışları korunur.
+- **Kanıt:** iki yeni test önce kırmızı, sonra yeşil; 5 hedefli test geçti. LG 1920×1080 izole Electron'da gerçek Escape tuşları Sahne'yi kapatmadı; kontrollü gecikme sonrası gerçek medya 12. saniyeye giderken arama odağı/metni kaldı.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1528.md).
+
+## İşlem alanlarının kaynak sahipliği — 2026-11-08 15:25
+
+- **Düzeltildi:** zaman kayması, ses slider'ı ve seçim alanlarının callback'leri kaynak kimliği, canlı Sahne, açık panel ve bağlı güncel DOM kontrolüyle korunur. Eski kaynak/detached/kapalı panel alanı yazmaz; güncel alanlar çalışır.
+- **Kanıt:** yeni test önce üç callback'in yanlış çağrıldığını gösterdi, sonra geçti. 5 hedefli test yeşil; LG 1920×1080 gerçek panelde kontrollü kaynak değişimi ve redraw sonrası eski offset/ses çağrısı 0, güncel çağrı 2.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1525.md).
+
+## Bölüm başlıklarında güncelleme kararlılığı — 2026-11-08 15:20
+
+- **Düzeltildi:** metadata yenilenmesi bölüm başlıklarında arama/liste konumunu ve aynı başlığın klavye odağını korur. Kaldırılmış başlıkta görünür komşu, başlık kalmadığında transkript araması odaklanır; başka kontrole geçmiş kullanıcıdan odak alınmaz.
+- **Kanıt:** yeni kontrol önce kırmızı, sonra yeşil; 4 hedefli kontrol geçti. LG 1920×1080 izole Electron'da yenileme sonrası odak/scroll korundu, gerçek oynatıcıda 15. saniyeye atlama ve transkripte dönüş doğrulandı.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok. [Devir](docs/devir/2026-11-08-1520.md).
+
+## Transkript seçimi ve canlı takip — 2026-11-08 15:17
+
+- **Düzeltildi:** kaynak/çeviri metninde sol fareyle seçime başlamak manuel okumaya geçer; varsayılan seçim engellenmez. Konuşmaya dön seek yapmadan takibi açar. Amber seçim vurgusu eklendi.
+- **Kanıt:** yeni test düzeltmeden önce kırmızı, sonra yeşil; 4 hedefli test geçti. LG 1920×1080 gerçek pointer sürüklemesi ve kontrollü WAV oynatmasında iki görünümde seçim/scroll korundu, konuşulan satır ilerledi.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit bekletiliyor. Yeni engel yok; canlı sağlayıcı kabulü yapılmadı. [Devir](docs/devir/2026-11-08-1517.md).
+
+## Sahne hız ve uyku durumu — 2026-11-08 15:13
+
+- **Tamamlandı:** hız komutu beklerken görünür durum; uyku sonunda yalnız aynı canlı kaynakta başarılı duraklatmaya sonuç bildirimi. Mevcut zamanlayıcı ve oynatma sahibi korundu.
+- **Kanıt:** 5 hedefli kontrol; LG 1920×1080 izole Electron'da tek hız isteği, gerçek playbackRate=1.5, görünüm geçişinde aynı uyku son tarihi ve gerçek medya duraklatma. Süre dolumu kontrollü test saatiyle tetiklendi; canlı sağlayıcı kabulü değildir.
+- Dal `codex/assistant-podcast-journey-20261108`; HEAD/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor; bu kapsamda yeni engel yok. [Devir](docs/devir/2026-11-08-1513.md).
+
 Son durum kontrolü **2026-11-06**. Son ürün `2c1935b5eacf1fc22163eea2c597574182f5169f`. [Güncel teslim](docs/devir/2026-11-06-0643.md).
 
 **Yeni sohbet başlangıcı:** P025 [PR #842](https://github.com/dorukakindev/whisper-browser/pull/842) ile master'a alındı; doğrulanmış ürün başlangıcı `7bf15f3c2876a5465b0c7f59fff3a037b41aeb69`. Sonraki belge commitleri ürün değişikliği değildir; çalışmadan önce gerçek HEAD/remote ve kişisel farkları yeniden kontrol et. Mevcut görevlerden yarım bırakılmış yeni ürün işi yok; aşağıdaki koşullu/ertelenmiş işler korunur.
 
 Tamamlanmış teslimler açık iş değildir. Eski raporların veya doğrulanmamış kullanım sınırlarının varlığı tek başına ürün hatası sayılmaz. Ayrıntılı geçmiş [devir indeksinde](DEVIR-NOTU.md) korunur.
 
+## Sahne güncellemelerinde görüntü ve seçim kararlılığı — 2026-11-08 15:06
+
+- **Düzeltildi:** transkript/çeviri revizyonu kapağı yeniden oluşturmaz; yalnız medya metadata güncellemesi transkript DOM'unu ve metin seçimini bozmaz. Kapak hata işleyicisi mevcut ortak sahibinde tekleştirildi. Bölüm işaretleri yalnız kendi verisi değişince, transkript/yoğunluk çubuğunu kurmadan yenilenir.
+- **Kanıt:** LG 1920×1080 tam ekran/gerçek adaptörde kontrollü çeviri güncellemesinde kapak düğümü aynı; başlık güncellemesinde seçili kaynak metni aynı. Bağlı not retry/tek kayıt/panel odak kabulü de geçti. 155 hedefli test yeşil.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor. Yeni engel yok; [devir ve sınırlar](docs/devir/2026-11-08-1506.md).
+
+## Bağlı Sahne akışı ve not yeniden denemesi — 2026-11-08 14:57
+
+- **Düzeltildi:** arama öncesi okuma konumu aynı kaynakta Podcast↔Çift dilli geçişinde de taşınır. Başarısız not eylemi mevcut düğmede açıkça yeniden deneme olarak gösterilir. Başarı bildirimi alt transkript eylemlerini örtmez.
+- **Kanıt:** LG 1920×1080 tam ekran zincirinde arama→Çift dilli→Temizle ile 300 px korundu/0 seek; ilk kontrollü hata sonrası çift tıklama gerçek depoda doğru bölüme tek not kaydetti. Panel Escape/odak dönüşü geçti. 153 hedefli test yeşil.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor. Yeni engel yok; [devir ve sınırlar](docs/devir/2026-11-08-1457.md).
+
+## Kapak, aramadan okumaya dönüş ve not hatası — 2026-11-08 14:50
+
+- **Düzeltildi:** yüklenemeyen kapak baş harfli mevcut yedeğe döner, eski görsel hatası yenisini değiştiremez. Aramayı temizleme aynı transkriptteki önceki okuma konumuna döner, başka izde eski konum kullanılmaz. Not hatası kapat/aç sırasında taslakla korunur; uzun hata kayar ve alt çubukla örtüşmez.
+- **Kanıt:** LG 1920×1080 tam ekranda bozuk veri görseli, sonuçsuz arama→300 px okumaya dönüş/0 seek, uzun not hatası ve görünür eylemler geçti. 151 hedefli test yeşil. Kullanıcının tam ekran tercihi açık isteğiyle kalıcı hafıza notuna da kaydedildi.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor; yeni engel yok. [Devir ve sınırlar](docs/devir/2026-11-08-1450.md).
+
+## Tam ekran Sahne görsel devamı — 2026-11-08 14:44
+
+- **Düzeltildi:** uzun başlığın dar metin alanında beş satıra sıkışması; zamansız metinde paragrafları bölen ayrı araç satırları; açık temada başlık çevresini karartan kapak gölgesi/atmosferi. İçerik ve eylemler korunur, yalnız çeviri görünümü etkilenmez.
+- **Kanıt:** gerçek LG 1920×1080 tam ekranda uzun başlık/okuma metni ve açık tema son görüntüleri incelendi; metin/eylem örtüşmesi yok, not tam kaynak metnini korur. 97 mevcut Sahne testi, sözdizimi/diff temiz. Bütün ekranı inceleme ve ana kabul boyutu DESIGN.md'ye işlendi.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor. Yeni engel yok; kontrollü içerik ve kanıt [devirde](docs/devir/2026-11-08-1444.md).
+
+## Altyazı kapatma, ses değiştirme ve iç menü odağı — 2026-11-08 14:33
+
+- **Düzeltildi:** Sahne Escape yakalayıcısı iç altyazı seçicisinin klavye sahibini artık öncelemez; seçici, sonra panel kapanır. Geçersiz yeni dublaj aralığı/zaman haritası/katman yapılandırması mevcut bağlı sesi kaldırmadan reddedilir.
+- **Doğrulandı:** LG/izole gerçek oynatıcıda altyazı kapatma eski döngüyü ve satırları temizledi; not taslağı korunup eski kaydet/yeniden bağla kapandı. Gerçek popover Escape/odak sırası, geçersiz dublajda mevcut ses ve özgün sese dönüş geçti. Geç bağlama/kaynak nesli kontrolü dahil 182 hedefli test yeşil.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor. Yeni engel yok; kontrollü kaynak ve kayıtlı ses sınırları [devirde](docs/devir/2026-11-08-1433.md).
+
+## İz sürekliliği, dublaj kullanımı ve kontrol grupları — 2026-11-08 14:27
+
+- **Düzeltildi:** aynı cue kimliğini kullanan farklı izlerde notun yeniden bağlanması/okuma eşlemesi iz kimliğiyle ayrıldı; geç satır yenilemesi sonrası yeniden bağlama düğmesi güncellenir. Açık dublaj panelinin arkasında otomatik iz/aralık değişince eski ses bağlanamaz; elle seçilmiş SRT yolu korunur.
+- **Doğrulandı:** LG gerçek Sahne adaptöründe kontrollü iz değişimi/taslak koruması; kayıtlı dublajı doğru yerel medyaya yükleme, bağlama ve özgün sese duraklatılmış dönüş. Oynatma/cümle kontrol grupları mevcut şeritte etiketlendi, son görüntü incelendi. 145 Sahne + 43 dublaj kontrolü geçti.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor; yeni engel yok. Kontrollü veri/sahte üretim işçisi ve gerçek kullanım sınırları [devirde](docs/devir/2026-11-08-1427.md).
+
+## Kuyruk, kayıtlı altyazı ve işlem durumu — 2026-11-08 14:16
+
+- **Tamamlandı:** kuyruk kapanışında açan kontrole açık odak dönüşü; aynı bölümde kayıtlı sonuç yüklemenin son istek koruması; aynı yol seçili kalsa da okuma hatasının başarı sayılmaması. İşlem başlığı zamanlı/okuma metni/eksik/hazırlanıyor durumlarını mevcut yüzeyde gösterir.
+- **Kanıt:** 181 hedefli test; gerçek LG/main/IPC ile yeni kayıtlı izin korunması, geç kaynak sonucunun reddi, kontrollü ENOENT sonrası yeniden yükleme. Kuyruk autoNext kapalı/açık, B hatasında aynı satır/aynı B'ye retry ve konum/hız kaydı geçti. Yeni model/üretim yok.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor; yeni engel yok. Kontrollü medya/işçi sınırları ve son görüntü [devirde](docs/devir/2026-11-08-1416.md).
+
+## Podcast takibi, sekme yarışları ve işlem paneli — 2026-11-08 14:08
+
+- **Düzeltildi:** Sahne'de başarılı döngü dışı atlama eski sahipli cümle döngüsünü kapatır; döngü içi atlama ve aynı kaynakta görünüm değişimi döngüyü korur. Bekleyen panel eylemi yeniden çizimden sonra yeniden gönderilemez; bekleme etiketi okunur amber durumuyla görünür.
+- **Kanıt:** gerçek LG/izole Podcast'te 1.5×/0.75×, manuel okuma/arama/takibe dönme, Podcast↔Çift dilli döngü aktarımı ve dışarı atlama; Browser'da iki sekmenin konum/kayma/görünümü, arka planda durma ve gecikmiş okumaların sekme/yeni video değişiminde reddi geçti. 145 hedefli test sıfır hata. İki yeni davranış testi önce kırmızı, sonra yeşil.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor. Yeni engel yok; kontrollü medya ve panel gecikmesi canlı sağlayıcı kabulü değildir. [Devir ve son görüntü](docs/devir/2026-11-08-1408.md).
+
+## Birikmiş değişiklikler ve kesintisiz kullanım — 2026-11-08 14:00
+
+- **Tamamlandı:** dublaj hazırlığında ilk otomatik iz seçilirken kapsam dışı eski ses önizlemesi temizlenir; aynı altyazı yolu olsa bile başka medyaya ait hazır plan başlatılmaz. Kayıtlı sonuç okuyucusu başlık/eylem/dosya hiyerarşisine kavuştu; okuma beklerken kapatmada odak açana döner.
+- **Kanıt:** aynı izole LG/Electron/main oturumunda Browser → Podcast → zamanlı arama/not → asistan kaynak kartı → zamanlı/zamansız kaynak → not/defter → kayıtlı sonuç → aynı Browser sekmesi geçti. Gecikmiş kaynak/sohbet/önizleme reddedildi; yeni model/üretim yok. Hedefli 102 + 2 test sıfır hata.
+- Dal `codex/assistant-podcast-journey-20261108`; yerel HEAD ve uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit bekletiliyor. Yeni engel yok; gerçek medya saati kontrollü WAV, asistan cevabı kontrollüdür. Ayrıntı ve kesin kanıt [devirde](docs/devir/2026-11-08-1400.md); canlı sağlayıcı/start.bat/CUDA kabulü bu turun kapsamına eklenmedi.
+
+## Sahne notu, geçmiş ve toparlanma — 2026-11-08 13:50
+
+- **Düzeltildi:** geçmiş açılışının yetkilendirme reddinden sonra sürmesi ve ham/eski çıktı yollarını kullanması. Sahne retry sırasında görünür bekleme, ikinci tıklama engeli, mesajsız ret açıklaması ve okunur eylem hizası tamamlandı.
+- **Doğrulandı:** gerçek LG'de oynatma ilerlerken sabit pasaj notu, taslağı açma, doğru cümleye dönüş ve tek kayıt; geçmişte tamamlanmış/kısmi sonuç okuyucu, eksik dosya ve yetkili doğru video/iz; bekleme/başarısızlık ve yeni kaynakta temiz toparlanma. 143 hedefli test; eski history beklentisi mevcut ayrı-iş sözleşmesine güncellendi, ürün deposu değiştirilmedi.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`; commit/push yok. Yeni engel yok; kontrollü veri ve gerçek sağlayıcı sınırları [devirde](docs/devir/2026-11-08-1350.md).
+
+## Filtre, Podcast ses sürümü ve asistan — 2026-11-08 13:36
+
+- **Düzeltildi:** yayıncı transkriptinin yanında farklı ses kopyasına bağlı çevirinin zamanlı yüklenebilmesi; asistan sohbetine dönüşte açık kart/okuma konumu kaybı. Kopyaya bağlı çeviri doğrulanamazsa salt okunur, sohbet durumları birbirine taşınmaz.
+- **Doğrulandı:** filtreli eşleşme gezinmesi seçmeden seek etmez; doğru gerçek satıra açma ve mevcut tekrar korunur. Gerçek LG'de 1.5× Podcast arama/tekrar; uyuşmayan çeviride 0 zamanlı satır ve açıklama; asistan A→B→A/kapat-aç ile kart/80px/taslak koruması. 155 hedefli test, sözdizimi/diff temiz.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`; commit/push yok. Yeni engel yok; kontrollü veri ve canlı sağlayıcı sınırları [devirde](docs/devir/2026-11-08-1336.md).
+
+## Altyazı taslağı, geçiş ve kartlar — 2026-11-08 13:29
+
+- **Düzeltildi:** kaynağa yeniden eşlenen altyazı düzeltmesinin taslak kapat/aç sırasında eşleme niyetini kaybetmesi. Metin ve eşleme birlikte korunur, save mevcut kaynak/kayıt çatışmasını doğrular. Açık asistan kartında uzun kaynak başlığı tam okunur, kapalı satır kısa kalır.
+- **Doğrulandı:** gerçek LG/izole Browser'da taslak, değişmiş kaynakta reddetme/metni koruma, save/undo; Browser↔Podcast↔Çift dilli geçişi ve gecikmiş kaynak sonuçları; gerçek overlay'de zamanlı/zamansız kart/not/aynı kaynağa dönüş. Geç AI önerisi manuel taslağı ezmez. 60 hedefli test ve sözdizimi/diff temiz.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`; commit/push yok. Yeni engel yok; kontrollü web/veri sınırları ve tam kanıt [devirde](docs/devir/2026-11-08-1329.md).
+
+## Asistan sonucu, kuyruk ve Sahne — 2026-11-08 13:22
+
+- **Düzeltildi:** asistan sonucunda bekleyen A isteğinin B sesini kendi başarısı sanması; iptal edilmiş Sahne işinde mevcut güvenli retry'nin gizlenmesi. Durum etiketi/açıklama/eylem mevcut şeritte ayrıldı.
+- **Doğrulandı:** eksik WAV'da başarısızlık ve kaynak/üretim koruması; gerçek LG'de asistan yürütücüsü→kayıtlı inceleme/yükleme/IPC toparlanma. Kuyruk autoNext kapalı/açık, 503'te aynı satır ve aynı B'ye retry geçti. Kuyruğun tekrar-bitiş ve hızlı seçim korumaları zaten doğru, yeniden kurulmadı. 140 hedefli kontrol, sözdizimi/diff temiz.
+- Dal `codex/assistant-podcast-journey-20261108`, yerel/uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit/push yok; yeni engel yok. Kontrollü veri/sağlayıcı sınırları [devirde](docs/devir/2026-11-08-1322.md).
+
+## Üçlü tur: Browser devamı, Podcast takibi, dublaj iz sahibi — 2026-11-08 13:13
+
+- **Düzeltildi:** Browser kaydındaki doğru konum/hızın gerçek sayfa videosuna uygulanmaması; ayrı asistan penceresinde altyazı çizimini kesen null erişimi; açık dublaj panelinde değişen otomatik iz ve geciken planın eski SRT'yle kullanılabilmesi. Eski açık preflight onayı üretim başlatmaz, güncel iz yeniden incelenir.
+- **Kapandı:** ayrı gerçek LG/Electron süreçlerinde 18s/1.5×, iki kayıtlı iz, +1.25/−0.4s ve paused=true geri dönüş. Gerçek Podcast medya saatinde arama→aynı cümle, manuel kaydırma, Konuşmaya dön ve 1.5× cümle tekrarı geçti; takipte yeni hata çıkmadı. 172 hedefli kontrol ve sözdizimi/diff temiz.
+- Dal `codex/assistant-podcast-journey-20261108`; yerel/salt okunur uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit/push/Actions yok. Yeni engel yok; kontrollü medya/sağlayıcı sınırları ve kanıt [devirde](docs/devir/2026-11-08-1313.md).
+
+## Dublaj hazırlığı ve Podcast devamı — 2026-11-08 12:52
+
+- **Düzeltildi:** aynı videoda otomatik altyazı değişimi/kaldırılması sonrası eski dublaj hazırlığı ve çıktının tutulması. Yeni iz devralınır; iz yoksa üretim kapalı, elle seçilmiş SRT korunur. Podcast ileri araçlarında ilgisiz YouTube alanı gizlendi.
+- **Doğrulandı:** gerçek LG/izole main/preload/IPC ile iki Sahne kipinde ortak hazırlık ve kayıtlı profil, çıktı okuma hatası/yeniden deneme/güvenli yükleme, araç/Escape/odak ve ayrı süreçte Podcast konum/hız/transkript/kuyruk dönüşü. 98 hedefli kontrol. Canlı üretim yok; Browser ayrı süreç yeniden açılışı bu tur yeni native kabul değildir.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; yerel hazırlık, commit/push yok. Yeni somut engel yok; sonraki canlı Browser süreç kabulünün kesin yolu ve kapsam sınırları [devirde](docs/devir/2026-11-08-1252.md).
+
+## Podcast / Çift dilli günlük kullanım — 2026-11-08 12:33
+
+- **Kapandı:** Browser → Podcast ↔ Çift dilli → Browser, gerçek medya saatinde 1.5×/arama/takip, sekmeye özel +1.25s ve tek oynatma sahibi, arka sekme durması; geç altyazı yanıtının başka sekmeye veya aynı sekmedeki yeni videoya uygulanmaması. Gerçek YouTube'da kayıtlı 2.129 satırla geçiş, aktif satır, 1.25×/+0.2s/cümle döngüsü/sıfırlama doğrulandı. Yeni model/ASR/çeviri yok.
+- **Düzeltildi:** klavyeyle satır okumada otomatik kaydırma durduğu halde “Takip açık” kalması. Podcast/Çift dilli satır odağı manuel okumayı başlatır, açık dönüş gelmeden otomatik takip başlamaz; açıklama oynatma konumunun değişmediğini söyler. Browser kayıtlı pasajında gerçek 0s artık seek edilir, boş/bozuk/negatif zaman başarı sayılmaz.
+- Mevcut loop 12–16s, mod sekmesi odağı ve arama alanında Boşluk koruması zaten doğruydu; gerçek LG'de geçti, yeni özellik diye sayılmadı. 120 kaynak/40 çeviri okuma konumu/odak/taslak görünüm geçişinde korundu. 156 hedefli kontrol, son zaman doğrulaması altkümesi 18/18, sözdizimi/diff temiz. Native videonun ana pencere yakalamasında boş olması ayrıca birleşik gerçek YouTube görüntüsüyle ayrıldı; estetik kusur diye sayılmadı.
+- Dal `codex/assistant-podcast-journey-20261108`; yerel HEAD/salt okunur uzak master `6f303909e3b02bc2821841814170db2fda034511`. Commit/push/Actions yok; kişisel farklar korunur. Yeni açık ürün/kabul işi yok; kapsam/sınırlar [devirde](docs/devir/2026-11-08-1233.md).
+
+## Asistan canlı kart ve kaynak toparlanması — 2026-11-08 11:59
+
+- **Kapandı:** 11:33 kaydındaki birleşik canlı model → onay kartı → gerçek oynatıcı kabulü aynı izole main/preload/IPC sürecinde tamamlandı. Kullanıcı bu tur önce 4, sonra toplam 6 kısa isteği açıkça onayladı; toplam 6, son 3 HTTP200. Gerçek modelin kartı ekrandaki önizleme/onaydan sonra A/1s açtı; geldiği sohbette makbuz `completed`. Kontrollü kayıt/WAV, gerçek medya öğesi; canlı yayıncı/işitilen ses kalitesi kabulü değil.
+- **Düzeltmeler:** hızlı tamamlanan yanıtta kaybolan gerçek işlem kartı son servis cevabında da taşınır, arayüz tekilleştirir. Native overlay izin listesinde eksik `displayText`, gerçek UUID `reference` ve yeniden-arama alan/eylemi tamamlandı. Kaynağı değişmiş karttan mevcut podcast araması doğru ifadeyle açılır; alıntı korunur, yerine otomatik bölüm seçilmez.
+- Not dialog'undan aynı kaynak düğmesi/odak, yazılmamış soru ve 517px liste konumuna dönüş gerçek LG'de geçti. Son 118/118 hedefli kontrol, 7 ürün JS sözdizimi ve diff kontrolü. Geçici test profillerindeki şifreli bağlam kaldırıldı. Yeni açık ürün/kabul işi yok; eski tarihli notların açık ifadeleri bu kayıtla kapanır.
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD `6f303909e3b02bc2821841814170db2fda034511`; commit/push/merge yok. [Devir](docs/devir/2026-11-08-1159.md).
+
+## Asistan → Podcast → not → defter yerel turu — 2026-11-08 11:33
+
+- Dal `codex/assistant-podcast-journey-20261108`, HEAD/uzak master `6f303909e3b02bc2821841814170db2fda034511`; bu tur salt okunur uzak doğrulama yapıldı. Commit/push/merge bekletmesi korunuyor.
+- **Tamamlanan:** gerçek Windows LG/main/preload/IPC/oynatıcı zincirinde B'den güncel zamanlı A kaydına 1s dönüş ve gerçek medya saati; zamansız metnin sesi/konumu değiştirmemesi; kaynaklı notu önizle/düzenle/onayla → tek kayıt → defterde aynı kaydı düzenle → B'den aynı A/1s kaynağa dönüş. Bekleyen kaynak çözümlemesinde bölüm/sohbet değişimi ve bekleyen gerçek not önizlemesinde sohbet değişimi yeni bağlama uygulanmadı; geç not taslağı/önizlemesinin onayı açması düzeltildi. Son 79/79 kontrol, 7 JS sözdizimi ve diff kontrolü.
+- **Görünüm:** yalnız doğrulanmış kartlarla birebir eşleşen yinelenen kaynak eki görsel yanıttan ayrılır; ham/kopyalanan/aranan/kayıtlı metin tam kalır. Bilinen çıplak UUID alıntıları kısa kaynak düğmesine dönüşür; mevcut gerçek öneriye ait teknik proposalId okunur açıklamayla görünür. Kod ve bilinmeyen kimlikler değiştirilmez. Son LG görüntüleri incelendi.
+- **Açık kabul sınırı:** önceki canlı model oturumunun geçici kaynağı silinmişti; eski token gerçek servis tarafından reddedildi, başka bölümle ikame edilmedi. Bu nedenle **o eski model kartını gerçek oynatıcıda uygulama** kabulü kapanmış sayılmaz. Bu tur güncel kayıtlı kaynaklardan yeniden doğrulanan kartlarla gerçek ürün zinciri sınandı. Tam canlı model → onay kartı → gerçek oynatma kabulü istenirse kesin sonraki adım: yeni dar canlı istek yetkisiyle modeli aynı kalıcı izole test profilinde çalıştır, o profil/süreç dururken yeni kartı onaylayıp aynı kaynağı aç; sekiz isteklik eski bütçe tüketilmiştir. Yeni ürün hatası diye sayılmaz.
+- Kontrollü kayıt/WAV kullanıldı; medya öğesi gerçekti ve sessiz test oynatmasıydı. Canlı yayıncı, işitilen ses kalitesi, Whisper/çeviri/dublaj ve start.bat/CUDA kabulü değil. [Devir](docs/devir/2026-11-08-1133.md).
+
 ## Birikmiş işlerin GitHub teslimi — 2026-11-08 09:35
+
+### Sonraki yerel tur — Asistan podcast araştırması, 2026-11-08 09:56
+
+- Dal `codex/assistant-podcast-journey-20261108`; taban/HEAD `6f303909e3b02bc2821841814170db2fda034511`. Commit/push bekletiliyor; kişisel farklar korunuyor.
+- Tamamlanan: çözümleme beklerken kaynak değişiminde eski kartın gezinmesi ve ters tamamlanan iki kartın yeni seçimi ezmesi düzeltildi. Kaynak kartında zamanlı/zamansız bilgi kapalıyken görünür, yüklenme erişilebilir ve çakışan not eylemi kilitli; CSS öncelik hatasıyla kaymış başlık hizası düzeltildi.
+- Kanıt: 74/74 hedefli kontrol, 5 JS sözdizimi ve diff kontrolü; LG ULTRAGEAR'da gerçek overlay/kontrollü veriyle kaynak, salt okunur eylem ve hata/bekleme görüntüleri. Yeni kaynak değişimi kontrolü HEAD modülünde `opened` yerine beklenen `cancelled` farkıyla kırmızı, düzeltmede yeşil.
+- **Canlı model kabulü kapandı — 10:52:** kullanıcı bu tur için şifreli bağlam aktarımı ve en fazla 8 kısa isteği açıkça onayladı. Toplam 8 istekte bul → karşılaştır → gerçek açma kartı → aynı pasajdan not taslağı doğrulandı; son birleşik zincirin 3 isteği HTTP 200, iki gerçek alıntı/zaman ayrımı ve 0 not yazımı. Canlı yanıtta bulunan UUID alıntı düğmesi bağlantı hatası düzeltildi. Son 75/75 kontrol ve LG gerçek yanıt/panel kabulü. Gerçek ses/oynatma bu canlı model denemesinin kapsamında değildir; kartın 1s/salt okunur yönlenmesi gerçek açıcıyla kontrollü medya/çözücü kullanılarak sınandı. [Son kabul](docs/devir/2026-11-08-1052.md).
+- [Devir ve doğrulama sınırları](docs/devir/2026-11-08-0956.md).
 
 - Kullanıcı toplu commit/push/master teslimini onayladı. Ürün `253cb1f2704fad704a86b0899441b80e925f3d7c`; dal `codex/media-journey-hardening-20261107`. 34 ürün/test dosyası, 220/220 hedefli kontrol ve 26 JS sözdizimi kontrolü. [Kümülatif teslim](docs/devir/2026-11-08-0935.md).
 - Önceki Sahne/Browser/not/sonuç kabulleri kapalı; yeni engellenmiş ürün işi yok. Canlı asistan → kaynaklı podcast yanıtı → pasaj/not zinciri sonraki ayrı geliştirme turudur; bu GitHub tesliminde yeni model çağrısı yapılmaz. Tarihsel “commit bekliyor” ifadeleri kendi turunun anlık durumudur; bu kullanıcı onayı onların bekletmesini kaldırır.

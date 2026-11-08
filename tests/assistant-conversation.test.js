@@ -194,7 +194,8 @@ test('Saved podcast source cards show usage, timing, scope and the last open res
   let card=show();
   assert.equal(card.dataset.usage,'cited');assert.match(card.querySelector('.source-usage').textContent,/^Cited$/);
   assert.equal(card.querySelector('.source-title').title,'Coastal show · A much longer episode title');
-  assert.equal(card.querySelector('.source-meta').textContent,'Original · 0:12–0:15\nSearch “lighthouse”: complete result');
+  assert.equal(card.querySelector('.source-location').textContent,'Original · 0:12–0:15');
+  assert.equal(card.querySelector('.source-meta').textContent,'Search “lighthouse”: complete result');
   assert.equal(card.querySelector('img'),null,'the excerpt is text, never markup');assert.match(card.querySelector('p').textContent,/<img src=x onerror=bad>/);
   const button=card.querySelector('button');assert.match(button.textContent,/^Go to moment$/);assert.equal(button.getAttribute('aria-label'),'Go to moment: Coastal show · A much longer episode title');button.click();
   assert.deepEqual([ui.commands.at(-1).action,ui.commands.at(-1).text],['citation','b:one:answer:0']);
@@ -202,6 +203,9 @@ test('Saved podcast source cards show usage, timing, scope and the last open res
   card=show({usage:'found',action:'text',meta:'Original · Read-only text · no verified time'});
   assert.match(card.querySelector('.source-usage').textContent,/^Not cited$/);assert.match(card.querySelector('button').textContent,/^Open text$/);
   card=show({state:'opening'});assert.equal(card.querySelector('button').disabled,true);assert.match(card.querySelector('button').textContent,/Opening/);
+  assert.equal(card.getAttribute('aria-busy'),'true');assert.equal(card.querySelector('.source-note').disabled,true);
+  assert.equal(card.querySelector('.source-location').textContent,link({}).meta);
+  card=show({state:'stale',canSearchAgain:true,note:'Saved quote retained; search again.'});assert.equal(card.querySelector('.source-search').textContent,'Search saved text again');card.querySelector('.source-search').click();assert.deepEqual(ui.commands.at(-1).action,'search-podcast-source');assert.equal(ui.commands.at(-1).text,link().id);assert(card.textContent.includes(link().excerpt));
   card=show({state:'stale',note:'This saved source was changed or removed. Nothing was opened; search again.'});
   const note=card.querySelector('.source-state');assert.equal(note.getAttribute('role'),'status');assert.equal(note.dataset.state,'stale');assert.match(note.textContent,/Nothing was opened/);
   assert.match(card.querySelector('button').textContent,/Check again/);assert.equal(card.querySelector('button').disabled,false);
@@ -261,6 +265,8 @@ test('A podcast source card travels from the overlay command through global-assi
    api:{updateAssistant:value=>state.last=value,onAssistantCommand:fn=>state.listener=fn,mediaShelf:async input=>{state.shelf.push(input);return options.shelf?options.shelf(state.shelf.length,row):{ok:true,row:row()};}}});
   w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));
   w.eval(fs.readFileSync(path.join(root,'assistant-podcast-sources.js'),'utf8'));
+  const originalSnapshot=w.AssistantWorkspace.snapshot;
+  w.AssistantWorkspace.snapshot=()=>{const value=originalSnapshot();value.current.messages[0].text+='\n\nSaved podcast sources\n['+id+'] Show · Episode · Original · 12.0–15.0 s · The lighthouse blinks.';return value;};
   w.eval(opener);   // the real helper, exactly as renderer.js defines it
   w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));
   const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
@@ -271,6 +277,8 @@ test('A podcast source card travels from the overlay command through global-assi
  // verified time: resolver gets the exact locator twice (open + re-check before the seek), the episode opens, then the seek happens
  let h=await harness();try{
   assert.deepEqual([h.link().usage,h.link().state,h.link().more],['cited','',true]);
+  assert.equal(h.link().label,'P1');assert.equal(h.link().reference,id);
+  assert(!h.state.last.messages[0].displayText.includes('Saved podcast sources'));assert(h.state.last.messages[0].text.includes('Saved podcast sources'));
   await h.click('citation');
   assert.deepEqual(h.state.shelf.map(input=>input.token),[token,token]);assert.deepEqual(h.state.shelf[0].query,'lighthouse');
   assert.deepEqual(h.state.calls,[['open','entry-A'],['seek',12]]);assert.equal(h.link().state,'opened');assert.match(h.link().note,/0:12/);
@@ -279,7 +287,9 @@ test('A podcast source card travels from the overlay command through global-assi
  }finally{h.close();}
  // removed or changed source: nothing opens and the card says so
  h=await harness({shelf:()=>({ok:false,sourceChanged:true,error:'changed'})});try{
+  const searches=[];h.w.MediaShelfUI={openTranscriptSearch:async input=>searches.push({...input})};
   await h.click('citation');assert.deepEqual(h.state.calls,[]);assert.equal(h.link().state,'stale');assert.match(h.link().note,/Nothing was opened/);
+  await h.click('search-podcast-source');assert.equal(searches.length,1);assert.equal(searches[0].query,'lighthouse');assert.equal(h.state.calls.length,0);
  }finally{h.close();}
  // the conversation changes while the episode opens: no seek, and the card reports it was cancelled
  h=await harness({afterOpen:state=>{state.thread='t2';}});try{
@@ -308,6 +318,24 @@ test('COMPOSITION: answer markers become source buttons of the same message (nev
   assert.equal(group.open,true,'the found-not-cited group opens for its marker');assert.equal(card.open,true);assert.equal(doc.activeElement,card.querySelector('summary'),'focus moves to the matching source');
   refs[0].click();assert.equal([...doc.querySelectorAll('.source-card')].find(c=>c.dataset.citeLabel==='F1').open,true);
   ui.snapshot({messages:[{...messages[0],text:messages[0].text+' more'}]});assert.equal(doc.querySelectorAll('.source-card[open]').length,2,'open sources survive the next streaming update');
+ }finally{ui.w.close();}
+});
+
+test('real UUID podcast references become compact buttons only for an exact source in the same answer',()=>{
+ const ui=overlay(),id='P208cc9a0-96e9-4e01-98f8-ec10bec018a1',unknown='P00000000-0000-0000-0000-000000000000';try{
+  ui.snapshot({messages:[{id:'real-podcast',role:'ai',text:'A real quote ['+id+'] and an unavailable ['+unknown+']. Also bare '+id+'. Keep `'+id+'` as code.',links:[{id:'card-one',label:'P1',reference:id,title:'Real episode',excerpt:'Exact saved quote.',usage:'cited'}]}]});
+  const refs=ui.w.document.querySelectorAll('.cite-ref');assert.equal(refs.length,2);assert.equal(refs[0].textContent,'P1');assert.equal(ui.w.document.querySelector('code').textContent,id);
+  assert.match(ui.w.document.querySelector('.message.ai').textContent,new RegExp(unknown));
+  refs[0].click();const card=ui.w.document.querySelector('.source-card');assert.equal(card.open,true);assert.equal(ui.w.document.activeElement,card.querySelector('summary'));
+ }finally{ui.w.close();}
+});
+
+test('visual answer compaction leaves copy, search and saved message text complete',()=>{
+ const ui=overlay();try{
+  const raw='Readable answer\n\nSaved podcast sources\nExact saved quote.';
+  ui.snapshot({messages:[{id:'compact',role:'ai',text:raw,displayText:'Readable answer'}]});
+  const node=ui.w.document.querySelector('.message.ai');assert.equal(node._searchText,raw);assert(!node.textContent.includes('Exact saved quote.'));
+  node.querySelector('.message-actions button').click();assert.equal(ui.commands.at(-1).action,'copy');assert.equal(ui.commands.at(-1).text,raw);
  }finally{ui.w.close();}
 });
 
@@ -347,4 +375,16 @@ test('COMPOSITION: the saved run RECORD and the open MEDIA are two separate line
    assert.match(rows[1].textContent,/not listened|dinlenmedi/);
   }finally{ui.w.close();}
  }
+});
+
+test('switching back to a conversation restores its reading position, open citations and unsent question',()=>{
+ const ui=overlay();try{
+  const messages=[{id:'m',role:'ai',text:'Long answer',links:[{id:'P1',label:'P1',excerpt:'Real excerpt'}]}];
+  const log=ui.$('log');Object.defineProperties(log,{scrollHeight:{get:()=>1800},clientHeight:{get:()=>400}});
+  ui.snapshot({conversation:'A',messages});log.scrollTop=317;ui.w.document.querySelector('.source-card').open=true;
+  ui.$('text').value='Unsent A';ui.$('text').dispatchEvent(new ui.w.Event('input'));
+  ui.snapshot({conversation:'B',sourceToken:'B:1',messages:[]});
+  ui.snapshot({conversation:'A',messages});
+  assert.equal(ui.$('text').value,'Unsent A');assert.equal(ui.w.document.querySelector('.source-card').open,true);assert.equal(log.scrollTop,317);
+ }finally{ui.w.close();}
 });

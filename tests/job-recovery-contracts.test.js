@@ -90,3 +90,28 @@ test('çalışmaya devam eden eski FFmpeg periyodik izlenir ve yarım iş yenide
 });
 
 console.log(`job-recovery-contracts: ${passed} test`);
+
+require('node:test')('saved result reader restores focus even when closed during a pending read and keeps content as text',async()=>{
+ const {JSDOM}=require('jsdom'),vm=require('node:vm'),assert=require('node:assert/strict');
+ const dom=new JSDOM('<button id="open">Read result</button>',{runScripts:'outside-only'}),w=dom.window;
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+ let release;w.api={authorizeHistoryFiles:async()=>({ok:true,files:['C:/saved.srt']}),readSubtitle:()=>new Promise(r=>release=r)};w.interfaceChoice=(tr,en)=>en;
+ const code=renderer.slice(renderer.indexOf('async function openHistoryResult('),renderer.indexOf('async function openHistoryItem('));vm.runInContext(code,dom.getInternalVMContext());
+ try{
+  const button=w.document.getElementById('open'),pending=w.openHistoryResult({id:'saved',title:'<img src=x>'},button);await new Promise(r=>setImmediate(r));
+  const dialog=w.document.querySelector('.history-result-reader');assert(dialog);assert.equal(dialog.querySelector('h2').textContent,'<img src=x>');assert.equal(dialog.querySelector('img'),null);assert.equal(dialog.querySelector('pre').getAttribute('aria-busy'),'true');
+  dialog.close();assert.equal(button.disabled,false);assert.equal(w.document.activeElement,button);
+  release({ok:true,text:'<script>unsafe()</script>'});await pending;assert.equal(w.document.querySelector('script'),null);assert.equal(w.document.querySelector('dialog'),null);
+ }finally{w.close();}
+});
+
+require('node:test')('history playback uses only revalidated files and never opens media after refusal',async()=>{
+ const assert=require('node:assert/strict'),vm=require('node:vm');
+ const code=renderer;
+ const body=code.slice(code.indexOf('async function openHistoryItem('),code.indexOf('// ---- izlerken cumle birlestirme'));
+ for(const accepted of [false,true]){
+  const opened=[],state={lastJobVideo:'old',outputFiles:['old']};const ctx={player:{openIntent:0},state,window:{api:{authorizeHistoryFiles:async()=>({ok:accepted,video:accepted?'C:/approved.mp4':'',files:accepted?['C:/approved.tr.srt']:[],error:'Source missing'})}},logLine(){},openPlayer:()=>opened.push({...state}),mediaKeyFor(){},$:()=>({classList:{remove(){}}})};
+  vm.createContext(ctx);vm.runInContext(body,ctx);await ctx.openHistoryItem({id:'saved',source:'file',video:'C:/moved.mp4',files:['C:/missing.srt','C:/approved.tr.srt']});
+  assert.equal(opened.length,accepted?1:0);if(accepted)assert.deepEqual(Array.from(opened[0].outputFiles),['C:/approved.tr.srt']);
+ }
+});

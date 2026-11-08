@@ -26,3 +26,33 @@ assert.throws(()=>sync.createEditRecord({...record,timingOverride:{start:3,end:2
 const session=normalizeBrowserSession({version:2,tabs:[{id:'t',url:'https://example.com/watch',subtitleEdits:[record]}]});
 assert.deepEqual(session.tabs[0].subtitleEdits[0].timingOverride,{start:1.5,end:4});
 console.log('Hızlı düzenleme: VTT metadata, ASS zamanları, satır kimliği, geç model ve oturum kalıcılığı geçti.');
+
+// Exercise the real editor opener; remapping a correction is part of the saved draft, not just its text.
+{
+ const {JSDOM}=require('jsdom');const dom=new JSDOM(fs.readFileSync(require('node:path').join(__dirname,'../src/renderer/index.html'),'utf8'));
+ const cue={start:1,end:3,text:'Original',cueId:'c1'},cues=[cue];let stored;
+ const ctx={document:dom.window.document,$:id=>dom.window.document.getElementById(id),
+  player:{mediaKey:'media-A',browserActiveTabId:'tab-A',cues,cues2:[],activeIdx:0,activeIdx2:-1},
+  currentGeneration:()=>1,browserQuickEditor:null,browserSubtitleSync:{hashText:v=>v},
+  persistQuickDraft(){},stopBrowserQuickPreview(){},subtitleFindDescriptors:()=>[{channel:'primary',path:'C:/sub.srt',cues,raw:'original',secondary:false}],
+  browserSubtitleRoleCues:()=>({source:cues,translation:[]}),quickDrafts:()=>stored||{},
+  interfaceChoice:tr=>tr,quickEditorValues:editor=>(editor||ctx.browserQuickEditor).rows.map(r=>({channel:r.channel,text:r.text.value,start:r.start.value,end:r.end.value})),
+  NOTE_DRAFT_MAX_LENGTH:12000,browserCommand:async()=>{},setPlayerSidebarCollapsed(){},updateQuickEditorStatus(){},logLine(){}};
+ dom.window.HTMLElement.prototype.scrollIntoView=()=>{};
+ vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('function openBrowserQuickEditor('),source.indexOf('function quickEditorStillCurrent(')),ctx);
+ ctx.openBrowserQuickEditor();const first=ctx.browserQuickEditor;
+ const remap={scope:'old-scope',channel:'primary',record:{cueId:'old',edited:{text:'My correction',start:1,end:3}}};
+ stored={[first.key]:{signature:first.signature,at:Date.now(),values:[{channel:'primary',text:'My correction',start:1,end:3}],remap}};
+ ctx.localStorage={getItem:()=>JSON.stringify(stored)};ctx.browserQuickDraftKey='fixture';ctx.NOTE_DRAFT_MAX_AGE_MS=86400000;
+ vm.runInContext(source.slice(source.indexOf('function quickDrafts()'),source.indexOf('function quickEditorValues(')),ctx);
+ ctx.browserQuickEditor=null;ctx.openBrowserQuickEditor();assert.equal(ctx.browserQuickEditor.rows[0].text.value,'My correction');
+ assert.equal(JSON.stringify(ctx.browserQuickEditor.remap),JSON.stringify(remap),'closing and reopening must preserve the correction remap');
+ ctx.quickEditorStillCurrent=()=>true;
+ vm.runInContext(source.slice(source.indexOf('function translationTargetCurrent('),source.indexOf('function requestQuickTranslations(')),ctx);
+ vm.runInContext(source.slice(source.indexOf('function appendTranslationAlternatives('),source.indexOf("$('browserQuickSyncSave')")),ctx);
+ const editor=ctx.browserQuickEditor,row=editor.rows[0],target={editor,row,draft:JSON.stringify(ctx.quickEditorValues(editor))};
+ const bubble=dom.window.document.createElement('div');ctx.appendTranslationAlternatives(bubble,'{"alternatives":["Late model suggestion"]}',target);
+ row.text.value='New manual correction';bubble.querySelector('button').click();
+ assert.equal(row.text.value,'New manual correction');assert.match(bubble.querySelector('p').textContent,/taslak değişti/);
+ dom.window.close();
+}

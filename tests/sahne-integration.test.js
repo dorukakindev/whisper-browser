@@ -53,6 +53,44 @@ function fixture(t) {
   return { window, document, player, source, secondary, commands, context, setParser(parser) { context.parseSubtitles=parser; }, open(mode = 'podcast') { window.CinemaSahne.open({ mode }); return window.CinemaSahne.current.a; } };
 }
 
+test('locale rebuild restores owned search focus and selection but never steals external focus',t=>{
+ const f=fixture(t),Base=f.context.Sahne;f.context.Sahne=class extends Base{constructor(...args){super(...args);const input=f.document.createElement('input');input.dataset.r='q';input.value='needle text';this.root.append(input);}};
+ f.open('study');const input=f.window.CinemaSahne.current.root.querySelector('[data-r=q]');input.focus();input.setSelectionRange(2,5);
+ f.document.dispatchEvent(new f.window.Event('ui-locale-change'));const next=f.window.CinemaSahne.current.root.querySelector('[data-r=q]');assert.equal(f.document.activeElement,next);assert.equal(next.selectionStart,2);assert.equal(next.selectionEnd,5);
+ const outside=f.document.createElement('button');f.document.body.append(outside);outside.focus();f.document.dispatchEvent(new f.window.Event('ui-locale-change'));assert.equal(f.document.activeElement,outside);
+});
+
+test('locale rebuild retains the current fullscreen host without replacing user media identity',t=>{
+ const f=fixture(t);f.open('study');const host=f.document.querySelector('.sh-host'),before=f.window.CinemaSahne.current;Object.defineProperty(f.document,'fullscreenElement',{configurable:true,value:host});
+ f.window.UiLocale={get:()=> 'tr'};f.document.dispatchEvent(new f.window.Event('ui-locale-change'));
+ assert.equal(f.document.querySelector('.sh-host'),host);assert.notEqual(f.window.CinemaSahne.current,before);assert.equal(f.player.mediaKey,'local:episode');
+});
+
+test('same-source fullscreen mode changes retain the connected host but another media owner replaces it',t=>{
+ const f=fixture(t);f.open('podcast');const host=f.document.querySelector('.sh-host');Object.defineProperty(f.document,'fullscreenElement',{configurable:true,value:host});
+ f.open('study');assert.equal(f.document.querySelector('.sh-host'),host);assert.equal(host.isConnected,true);
+ f.player.generation++;f.open('podcast');assert.notEqual(f.document.querySelector('.sh-host'),host);assert.equal(host.isConnected,false);
+});
+
+test('task fullscreen action returns the same awaited result as the transport command',async t=>{
+ const f=fixture(t),adapter=f.open();let finish,calls=0;f.document.querySelector('.sh-host').requestFullscreen=()=>{calls++;return new Promise(resolve=>finish=resolve);};
+ const action=adapter.panel().sections.flatMap(section=>section.items).find(item=>item.label==='Open stage fullscreen');const pending=action.run();assert.equal(typeof pending?.then,'function');const second=adapter.cmd('fullscreen');assert.equal(calls,1);finish();assert.equal((await pending).ok,true);assert.equal((await second).ok,true);assert.equal(calls,1);
+ f.document.querySelector('.sh-host').requestFullscreen=()=>Promise.reject(new Error('Controlled fullscreen rejection'));await assert.rejects(action.run(),/Controlled fullscreen rejection/);
+ f.document.querySelector('.sh-host').requestFullscreen=()=>Promise.resolve();assert.equal((await action.run()).ok,true);
+});
+
+test('local Stage status keeps its existing job owner distinct across replacements',t=>{
+ const f=fixture(t),adapter=f.open();f.player.job={id:'first'};const first=adapter.panel().job.ownerToken;assert.equal(first,f.player.job);
+ f.player.job={id:'second'};assert.equal(adapter.panel().job.ownerToken,f.player.job);assert.notEqual(adapter.panel().job.ownerToken,first);
+});
+
+test('shared adapter carries explicit rate availability without inventing an unavailable legacy capability', t => {
+ const f=fixture(t),snapshot=f.window.PlayerWorkspaceIntegration.snapshot;let support='unknown';
+ f.window.PlayerWorkspaceIntegration.snapshot=()=>{const s=snapshot();return {...s,capabilities:{...s.capabilities,rate:{support}}};};
+ const adapter=f.open();assert.equal(adapter.state().canRate,false);support='no';assert.equal(adapter.state().canRate,false);support='yes';assert.equal(adapter.state().canRate,true);
+ f.window.PlayerWorkspaceIntegration.snapshot=snapshot;assert.equal(adapter.state().canRate,true);
+});
+
 test('browser transcript projection resolves timing per channel and refreshes edited transforms', t => {
   const f = fixture(t), sync = require('../src/browser-subtitle-sync');
   f.player.workspaceMode = 'browser'; f.player.browserActiveTabId = 'tab-one'; f.player.browserTracks = [];
@@ -477,6 +515,12 @@ test('a confirmed same-source loop survives a mode change without reinstalling t
   f.window.CinemaSahne.close();
   assert.deepEqual([f.player.abA,f.player.abB],[null,null]);
 });
+test('an explicit seek outside the owned sentence releases its loop but an in-range seek preserves it',async t=>{
+ const f=fixture(t),a=f.open('study');await a.cmd('loop',{on:true,row:0});
+ await a.cmd('seek',5);assert.deepEqual([f.player.abA,f.player.abB],[2,10]);
+ await a.cmd('seek',25);assert.deepEqual([f.player.abA,f.player.abB],[null,null]);assert.equal(a.state().loopRow,-1);
+});
+
 test('Changing source timing clears the sentence loop while a translation-only shift keeps it', async t => {
   const f = fixture(t), a = f.open('study');
   assert.equal((await a.cmd('loop', { on: true, row: 0 })).ok, true);
@@ -488,6 +532,11 @@ test('Changing source timing clears the sentence loop while a translation-only s
   assert.equal(a.state().loopRow, -1);
   assert.equal(f.player.abA, null);
   assert.equal(f.player.abB, null);
+});
+
+test('removing all subtitle cues clears only the Stage owned loop and leaves no seekable rows',async t=>{
+ const f=fixture(t),a=f.open('study');await a.cmd('loop',{on:true,row:0});f.source.cues=[];f.source.revision='removed';f.secondary.cues=[];f.secondary.revision='removed';
+ const state=a.state();assert.equal(state.rows.length,0);assert.equal(state.loopRow,-1);assert.deepEqual([f.player.abA,f.player.abB],[null,null]);assert.equal((await a.cmd('seekCue',0)).ok,false);
 });
 
 test('closing shelf playback removes the scene instead of remounting an ownerless overlay',async t=>{
@@ -833,24 +882,36 @@ test('Stage saved-notes entry reuses the existing notebook and rejects an old me
 
 test('a retained Browser recovery callback cannot reload or open a different source',async()=>{
  const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');const start=renderer.indexOf('function browserPlaybackRecovery(event)'),end=renderer.indexOf('function settleBrowserPlaybackRecovery',start);
- for(const code of ['service-unavailable','http-access-denied']){
+ for(const code of ['service-unavailable','http-access-denied'])for(const ok of [true,false]){
   const calls=[],player={workspaceMode:'browser',browserActiveTabId:'a',browserPageUrl:'https://fixture.invalid/a',mediaKey:'video:a',generation:1,browserTime:12,positions:{}};
-  const context={player,interfaceChoice:(_tr,en)=>en,browserTabState:()=>({mediaId:'a'}),currentGeneration:()=>player.generation,staleGeneration:g=>g!==player.generation,playbackCheckpoint:()=>12,playerPositionKey:()=>'',browserChromeCommandBlocked:()=>false,runBrowserChromeCommand:async action=>{calls.push(action);return {ok:true};},window:{api:{openExternal:async url=>{calls.push(url);return {ok:true};}}}};
+  const context={player,interfaceChoice:(_tr,en)=>en,browserTabState:()=>({mediaId:'a'}),currentGeneration:()=>player.generation,staleGeneration:g=>g!==player.generation,playbackCheckpoint:()=>12,playerPositionKey:()=>'',browserChromeCommandBlocked:()=>false,runBrowserChromeCommand:async action=>{calls.push(action);return {ok};},window:{api:{openExternal:async url=>{calls.push(url);return {ok};}}}};
   vm.runInNewContext(renderer.slice(start,end),context);context.browserPlaybackRecovery({diagnostic:{code,resourceKind:'media'},mediaId:'a'});const old=player.playbackRecovery;
-  await old.run();assert.equal(calls.length,1,'the current source retains its existing recovery');calls.length=0;player.pendingLibrarySeek=null;
+  assert.equal((await old.run()).ok,ok,'the real recovery result is preserved');assert.equal(calls.length,1,'the current source retains its existing recovery');calls.length=0;player.pendingLibrarySeek=null;
   player.browserActiveTabId='b';player.browserPageUrl='https://fixture.invalid/b';player.mediaKey='video:b';player.generation++;
   await old.run();assert.equal(calls.length,0,code+': old callback never affects the new source');assert.equal(player.pendingLibrarySeek,null);
  }
 });
 
+test('playback recovery bridge preserves results and binds the expected failure record',async()=>{
+ const source=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8'),start=source.indexOf('async function runPlaybackRecovery('),end=source.indexOf('async function showLocalPlaybackRecovery',start);
+ let calls=0,current;const notices=[],context={activePlaybackRecovery:()=>current,interfaceChoice:(_tr,en)=>en,osd:message=>notices.push(message)};
+ vm.runInNewContext(source.slice(start,end),context);
+ current={run:async()=>{calls++;return {ok:false,message:'Actual failure'};}};
+ const expected=current;assert.equal((await context.runPlaybackRecovery({expected,report:false})).message,'Actual failure');
+ current={run:async()=>{calls++;throw Error('Controlled rejection');}};
+ assert.equal((await context.runPlaybackRecovery({expected,report:false})).code,'stale-source');assert.equal(calls,1);
+ assert.equal((await context.runPlaybackRecovery({report:false})).ok,false);assert.deepEqual(notices,[]);assert.equal(calls,2);
+ assert.equal((await context.runPlaybackRecovery()).ok,false);assert.equal(notices.length,1);assert.equal(calls,3);
+});
+
 test('retained local recovery actions never load, relink or open a picker for the next source',async()=>{
  const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');const start=renderer.indexOf('async function showLocalPlaybackRecovery'),end=renderer.indexOf('function updatePlayerMeta',start);
- for(const availability of ['unknown','missing','denied','available','native']){
+ for(const availability of ['unknown','missing','denied','available','native','native-failed']){
   const calls=[],video={src:'file:///fixture-a.mp4',error:{code:3},currentTime:12,load:()=>calls.push('load'),play:async()=>calls.push('play')};
   const player={workspaceMode:'player',mediaKey:'file:a',generation:1,openIntent:1,localPath:'fixture-a.mp4',positions:{}};
-  const context={player,interfaceChoice:(_tr,en)=>en,currentGeneration:()=>player.generation,staleGeneration:g=>g!==player.generation,playbackCheckpoint:()=>12,playerPositionKey:()=>'',MediaError:{MEDIA_ERR_DECODE:3,MEDIA_ERR_SRC_NOT_SUPPORTED:4},$:id=>id==='playerPickVideo'?{click:()=>calls.push('picker')}:null,offerMediaRelink:()=>calls.push('relink'),offerCompatibleMedia:()=>calls.push('compatible'),window:{api:{mediaPlaybackAvailability:async()=>availability},NativePlayerUI:{start:async()=>{calls.push('native');return true;}}}};
-  vm.runInNewContext(renderer.slice(start,end),context);await context.showLocalPlaybackRecovery(video,{code:availability==='available'?3:2,nativeFailure:availability==='native'});const old=player.playbackRecovery;
-  await old.run();assert(calls.length>0,availability+': the current action still works');calls.length=0;player.pendingLibrarySeek=null;
+  const context={player,interfaceChoice:(_tr,en)=>en,currentGeneration:()=>player.generation,staleGeneration:g=>g!==player.generation,playbackCheckpoint:()=>12,playerPositionKey:()=>'',MediaError:{MEDIA_ERR_DECODE:3,MEDIA_ERR_SRC_NOT_SUPPORTED:4},$:id=>id==='playerPickVideo'?{click:()=>calls.push('picker')}:null,offerMediaRelink:()=>calls.push('relink'),offerCompatibleMedia:()=>calls.push('compatible'),window:{api:{mediaPlaybackAvailability:async()=>availability},NativePlayerUI:{start:async()=>{calls.push('native');return availability!=='native-failed';}}}};
+  vm.runInNewContext(renderer.slice(start,end),context);await context.showLocalPlaybackRecovery(video,{code:availability==='available'?3:2,nativeFailure:availability.startsWith('native')});const old=player.playbackRecovery;
+  const result=await old.run();if(availability==='native-failed'){assert.equal(result.code,'native-start-failed');assert.deepEqual(calls,['native']);}assert(calls.length>0,availability+': the current action still works');calls.length=0;player.pendingLibrarySeek=null;
   player.mediaKey='file:b';player.generation++;player.openIntent++;video.src='file:///fixture-b.mp4';await old.run();
   assert.equal(calls.length,0,availability+': the next source is untouched');assert.equal(player.pendingLibrarySeek,null);
  }

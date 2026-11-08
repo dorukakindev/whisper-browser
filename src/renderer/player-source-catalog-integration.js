@@ -112,7 +112,7 @@
     };
     if(saved.workspace){videoRate(saved.workspace.rate,saved.workspace.transcript?.timeline&&!exact?0:saved.workspace.position,owner);if(saved.workspace.transcript?.provenance==='asr'){await loadSavedPodcastResult('source');if(exact&&valid()&&saved.workspace.translation?.timeline?.sha256===exact.sourceBinding.sha256)await loadSavedPodcastResult('translation');}else if(saved.workspace.transcript)await apply(saved.workspace.transcript);
       if(saved.workspace.translation?.state==='untimed'&&saved.workspace.transcript?.state==='untimed'){player.workspaceAudio.translationText=saved.workspace.translation.text;}
-      else if(saved.workspace.translation&&saved.workspace.transcript?.provenance!=='asr'){const m=await api({action:'podcast-materialize',entryId:entry.id,sourceVersion:saved.sourceVersion,role:'translation'});if(valid())await loadSubtitle(m.path,true,{silent:true,select:true,role:'translation'});}}
+      else if(saved.workspace.translation&&saved.workspace.transcript?.provenance!=='asr')await loadSavedPodcastResult('translation');}
     else if(saved.state==='needs-review')player.workspaceAudio.transcriptState='needs-review';
     const descriptors=entry.transcriptDescriptors||[];
     // Multiple languages/timing options require an explicit publisher choice.
@@ -233,17 +233,23 @@
     const materialized=await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:saved.sourceVersion});if(!valid())return;
     return window.translatePodcastSource({...audio,playbackOwner:'player',playbackSourceVersion:audio.sourceVersion,sourceVersion:saved.sourceVersion,materializedPath:materialized.path,sourceTranscriptText:track.text,transcriptProvenance:track.provenance,track:{id:'podcast-source:'+audio.entryId,revision:saved.sourceVersion,timed:true,text:track.text}},{isCancelled});
   }
+  const savedPodcastResultLoads=new WeakMap();
   async function loadSavedPodcastResult(role='source'){
     const audio=player.workspaceAudio;
-    const valid=()=>!!audio&&player.workspaceAudio===audio&&audio.mediaKey===player.mediaKey&&audio.generation===player.generation;
+    if(!audio)throw Error(t('Önce podcast açın.','Open a podcast first.'));
+    const requests=savedPodcastResultLoads.get(audio)||{};savedPodcastResultLoads.set(audio,requests);
+    const ticket=Symbol();requests[role]=ticket;
+    const valid=()=>requests[role]===ticket&&player.workspaceAudio===audio&&audio.mediaKey===player.mediaKey&&audio.generation===player.generation;
     if(!valid())throw Error(t('Önce podcast açın.','Open a podcast first.'));
     const saved=await api({action:'podcast-workspace',entryId:audio.entryId});if(!valid())return;
     audio.translationRetry=saved.translationRetry||null;
     const result=saved.workspace?.[role==='translation'?'translation':'transcript'];
     if(!result?.text)throw Error(t('Bu kaynak için kayıtlı sonuç yok.','No saved result is available for this source.'));
-    if(saved.sourceVersion===audio.sourceVersion&&(saved.workspace?.transcript?.provenance!=='asr'||audio.exactAudio&&result.timeline?.sha256===audio.sourceBinding?.sha256)&&result.state==='timed'&&result.status!=='partial'){
+    const requiresExactAudio=result.provenance==='asr'||!!result.timeline||saved.workspace?.transcript?.provenance==='asr';
+    if(saved.sourceVersion===audio.sourceVersion&&(!requiresExactAudio||audio.exactAudio&&!!result.timeline?.sha256&&result.timeline.sha256===audio.sourceBinding?.sha256)&&result.state==='timed'&&result.status!=='partial'){
       const materialized=await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:saved.sourceVersion,role});if(!valid())return;
-      await loadSubtitle(materialized.path,role==='translation',{silent:true,select:true,role});if(!valid())return;
+      const loaded=await loadSubtitle(materialized.path,role==='translation',{silent:true,select:true,role,isCancelled:()=>!valid()});if(!valid())return;
+      if(loaded?.ok===false)throw Error(loaded.error||t('Kayıtlı dosya okunamadı. Sonucu yeniden yükleyin.','The saved file could not be read. Reload the result.'));
       if((role==='translation'?player.sub2Path:player.subPath)!==materialized.path){
         throw Error(t('Kayıtlı altyazı değişti. Yeniden deneyin.','Saved subtitle selection changed. Try again.'));
       }

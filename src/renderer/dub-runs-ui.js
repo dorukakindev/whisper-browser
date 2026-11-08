@@ -331,9 +331,12 @@
   if(!runs.some(row=>row.id===id))return {ok:false,code:'unknown-run'};
   if(selected!==id)await select(id);else await reloadDetail(id);
   if(selected!==id||detailState!=='ready')return {ok:false,code:'detail-unavailable',message:L('Ayrıntılar yüklenemedi.','Details could not be loaded.')};
+  const ep=epoch,selection=detailSeq;
+  const stillSelected=()=>guard(ep,selection,()=>detailSeq,id);
   const out={ok:true,selected:true};
   if(target==='result'){await listen(id);out.audioReady=!!audio&&audio.paused!==false&&audio.autoplay===false;out.ok=out.audioReady;if(!out.ok)out.message=messages.get(id)?.text||'';}
   if(target==='retry_preview'){await preview(id,'pinned');out.previewReady=previews.pinned?.state==='ready';out.ok=out.previewReady;if(!out.ok)out.message=previews.pinned?.error||'';}
+  if(!stillSelected())return {ok:false,code:'selection-changed',message:L('Seçili çalışma değişti. İstediğiniz sonucu yeniden açın.','The selected run changed. Open the intended result again.')};
   return out;
  }
  window.DubRunsUI=Object.freeze({refresh,select,focusRun,state:()=>({epoch,runs:runs.map(row=>row.id),selected,active})});

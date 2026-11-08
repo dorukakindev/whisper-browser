@@ -14,6 +14,10 @@
   if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||end>31536000||known>0&&Number.isFinite(known)&&end>known+.05)throw Error('Geçerli bir başlangıç ve bitiş seçin; aralık bölüm süresini aşamaz. / Choose valid start and end times within the episode.');
   return Object.freeze({start,end});
  }
- function stamp(value){const n=Math.max(0,Math.floor(Number(value)||0));return Math.floor(n/60)+':'+String(n%60).padStart(2,'0');}
+ function stamp(value){
+  const number=Number(value),milliseconds=Math.round((Number.isFinite(number)?Math.max(0,number):0)*1000);
+  const seconds=Math.floor(milliseconds/1000),fraction=String(milliseconds%1000).padStart(3,'0').replace(/0+$/,'');
+  return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+(fraction?'.'+fraction:'');
+ }
  return {seconds,normalize,stamp};
 });

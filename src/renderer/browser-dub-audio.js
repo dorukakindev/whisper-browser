@@ -37,25 +37,25 @@
     }
     async attach(file, c) {
       if (!c || !this.matches(c)) return false;
+      if (!file || !c.tabId || !c.mediaKey || !['browser', 'player'].includes(c.mode)) return false;
+      let sync;try{sync=SyncMap.validate(file.sync);}catch(_){this.error('Geçersiz dublaj zaman haritası.');return false;}
+      if(sync&&!this.setRate)return false;
+      if(file.range&&(!Number.isFinite(file.range.start)||!Number.isFinite(file.range.end)||file.range.start<0||file.range.end<=file.range.start))return false;
+      if(file.background&&!this.backgroundAudio||file.layers?.music&&!this.musicAudio||file.layers?.ambience&&!this.ambienceAudio)return false;
       const intent = ++this.intent;
       const sameMedia = this.matches(this.session);
       const priorMuted = sameMedia ? this.session.priorMuted : c.priorMuted;
       const priorRate = sameMedia && this.session.sync ? this.session.baseRate : c.playbackRate;
       await this.detachCurrent();
       if (intent !== this.intent || !this.matches(c)) return false;
-      if (!file || !c.tabId || !c.mediaKey || !['browser', 'player'].includes(c.mode)) return false;
       const s = { ...c, priorMuted, muteOwner: root.crypto.randomUUID(), name: file.name, range: file.range || null, muted: false, url: null };
       s.master = { volume: c.mode === 'player' && Number.isFinite(c.volume) ? Math.max(0, Math.min(1, c.volume)) : 1,
         muted: c.mode === 'player' && !!priorMuted };
-      try { s.sync = SyncMap.validate(file.sync); } catch (_) { this.error('Geçersiz dublaj zaman haritası.'); return false; }
-      if (s.sync && !this.setRate) return false;
+      s.sync = sync;
       s.background = file.background || null; s.layers=file.layers || {};s.mix=Mix.mix(file.mix);
       try{s.rows=Mix.groups(file.rows||[]);}catch(_){s.rows=[];}
-      if((s.layers.music&&!this.musicAudio)||(s.layers.ambience&&!this.ambienceAudio))return false;
-      if (s.background && !this.backgroundAudio) return false;
       s.baseRate = Math.max(.25, Math.min(4, Number(priorRate) || 1));
       s.ratePromise = Promise.resolve(); s.rateAt = -Infinity;
-      if (s.range && (!Number.isFinite(s.range.start) || !Number.isFinite(s.range.end) || s.range.start < 0 || s.range.end <= s.range.start)) return false;
       this.session = s; this.sample = null; this.offset = 0;
       this.timer = setInterval(() => this.tick(), 200);
       this.changed(s, '');
