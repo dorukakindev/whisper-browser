@@ -50,6 +50,8 @@ Kullanıcı podcast kütüphanesi, Ana sayfa, Keşfet, film detayı ve Akışlar
 
 ## Güncel UI çalışma yöntemi — 2026-11-05
 
+**2026-11-08 güncellemesi:** Her görsel kontrolde yalnız aktif görev/düğme değil ekranın bütün kompozisyonu incelenir; görülen bağlantılı tasarım kusurları mevcut iş sürerken düzeltilir. Ana Windows görsel kabulü LG'de **1920×1080 tam ekran** yapılır. Küçük pencere, yalnız özel bir davranışı araştırmak gerektiğinde kullanılır; ana masaüstü tasarım kabulünün yerine geçmez. Gereksiz genişlik matrisi veya çok sayıda kare üretme tercihi değişmedi.
+
 Her UI işinde önce [Sahne referansından çalışma rehberini](docs/design/sahne-design-guidance-2026-11-05.md) ve ilgili onaylı ekran kararını oku. Önce bütün kompozisyon: baskın medya/okuma alanı, tipografi oranları, ortak hizalar ve kontrollü boşluk; sonra araçlar, en son ince cila. Özellikleri form olarak dizip koyu tema/amber/animasyon eklemek tasarım sayılmaz.
 
 Beğenilmiş tasarımın medya ölçeği, hiyerarşisi ve atmosferi gerçek entegrasyonda korunur; teknik kısıt gerekçesiyle sessizce sıradanlaştırılmaz. Mevcut font/palet/hareket sahipleri kullanılır; referans paketin bağımsız tokenları veya maketleri bütün ürüne otomatik aktarılmaz. P019 kapsamındaki sayfaların kompozisyonu yeniden tasarlanabilir; kapsam dışındaki onaylı tasarımlar korunur. Büyük kompozisyon sorunlarını küçük ikon/kenarlık ayrıntılarından önce çöz.
@@ -253,3 +255,51 @@ Podcast aramasında değişmeyen abonelik ve kapak/araç düğümleri korunur; f
 ### Podcast metni ve araştırma notu — 5 Kasım 2026
 
 Ortak Sahne kompozisyonu korunur. Zamansız kaynak/çeviri tam metin olarak sunulur; paragraf sayısı eşleşme kanıtı değildir. Takip kontrolü bu durumda “Salt okunur” gösterir. Satırdaki mevcut kaydet simgesi, kaynak metin seçiliyse yalnız seçimi alır; küçük mevcut bağlam kartında isteğe bağlı not ve görünür kaydet bulunur. Kaynak/sürüm değişince açık seçim geçersizleşir. Zamansız kartta cümleye dönme yoktur; zamanlı kart gerçek satır konumunu kullanır. Uzun metin sessizce kırpılmaz; daha kısa kaynak seçimi istenir. Yeni motor, ayrı podcast sayfası veya tasarım dünyası kurulmaz.
+
+### Sahne iş durumu — 2026-11-08
+
+İş şeridinde yeniden deneme beklerken mevcut düğme Bekleyin/Please wait ve aria-busy gösterir; disabled eylem genel solukluğa düşmez, recovery eylemiyle aynı okunur amber bekleme stilini kullanır. Bu bir üretim ilerlemesi veya başarı durumu değildir; kayıtlı iş etiketi gerçek durumunu korur.
+
+Mevcut Sahne iş şeridi durum etiketi → açıklama → mevcut güvenli eylem sırasını kullanır. Etiket amber/ink ve mevcut ayırıcı tokenlarından gelir; yeni durum sahibi veya toast oluşturulmaz. İptal edilmiş işte servis yeniden deneme sunuyorsa aynı şeritte erişilebilir kalır. Kayıtlı sonuç okuma veya inceleme, üretim/oynatma başarısı gibi gösterilmez.
+
+### Açık kaynak kartı — 2026-11-08
+
+Asistanın kapalı alıntı kartı tek satırda taranabilir kalır; açılınca tam kaynak başlığı satır sarar, zaman/kaynak satırı ve durum etiketleri ayrılır. Kaynak kartı genişletmek oynatma veya kayıt işlemi değildir.
+
+### Oynatma toparlanması beklerken — 2026-11-08
+
+Geniş ekranda (en az1100px) İşlemler paneli açıkken geçici Sahne bildirimi panelin alt düğmelerini örtmez: üst Sahne araç satırının altında, ana içerik alanının solunda görünür. Panel kapalıyken mevcut transkript-altı bildirim yerleşimi korunur. Bu mesaj gerçek eylem sonucudur; bekleyen işlem aynı kaynakta Podcast/Çift dilli geçişinde ikinci kez başlatılmaz.
+
+Mevcut Sahne toparlanma şeridi açıklama ve sağda eylem sırasını korur. İşlem sürerken eylem okunur amber Bekleyin etiketi/aria-busy ile görünür ve ikinci kez çalışmaz; bittiğinde gerçek kaynak hâlâ aynıysa özgün eylem geri gelir. Mesajsız ret başarı gibi sunulmaz.
+
+Sahne İşlemler panelindeki bekleyen eylem de aynı görsel dili kullanır: adı okunur, ikincil Bekleyin/Please wait satırı amberdir; genel Browser disabled solukluğu uygulanmaz. Panel yeniden çizilse de eylem kilidi sürer. Bu vurgu üretim başarısı veya ilerleme yüzdesi değildir.
+
+Transkripsiyon ve çeviri açılır başlığı mevcut metin durumunu ikincil bir satır/etiketle gösterir: zamanlı metin, salt okuma metni, erişilebilir iz, metin yok veya hazırlanıyor. “Hazır” yalnız açık sahibin mevcut metnini ifade eder; yeni üretim veya sağlayıcı başarısı değildir. İleri seçenekler aynı açılır alanda kalır.
+
+Ortak Podcast/Çift dilli kontrol şeridinde zaman atlamaları ve cümle gezinmesi iki mevcut grup olarak korunur; küçük Oynatma/Playback ve Cümle/Sentence üst etiketleri bu ayrımı görünür kılar. Ana oynat düğmesi amber kalır, ses/hız/döngü yerinden taşınmaz; yeni kontrol satırı veya menü eklenmez.
+
+### Bütün ekranın okunabilirliği — 2026-11-08
+
+Uzun Podcast başlığı tam okunur kalır; masaüstünde daha geniş metin ölçüsü ve dengeli boyut kullanır, kısa başlık ölçeği korunur. Zamansız yayıncı metni sürekli okuma yüzeyidir: kopyala/kaydet paragrafın ilk satırı yanında erişilebilir kalır, ayrı boş araç satırı oluşturmaz. Açık temada kapağın atmosfer/gölge yoğunluğu başlık çevresini karartmayacak şekilde azalır; koyu temanın mevcut atmosferi korunur.
+
+Kapak indirilemezse boş/kırık görsel yerine mevcut baş harfli kapak kullanılır. Sonuçsuz aramadan temizleyerek dönmek aynı izdeki manuel okuma konumunu korur. Not hata açıklaması taslakla kalır; uzun metin kendi içinde kayar, Kaydet/Kapat ve transkriptin alt eylemleri birbirine binmez.
+
+Aynı kaynakta görünüm değiştirme arama öncesi okuma konumunu korur. Başarısız notun ana eylemi Kaydetmeyi yeniden dene/Retry saving olarak aynı kayıt yolunu kullanır; yeniden deneme beklerken kilitlidir. Kısa başarı bildirimi transkriptin alt eylem çubuğunun üzerinde görünür, düğmeleri örtmez.
+
+Medya kimliği/kapak ve transkript ayrı görsel güncelleme alanlarıdır: çeviri satırlarının gelişmesi kapağı yeniden oluşturmaz; başlığın/kapak bilgisinin yenilenmesi seçilmiş metni ve satır DOM'unu değiştirmez. Bölüm işaretleri kendi verisiyle yenilenir; bu ayrım kaynak/iz revizyonu doğrulamasını gevşetmez.
+
+Hız isteği beklerken mevcut seçici amber bekleme kenarlığı ve kısa Hız değişiyor/Changing speed durumuyla görünür kalır; odak başka yere taşınmaz, doğrulanmış hız korunur. Uyku sonucu bildirimi yalnız aynı kaynağın başarılı duraklatmasına dayanır; menü veya ikinci oynatma sahibi oluşturmaz.
+
+Transkriptte kaynak/çeviri pasajını fareyle seçmek manuel okumadır: takip durur, konuşulan satır vurgusu ve medya saati ilerler. Yerel metin seçimi/context menu engellenmez; Konuşmaya dön açıkça takibi geri açar. Kaynak ve çeviri seçiminde mevcut amber/on-accent renkleri kullanılır; cümle zaman düğmeleri ve kelime işlemleri korunur.
+
+Bölüm başlıkları metadata ile yenilendiğinde arama ve liste konumu korunur; klavye odağı aynı zaman/başlık kimliğine taşınır. Başlık kaldırılırsa görünür komşu, başlık kalmazsa transkript araması kullanılır. Listeyi gezinmek veya yenilemek seek yapmaz; yalnız zamanlı başlığın açık eylemi mevcut oynatıcıya gider.
+
+İşlem aralığında geçersiz alan mevcut amber çerçeve ve aria-invalid ile belirgindir; Aralığı uygula odağı hatalı alana götürür. Genel hata açıklaması ve “bölümün tamamı başlatılmayacak” güvencesi korunur. Aynı kapsam özeti tick nedeniyle tekrar tekrar canlı bölgeye yazılmaz; bu ekran okuyucu çıktısının gerçekten değişen durumu izlemesini sağlar.
+
+Ortak Sahne kelime bağlamı not kartıyla aynı alt güvenli boşluğu kullanır. Uzun metin klavyeyle odaklanabilen iç alanda kayar; başlık/kapatma ve alt eylemler ekran içinde kalır. Bekleyen kelime işleminde odaklı düğüm yeniden kurulmaz, aria-disabled/aria-busy ile kısa İşleniyor/Working durumu gösterilir. Okuma alanının Boşluk tuşu Sahne oynatmasına sızmaz.
+
+Oynatma grubundaki saniye geri/ileri atlaması, mevcut ok ikonunun yanında görünür 10 işareti taşır; cümle gezinmesi ve tekrarı ayrı ikon grubunda kalır. Bu süre işareti aria-hidden'dır, çünkü mevcut EN/TR erişilebilir etiket zaten on saniyeyi söyler. Sayı için eski simge içi absolute small yerleşimi kullanılmaz; ikon ve sayı yatay hizalanır.
+
+Arayüz dili yenilenirken Sahne'nin odaklı transkript/başlık araması aynı kaynakta imleç/seçim aralığıyla geri gelir. Dışarıdaki ayar kontrolünden odak çekilmez; gizli arama alanı odaklanmaz. Bu iki aramanın metin seçimi transkriptteki mevcut amber/on-accent renkleriyle tutarlıdır.
+
+İşlem kapsamının önizleme zamanları kabul edilen milisaniye hassasiyetini gösterir; tam saniyede gereksiz ondalık yoktur. Yüksek (en az 900px) ekranda aralık alanı açıkken mevcut işlem gövdesi en fazla 400px/40vh olabilir: aralık ve üretim eylemleri aynı anda okunur, transkript altta görünür kalır. Aralık kapalıyken mevcut daha kısa panel sınırı sürer.

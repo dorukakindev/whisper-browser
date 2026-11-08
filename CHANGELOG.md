@@ -1,5 +1,121 @@
 # Changelog
 
+- Birikmiş asistan/Podcast/Sahne/Browser ve dublaj bağlamı iyileştirmeleri toplu teslimde doğrulandı: değişen20 mevcut test dosyasında392/392, tüm değişen JS sözdizimi temiz. Kapsam ve canlı/kontrollü kanıt sınırları [teslim kaydında](docs/devir/2026-11-08-1814.md); ürün commit'i0869696e, [PR #902](https://github.com/dorukakindev/whisper-browser/pull/902).
+
+- Podcast↔Çift dilli devrinde bekleyen hız isteği tekrar gönderilmez; ses kuyruğundaki son seçim korunup güncel adaptörden uygulanır. Eski kaynak/kapanmış kontroller komut gönderemez. Son kodda195/195 ilgili test ve LG gerçek 1.5x/.8 komut kabulü. [Yerel teslim](docs/devir/2026-11-08-1806.md).
+
+- Bekleyen toparlanma ve iş retry/iptal eylemleri aynı kaynakta Sahne görünüm devrinde kilidini korur; geç hata güncel iş/hata sahibinde bir kez gösterilir. Başka kaynağa veya yeni işe taşınmaz. 6 hedefli test ve LG kontrollü gerçek adapter devri kabulü. [Yerel teslim](docs/devir/2026-11-08-1754.md).
+
+- Oynatma toparlanması gerçek sonucunu Sahne'ye döndürür; Browser reload/native başlatma reddi sessizce kaybolmaz. Yeni hata kaydı eski isteğin kilidinden ve geç sonucundan ayrılır; hata tek yerde gösterilir. Son kodda 192/192 ilgili test ve LG kontrollü gerçek köprü kabulü. [Yerel teslim](docs/devir/2026-11-08-1749.md).
+
+- Sahne retry/iptal kilidi iş sahibini izler; eski istek yeni işi engelleyemez veya yeni isteğin kilidini açamaz. Bekleyen yeniden deneme okunur Bekleyin etiketi taşır. 5 hedefli test ve LG kontrollü gerçek renderer kabulü. [Yerel teslim](docs/devir/2026-11-08-1742.md).
+
+- Bekleyen Sahne panel eylemi Podcast↔Çift dilli geçişinde kilidini korur; geç hata güncel görünümde bir kez gösterilir. Geniş ekranda açık panel bildirimi alt eylemleri örtmez. 5 hedefli test ve LG kontrollü gerçek renderer kabulü. [Yerel teslim](docs/devir/2026-11-08-1737.md).
+
+- Sahne İşlemler panelinde bekleyen eylemin üstüne seçenek eklenmesi kilidi yanlış düğmeye taşımaz; çift başlatma engeli korunur. Son kodda iki ilgili dosya 188/188 ve LG gerçek renderer/kontrollü pending kabulü geçti. [Yerel teslim](docs/devir/2026-11-08-1731.md).
+
+- Sahne'de açık altyazı seçicisi yenilenince odak paneli kapatma düğmesine sıçramaz; güncel seçicide ve aynı panel kaydırma konumunda kalır. Yenileme iz seçmez veya oynatma başlatmaz. 5 hedefli test ve LG gerçek popover kontrolü. [Yerel teslim](docs/devir/2026-11-08-1728.md).
+
+- Sahne İşlemler paneli, etiket/değerler aynı kalsa da değişen altyazı izine yeniden bağlanır; zaman ayarları eski callback yüzünden işlemez durumda kalmaz. Odak ve scroll korunur, eski kontroller engellenir. 4 hedefli test ve LG gerçek panel/offset kontrolü. [Yerel teslim](docs/devir/2026-11-08-1724.md).
+
+- Sahne not kartı yenilenirken devre dışı kalan eylemin odağı taslak/Kapat'a döner; geç kayıt hatası kullanıcının yeni arama odağını çalmaz. Taslak ve yeniden deneme korunur. 6 hedefli test ve LG gerçek renderer kontrolü. [Yerel teslim](docs/devir/2026-11-08-1721.md).
+
+- Oynayan kayıtlı Podcast'in iki yönlü Sahne devri, gerçek A–B dönüşü, manuel metin seçimi ve konuşmaya dönüşü LG 1920×1080 izole kabulde doğrulandı; 4 mevcut takip testi geçti. Ürün kodu değişmedi, canlı sağlayıcı kabulü değil. [Doğrulama kaydı](docs/devir/2026-11-08-1719.md).
+
+- Podcast/Çift dilli Sahne'de açık işlem aralığının düğmesindeki Escape artık Sahne'yi kapatmaz; yalnız alanı kapatır, taslak ve odak korunur. Önce kırmızı/sonra yeşil test, 5 hedefli kontrol ve LG 1920×1080 gerçek klavye kabulü. [Yerel teslim](docs/devir/2026-11-08-1714.md).
+
+- Arama seçiminin çeviri güncellemesi/yeniden sıralama/silme/dil filtresi davranışı birleşik testle güvenceye alındı; 4 kontrol ve LG gerçek renderer turu geçti. Bu tur ürün kodu değişmedi. [Doğrulama kaydı](docs/devir/2026-11-08-1708.md).
+
+- Podcast↔Çift dilli geçişinde seçili işlem aralığı ve geçersiz giriş taslağı aynı kaynakta korunur; kapsam sessizce tam bölüme dönmez, başka bölüme taşınmaz. 5 hedefli test ve LG gerçek bölüm geçişi kontrolü. [Yerel teslim](docs/devir/2026-11-08-1705.md).
+
+- Sahne bozuk cümle aralığında metni korurken döngü/atlama eylemlerini kapatır; sonlu olmayan, ters veya sıfır uzunluklu aralık döngü komutu göndermez. 5 hedefli test ve LG kontrollü bozuk-satır kabulü. [Yerel teslim](docs/devir/2026-11-08-1703.md).
+
+- Sahne'de seçili arama sonucu aynı kaynak/iz sürümünde Podcast↔Çift dilli geçişinde korunur; sonuç sırası sıfırlanmaz, otomatik seek yapılmaz. 5 hedefli test ve LG iki yönlü geçiş kabulü. [Yerel teslim](docs/devir/2026-11-08-1700.md).
+
+- Podcast işlem aralığı ve kapsam açıklaması milisaniyeleri artık tam saniyeye kesmez. 1080p'de açık aralık alanıyla üretim eylemleri birlikte görünür kalır. 6 hedefli kontrol ve LG gerçek panel kabulü; iş zamanları değiştirilmedi. [Yerel teslim](docs/devir/2026-11-08-1634.md).
+
+- Sahne dil yenilemesinde kendi arama alanının odağı ve seçili karakter aralığı korunur; dış kontrolden odak çekilmez. Arama seçimi amber tasarıma uyarlanır. 4 hedefli test ve LG tam ekran odak/seçim kabulü. [Yerel teslim](docs/devir/2026-11-08-1630.md).
+
+- Podcast/Çift dilli Sahne'de geri/ileri saniye atlama düğmeleri görünür “10” etiketiyle cümle gezinmesinden ayrılır. Mevcut komut/erişilebilir etiketler korunur. 4 kontrol ve LG iki görünümde gerçek 10 sn/cümle seek kabulü. [Yerel teslim](docs/devir/2026-11-08-1627.md).
+
+- Sahne arayüz dili değişiminde aynı kaynağın tam ekran taşıyıcısı korunur; arama ve kullanıcı metni değişmeden arayüz yenilenir. 4 hedefli test ve LG gerçek TR→EN→TR fullscreen kabulü. [Yerel teslim](docs/devir/2026-11-08-1622.md).
+
+- Gerçek MP4 çözümüyle Sahne video kabulü: LG tam ekran kayıtlı özgün metin/transkript, Podcast↔Çift dilli ve İşlemler paneli dönüşünde oynatma korundu. 4 ilgili kontrol geçti; bu tur ürün kodu değiştirilmedi. [Doğrulama kaydı](docs/devir/2026-11-08-1617.md).
+
+- Podcast↔Çift dilli görünüm değişimi aynı kaynakta DOM tam ekranını korur; fullscreen taşıyıcısı gereksiz kaldırılmaz. Farklı medya sahibi eski taşıyıcıyı kullanmaz. 4 hedefli test ve LG gerçek çift yönlü tam ekran geçişi. [Yerel teslim](docs/devir/2026-11-08-1612.md).
+
+- Sahne tam ekran eylemi İşlemler/oynatma/Escape için aynı beklenen komuta bağlandı; paralel istek tek kalır, hata ve retry mevcut sahibinden yürür. 5 hedefli test ve LG gerçek DOM tam ekran→Escape/oynatma kabulü. [Yerel teslim](docs/devir/2026-11-08-1609.md).
+
+- Sahne iş tekrarında aynı medya üzerinde yeni iş başlamışsa eski denemenin geç hatası yeni duruma taşınmaz. Mevcut iş sahipliği ve retry kilidi korunur. 6 hedefli kontrol ve LG tam ekran kontrollü kabul. [Yerel teslim](docs/devir/2026-11-08-1605.md).
+
+- Sahne cümle kontrolleri kesirli medya süresi değişiminde de güncellenir; sınır dışı seek/döngü ve sonraki cümle eylemleri kapalı kalır, süre yeniden uygunsa açılır. 5 hedefli kontrol ve LG tam ekran gerçek seek. [Yerel teslim](docs/devir/2026-11-08-1602.md).
+
+- Birikmiş Sahne değişikliklerinin birleşik kontrolü: engine/integration 171/171 geçti; LG tam ekran kısa gerçek oynatmada arama→seek→takibe dönüş→cümle döngüsü→Çift dilli görünüm geçişi doğrulandı. Bu tur yeni ürün kodu değişmedi. [Doğrulama teslimi](docs/devir/2026-11-08-1558.md).
+
+- Ortak Sahne hız seçicisi mevcut kaynak yeteneğini izler: açıkça bilinmiyor/desteklenmiyor durumunda kapalı, hazır olunca yeniden kullanılabilir. 4 hedefli test ve LG tam ekran gerçek 1,5× kontrolü. [Yerel teslim](docs/devir/2026-11-08-1555.md).
+
+- Sahne cümle kopyalamasında boş/biçimsiz yanıt sessiz kalmaz; doğrulanamadığı ve yeniden denenebileceği belirtilir. Başarı yalnız açık ok:true sonucuna dayanır. 4 hedefli test ve LG tam ekran kontrollü yanıt kabulü. [Yerel teslim](docs/devir/2026-11-08-1551.md).
+
+- Eski Sahne kapanırken yalnız aynı kaynak ve altyazı sürümüne döngü temizliği gönderir; tekrarlanan destroy ikinci komut/kaynak bırakma yapmaz. 5 hedefli test ve LG tam ekran kontrollü sahiplik kabulü. [Yerel teslim](docs/devir/2026-11-08-1548.md).
+
+- Sahne'de hızlı ses değişimi ardından sessize al/aç, önceki tick değerine değil son seçilen düzeye döner. Mevcut sıralı ses kuyruğu ve hata uzlaştırması korunur. 4 hedefli test ve LG tam ekran gerçek medya kontrolü. [Yerel teslim](docs/devir/2026-11-08-1541.md).
+
+- Ortak Sahne kelime kartında uzun bağlam ekran dışına taşmaz; metin kayarken başlık/kapatma ve eylemler görünür kalır. Bekleyen kelime işleminde durum görünür, odak ve tek gönderim korunur; bağlamda Boşluk oynatmayı tetiklemez. 8 hedefli test ve LG tam ekran ölçüm. [Yerel teslim](docs/devir/2026-11-08-1538.md).
+
+- Sahne kelime bağlamının geç yanıtı yeni arama odağını çalmaz. İz sürümü değişmişse eski kelime eylemi gönderilmez ve bekleyen sonuç kayıtlı durumuna dönüşmez. 5 hedefli test ve LG tam ekran kontrollü kabul. [Yerel teslim](docs/devir/2026-11-08-1535.md).
+
+- Sahne işlem aralığında hatalı başlangıç/bitiş alanı işaretlenir ve uygulama denemesinde odaklanır. Değişmeyen kapsam açıklaması her tick'te yeniden yazılmaz. 5 hedefli test ve LG tam ekran kontrolü. [Yerel teslim](docs/devir/2026-11-08-1531.md).
+
+- Sahne'de geciken zamana git sonucu yeni arama odağını çalmaz; hız/uyku native seçicilerinde Escape Sahne'yi kapatmaz. 5 hedefli kontrol ve LG tam ekran gerçek klavye/oynatıcı kabulü. [Yerel teslim](docs/devir/2026-11-08-1528.md).
+
+- Sahne İşlemler panelinin zaman, ses ve seçim alanları kaynak/panel ömrüne bağlandı: eski bölüm, kapalı panel ve yeniden çizilmiş eski kontroller ayar göndermez. 5 hedefli test ve LG tam ekran gerçek panel kontrolü geçti. [Yerel teslim](docs/devir/2026-11-08-1525.md).
+
+- Sahne bölüm başlıkları yenilenirken arama, liste konumu ve klavye odağı korunur; kaldırılan başlığın odağı görünür komşuya geçer. 4 hedefli kontrol ve LG tam ekran gerçek oynatıcıda başlığa atlama geçti. [Yerel teslim](docs/devir/2026-11-08-1520.md).
+
+- Podcast/Çift dilli transkriptinde fareyle metin seçimi otomatik takibi durdurur; oynatma ve aktif cümle güncellenirken seçili pasaj yerinde kalır. Seçim vurgusu amber tasarımla uyumludur. 4 hedefli kontrol ve LG tam ekran fare kabulü. [Yerel teslim](docs/devir/2026-11-08-1517.md).
+
+- Sahne hız değişiminde bekleme görünür; aynı anda ikinci hız komutu gönderilmez. Uyku süresi dolunca yalnız aynı kaynakta doğrulanmış duraklatma bildirilir. LG 1920×1080 bağlı oynatma ve 5 hedefli kontrol geçti. [Yerel teslim](docs/devir/2026-11-08-1513.md).
+
+- Sahne'de çeviri/transkript güncellenirken kapak yeniden kurulmaz; yalnız başlık/kapak değişimi seçili transkript metnini bozmaz. Bölüm işaretleri kendi verisi üzerinden yenilenir. LG tam ekran bağlı kabul ve 155 hedefli test. [Yerel teslim](docs/devir/2026-11-08-1506.md).
+
+- Arama öncesi okuma konumu aynı kaynakta Sahne görünüm değişiminde de korunur. Başarısız notta “Kaydetmeyi yeniden dene” aynı güvenli kayıt yolunu kullanır; başarı bildirimi alt çubuğun üzerinde kalır. LG bağlı zincir ve 153 hedefli test. [Yerel teslim](docs/devir/2026-11-08-1457.md).
+
+- Bozuk Sahne kapağı mevcut baş harfli yedeğe döner; aramayı temizlemek aynı metindeki okuma konumunu korur. Başarısız notun hata açıklaması taslakla yeniden açılır; uzun hata ve not penceresi alt eylemlerle örtüşmez. LG 1920×1080 ve 151 hedefli test. [Yerel teslim](docs/devir/2026-11-08-1450.md).
+
+- Podcast uzun başlığı kesilmeden daha dengeli yayılır; zamansız metinde paragraf eylemleri ayrı boş satır oluşturmaz. Açık temada kapak gölgesi hafifletildi; tam ekran 1920×1080 LG görselleri, eylem/not/tek dil koruması ve 97 Sahne testi doğrulandı. [Yerel teslim](docs/devir/2026-11-08-1444.md).
+
+- Sahne içindeki altyazı seçicisinde Escape artık ana paneli erken kapatmaz; seçici kendi klavye/odak akışını yürütür. Geçersiz yeni dublaj yapılandırması mevcut bağlı sesi korur. LG'de altyazı kaldırma/taslak/döngü, iç menü ve kayıtlı ses/özgün sese dönüş; 182 hedefli kontrol. [Yerel teslim](docs/devir/2026-11-08-1433.md).
+
+- Not taslağı ve satır eşlemesi farklı altyazı izlerindeki aynı kimliğe taşınmaz; yeniden bağlama durumu satır yenilemesinden sonra da doğru kalır. Kayıtlı dublajı kullanırken açık panelin arkasındaki otomatik iz/aralık değişimi yeniden doğrulanır. Oynatma/cümle kontrol grupları ayrıldı; LG kayıtlı ses/özgün sese dönüş ve 188 hedefli kontrol geçti. [Yerel teslim](docs/devir/2026-11-08-1427.md).
+
+- Kayıtlı Podcast altyazısında geç eski istek yeni seçimi ezmez; dosya okuma hatası, eski yol hâlâ seçiliyken de başarı sayılmaz. Kuyruk kapanış odağı ve Sahne'nin hazır/eksik/hazırlanıyor metin durumu tamamlandı. LG'de kayıtlı sonuç/retry ve kuyruk devamı; 181 hedefli test geçti. [Yerel teslim](docs/devir/2026-11-08-1416.md).
+
+- Sahne'de döngü dışına başarılı atlama artık eski cümleye geri sıçramaz; aynı aralıkta atlama ve görünüm değişimi döngüyü korur. İşlemler paneli yeniden çizilse de bekleyen eylem kilitli ve okunur kalır. Gerçek LG Podcast/Browser geçişleri ve gecikmiş kaynak yarışları; 145 hedefli test. [Yerel teslim](docs/devir/2026-11-08-1408.md).
+
+- Dublaj hazırlığında ilk otomatik altyazı devralınınca eski kapsam dışı ses temizlenir; başka medyaya ait hazır plan aynı dosya yolu üzerinden başlatılamaz. Kayıtlı sonuç okuyucusunda dosya hiyerarşisi, salt okunur açıklaması ve bekleyen okumada kapatma/odak dönüşü düzeltildi. Kesintisiz LG/izole Browser–Podcast–not–asistan–sonuç–Browser zinciri ve 104 hedefli kontrol geçti. [Yerel teslim](docs/devir/2026-11-08-1400.md).
+
+- İş geçmişinden oynatma, başarısız yetkilendirmede durur ve yalnız doğrulanmış video/çıktıları kullanır; eski eksik yollar yeniden yüklenmez. Sahne toparlanmasında görünür bekleme, tek tıklama ve mesajsız hata açıklaması tamamlandı; bekleyen eylem okunur ve sağa hizalıdır. Gerçek LG'de oynatırken sabit pasaj notu/taslak/tek kayıt, tamamlanmış-kısmi geçmiş sonucu ve toparlanma; 143 test geçti. [Yerel teslim](docs/devir/2026-11-08-1350.md).
+
+- Yayıncı transkripti yanındaki kopyaya bağlı Podcast çevirisi artık kendi ses/zaman eşleşmesiyle doğrulanır; uyumsuz sonuç salt okunur açılır. Asistanda sohbetten dönünce açık kaynak kartları, okuma konumu ve taslak korunur. Filtreli gezinme/tekrar aynı kaynakta doğrulandı; gerçek LG kabulleri ve 155 hedefli test geçti. [Yerel teslim](docs/devir/2026-11-08-1336.md).
+
+- Altyazı hızlı düzenleyicisinde kapatıp açınca kaybolan düzeltme–kaynak eşleme niyeti taslakla korunur; kayıt sırasında mevcut çatışma kontrolü sürer. Asistan açık alıntı kartında uzun kaynak adı tam okunur, kapalı kart kısa kalır. Gerçek LG'de taslak/kaydet/undo, Browser–Sahne geçişleri ve kaynak/not dönüşü; 60 hedefli test. [Yerel teslim](docs/devir/2026-11-08-1329.md).
+
+- Asistandan kayıtlı dublaj sonucu açmada gecikmiş A isteğinin seçili B sesini başarı sanması engellendi. Sahne'de iptal edilmiş işin servis tarafından sunulan yeniden deneme eylemi görünür; durum/açıklama/eylem ayrımı netleştirildi. Gerçek LG'de kayıtlı sonuca dönüş ve kuyruk otomatik devam/503/aynı bölümde yeniden deneme; 140 hedefli kontrol. [Yerel teslim](docs/devir/2026-11-08-1322.md).
+
+- Browser yeniden açılışında kaydedilmiş konum/hız gerçek medya hazır olduğunda aynı belgeye duraklatılmış olarak geri yüklenir; kullanıcı komutu veya kaynak değişimi eski isteği iptal eder. Ayrı asistan penceresi varken altyazı yüklemesini kesen null erişimi giderildi. Dublajda açık panelde iz değişimi ve geç plan/eski onay eski altyazıyla üretim başlatamaz. Gerçek LG'de iki iz/kayma ile ayrı süreç dönüşü ve Podcast arama/takip/cümle tekrarı; 172 hedefli kontrol. [Yerel teslim](docs/devir/2026-11-08-1313.md).
+
+- Aynı videoda otomatik dublaj altyazısı değiştirildiğinde hazırlık yeni izi kullanır; iz kaldırıldığında eski hazırlık ve çıktı temizlenir, elle seçilmiş SRT korunur. Podcast ileri araçlarında ilgisiz YouTube adres alanı gizlendi. Gerçek LG/main/IPC ile ortak dublaj hazırlığı, kayıtlı çıktı toparlanması, araç/odak ve ayrı süreçte Podcast devamı; 98 hedefli kontrol. [Yerel teslim](docs/devir/2026-11-08-1252.md).
+
+- Podcast/Çift dilli transkriptte klavyeyle manuel okumaya geçildiğinde takip düğmesi artık gerçek durumu gösterir; “Konuşmaya dön” açıkça oynatma konumunu değiştirmeden takibi sürdürür. Browser kayıtlı pasajından geçerli 0s'ye dönüş düzeltildi; hatalı/boş zaman reddedilir. Gerçek LG/Browser/YouTube geçiş ve takip kabulleri, uzun transkript sürekliliği ve 156 hedefli kontrol. [Yerel teslim](docs/devir/2026-11-08-1233.md).
+
+- Gerçek asistan işlem kartlarının hızlı yanıtta kaybolması son cevapla güvenli yeniden teslim/tekilleştirmeyle giderildi. Native overlay sınırında okunur yanıt/gerçek alıntı eşlemesi ve yeniden arama eylemi tamamlandı. Değişmiş podcast kaynağından mevcut aramaya tek adımda geçilir, otomatik ikame/oynatma yapılmaz. Canlı model → ekrandaki onay → gerçek oynatıcı/A/1s, kaynaklı nottan aynı odak/soru/konuma dönüş ve 118 hedefli kontrol geçti. [Yerel teslim](docs/devir/2026-11-08-1159.md).
+
+- Asistan kaynaklı notunda açılış sahibine bağlılık güçlendirildi: sohbet/kaynak değiştikten sonra gelen eski taslak veya önizleme onayı açmaz; önceden gönderilen kaydın gerçek makbuzu yine dürüstçe gösterilir. Uzun podcast yanıtında doğrulanmış yinelenen kaynak eki görsel gövdeden ayrılır; ham/kopya/arama metni korunur, bilinen UUID'ler okunur kaynak/kart etiketleriyle görünür. 79 hedefli kontrol, gerçek LG/main/oynatıcı/not-defter ve gecikmiş IPC kabulleri. [Yerel teslim](docs/devir/2026-11-08-1133.md).
+
+- Canlı podcast araştırma kabulünde gerçek UUID alıntılarının panelde kaynak düğmesine bağlanmadığı bulundu ve düzeltildi: doğrulanmış kimlik aynı mesajın kısa P1/P2 kartına bağlanır, bilinmeyen kimlik bağlanmaz. Kullanıcı onaylı 8 istek bütçesinde gerçek sağlayıcıyla bul/karşılaştır/açma kartı/not taslağı; son 75 kontrol ve LG panel kabulü geçti. [Canlı model ve sınırlar](docs/devir/2026-11-08-1052.md).
+
+- Asistan podcast kaynak kartında bekleyen eski gezinmenin yeni kaynağı veya daha yeni kart seçimini ezmesi engellendi. Zamanlı/zamansız bilgi kart başlığında görünür; açılış sırasında not eylemi kilitlenir ve kaynak satırlarının CSS hizası düzeltildi. 74 hedefli kontrol ve LG gerçek overlay/kontrollü veri kabulü; canlı model onayı bekliyor. [Yerel teslim](docs/devir/2026-11-08-0956.md).
+
 - Birikmiş Sahne/Browser/Podcast sürekliliği, kaynaklı asistan/not ve sonuç/kurtarma düzeltmeleri `253cb1f2704fad704a86b0899441b80e925f3d7c` ürün commitinde toplandı; belgeler ayrı teslim edilir. 220 hedefli kontrol ve 26 JS sözdizimi kontrolü geçti; önceki gerçek LG kabulleri sınırlarıyla korundu. [GitHub teslim kaydı](docs/devir/2026-11-08-0935.md).
 
 - Önceki Sahne düzeltmesinin birleşik canlı YouTube kabulü kapandı: aynı kayıtlı gerçek altyazıyla 1.25×, +0.2s, B→A cümle döngüsü, sıfırlama ve nottan aynı videoya dönüş gerçek LG/native video saatiyle doğrulandı. Son kodla Podcast not/defter/kaynak ve Browser uzun transkript geçişleri, 159 hedefli kontrol geçti. Bu kapanış turunda ürün kodu değişmedi. [Kabul kaydı](docs/devir/2026-11-08-0925.md).
