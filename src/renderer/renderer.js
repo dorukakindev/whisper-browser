@@ -7225,12 +7225,22 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
     clearTimeout(player.shadowResumeTimer);
     player.shadowResumeTimer = null;
   }
-  // Kendi seek'lerimizi işaretle — A-B döngüsü medya tick'inde "kesiş" ile
-  // "atlama"yı ayıramaz; işaretli pencerede B ötesi varış döngülenmez.
-  if (['seek', 'seek-relative', 'frame-step'].includes(command)) {
+  // Keep seek intent with its owner. A seek INSIDE A–B must not suppress the
+  // next natural crossing of B, even if the playback sample arrives late.
+  let seek;
+  if (tabId === player.browserActiveTabId && ['seek', 'seek-relative', 'frame-step'].includes(command)) {
     player._ownSeekAt = Date.now();
+    seek = player._ownSeek = { tabId, key:player.mediaKey, generation:player.generation,
+      target:command==='seek'&&value!==null&&Number.isFinite(Number(value))?Number(value):null };
   }
-  return window.api.browserCommand(tabId, command, value);
+  const request=window.api.browserCommand(tabId, command, value);
+  if(!seek)return request;
+  const retire=()=>{if(player._ownSeek===seek){player._ownSeek=null;player._ownSeekAt=0;}};
+  return Promise.resolve(request).then(result=>{
+    if(result?.ok===false)retire();
+    else if(player._ownSeek===seek&&seek.target===null&&Number.isFinite(result?.media?.currentTime))seek.target=result.media.currentTime;
+    return result;
+  },error=>{retire();throw error;});
 }
 
 async function maybeAutoSkipBrowserAd(event, media) {
@@ -10939,24 +10949,26 @@ function rememberBrowserTrackUse(track) {
 async function completeSelectedBrowserTranslation() {
   const selected = browserTrackSelection(false);
   if (!selected) return { ok: false, error: 'Çevrilecek altyazı izi seçilmedi.' };
+  const tabId = player.browserActiveTabId;
+  const gen = currentGeneration();
   if (selected.role === 'translation') {
     await loadPersistedBrowserTranslation(selected);
-    return player.browserLoadedTrackId2 === selected.id
+    return player.browserActiveTabId === tabId && !staleGeneration(gen)
+      && player.browserLoadedTrackId === selected.id && player.subPath === selected.path && player.cues.length > 0
       ? { ok: true, loaded: true }
       : { ok: false, error: 'Kayıtlı çeviri izi yüklenemedi.' };
   }
-  const tabId = player.browserActiveTabId;
   // Devam eden aynı izin scheduler'ını yeniden kurmak hazır sonuç Map'ini
   // sıfırlıyor ve bazı cümleleri API'ye ikinci kez gönderiyordu. Yalnız yeni
   // bir iz seçildiyse çeviri oturumunu başlat.
   if (!selected || player.browserTranslationTrackId !== selected.id) {
     await useBrowserTrack(true);
   }
-  if (player.browserActiveTabId !== tabId || player.browserTranslationTrackId !== selected.id) {
+  if (player.browserActiveTabId !== tabId || staleGeneration(gen) || player.browserTranslationTrackId !== selected.id) {
     return { ok: false, error: 'Çeviri oturumu başlatılamadı veya medya değişti.' };
   }
   const result = await window.api.completeBrowserTranslation?.(tabId).catch(() => null);
-  if (player.browserActiveTabId !== tabId || player.browserTranslationTrackId !== selected.id) {
+  if (player.browserActiveTabId !== tabId || staleGeneration(gen) || player.browserTranslationTrackId !== selected.id) {
     return { ok: false, error: 'Çeviri tamamlanırken medya değişti.' };
   }
   if (!result?.ok) {
@@ -13272,17 +13284,22 @@ function renderBrowserCueAt(time, previousTime, paused = player.browserPaused) {
   }
   const t = subtitleSourceTime(Number(time || 0), false);
   const sponsorSeekStarted = applyBrowserSponsorSkip(Number(time || 0), Number(previousTime), paused);
-  const previous = Number(previousTime);
+  let previous = Number(previousTime);
   // B ötesine atlama = döngüden kaçış: ya bizim seek komutumuzdan gelen iniş
   // (~900 ms pencere) ya da tick aralığını aşan büyük ileri sıçrama (site-içi
   // seek). Eşik hıza ölçekli: medya poll'u 1 sn, 4x'te doğal adım ~4 sn + jitter —
   // sabit eşik yüksek hızda gerçek oynatmayı seek sanıp döngüyü kırardı.
-  const ownSeekLanding = Date.now() - Number(player._ownSeekAt || 0) < 900;
+  const seek=player._ownSeek;
+  const ownerMatches=!seek||(seek.tabId===player.browserActiveTabId&&seek.key===player.mediaKey&&seek.generation===player.generation);
+  const recentSeek=ownerMatches&&Date.now()-Number(player._ownSeekAt||0)<900;
+  const insideSeek=recentSeek&&seek&&Number.isFinite(seek.target)&&seek.target>=player.abA&&seek.target<player.abB;
+  const ownSeekLanding=recentSeek&&!insideSeek;
+  if(insideSeek)previous=seek.target;
   const naturalStep = Math.max(4.5, (Number(player.browserRate) || 1) * 1.75);
   const jumpedForward = Number.isFinite(previous) && Number.isFinite(Number(time))
     && (Number(time) - previous) > naturalStep;
   if (player.abA !== null && player.abB !== null && Number(time) >= player.abB
-      && !player.browserAdPlaying && !ownSeekLanding && !jumpedForward
+      && !paused && !player.browserAdPlaying && !ownSeekLanding && !jumpedForward
       && (!Number.isFinite(previous) || previous < player.abB)) {
     player.browserTime = player.abA;
     browserCommand('seek', player.abA).catch(() => {});
@@ -15586,6 +15603,7 @@ function browserPlaybackRecovery(event) {
     message: interfaceChoice('Video oynatılamadı.', 'Video could not play.'),
     label: denied ? interfaceChoice('Siteyi tarayıcıda aç', 'Open site in browser') : interfaceChoice('Oynatmayı yeniden dene', 'Retry playback'),
     run: async () => {
+      if (!current()) return { ok:false, code:'stale-source' };
       if (denied) return window.api.openExternal(url);
       if (browserChromeCommandBlocked('reload')) return runBrowserChromeCommand('reload');
       const seek = { key, tabId, generation, seconds, resumePlayback: true };
@@ -15660,7 +15678,8 @@ async function showLocalPlaybackRecovery(video, { code, manifest, position, nati
     run = () => offerCompatibleMedia(seconds);
   }
   const message = interfaceChoice('Medya oynatılamadı.', 'Media could not play.');
-  player.playbackRecovery = { owner: nativeFailure ? 'native' : 'html', current, message, label, run };
+  player.playbackRecovery = { owner: nativeFailure ? 'native' : 'html', current, message, label,
+    run: () => current() ? run() : Promise.resolve({ ok:false, code:'stale-source' }) };
   const button = $('playerPlaybackRecovery');
   if (button) {
     button.textContent = label;
@@ -19807,6 +19826,7 @@ function renderResearchLibraryBody(drafts) {
     card.append(note, extra);
     appendResearchConflict(card, annotation);
     appendResearchOpenNote(card, annotation);
+    if(annotation.researchSources?.length){const evidence=document.createElement('button');evidence.className='link-btn research-evidence-open';evidence.textContent=interfaceChoice(`AI taslağı · ${annotation.researchSources.length} dayanağı incele`,`AI draft · inspect ${annotation.researchSources.length} references`);evidence.onclick=()=>window.AssistantResearchNotesUI?.sources(annotation);card.append(evidence);}
     if ((annotation.tags || []).length) {
       const tagList = document.createElement('div');
       for (const tag of annotation.tags) {
@@ -20454,11 +20474,12 @@ function subtitleContextLanguage(role) {
 function activePodcastContext(scopeName = $('aiTranscriptScope')?.value || 'watched', question = '') {
   const soFar = /(?:bu ana kadar|şu ana kadar|şimdiye kadar|buraya kadar|so far|up to (?:now|this point)|until now)/iu.test(String(question));
   if(soFar)scopeName='watched';
+  const bind=context=>window.CinemaSahne?.current?.assistantContext?.(context,question)||context;
   const shelf=window.MediaShelfUI;
-  if(shelf?.isPodcastMode?.())return window.AssistantSourceContext.freezePodcast(shelf.readSnapshot(),shelf.getTranscriptTracks(),scopeName);
+  if(shelf?.isPodcastMode?.())return bind(window.AssistantSourceContext.freezePodcast(shelf.readSnapshot(),shelf.getTranscriptTracks(),scopeName));
   const browser=window.BrowserPodcastUI;
-  if(browser?.isActive?.())return soFar?window.AssistantSourceContext.freezePodcast(browser.snapshot(),browser.getTranscriptTracks(),scopeName):null;
-  if(window.PlayerWorkspaceIntegration?.isPodcastMode?.()||window.CinemaSahne?.current?.o.mode==='study')return window.AssistantSourceContext.freezePodcast(window.PlayerWorkspaceIntegration.snapshot(),window.PlayerWorkspaceIntegration.getTranscriptTracks(),scopeName);
+  if(browser?.isActive?.())return soFar?bind(window.AssistantSourceContext.freezePodcast(browser.snapshot(),browser.getTranscriptTracks(),scopeName)):null;
+  if(window.PlayerWorkspaceIntegration?.isPodcastMode?.()||window.CinemaSahne?.current?.o.mode==='study')return bind(window.AssistantSourceContext.freezePodcast(window.PlayerWorkspaceIntegration.snapshot(),window.PlayerWorkspaceIntegration.getTranscriptTracks(),scopeName));
   return null;
 }
 function podcastContextCurrent(context){
@@ -20496,13 +20517,14 @@ function aiVideoRows() {
   return source.map((cue,index)=>({...cue,translation:translated[index]||''}));
 }
 function aiChatContext() {
+  const bind=context=>window.CinemaSahne?.current?.assistantContext?.(context)||context;
   const global = globalAssistantContext();
-  if (global) return global;
-  if(player.workspaceMode==='browser')return {
+  if (global) return bind(global);
+  if(player.workspaceMode==='browser')return bind({
     ...window.BrowserAiContext.context(aiVideoRows(),player.browserTime,$('aiTranscriptScope')?.value),
     video:$('playerTitle')?.textContent||'',
     diller:{kaynak:subtitleContextLanguage('source')||'yok',ceviri:subtitleContextLanguage('translation')||'yok'},
-  };
+  });
   const cues = player.cues || [];
   const now = subtitleSourceTime(player.workspaceMode === 'browser'
     ? player.browserTime : (($('playerVideo') || {}).currentTime || 0), false);
@@ -20533,7 +20555,7 @@ function aiChatContext() {
   } else {
     ctx.not = 'Bu video icin yuklu altyazi yok.';
   }
-  return ctx;
+  return bind(ctx);
 }
 
 function aiTranscriptEvidence(question) {
@@ -21081,25 +21103,27 @@ async function openUnifiedLibraryResult(result) {
       || `browser:${tab.mediaId}` === result.mediaId)
     : player.browserTabs.find((tab) => tab.url && result.url && tab.url === result.url);
   if (matchingTab) {
-    const activated = await activateBrowserTab(matchingTab.id);
-    if (!activated) return false;
+    // Capture before activation: the object itself can be updated in place while we await IPC.
+    const expected={id:matchingTab.id,mediaId:matchingTab.mediaId,generation:matchingTab.generation,url:matchingTab.url};
+    const stillTarget=()=>{const tab=browserTabState(expected.id);return !!tab&&!tab.closing&&player.workspaceMode==='browser'&&player.browserActiveTabId===expected.id
+      &&tab.mediaId===expected.mediaId&&(!Number.isSafeInteger(expected.generation)||tab.generation===expected.generation)
+      &&(!!expected.mediaId||tab.url===expected.url);};
+    const activated = await activateBrowserTab(expected.id);
+    if (!activated || !stillTarget()) return false;
     if (result.anchor && result.annotationId && window.api.restoreLearningAnnotationAnchor) {
-      const restored = await window.api.restoreLearningAnnotationAnchor(matchingTab.id, result.annotationId)
+      const restored = await window.api.restoreLearningAnnotationAnchor(expected.id, result.annotationId)
         .catch((error) => ({ ok: false, error: error.message }));
+      if(!stillTarget())return false;
       if (!restored?.ok) logLine(restored?.error || 'Alıntı sayfada bulunamadı; not korunuyor.', 'warn');
-      return !!restored?.ok;
+      return restored?.ok===true;
     }
-    if (Number(result.seconds) > 0) {
-      const tab = browserTabState(matchingTab.id);
-      player.pendingLibrarySeek = {
-        key: result.mediaId ? (String(result.mediaId).startsWith('browser:')
-          ? result.mediaId : `browser:${result.mediaId}`) : (tab?.mediaKey || ''),
-        generation: tab?.generation ?? null,
-        seconds: Number(result.seconds),
-      };
-      await browserCommand('seek', Number(result.seconds));
+    if (result.timed!==false && Number(result.seconds)>0) {
+      // A loaded tab is commanded directly. A global deferred seek could survive this action and be replayed later.
+      if(!result.mediaId||!expected.mediaId)return false;
+      const outcome=await browserCommand('seek',Number(result.seconds),expected.id);
+      return outcome?.ok===true&&stillTarget();
     }
-    return true;
+    return stillTarget();
   }
   const known = watchItemByKey(result.mediaId)
     || playerLibraryResults.find((item) => item.key === result.mediaId);
@@ -22019,6 +22043,7 @@ function resetMediaBoundState(options = {}) {
   player.lastT = undefined;
   player._abPrevT = undefined;
   player._ownSeekAt = 0;
+  player._ownSeek = null;
   player.holdingSpeed = false;
   closeTimeline();
   resetEmbeddedSubtitleTracks();

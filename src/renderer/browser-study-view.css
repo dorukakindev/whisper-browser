@@ -236,7 +236,9 @@
 .sh-browser-study .sh-status-row .sh-chip{min-height:28px;height:auto;padding:3px 8px;white-space:nowrap}
 .sh-browser-study .sh-status-row .sh-job-bar{flex-basis:clamp(32px,8vw,120px)}
 .sh-browser-study .sh-job-percent{min-inline-size:4ch;text-align:end;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text-muted)}
-.sh-browser-study .sh-job[data-state=failed] .sh-job-t{white-space:normal;overflow-wrap:anywhere;padding-block:4px}
+.sh-browser-study .sh-job:is([data-state=failed],[data-state=partial],[data-state=stopped],[data-state=cancelled]) .sh-job-t{white-space:normal;overflow-wrap:anywhere;padding-block:4px;line-height:1.5}
+.sh-browser-study .sh-status-row .sh-chip{flex-shrink:0}
+.sh-browser-study .cue-card .act[data-note-draft=true]{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,var(--border));background:var(--accent-soft)}
 @media(prefers-reduced-motion:reduce){
  .sh-browser-study .sh-job-bar i{transition:none}
  .sh-browser-study .sh-job-bar.ind i{animation:none}

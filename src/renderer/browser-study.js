@@ -12,9 +12,9 @@
   let presentationRevision = 0;
   const key = () => player.workspaceMode === 'browser' ? player.browserActiveTabId : null;
   const media = () => browserTabState()?.mediaId || player.mediaKey;
-  const currentSession = () => {
+  const currentSession = (includeClosed = false) => {
     const session = sessions.get(key());
-    return session?.media === media() ? session : null;
+    return session?.media === media() && (includeClosed || !session.closed) ? session : null;
   };
   const active = () => !!key() && !!currentSession();
   function open({ preservePodcast = false } = {}) {
@@ -23,7 +23,12 @@
     selectedMedia.set(key(), media());
     if (!preservePodcast) window.BrowserPodcastUI?.setMode(false);
     closeBrowserToolbarMenus();
-    const previous = currentSession();
+    const previous = currentSession(true);
+    if (previous?.closed) {
+      previous.view = player.viewMode;
+      previous.subtitleMode = browserTabState()?.subtitleMode;
+      previous.closed = false;
+    }
     if (!previous) sessions.set(key(), { view: player.viewMode, media: media(), subtitleMode: browserTabState()?.subtitleMode });
     if (!window.CinemaSahne) {
       setViewMode('study');
@@ -45,7 +50,7 @@
     if (key()) selectedMedia.set(key(), media());
     window.BrowserPodcastUI?.setMode(false);
     const previous = currentSession();
-    sessions.delete(key());
+    if (previous) previous.closed = true;
     if (previous && player.viewMode === 'study' && previous.view !== player.viewMode) setViewMode(previous.view);
     if (previous?.subtitleMode) setSubtitleMode(previous.subtitleMode, false);
     refresh();

@@ -14,6 +14,19 @@ async function doneRun(w,svc,id,{source='media-A',range}={}){
  fs.writeFileSync(outputOf(w.spawns[index]),wav(2));w.spawns[index].proc.exitCode=0;w.spawns[index].proc.emit('close',0);await tick();
  assert.equal(w.records().find(r=>r.id===id).result,'done',id);
 }
+test('REAL BRIDGE: a failed saved-output read stays unknown, is retryable and never claims a section mismatch',async()=>{
+ const w=world();try{
+  const svc=w.boot();await doneRun(w,svc,'prior-output');await doneRun(w,svc,'read-unavailable');const p=panel(w,svc),spawns=w.spawns.length;
+  try{
+   await p.open();p.state.source='media-A';await p.chooseSubtitle();await p.select('prior-output');await p.click('Bu bölüme yükle');assert.equal(p.win.DubGeneratorUI.experience().output.id,'prior-output');p.state.failLatest=true;await p.select('read-unavailable');
+   assert.doesNotMatch(p.text(),/şu anki altyazı\/aralık\/kaynakla eşleşmiyor/);assert.match(p.text(),/eşleşmesi denetlenemedi/);assert(p.button('Eşleşmeyi yeniden denetle'));
+   p.state.failLatest=false;await p.click('Eşleşmeyi yeniden denetle');assert(p.button('Bu bölüme yükle'));
+   p.state.failLatest=true;await p.click('Bu bölüme yükle');assert.match(p.text(),/Sonuç okunamadı/);assert.doesNotMatch(p.text(),/Bu sonuç şu anki altyazı\/aralıkla eşleşmiyor/);assert.equal(p.win.DubGeneratorUI.experience().output.id,'prior-output','the previously loaded result is kept');
+   p.state.failLatest=false;await p.click('Bu bölüme yükle');assert.equal(p.shown(),true);assert.equal(p.win.DubGeneratorUI.experience().output.id,'read-unavailable');assert.equal(p.state.attached.length,0);assert.match(p.text(),/çalmaya başlamadı/);assert.equal(w.spawns.length,spawns);
+  }finally{p.close_();}
+ }finally{w.close();}
+});
+
 function panel(w,svc){
  const dom=new JSDOM(read('index.html'),{runScripts:'outside-only',pretendToBeVisual:true}),win=dom.window,el=id=>win.document.getElementById(id);
  const state={source:'media-Z',attached:[],holds:[],latest:[],lose:null};
@@ -23,7 +36,7 @@ function panel(w,svc){
  const hold=(match)=>{const item={match,used:false};item.gate=new Promise(resolve=>{item.release=resolve;});item.reached=new Promise(resolve=>{item.reach=resolve;});state.holds.push(item);return item;};
  win.api={
   dubConfig:kind=>svc.call('dub:config',kind),selectFile:async()=>w.srt,listVoiceReferences:async()=>({ok:true,references:[]}),
-  latestDub:async request=>{const req=clone(request);state.latest.push(req);const item=state.holds.find(h=>!h.used&&h.match(req));
+  latestDub:async request=>{const req=clone(request);state.latest.push(req);if(state.failLatest)throw Error('IPC disconnected');const item=state.holds.find(h=>!h.used&&h.match(req));
    const result=await svc.call('dub:latest',req);if(item){item.used=true;item.reach();await item.gate;}return clone(result);},
   dubRuns:async request=>clone(await svc.call('dub:runs',clone(request))),onDubEvent:callback=>svc.on(callback),startDub:async request=>svc.call('dub:start',clone(request)),cancelDub:async()=>({ok:true})};
  el('dubGeneratorDialog').showModal=()=>{el('dubGeneratorDialog').open=true;};

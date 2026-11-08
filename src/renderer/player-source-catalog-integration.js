@@ -121,7 +121,7 @@
     if(saved.state!=='needs-review'&&!saved.workspace?.transcript&&chosen>=0){const transcript=await api({action:'podcast-transcript',entryId:entry.id,revision:entry.revision,descriptorIndex:chosen,requestId:'podcast-'+Date.now()});await apply(transcript);}
     if(valid())window.PlayerWorkspaceIntegration?.refresh(true);
   }
-  function videoRate(rate,position,owner){const video=document.getElementById('playerVideo');video.playbackRate=rate||1;const seek=()=>{if(player.mediaKey===owner.mediaKey&&player.generation===owner.generation&&position>0)video.currentTime=position;};if(video.readyState>=1)seek();else video.addEventListener('loadedmetadata',seek,{once:true});}
+  function videoRate(rate,position,owner){const video=document.getElementById('playerVideo');video.playbackRate=rate||1;const seek=()=>{if(player.mediaKey===owner.mediaKey&&player.generation===owner.generation&&position>0){const duration=Number(video.duration);video.currentTime=Number.isFinite(duration)&&duration>0&&position>=duration-2?0:position;}};if(video.readyState>=1)seek();else video.addEventListener('loadedmetadata',seek,{once:true});}
   let podcastPositionAt=0;
   async function flushPodcastPosition(){const audio=player.workspaceAudio,video=document.getElementById('playerVideo');if(!audio||audio.mediaKey!==player.mediaKey||audio.generation!==player.generation||!Number.isFinite(video.currentTime))return;if(audio.transcriptState==='untimed'&&audio.sourceBinding?.fingerprintStatus==='download-verified')return;const request={action:'podcast-workspace',entryId:audio.entryId,sourceVersion:audio.sourceVersion,position:video.currentTime,rate:video.playbackRate};await api(request).catch(()=>{});}
   const podcastVideo=document.getElementById('playerVideo');

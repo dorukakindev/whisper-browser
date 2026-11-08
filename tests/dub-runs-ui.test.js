@@ -213,3 +213,31 @@ test('Assistant source return reveals the current media without opening or selec
  w.eval(fs.readFileSync(require.resolve('../src/renderer/assistant-voice-runs.js'),'utf8'));
  try{const result=await w.AssistantVoiceRuns.open({run_id:'run-A',target:'source'});assert.equal(result.status,'completed');assert.equal(closed,1);assert.equal(opened,0);assert.equal(selected,0);await assert.rejects(w.AssistantVoiceRuns.open({run_id:'run-A',target:'source'},{stale:()=>true}),/changed/);}finally{w.close();}
 });
+
+
+test('loading a saved result exposes one busy action and allows retry after a refusal',async()=>{
+ const w=world();try{
+  const svc=w.boot();assert.equal((await svc.call('dub:start',w.request('load-once'))).ok,true);
+  fs.writeFileSync(outputOf(w.spawns[0]),wav(2));w.spawns[0].proc.exitCode=0;w.spawns[0].proc.emit('close',0);await tick();
+  const page=ui(svc,{loadable:true});try{
+   await page.open();await page.click('Yenile');assert.equal(page.section.open,true,'heading refresh must not collapse the history');await page.select('load-once');let release,loads=0;
+   page.w.DubGeneratorBridge.load=()=>{loads++;return new Promise(resolve=>release=resolve);};
+   page.button('Bu bölüme yükle').click();await settle();
+   const busy=page.button('Yükleniyor');assert(busy,'loading has a visible, specific action');assert.equal(busy.disabled,true);assert.equal(busy.getAttribute('aria-busy'),'true');busy.click();assert.equal(loads,1);
+   release({ok:false,code:'busy'});await settle();assert.equal(page.button('Bu bölüme yükle').disabled,false,'a refused load remains retryable');
+  }finally{page.close_();}
+ }finally{w.close();}
+});
+
+test('a rejected saved-result load keeps the result, explains failure and can be retried',async()=>{
+ const w=world();try{
+  const svc=w.boot();assert.equal((await svc.call('dub:start',w.request('load-rejected'))).ok,true);fs.writeFileSync(outputOf(w.spawns[0]),wav(2));w.spawns[0].proc.exitCode=0;w.spawns[0].proc.emit('close',0);await tick();
+  const page=ui(svc,{loadable:true});try{
+   await page.open();await page.select('load-rejected');let attempts=0;page.w.DubGeneratorBridge.load=async()=>{attempts++;if(attempts===1)throw Error('Bridge closed');return {ok:true};};
+   const unhandled=[];page.w.addEventListener('unhandledrejection',event=>{unhandled.push(event.reason);event.preventDefault();});
+   page.button('Bu bölüme yükle').focus();await page.click('Bu bölüme yükle');assert.match(page.text(),/doğrulanamadı.*yeniden dene/is);assert.equal(page.button('Bu bölüme yükle').disabled,false);assert.equal(page.state('load-rejected'),'completed');
+   assert.equal(page.doc.activeElement.closest('[data-run]')?.dataset.run,'load-rejected','status updates keep focus inside the selected run');
+   await page.click('Bu bölüme yükle');assert.equal(attempts,2);assert.match(page.text(),/çalmaya başlamadı/);assert.equal(unhandled.length,0);
+  }finally{page.close_();}
+ }finally{w.close();}
+});

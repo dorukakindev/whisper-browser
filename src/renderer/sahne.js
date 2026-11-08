@@ -57,6 +57,8 @@
       if (reading && chapters) chapters.value = reading.chapterQuery || '';
       this.readingScroll = reading && !reading.follow ? reading : null;
       this.tick();
+      if(reading?.assistantChoice){this.assistantChoice={...reading.assistantChoice,identity:this.id0};if(!this.assistantPassage())this.assistantChoice=null;}
+      if(reading?.noteDraft?.identity===this.id0){this.noteDraft=reading.noteDraft;if(this.noteDraft.open)this.renderNote(this.noteDraft);}
       if (reading?.chapters && !this.q('.sh-chapter-entry')?.hidden) this.showReading(true);
       this.timer = setInterval(() => this.tick(), 120); this.raf = 0;
     }
@@ -68,6 +70,7 @@
       if (preserveReading && this.id0) {
         prefs.reading = {
           identity: this.id0, follow, sleep, sleepAt, lastAudibleVolume: this.lastAudibleVolume,
+          assistantChoice:this.assistantPassage()?{...this.assistantChoice}:null,noteDraft:this.noteDraft||null,
           transcript: !!this.s.transcript, chapters: this.root.classList.contains('sh-chapters-open'),
           query: this.q('[data-r=q]')?.value || '',
           chapterQuery: this.q('[data-r=chapterSearch]')?.value || '',
@@ -138,9 +141,12 @@
     }
     toast(msg) { const t = this.q('[data-r=toast]'); t.textContent = msg; t.classList.add('on'); clearTimeout(this.toastT); this.toastT = setTimeout(() => t.classList.remove('on'), 3200); }
     run(type, v, revision=this.st?.rev) {
-      const failed = error => { const result = { ok:false, code:'command-failed', message:error?.message || T('Komut uygulanamadı.', 'Command could not be applied.') }; if (!this.dead) this.toast(result.message); return result; };
+      const identity=this.a.identity?.()??'',current=()=>!this.dead&&(this.a.identity?.()??'')===identity&&(this.id0===undefined||this.id0===identity);
+      const stale=()=>({ok:false,code:'stale-source'});if(!current())return Promise.resolve(stale());
+      const failed = error => { if(!current())return stale(); const result = { ok:false, code:'command-failed', message:error?.message || T('Komut uygulanamadı.', 'Command could not be applied.') }; if (!this.dead) this.toast(result.message); return result; };
       let r; try { r = this.a.cmd(type, v, revision); } catch (error) { return Promise.resolve(failed(error)); }
       return Promise.resolve(r).then(res => {
+        if(!current())return stale();
         if (res && res.ok === false && !this.dead) this.toast(res.code === 'stale-source' || res.code === 'source-changed' ? T('Kaynak değişti; komut uygulanmadı.', 'The source changed; command not applied.') : res.code === 'unsupported' ? T('Bu kaynakta bu komut desteklenmiyor.', 'This source does not support that command.') : (res.message || T('Komut uygulanamadı.', 'Command could not be applied.')));
         return res;
       }).catch(failed);
@@ -245,11 +251,13 @@
           }
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
-          case 'assistant':this.run('assistant');break;
+          case 'assistant':this.captureAssistantPassage();this.run('assistant');break;
           case 'dub':this.run('dub');break;
           case 'noteClose':this.closeNote();break;
           case 'noteSave':void this.saveNote();break;
-          case 'noteSeek':if(this.s.note && this.canSeek)this.run('seekCue',this.s.note.row,this.s.note.rev);break;
+          case 'noteDiscard':this.closeNote();this.noteDraft=null;this.paint();break;
+          case 'noteRebind':{const draft=this.s.note,row=this.noteRowIndex(draft);if(draft&&!draft.pending&&row>=0){const text=draft.text;this.closeNote();this.noteDraft=null;this.openNote(row);this.s.note.text=text;this.q('[data-note-text]').value=text;}break;}
+          case 'noteSeek':if(this.s.note&&!this.s.note.stale && this.canSeek)this.run('seekCue',this.s.note.row,this.s.note.rev);break;
           case 'advanced':this.run('advanced');break;
           case 'display':{const modes=['both','src','tr'];this.s.disp=modes[(modes.indexOf(this.s.disp)+1)%3];this.applyDisp();break;}
           case 'queue':this.run('openQueued',b.dataset.queueKey ? {index:Number(b.dataset.index),queueKey:b.dataset.queueKey} : Number(b.dataset.index));break;
@@ -419,7 +427,7 @@
       };
       r.addEventListener('keydown',event=>{
         const tab=event.target.closest?.('[role=tab][data-mode]');
-        if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+        if(event.defaultPrevented||event.isComposing||event.ctrlKey||event.metaKey||event.altKey||!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
         const tabs=[...tab.closest('[role=tablist]').querySelectorAll('button:not(:disabled)')];
         const i=tabs.indexOf(tab);
         const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(i+(event.key==='ArrowRight'?1:tabs.length-1))%tabs.length;
@@ -452,8 +460,8 @@
       this.scopeBox.querySelector('[data-scope-time=start]').value=root.PodcastTaskScope.stamp(now);
       this.scopeBox.querySelector('[data-scope-time=end]').value=root.PodcastTaskScope.stamp(duration>now?Math.min(duration,now+60):now+60);
       for(const button of this.scopeBox.querySelectorAll('[data-scope]'))button.onclick=()=>{this.scopeMode=button.dataset.scope;this.scopeBox.querySelector('.sh-scope-fields').hidden=this.scopeMode!=='range';this.scopeBox.querySelector('.sh-seg').style.setProperty('--i',this.scopeMode==='range'?1:0);for(const b of this.scopeBox.querySelectorAll('[data-scope]')){b.setAttribute('aria-pressed',String(b===button));b.setAttribute('aria-selected',String(b===button));}this.updateScope();};
-      this.scopeBox.querySelector('[data-scope-apply]').onclick=()=>{try{this.scopeRange();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;}catch{this.updateScope();}};
-      this.scopeBox.onkeydown=event=>{if(event.key==='Escape'&&!this.scopeBox.querySelector('.sh-scope-fields').hidden){event.preventDefault();event.stopPropagation();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;this.scopeBox.querySelector('[data-scope=range]').focus();}};
+      this.scopeBox.querySelector('[data-scope-apply]').onclick=()=>{try{this.scopeRange();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;this.scopeBox.querySelector('[data-scope=range]').focus({preventScroll:true});}catch{this.updateScope();}};
+      this.scopeBox.onkeydown=event=>{if(event.key==='Enter'&&!event.isComposing&&event.target.matches('input')){event.preventDefault();event.stopPropagation();this.scopeBox.querySelector('[data-scope-apply]').click();return;}if(event.key==='Escape'&&!this.scopeBox.querySelector('.sh-scope-fields').hidden){event.preventDefault();event.stopPropagation();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;this.scopeBox.querySelector('[data-scope=range]').focus();}};
       this.root.addEventListener('pointerdown',event=>{if(!this.scopeBox.contains(event.target))this.scopeBox.querySelector('.sh-scope-fields').hidden=true;});
       for(const input of this.scopeBox.querySelectorAll('input'))input.oninput=()=>this.updateScope();this.updateScope();
     }
@@ -464,10 +472,11 @@
       catch{ text.textContent=T('Geçerli başlangıç ve bitiş girin. Bölümün tamamı başlatılmayacak.','Enter valid start and end times. The whole episode will not start.');text.dataset.invalid='true';}
     }
     taskButtons() {
-      return (this.a.actions?.() || []).map(action => `<button class="sh-btn${action.primary ? ' sh-primary' : ''}" type="button" data-task="${esc(action.id)}" ${action.disabled || this.taskPending ? 'disabled' : ''} title="${esc(action.hint || action.label)}">${ic(action.id === 'retry-translation'?'replay':action.id === 'translate' ? 'swap' : 'mic')}<span>${esc(action.label)}</span></button>`).join('');
+      return (this.a.actions?.() || []).map(action => `<button class="sh-btn${action.primary ? ' sh-primary' : ''}" type="button" data-task="${esc(action.id)}" ${action.disabled || this.taskPending ? 'disabled' : ''} aria-busy="${!!this.taskPending&&this.pendingTaskId===action.id}" title="${esc(action.hint || action.label)}">${ic(action.id === 'retry-translation'?'replay':action.id === 'translate' ? 'swap' : 'mic')}<span>${esc(action.label)}${this.taskPending&&this.pendingTaskId===action.id?' · '+T('Hazırlanıyor…','Preparing…'):''}</span></button>`).join('');
     }
     drawTasks() {
       const bar = this.q('[data-r=workbar]'), html = this.taskButtons();
+      if(this.scopeBox)for(const control of this.scopeBox.querySelectorAll('input,button'))if(control.disabled!==!!this.taskPending)control.disabled=!!this.taskPending;
       const processing = this.q('[data-r=processing]');
       if (processing) {
         processing.hidden = !html;
@@ -502,7 +511,7 @@
       if ((identity ?? '') !== this.id0) return;
       const action = (this.a.actions?.() || []).find(item => item.id === id);
       if (!action || action.disabled) return;
-      this.taskPending = true; this.drawTasks();
+      this.taskPending = true;this.pendingTaskId=id; this.drawTasks();
       try {
         const range = ['transcribe','transcribe-translate'].includes(id) ? this.scopeRange() : null;
         if(this.scopeBox)this.scopeBox.querySelector('.sh-scope-fields').hidden=true;
@@ -513,7 +522,7 @@
         }
       }
       catch (error) { if (!this.dead && identity === this.a.identity?.()) this.toast(error?.message || T('İşlem başlatılamadı.', 'Could not start task.')); }
-      finally { this.taskPending = false; if (!this.dead) this.drawTasks(); }
+      finally { this.taskPending = false;this.pendingTaskId=''; if (!this.dead) this.drawTasks(); }
     }
     toggleLoop() {
       if (!this.caps.loop) return; const on = !this.s.loop, idx = this.playbackIndex ?? this.cur;
@@ -707,6 +716,12 @@
     }
     paint() {
       const r = this.root, s = this.s, st = this.st || this.a.state();
+      const draft=this.noteDraft?.identity===this.id0?this.noteDraft:null;
+      const marker=draft?JSON.stringify([draft.rowId,!!draft.standaloneTranslation]):null;
+      if(this.noteMarker!==marker||this.noteMarkerLines!==this.lines){
+        this.noteMarker=marker;this.noteMarkerLines=this.lines;const rowIndex=this.noteRowIndex(draft);
+        this.lines.forEach((line,index)=>{const button=line.querySelector('[data-act=save]');if(!button)return;const kept=index===rowIndex;button.toggleAttribute('data-note-draft',kept);if(kept)button.dataset.noteDraft='true';const label=kept?T('Not taslağını aç','Open note draft'):T('Cümleyi veya seçili metni kaydet','Save sentence or selected text');button.title=label;button.setAttribute('aria-label',label);});
+      }
       r.classList.toggle('sh-focus', s.focus); r.classList.toggle('sh-playing', !st.paused);if(st.paused)r.classList.remove('controls-idle');
       const sourceLoop = this.displayMode() === 'tr' && !!this.st?.translationTargets && this.rows.some(row => row.timed && row.src);
       for (const b of r.querySelectorAll('[data-a=loop]')) {
@@ -789,6 +804,9 @@
     rebuild(st, info) {
       const scroll=this.q('[data-r=scroll]'),study=this.o.mode!=='podcast';
       const previousScroll = scroll.scrollTop;
+      const viewport=scroll.getBoundingClientRect();
+      const anchorLine=!this.s.follow&&scroll.clientHeight>0?this.lines.find(line=>{if(line.hidden)return false;const rect=line.getBoundingClientRect();return rect.bottom>viewport.top&&rect.top<viewport.bottom;}):null;
+      const anchor=anchorLine?{row:this.rows[Number(anchorLine.dataset.i)],offset:anchorLine.getBoundingClientRect().top-viewport.top}:null;
       const matchRow = this.matchLine && this.rows[Number(this.matchLine.dataset.i)];
       const focused=document.activeElement,oldRow=scroll.contains(focused)?focused.closest('[data-i]'):null;
       const focusedRow=oldRow?this.rows[Number(oldRow.dataset.i)]:null;
@@ -832,7 +850,6 @@
       scroll.append(frag);
       if (matchRow) this.matchLine = this.lines[this.rows.findIndex(row => sameRow(row,matchRow))];
       this.filterRows();
-      if (!this.s.follow) scroll.scrollTop = previousScroll;
       if(focusedRow){
         const index=this.rows.findIndex(row=>sameRow(row,focusedRow)),line=this.lines[index];
         const part=focusedTranslation===undefined?-1:this.rows[index]?.translationCueIds?.indexOf(focusedTranslation);
@@ -841,6 +858,9 @@
         ((!line?.hidden&&(action||line?.matches('[tabindex]')&&line))||this.q('[data-r=q]'))?.focus({preventScroll:true});
       } this.s.idx = -2; this.drawWave(st, info); this.words = this.lines.map((l, i) => this.rows[i].words ? [...l.querySelectorAll('.w')] : null);
       const li = info.langs || {}; for (const [k, v, label] of [['ls', li.src], ['lt', li.tr], ['lsb', li.src, T('Kaynak', 'Source')], ['ltb', li.tr, T('Çeviri', 'Translation')]]) { const n = this.q(`[data-r=${k}]`); if (!n) continue; if (label) n.innerHTML = `${v ? lang(v) : ''}${label}`; else n.textContent = v ? String(v).slice(0, 3).toUpperCase() : ''; n.title = v ? String(v).toUpperCase() : T('Dil bilinmiyor','Language unknown'); }
+      // Restore after language/display controls have their final layout. Following
+      // uses explicit smooth scrolling; a reading anchor must move immediately.
+      if (!this.s.follow){scroll.scrollTop=previousScroll;if(anchor){const index=this.rows.findIndex(row=>sameRow(row,anchor.row)),line=this.lines[index];if(line&&!line.hidden)scroll.scrollTop+=line.getBoundingClientRect().top-scroll.getBoundingClientRect().top-anchor.offset;}}
     }
     async flushVolume() {
       const identity = this.a.identity?.();
@@ -996,7 +1016,7 @@
         this.run('pause');
       }
       if (document.hidden) return;
-      const st = this.st = a.state(), info = a.info();if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev)this.closeNote();
+      const st = this.st = a.state(), info = a.info();if(this.assistantChoice&&this.assistantChoice.rev!==st.rev){this.assistantChoice=null;document.dispatchEvent(new Event('media-context-changed'));}if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev&&!this.s.note.stale){this.s.note.stale=true;this.renderNote(this.s.note,false);}if(this.s.note?.result)this.finishNote(this.s.note);
       this.captionTrackCount = info.captionTrackCount || 0;
       this.root.classList.toggle('sh-web-video', !!info.webVideo);
       this.root.classList.toggle('sh-web-source', !!info.webSource);
@@ -1149,7 +1169,7 @@
         jump.disabled = !this.canSeek;
       }
       const noteSeek = this.q('[data-a=noteSeek]');
-      if (noteSeek) noteSeek.disabled = !this.canSeek;
+      if (noteSeek) noteSeek.disabled = !this.canSeek || !!this.s.note?.stale;
       for (const button of this.root.querySelectorAll('.browser-study-transport button[data-a]')) {
         const value = enabled[button.dataset.a];
         if (value !== undefined) button.disabled = !value;
@@ -1282,11 +1302,12 @@
       return this.el('<div class="sh-job sh-recovery" data-r="recovery" hidden><span role="status"></span><button class="sh-chip" data-a="playbackRetry" type="button"></button></div>');
     }
     async runStatusAction(button, action) {
-      if (typeof action !== 'function' || button.disabled) return;
+      if (typeof action !== 'function' || button.disabled || this.dead || this.id0 !== (this.a.identity?.() ?? '')) return;
       const identity = this.a.identity?.();
       const returnToTransport = button.dataset.a === 'playbackRetry' && document.activeElement === button;
       if (returnToTransport) this.q('[data-a=toggle]')?.focus({preventScroll:true});
       button.disabled = true;
+      button.setAttribute('aria-busy','true');
       try {
         const result = await action();
         if (result?.ok === false && result.message) throw new Error(result.message);
@@ -1294,6 +1315,7 @@
         if (!this.dead && identity === this.a.identity?.()) this.toast(error?.message || T('İşlem uygulanamadı.', 'The action could not be completed.'));
       } finally {
         button.disabled = false;
+        button.removeAttribute('aria-busy');
         if (returnToTransport && !this.dead && identity === this.a.identity?.()
             && document.activeElement === document.body) {
           this.q('[data-a=toggle]')?.focus({preventScroll:true});
@@ -1313,10 +1335,12 @@
         if (button.textContent !== recovery.label) button.textContent = recovery.label;
       }
       const p = this.a.panel?.(); const j = p && p.job, box = this.q('[data-r=job]'); if (!box) return;
-      const show = !!j && (j.state === 'running' || j.state === 'failed'); if (box.hidden === show) box.hidden = !show; if (!show) return;
+      const show = !!j && ['running','failed','stopped','partial','cancelled'].includes(j.state);
+      if(!show&&box.contains(document.activeElement))this.q('[data-a=toggle]')?.focus({preventScroll:true});
+      if (box.hidden === show) box.hidden = !show; if (!show) return;
       box.dataset.state = j.state;
       const status = this.q('[data-r=jobt]');
-      const message = j.text || (j.state === 'failed' ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…'));
+      const message = j.text || (['stopped','cancelled'].includes(j.state)?T('Durduruldu. Kaydedilmiş sonuçlar korunur; İşlemler’den kullanılabilir sonuçları açabilirsiniz.','Stopped. Saved results are kept; open available results in Tasks.'):j.state==='partial'?T('Kısmi sonuç kaydedildi. Hazır satırlar korunur; İşlemler’den eksikleri tamamlayabilirsiniz.','Partial result saved. Ready lines are kept; complete missing lines in Tasks.'):j.state === 'failed' ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…'));
       if (status.textContent !== message) status.textContent = message;
       const running = j.state === 'running';
       const progress = running && Number.isFinite(j.progress) ? Math.round(Math.max(0, Math.min(1, j.progress)) * 100) : null;
@@ -1332,11 +1356,14 @@
         else if (bar.getAttribute('aria-valuenow') !== String(progress)) bar.setAttribute('aria-valuenow', progress);
         if (percent.textContent !== fill) percent.textContent = fill;
       }
-      this.q('[data-a=jobcancel]').hidden = !(j.state === 'running' && j.cancel); this.q('[data-a=jobretry]').hidden = !(j.state === 'failed' && j.retry);
+      this.q('[data-a=jobcancel]').hidden = !(j.state === 'running' && j.cancel); const retry=this.q('[data-a=jobretry]');retry.hidden=!(['failed','partial','stopped'].includes(j.state)&&j.retry);retry.textContent=j.retryLabel||T('Yeniden dene','Retry');
+      if(box.contains(document.activeElement)&&document.activeElement.hidden)this.q('[data-a=toggle]')?.focus({preventScroll:true});
     }
     togglePanel(opener) {
       this.s.panel=!this.s.panel;
       if(this.s.panel){
+        if(this.s.note)this.closeNote();
+        if(this.s.word)this.closeWord();
         this.panelOpener=opener||document.activeElement;
         this.drawPanel(true);
         const target = opener?.hasAttribute('data-caption-entry') ? this.q('[data-caption-section] button:not(:disabled)') : null;
@@ -1395,9 +1422,10 @@
     drawPanel(force) {
       const box = this.q('[data-r=panel]'); if (!box) return; box.hidden = !this.s.panel; this.root.classList.toggle('panel-open', this.s.panel); this.paint(); if (!this.s.panel) return;
       const p = this.a.panel?.(); if (!p) { box.textContent = ''; return; }
-      const sig = JSON.stringify([this.taskPending,p.sections.map((s) => [s.title, s.items.map((i) => [i.type, i.label, i.value, i.disabled, i.pressed, i.hint, (i.options || []).map((o) => o.value + o.label).join('|'), i.text])])]);
+      const sig = JSON.stringify([this.taskPending,p.sections.map((s) => [s.title, s.items.map((i) => [i.id, i.primary, i.type, i.label, i.value, i.disabled, i.pressed, i.hint, (i.options || []).map((o) => o.value + o.label).join('|'), i.text])])]);
       if (!force && sig === this.s.psig) return; this.s.psig = sig;
-      const focused = box.contains(document.activeElement) ? document.activeElement.dataset.pid||'close' : null; box.textContent = '';
+      const focused = box.contains(document.activeElement) ? document.activeElement.dataset.pid||'close' : null;
+      const previousScroll=box.scrollTop;box.textContent = '';
       box.append(this.el(`<div class="sh-panel-h"><b>${T('İşlemler', 'Tasks')}</b><button class="sh-btn icon" type="button" data-pclose aria-label="${T('Kapat', 'Close')}">${ic('close')}</button></div>`));
       box.querySelector('[data-pclose]').onclick=()=>this.togglePanel();
       p.sections.forEach((sec) => {
@@ -1419,18 +1447,20 @@
           }
           if(it.type==='range'){const L=this.el(`<label class="sh-psel sh-prange"><span>${esc(it.label)}</span><output></output><input type="range" min="0" max="1" step="0.01" aria-label="${esc(it.label)}"></label>`);const input=L.querySelector('input');input.value=String(it.value);input.dataset.pid=sec.title+':'+n;const output=L.querySelector('output'),show=()=>{output.textContent=Math.round(Number(input.value)*100)+'%';};show();input.oninput=()=>{show();it.onChange(Number(input.value));};s.append(L);return;}
           if (it.type === 'select') { const L = this.el(`<div class="sh-psel"><span>${esc(it.label)}</span></div>`);const select=root.PlayerUiKit.select({label:it.label,value:it.value,options:it.options,searchable:true,onChange:it.onChange});select.trigger.dataset.pid=`${sec.title}:${n}`;L.append(select);s.append(L); return; }
-          const b = this.el(`<button type="button" class="sh-pbtn${it.primary ? ' pri' : ''}" data-pid="${sec.title}:${n}" ${it.disabled || it.id && this.taskPending ? 'disabled' : ''} ${it.pressed !== undefined ? `aria-pressed="${!!it.pressed}"` : ''}><span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);
+          const b = this.el(`<button type="button" class="sh-pbtn${it.primary ? ' pri' : ''}" data-pid="${esc(it.id?'action:'+it.id:sec.title+':'+n)}" ${it.disabled || it.id && this.taskPending ? 'disabled' : ''} ${it.pressed !== undefined ? `aria-pressed="${!!it.pressed}"` : ''}><span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);
           b.onclick = async () => {
-            if (it.id && (this.a.actions?.() || []).some(action => action.id === it.id)) { const pending=this.startTask(it.id); this.tick(); await pending; if(!this.dead)this.drawPanel(false); return; }
+            const identity=this.a.identity?.(),current=()=>!this.dead&&identity===this.a.identity?.();if(!current()||identity!==this.id0)return;
+            if (it.id && (this.a.actions?.() || []).some(action => action.id === it.id)) { const pending=this.startTask(it.id); this.tick(); await pending; if(current())this.drawPanel(false); return; }
             b.disabled=true;
-            try { const result=await it.run?.(); if(!this.dead&&result?.ok===false)this.toast(result.message||T('İşlem uygulanamadı.','Task could not be applied.')); }
-            catch(error){if(!this.dead)this.toast(error?.message||T('İşlem uygulanamadı.','Task could not be applied.'));}
-            finally{if(!this.dead){b.disabled=!!it.disabled;this.tick();}}
+            try { const result=await it.run?.(); if(current()&&result?.ok===false)this.toast(result.message||T('İşlem uygulanamadı.','Task could not be applied.')); }
+            catch(error){if(current())this.toast(error?.message||T('İşlem uygulanamadı.','Task could not be applied.'));}
+            finally{if(current()){b.disabled=!!it.disabled;this.tick();}}
           }; s.append(b);
         });
         box.append(s);
       });
       if(focused)([...box.querySelectorAll('[data-pid]')].find(n=>n.dataset.pid===focused&&!n.disabled)||box.querySelector('[data-pclose]'))?.focus({preventScroll:true});
+      box.scrollTop=previousScroll;
     }
     drawCinema(info,st){
       const meta=this.q('.sh-cinema-meta');meta.querySelector('h1').textContent=info.title||T('Oynatıcı','Player');meta.querySelector('p').textContent=info.sub||'';
@@ -1441,22 +1471,71 @@
       const chapters=info.chapters||[],sig=JSON.stringify(chapters)+':'+st.duration;if(sig!==this.chapterSig){this.chapterSig=sig;const strip=this.q('.sh-cinema-chapters');strip.textContent='';strip.hidden=!chapters.length;chapters.forEach((c,i)=>{const end=chapters[i+1]?.t||st.duration,button=this.el(`<button class="sh-chap" type="button" data-t="${c.t}" title="${esc(c.label)} · ${fmt(c.t)}" aria-label="${esc(c.label)} · ${fmt(c.t)}"><span>${esc(c.label)}</span></button>`);button.style.flex=String(Math.max(.01,end-c.t));strip.append(button);});}
       const paused=!!st.paused;if(this.lastPause!==paused){this.lastPause=paused;this.reveal?.();}
     }
+    captureAssistantPassage() {
+      this.assistantChoice=null;try{
+      const selection=root.getSelection?.();if(!selection?.rangeCount||selection.isCollapsed)return null;
+      const index=this.lines.findIndex(line=>{const source=line?.querySelector('.src');return source?.contains(selection.anchorNode)&&source.contains(selection.focusNode);});
+      const row=this.rows[index],text=String(selection).trim();
+      if(!row||!text||text.length>4000||!row.src.includes(text))return null;
+      this.assistantChoice={identity:this.id0,rev:this.st?.rev,index,id:row.id,text};
+      return this.assistantPassage();
+      }finally{document.dispatchEvent(new Event('media-context-changed'));}
+    }
+    assistantPassage() {
+      const claim=this.assistantChoice,row=this.rows[claim?.index];
+      if(!claim||this.dead||claim.identity!==this.a.identity?.()||claim.rev!==this.a.state()?.rev||row?.id!==claim.id||!row.src.includes(claim.text))return null;
+      return {text:claim.text,timed:!!row.timed,...(row.timed?{start:row.start,end:row.end}:{})};
+    }
+    assistantContext(context,question='') {
+      const passage=this.assistantPassage();
+      if(!context||!passage||context.workspace&&context.workspace!=='podcast'||/(?:bu ana kadar|şu ana kadar|şimdiye kadar|buraya kadar|so far|up to (?:now|this point)|until now)/iu.test(String(question)))return context;
+      if(context.selectedText===passage.text)return context;
+      return {...context,selectedText:passage.text,not:[context.not,'Explicit user-selected source passage. Selection does not establish what has been heard.'].filter(Boolean).join(' ')};
+    }
+    noteRowIndex(note){return note?this.rows.findIndex(row=>row.id===note.rowId&&!!row.standaloneTranslation===!!note.standaloneTranslation):-1;}
     openNote(row,opener){
       const cue=this.rows[row];if(!cue||!this.caps.save)return;
       const selection=root.getSelection?.(),source=this.lines[row]?.querySelector('.src');
       const excerpt=selection?.rangeCount&&source?.contains(selection.anchorNode)&&source.contains(selection.focusNode)?String(selection).trim():'';
-      this.closeWord();this.noteOpener=opener||document.activeElement;this.s.note={row,rev:this.st?.rev,...(excerpt&&cue.src.includes(excerpt)?{excerpt}:{})};const box=this.q('.sh-note-card');box.hidden=false;
-      box.innerHTML=`<header><h2>${T('Cümle ve not','Sentence and note')}</h2><button class="sh-btn" type="button" data-a="noteClose" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><div class="sh-note-excerpt" tabindex="0" role="region" aria-label="${T('Kaynak alıntı ve çeviri','Source excerpt and translation')}"><p class="sh-word-context" dir="auto">${esc(this.s.note.excerpt||cue.src)}</p>${(this.s.note.excerpt?[]:cue.trs).map(x=>`<p class="sh-word-translation" dir="auto">${esc(x)}</p>`).join('')}</div><label>${T('Notunuz (isteğe bağlı)','Your note (optional)')}<textarea rows="3" maxlength="8000" data-note-text></textarea></label><footer><button class="sh-btn" type="button" data-a="noteSave">${T('Araştırma defterine kaydet','Save to research notebook')}</button>${cue.timed?`<button class="sh-btn" type="button" data-a="noteSeek">${T('Cümleye dön','Return to sentence')} · ${fmt(cue.start)}</button>`:`<small>${T('Zamansız metin · atlama yok','Untimed text · no seeking')}</small>`}</footer>`;
-      this.paint();box.querySelector('textarea').focus();
+      const existing=this.noteDraft;
+      this.closeWord();const same=existing?.identity===this.id0&&this.noteRowIndex(existing)===row;
+      if(existing?.identity===this.id0&&!same&&(existing.pending||existing.text?.trim())){this.renderNote(existing);this.toast(T('Önce açık taslağı kaydedin veya Taslağı bırak seçeneğini kullanın.','Save the open draft first, or choose Discard draft.'));return;}
+      this.noteOpener=opener||document.activeElement;
+      const note=same?existing:{identity:this.id0,row,rowId:cue.id,standaloneTranslation:!!cue.standaloneTranslation,rev:this.st?.rev,source:cue.src,translations:[...cue.trs],start:cue.start,end:cue.end,timed:!!cue.timed,text:'',...(excerpt&&cue.src.includes(excerpt)?{excerpt}:{})};
+      note.open=true;this.noteDraft=note;this.renderNote(note);
+      if(note.result)this.finishNote(note);
     }
-    closeNote(){this.s.note=null;const box=this.q('.sh-note-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore)(this.noteOpener?.isConnected?this.noteOpener:this.q('[data-r=q]'))?.focus({preventScroll:true});}
+    renderNote(note,focus=true){
+      if(this.s.panel){this.s.panel=false;this.drawPanel(true);}
+      if(this.s.word)this.closeWord();
+      const box=this.q('.sh-note-card'),active=document.activeElement,owned=box.contains(active),wasInput=active?.matches('[data-note-text]'),selection=wasInput?[active.selectionStart,active.selectionEnd]:null,action=active?.dataset.a;
+      this.s.note=note;this.noteDraft=note;note.open=true;
+      if(note.rev!==this.a.state()?.rev)note.stale=true;
+      box.hidden=false;
+      box.innerHTML=`<header><h2>${T('Cümle ve not','Sentence and note')}</h2><button class="sh-btn" type="button" data-a="noteClose" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><div class="sh-note-excerpt" tabindex="0" role="region" aria-label="${T('Kaynak alıntı ve çeviri','Source excerpt and translation')}"><p class="sh-word-context" dir="auto">${esc(note.excerpt||note.source)}</p>${(note.excerpt?[]:note.translations||[]).map(x=>`<p class="sh-word-translation" dir="auto">${esc(x)}</p>`).join('')}</div><label>${T('Notunuz (isteğe bağlı)','Your note (optional)')}<textarea rows="3" maxlength="8000" data-note-text></textarea></label><p class="sh-note-state" role="status"></p><footer>${note.stale?`<button class="sh-btn" type="button" data-a="noteRebind">${T('Güncel pasajı kullan','Use current passage')}</button>`:''}<button class="sh-btn" type="button" data-a="noteDiscard" ${note.pending?'disabled':''}>${T('Taslağı bırak','Discard draft')}</button><button class="sh-btn" type="button" data-a="noteSave">${T('Araştırma defterine kaydet','Save to research notebook')}</button>${note.timed?`<button class="sh-btn" type="button" data-a="noteSeek">${T('Cümleye dön','Return to sentence')} · ${fmt(note.start)}</button>`:`<small>${T('Zamansız metin · atlama yok','Untimed text · no seeking')}</small>`}</footer>`;
+      const input=box.querySelector('textarea');input.value=note.text||'';input.disabled=!!note.pending;input.oninput=()=>note.text=input.value;
+      const save=box.querySelector('[data-a=noteSave]');save.disabled=!!note.pending||!!note.stale;save.setAttribute('aria-busy',String(!!note.pending));
+      if(note.pending)save.textContent=T('Kaydediliyor…','Saving…');
+      box.querySelector('.sh-note-state').textContent=note.stale?T('Altyazı değişti. Taslağın korundu; kaydetmek için güncel pasajı önce incele.','The transcript changed. Your draft is kept; review the current passage before saving.'):note.pending?T('Kayıt sonucu bekleniyor. Görünüm değiştirmek ikinci kayıt başlatmaz.','Waiting for the save result. Switching views does not save a second copy.'):'';
+      box.querySelector('[data-a=noteSeek]')?.toggleAttribute('disabled',!!note.stale);box.querySelector('[data-a=noteRebind]')?.toggleAttribute('disabled',!!note.pending||this.noteRowIndex(note)<0);
+      box.dataset.state=note.stale?'stale':note.pending?'saving':'draft';this.paint();
+      if((focus&&!note.pending)||owned){const target=owned&&action?box.querySelector('[data-a="'+action+'"]:not(:disabled)'):note.pending?box.querySelector('[data-a=noteClose]'):input;target?.focus({preventScroll:true});if(wasInput&&!note.pending&&selection)input.setSelectionRange(...selection);}
+    }
+    closeNote(){const note=this.s.note;if(note){note.text=this.q('[data-note-text]')?.value??note.text;note.open=false;}this.s.note=null;const box=this.q('.sh-note-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore){const index=this.noteRowIndex(note);const row=index>=0?this.lines[index]:null;const opener=this.noteOpener?.isConnected?this.noteOpener:row&&!row.hidden&&row.querySelector('[data-act=save]');(opener||this.q('[data-r=q]'))?.focus({preventScroll:true});}}
+    finishNote(note){
+      if(!note.result||this.s.note!==note||this.dead)return;
+      const result=note.result;note.result=null;
+      if(result?.ok){this.closeNote();if(this.noteDraft===note)this.noteDraft=null;this.toast(T('Araştırma defterine kaydedildi.','Saved to research notebook.'));}
+      else{this.renderNote(note);this.q('.sh-note-state').textContent=result?.message||T('Not kaydedilemedi. Taslağın korundu; yeniden deneyebilirsin.','The note could not be saved. Your draft is kept; you can retry.');}
+    }
     async saveNote(){
-      const note=this.s.note;if(!note||note.pending)return;note.pending=true;
-      const box=this.q('.sh-note-card'),button=box.querySelector('[data-a=noteSave]');button.disabled=true;
-      const result=await this.run('save',{row:note.row,note:box.querySelector('textarea').value,...(note.excerpt?{excerpt:note.excerpt}:{})},note.rev);
-      if(this.dead||this.s.note!==note)return;
-      note.pending=false;button.disabled=false;
-      if(result?.ok){this.closeNote();this.toast(T('Araştırma defterine kaydedildi.','Saved to research notebook.'));}
+      const note=this.s.note;if(!note||note.pending||note.stale||note.rev!==this.a.state()?.rev||note.identity!==this.a.identity?.())return;
+      note.text=this.q('[data-note-text]')?.value||'';note.pending=true;this.renderNote(note);
+      // This receipt belongs to the note, so a same-source view handoff cannot dispatch it twice.
+      try{note.result=await this.a.cmd('save',{row:note.row,note:note.text,...(note.excerpt?{excerpt:note.excerpt}:{})},note.rev);}
+      catch(error){note.result={ok:false,message:error?.message||T('Not kaydedilemedi.','Could not save the note.')};}
+      finally{note.pending=false;}
+      if(!this.dead&&note.identity===this.a.identity?.())this.finishNote(note);
     }
     async runWordAction(button) {
       const word = this.s.word;

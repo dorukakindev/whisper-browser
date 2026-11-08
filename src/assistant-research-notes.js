@@ -37,7 +37,11 @@ function createResearchNotes({notes,manifest,validateOwner=()=>true,now=Date.now
  }
  function handle(sender,input={}){prune();const owner=ownerOf(input);
   if(input.action==='inspect'){
-   const resolved=resolve(input.id,sender,owner);return resolved?{ok:true,card:resolved.card,annotation:resolved.row}:changed();
+   let resolved=resolve(input.id,sender,owner);
+   // Persisted citations may outlive the agent's temporary search map. Treat the supplied citation only as an ID/revision claim;
+   // never trust its text, URL or source binding. The canonical notebook record supplies everything that can be opened.
+   if(!resolved&&input.card){const card=require('./assistant-thread-store').citationsOf([input.card]).find(c=>c.kind==='research-note'&&c.id===input.id);const row=card&&notes.get(card.noteId);if(row&&annotationRevision(row)===card.revision)resolved={row,card:publicNote(row,card.id)};}
+   return resolved?{ok:true,card:resolved.card,annotation:resolved.row}:changed();
   }
   const row=drafts.get(input.id);if(!owns(row,sender,owner))return fail('expired','Draft expired; prepare it again / Taslak eskidi; yeniden hazırlayın.');
   // A lost response must replay the exact confirmed result even if the referenced notes later change.

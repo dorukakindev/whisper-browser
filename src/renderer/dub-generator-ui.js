@@ -719,7 +719,8 @@
       async probe(id){
         if(!srt||current||planning)return false;let lookup;try{lookup=runLookup(id);}catch(_){return false;}
         const before=[requestIdentity(),lookupSelection()],r=await window.api.latestDub(lookup).catch(()=>null);
-        return !!r?.output&&same(before);
+        if(!same(before))return false;
+        return !r||r.ok===false?null:!!r.output;
       },
       // Loads one saved run into the CURRENT section. A newer load, a changed section/range/source, a closed panel, a running
       // production or a caller that is no longer current (isCurrent) all discard the answer before anything is shown.
@@ -728,6 +729,7 @@
         if(!srt)return {ok:false,code:'no-subtitle'};let lookup;try{lookup=runLookup(id);}catch(_){return {ok:false,code:'not-this-section'};}
         const seq=++loadSeq,before=[requestIdentity(),lookupSelection()],r=await window.api.latestDub(lookup).catch(()=>null);
         if(seq!==loadSeq||!isCurrent()||!same(before))return {ok:false,code:'stale'};
+        if(!r||r.ok===false)return {ok:false,code:'transport'};
         if(!r?.output)return {ok:false,code:'not-this-section'};
         adoptSavedOutput(r.output);return {ok:true};
       }

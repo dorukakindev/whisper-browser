@@ -258,8 +258,12 @@
       const snap = F.snap(), service = kind === 'shelf' ? window.MediaShelfUI : snap?.sourceKind === 'rss' ? window.PlayerSourceCatalogIntegration : null;
       if (service) {
         const status = service.podcastTaskState?.() || {}, task = status.job || {state:'idle'};
-        return { ...task, state: status.preparing || task.state === 'queued' ? 'running' : task.state,
-          text: status.preparing ? T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…') : task.text,
+        const recovery=status.translationRetry,partial=!!recovery?.partial&&!status.preparing&&!['queued','running','failed','stopped'].includes(task.state);
+        const canRetry=current()&&!!recovery?.canRetry&&!status.preparing&&!['queued','running'].includes(task.state);
+        return { ...task, state: status.preparing || task.state === 'queued' ? 'running' : partial?'partial':task.state,
+          text: status.preparing ? T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…') : partial?`${recovery.completed}/${recovery.total} `+T('çeviri satırı hazır. Kaydedilmiş satırlar korunur; yalnız eksikleri tamamlayabilirsiniz.','translated lines ready. Saved lines are kept; complete only the missing lines.'):task.text,
+          retry:canRetry?()=>{const retry=actions().find(action=>action.id==='retry-translation');if(current()&&retry&&!retry.disabled)return retry.run();}:null,
+          retryLabel:T('Yalnız eksikleri tamamla','Complete missing only'),
           cancel: current() && task.cancellable ? () => window.cancelPodcastQueueTask?.(snap, task.id) : null };
       }
       const activeJob = player.job;
@@ -293,12 +297,13 @@
       }
       const expected = { mediaKey: snapshot.mediaKey, generation: snapshot.generation, sourceVersion: snapshot.sourceVersion };
       const status = service.podcastTaskState?.() || {};
+      const primary=status.translationRetry?.canRetry?'retry-translation':status.hasSourceTranscript?'translate':'transcribe';
       return [
         ['transcribe', T('Whisper ile yazıya dök', 'Transcribe with Whisper')],
         ['transcribe-translate', T('Yazıya dök ve çevir', 'Transcribe and translate')],
         ...(status.hasSourceTranscript ? [['translate', T('Transkripti çevir', 'Translate transcript')]] : []),
         ...((status.translationRetry?.failed>0||status.translationRetry?.partial)?[['retry-translation',T('Yalnız eksikleri tamamla','Complete missing only')+(status.translationRetry.failed>0?' · '+status.translationRetry.failed:'')]]:[])
-      ].map(([id, label], index) => ({ id, type: 'button', label, primary: index === 0,
+      ].sort((a,b)=>Number(b[0]===primary)-Number(a[0]===primary)).map(([id, label], index) => ({ id, type: 'button', label, primary: id===primary,
         disabled: !current() || !!status.preparing || ['queued','running'].includes(status.job?.state) || id==='retry-translation'&&!status.translationRetry?.canRetry,
         hint: id==='retry-translation'?(status.translationRetry?.canRetry?`${status.translationRetry.completed}/${status.translationRetry.total} `+T('hazır; başarılı satırlar korunur.','ready; successful lines are kept.'):T('Bu sonuç için güvenli kurtarma bilgisi yok veya çeviri modu uyuşmuyor.','Safe recovery metadata is unavailable or the translation mode differs.')):status.preparing ? T('Kaynak hazırlanıyor…', 'Preparing source…') : '',
         run: (config={}) => { if (!current()) throw new Error(T('Kaynak değişti; işlem başlatılmadı.', 'Source changed; task not started.'));
@@ -327,6 +332,13 @@
         content.inert = previousInert; dialog.remove(); if (advancedOverlay === dialog) advancedOverlay = null; if(opener?.isConnected)opener.focus({preventScroll:true}); bounds();
       }, { once: true });
       doc.body.append(dialog); advancedOverlay = dialog; dialog.showModal(); bounds();
+    }
+    function askAssistant(){if(!current())return Promise.resolve(stale);window.CinemaSahne?.current?.captureAssistantPassage?.();window.api.showAssistant?.();return Promise.resolve({ok:true});}
+    function openNotebook(){
+      if(!current())return stale;
+      const entry=$('libraryViewResearch');
+      if(kind==='shelf'||!entry||typeof setSideTab!=='function')return {ok:false,code:'unsupported',message:T('Araştırma defterini kütüphaneden açın.','Open the research notebook from the library.')};
+      setSideTab('library');entry.click();openAdvanced();return {ok:true};
     }
     function panel() {
       const sections = [], a11y = [];
@@ -404,7 +416,8 @@
         type: 'button', label: T('Hazır dublaj sesi ekle', 'Attach dubbing audio'), disabled: attachDub.disabled,
         run: () => { if (current() && !attachDub.disabled) attachDub.click(); }
       }] });
-      sections.push({ title: T('Asistan', 'Assistant'), items: [{ type: 'button', label: T('Asistana sor', 'Ask assistant'), hint: T('Mevcut asistan penceresi, bu medyanın bağlamıyla açılır.', 'Opens the existing assistant window with this media as context.'), run: () => { if (current()) window.api.showAssistant?.(); } }] });
+      if(kind!=='shelf'&&$('libraryViewResearch'))sections.push({title:T('Okuma ve notlar','Reading and notes'),items:[{id:'saved-notes',type:'button',label:T('Kayıtlı pasajlar ve notlar','Saved passages and notes'),hint:T('Araştırma defterinde inceleyin, düzenleyin veya kaynağa dönün.','Review, edit or return to the source in your research notebook.'),run:openNotebook}]});
+      sections.push({ title: T('Asistan', 'Assistant'), items: [{ type: 'button', label: T('Asistana sor', 'Ask assistant'), hint: T('Mevcut asistan penceresi, bu medyanın bağlamıyla açılır.', 'Opens the existing assistant window with this media as context.'), run: askAssistant }] });
       sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='shelf'?num($('mediaShelfAudio')?.volume??1):kind==='browser'?num(player.browserVolume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:()=>{if(!current())return;if(doc.fullscreenElement)doc.exitFullscreen?.();else host?.requestFullscreen?.();}}]});
       return { job: job(), sections };
     }
@@ -463,7 +476,7 @@
         if (t === 'loop' && !(v && v.on)) { clearOwnedLoop(); return Promise.resolve({ ok: true }); }   // kendi A–B döngümüzü her durumda kapat
         const s = F.snap(); if (!current()) return Promise.resolve(stale);
         rowsFor(s);
-        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
+        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save','assistant'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
         if (v === 'translation' && ['prevCue','nextCue','replay'].includes(t)) {
           const time = translationNavigation(s)[t];
           if (s.capabilities?.seek?.support !== 'yes' || !Number.isFinite(time)) {
@@ -491,8 +504,9 @@
               sourceEntryId:audio?.entryId||s.entryId||''};
             return Promise.resolve(window.api.upsertResearchAnnotation(payload)).then(result=>result?.ok?{ok:true,annotation:result.annotation}: {ok:false,code:'save-failed',message:T('Not kaydedilemedi.','Could not save the note.')}).catch(()=>({ok:false,code:'save-failed',message:T('Not kaydedilemedi.','Could not save the note.')}));
           }
+          case 'notebook':return Promise.resolve(openNotebook());
           case 'advanced':openAdvanced();return Promise.resolve({ok:true});
-          case 'assistant':window.api.showAssistant?.();return Promise.resolve({ok:true});
+          case 'assistant':return askAssistant();
           case 'display':
             if(kind==='browser'&&typeof setSubtitleMode==='function')setSubtitleMode({src:'source',tr:'translation',both:'both'}[v]||'both',false);
             return Promise.resolve({ok:true});
@@ -621,7 +635,13 @@
       mountedBrowserMediaKey = player.mediaKey;
       if (prefs?.reading?.identity !== mountedIdentity && mountedBrowserSession.readingMediaKey === mountedBrowserMediaKey) {
         const saved = mountedBrowserSession.readingPrefs;
-        if (saved?.reading) prefs = { ...saved, reading: { ...saved.reading, identity: mountedIdentity } };
+        if (saved?.reading) {
+          const draft=saved.reading.noteDraft;
+          // Reopening this verified tab/media changes the presentation identity,
+          // not the draft owner. Keep the shared receipt for an in-flight save.
+          if(draft?.identity===saved.reading.identity)draft.identity=mountedIdentity;
+          prefs = { ...saved, reading: { ...saved.reading, identity: mountedIdentity } };
+        }
       }
     }
     host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}

@@ -506,9 +506,9 @@ test('sentence note editor saves entered note and return uses a real timed cue',
  const save=f.commands.find(c=>c[0]==='save');assert.equal(save[1].row,0);assert.equal(save[1].note,'Remember this');assert.equal(save[2],'r1');
 });
 
-test('untimed note editor has no return-time action and closes on transcript revision',t=>{
+test('untimed note editor keeps its draft on revision change without inventing a return-time action',t=>{
  const f=mount(t,{save:true,untimed:true});f.sh.q('[data-act=save]').click();const box=f.sh.q('.sh-note-card');assert.equal(box.hidden,false);assert.equal(box.querySelector('[data-a=noteSeek]'),null);assert.match(box.textContent,/Zamansız/);
- assert.equal(f.commands.length,0);f.setRevision('new');f.sh.tick();assert.equal(box.hidden,true);assert.equal(f.sh.s.note,null);
+ assert.equal(f.commands.length,0);f.setRevision('new');f.sh.tick();assert.equal(box.hidden,false);assert.equal(f.sh.s.note.stale,true);assert.equal(box.querySelector('[data-a=noteSeek]'),null);assert.equal(box.querySelector('[data-a=noteSave]').disabled,true);
 });
 
 
@@ -991,4 +991,149 @@ for(const disp of ['src','both','tr'])test(`no transcript card with text is blan
  assert.equal(cards.length,2);
  for(const card of cards)assert.notEqual(card.textContent.replace(/\d+:\d{2}/,'').replace(/\s+/g,' ').trim(),'','metni olan satır boş görünmemeli');
  assert.match(cards[0].textContent,/Only source here/);assert.match(cards[1].textContent,/Sadece çeviri var/);
+});
+
+
+test('applying a Podcast interval returns keyboard focus to the visible interval control',t=>{
+ const f=mount(t,{processing:true,actions:[{id:'transcribe',label:'Whisper',run:async()=>({queued:true})}]});
+ const range=f.sh.scopeBox.querySelector('[data-scope=range]');range.click();
+ const apply=f.sh.scopeBox.querySelector('[data-scope-apply]');apply.focus();apply.click();
+ assert.equal(f.sh.scopeBox.querySelector('.sh-scope-fields').hidden,true);assert.equal(f.w.document.activeElement,range);
+});
+
+test('a late shared command failure cannot notify the next source',async t=>{
+ const f=mount(t),toasts=[];let finish;f.sh.toast=text=>toasts.push(text);f.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);
+ const pending=f.sh.run('seek',8);f.sh.a.identity=()=> 'another-source';finish({ok:false,message:'Old source failure'});
+ assert.equal((await pending).code,'stale-source');assert.deepEqual(toasts,[]);
+});
+
+test('preparing a transcript task names the pending action and exposes its busy state',async t=>{
+ let finish;const f=mount(t,{processing:true,actions:[{id:'transcribe',label:'Whisper',run:()=>new Promise(resolve=>finish=resolve)}]});
+ const pending=f.sh.startTask('transcribe'),button=f.sh.q('[data-task=transcribe]');
+ assert.equal(button.getAttribute('aria-busy'),'true');assert.match(button.textContent,/Hazırlanıyor/);assert.equal(button.disabled,true);assert.equal(f.sh.scopeBox.querySelector('[data-scope=range]').disabled,true,'queued scope cannot be changed while preparation is pending');
+ finish({queued:true});await pending;assert.equal(f.sh.q('[data-task=transcribe]').getAttribute('aria-busy'),'false');
+});
+
+test('an explicitly selected source passage stays bound to its transcript revision',t=>{
+ const f=mount(t),source=f.sh.lines[0].querySelector('.src'),range=f.w.document.createRange();range.setStart(source.firstChild,2);range.setEnd(source.firstChild,8);const selected=f.w.getSelection();selected.removeAllRanges();selected.addRange(range);
+ let publications=0;f.w.document.addEventListener('media-context-changed',()=>publications++);const claim=f.sh.captureAssistantPassage();assert.equal(publications,1,'a paused source must publish the new attachment without waiting for playback');assert.equal(claim.text,'source');assert.equal(claim.timed,true);
+ selected.removeAllRanges();assert.equal(f.sh.assistantPassage().text,'source','overlay focus need not keep a DOM selection alive');
+ f.setRevision('changed');assert.equal(f.sh.assistantPassage(),null,'editing the track invalidates the attachment');
+});
+
+
+test('selected passage context is explicit, temporary and cannot expand a so-far question',t=>{
+ const f=mount(t),source=f.sh.lines[0].querySelector('.src'),range=f.w.document.createRange();range.selectNodeContents(source);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);f.sh.captureAssistantPassage();
+ const context={workspace:'podcast',title:'Episode'};const attached=f.sh.assistantContext(context);assert.equal(attached.selectedText,'A source sentence');assert.equal(f.sh.assistantContext(attached),attached,'repeated preview does not duplicate the attachment');
+ for(const question of ['Bu ana kadar özetle','Summarize so far'])assert.equal(f.sh.assistantContext(context,question).selectedText,undefined);
+ assert.equal(f.sh.assistantContext({workspace:'book-page'}).selectedText,undefined,'a selected video passage cannot contaminate book context');
+ const translated=f.sh.lines[0].querySelector('.tr');range.selectNodeContents(translated);selection.removeAllRanges();selection.addRange(range);assert.equal(f.sh.captureAssistantPassage(),null,'an unaligned translation is not claimed as a source passage');
+});
+
+test('panel actions discard late errors after another episode takes over',async t=>{
+ let finish;const f=mount(t,{sections:[{title:'Existing task',items:[{type:'button',label:'Open saved output',run:()=>new Promise(resolve=>finish=resolve)}]}]}),toasts=[];
+ f.sh.toast=message=>toasts.push(message);f.sh.togglePanel();f.sh.q('.sh-pbtn').click();f.sh.a.identity=()=> 'next-episode';finish({ok:false,message:'Old episode failed'});await new Promise(setImmediate);assert.deepEqual(toasts,[]);
+});
+
+test('Enter applies the interval without starting playback and composing keys do not switch modes',t=>{
+ const f=mount(t,{processing:true,actions:[{id:'transcribe',label:'Whisper',run:async()=>({queued:true})}]});f.sh.scopeBox.querySelector('[data-scope=range]').click();const input=f.sh.scopeBox.querySelector('[data-scope-time=start]');input.focus();input.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));assert.equal(f.sh.scopeBox.querySelector('.sh-scope-fields').hidden,true);assert.equal(f.commands.length,0);
+ const tab=f.sh.q('[role=tab][data-mode]');let clicks=0;f.sh.root.querySelectorAll('[role=tab][data-mode]').forEach(button=>button.addEventListener('click',()=>clicks++));tab.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'ArrowRight',ctrlKey:true,bubbles:true}));assert.equal(clicks,0);
+});
+
+
+test('same-source mode handoff keeps a selected source passage and unsaved note text',t=>{
+ const f=mount(t,{save:true}),source=f.sh.lines[0].querySelector('.src'),range=f.w.document.createRange();range.selectNodeContents(source);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);f.sh.captureAssistantPassage();
+ f.sh.openNote(0);const input=f.sh.q('[data-note-text]');input.value='Keep this draft';input.dispatchEvent(new f.w.Event('input'));
+ const next=mount(t,{study:true,save:true,prefs:f.sh.prefs(true)});
+ assert.equal(next.sh.assistantPassage()?.text,'A source sentence');assert.equal(next.sh.q('[data-note-text]')?.value,'Keep this draft');
+ const other=mount(t,{study:true,save:true,identity:'other-source',prefs:f.sh.prefs(true)});assert.equal(other.sh.assistantPassage(),null);assert.equal(other.sh.s.note,undefined);
+});
+
+test('a transcript refresh preserves a note draft but blocks saving it against changed evidence',async t=>{
+ const f=mount(t,{save:true});f.sh.openNote(0);const input=f.sh.q('[data-note-text]');input.value='My own correction';input.dispatchEvent(new f.w.Event('input'));
+ f.rows[0].src='Changed source';f.setRevision('updated');f.sh.tick();assert.equal(f.sh.q('[data-note-text]')?.value,'My own correction');assert.equal(f.sh.q('[data-a=noteSave]').disabled,true);assert.match(f.sh.q('.sh-note-card').textContent,/değişti/);
+ await f.sh.saveNote();assert.equal(f.commands.filter(c=>c[0]==='save').length,0);
+});
+
+test('an in-flight note save shared across a mode change cannot be sent twice',async t=>{
+ const f=mount(t,{save:true});let finish,commits=0;f.sh.a.cmd=()=>{commits++;return new Promise(resolve=>finish=resolve);};f.sh.openNote(0);const input=f.sh.q('[data-note-text]');input.value='One note';input.dispatchEvent(new f.w.Event('input'));const pending=f.sh.saveNote();
+ const next=mount(t,{study:true,save:true,prefs:f.sh.prefs(true)});f.sh.destroy();await next.sh.saveNote();assert.equal(commits,1);assert.equal(next.sh.q('[data-a=noteSave]').disabled,true);
+ finish({ok:true,annotation:{id:'saved-note'}});await pending;next.sh.tick();assert.equal(next.sh.s.note,null);assert.match(next.sh.q('[data-r=toast]').textContent,/kaydedildi/);
+});
+
+test('stopped or partially recoverable jobs keep a truthful visible result state',t=>{
+ const f=mount(t);let job={state:'stopped',text:'',progress:null};f.sh.a.panel=()=>({sections:[],job});f.sh.tick();assert.equal(f.sh.q('[data-r=job]').hidden,false);assert.match(f.sh.q('[data-r=job]').textContent,/Durduruldu/);assert.equal(f.sh.q('[data-r=jobbar]').hidden,true);
+ job={state:'partial',text:'3 / 5 ready; stored lines remain available',progress:null};f.sh.tick();assert.match(f.sh.q('[data-r=job]').textContent,/3 \/ 5 ready/);assert.equal(f.sh.q('[data-a=jobcancel]').hidden,true);
+});
+
+
+test('a translation inserted above the reading position keeps the same source passage in view',t=>{
+ const f=mount(t);f.rows.push({id:'c',start:20,end:25,timed:true,src:'Reading anchor',trs:[],unc:[],words:null},{id:'d',start:25,end:30,timed:true,src:'Later',trs:[],unc:[],words:null});f.setRevision('long');f.sh.tick();f.sh.s.follow=false;
+ const scroll=f.sh.q('[data-r=scroll]');scroll.scrollTop=250;Object.defineProperty(scroll,'clientHeight',{value:200});scroll.getBoundingClientRect=()=>({top:0,bottom:200});
+ const box=f.w.Element.prototype.getBoundingClientRect;f.w.Element.prototype.getBoundingClientRect=function(){if(this.parentElement===scroll&&this.matches('[data-i]')){let top=-scroll.scrollTop;for(const row of scroll.children){if(row===this)break;top+=row.textContent.includes('Inserted translation')?180:100;}const height=this.textContent.includes('Inserted translation')?180:100;return {top,bottom:top+height,height};}return box.call(this);};
+ const before=f.sh.lines[2].getBoundingClientRect().top;f.rows[0].trs.push('Inserted translation');f.setRevision('translated');f.sh.tick();assert.equal(f.sh.lines[2].getBoundingClientRect().top,before,'the reader must not jump backward when earlier cards grow');assert.equal(scroll.scrollTop,330);
+});
+
+
+test('rebinding a stale note requires an explicit action, preserves the draft and previews current evidence',async t=>{
+ const f=mount(t,{save:true});f.sh.openNote(0);const input=f.sh.q('[data-note-text]');input.value='My note';input.dispatchEvent(new f.w.Event('input'));f.rows[0].src='New evidence';f.setRevision('new');f.sh.tick();
+ f.sh.q('[data-a=noteRebind]').click();assert.equal(f.sh.q('.sh-word-context').textContent,'New evidence');assert.equal(f.sh.q('[data-note-text]').value,'My note');assert.equal(f.commands.length,0,'rebinding is not a save');assert.equal(f.sh.q('[data-a=noteSave]').disabled,false);
+ await f.sh.saveNote();assert.equal(f.commands[0][2],'new');assert.equal(f.commands[0][1].note,'My note');
+});
+
+test('opening another note cannot silently discard an existing draft',t=>{
+ const f=mount(t,{save:true});f.sh.openNote(0);f.sh.q('[data-note-text]').value='Unsaved first note';f.sh.q('[data-note-text]').dispatchEvent(new f.w.Event('input'));f.sh.openNote(1);assert.equal(f.sh.s.note.rowId,'a');assert.equal(f.sh.q('[data-note-text]').value,'Unsaved first note');
+ f.sh.q('[data-a=noteDiscard]').click();f.sh.openNote(1);assert.equal(f.sh.s.note.rowId,'b');assert.equal(f.sh.q('[data-note-text]').value,'');
+});
+
+test('Tasks refresh keeps the focused action by identity when its priority changes',t=>{
+ const items=[{id:'transcribe',label:'Transcribe'},{id:'translate',label:'Translate'}];
+ const f=mount(t,{study:true,sections:[{title:'Tasks',items}]});f.sh.togglePanel();
+ const panel=f.sh.q('[data-r=panel]');[...panel.querySelectorAll('.sh-pbtn')].find(b=>b.textContent==='Translate').focus();
+ items.reverse();f.sh.drawPanel(false);
+ assert.equal(f.w.document.activeElement.textContent,'Translate');
+ assert.equal(f.w.document.activeElement.dataset.pid,'action:translate');
+});
+
+test('a retired job action returns focus to transport without stealing external focus',t=>{
+ const f=mount(t,{study:true}),play=f.sh.q('[data-a=toggle]'),search=f.sh.q('[data-r=q]');let job={state:'failed',retry:()=>{}};
+ f.sh.a.panel=()=>({sections:[],job});f.sh.drawJob();f.sh.q('[data-a=jobretry]').focus();
+ job={state:'running',cancel:()=>{}};f.sh.drawJob();assert.equal(f.w.document.activeElement,play,'hidden retry cannot retain keyboard focus');
+ f.sh.q('[data-a=jobcancel]').focus();job={state:'done'};f.sh.drawJob();assert.equal(f.w.document.activeElement,play,'the entire retired job returns focus');
+ search.focus();job={state:'failed'};f.sh.drawJob();job=null;f.sh.drawJob();assert.equal(f.w.document.activeElement,search);
+});
+
+test('closing a draft after transcript refresh returns to the same passage save action',t=>{
+ const f=mount(t,{study:true,save:true});f.sh.openNote(1,f.sh.lines[1].querySelector('[data-act=save]'));
+ f.rows[0].trs=['Updated translation'];f.setRevision('new-translation');f.sh.tick();
+ f.sh.q('[data-a=noteClose]').click();assert.equal(f.w.document.activeElement,f.sh.lines[1].querySelector('[data-act=save]'));
+});
+
+test('Tasks and note panels share one working surface while keeping the draft discoverable',t=>{
+ const f=mount(t,{study:true,save:true});f.sh.openNote(0);const input=f.sh.q('[data-note-text]');input.value='Kept while using Tasks';input.dispatchEvent(new f.w.Event('input'));
+ f.sh.togglePanel();assert.equal(f.sh.q('.sh-note-card').hidden,true);assert.equal(f.sh.noteDraft.text,'Kept while using Tasks');
+ const reopen=f.sh.lines[0].querySelector('[data-act=save]');assert.equal(reopen.getAttribute('data-note-draft'),'true');assert.match(reopen.title,/taslağ/);
+ reopen.click();assert.equal(f.sh.q('[data-r=panel]').hidden,true);assert.equal(f.sh.q('[data-note-text]').value,'Kept while using Tasks');
+ f.sh.q('[data-a=noteDiscard]').click();assert.equal(reopen.hasAttribute('data-note-draft'),false);
+});
+
+test('a note draft never marks or rebinds a different track row with the same cue id',t=>{
+ const f=mount(t,{study:true,save:true,prefs:{disp:'both'}});
+ f.rows[1]={...f.rows[1],id:f.rows[0].id,src:'',trs:['Independent translation'],standaloneTranslation:true};f.setRevision('overlapping-ids');f.sh.tick();
+ f.sh.openNote(1,f.sh.lines[1].querySelector('[data-act=save]'));f.sh.q('[data-note-text]').value='Translation-specific note';f.sh.q('[data-note-text]').dispatchEvent(new f.w.Event('input'));f.sh.closeNote();
+ assert.equal(f.sh.lines[0].querySelector('[data-act=save]').hasAttribute('data-note-draft'),false);assert.equal(f.sh.lines[1].querySelector('[data-act=save]').dataset.noteDraft,'true');
+ f.rows[1].trs=['Revised independent translation'];f.setRevision('edited');f.sh.tick();f.sh.openNote(1);f.sh.q('[data-a=noteRebind]').click();
+ assert.equal(f.sh.s.note.row,1);assert.equal(f.sh.s.note.source,'');assert.deepEqual(Array.from(f.sh.s.note.translations),['Revised independent translation']);
+ assert.equal(f.sh.q('[data-note-text]').value,'Translation-specific note');assert.equal(f.commands.length,0);
+});
+
+test('refusing another note does not replace the original draft focus return target',t=>{
+ const f=mount(t,{study:true,save:true});const first=f.sh.lines[0].querySelector('[data-act=save]'),second=f.sh.lines[1].querySelector('[data-act=save]');
+ f.sh.openNote(0,first);f.sh.q('[data-note-text]').value='Keep me';f.sh.q('[data-note-text]').dispatchEvent(new f.w.Event('input'));f.sh.openNote(1,second);f.sh.q('[data-a=noteClose]').click();
+ assert.equal(f.w.document.activeElement,first);
+});
+
+test('a stale note sentence action stays visibly disabled through transport refreshes',t=>{
+ const f=mount(t,{study:true,save:true});f.sh.openNote(0);f.setRevision('changed');f.sh.tick();f.sh.tick();
+ const seek=f.sh.q('[data-a=noteSeek]');assert.equal(seek.disabled,true);seek.click();assert.equal(f.commands.length,0);
 });

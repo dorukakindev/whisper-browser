@@ -51,7 +51,7 @@ function harness() {
   return { ctx, controls, tab, stops, modes, signals, load };
 }
 
-(async () => {
+require('node:test')('Browser subtitle choices and completion remain bound to the selected source', async () => {
   // Internal podcast loads select the requested file before reading, but still yield to a newer user selection.
   for (const changed of [false,true]) {
     const h=harness();let finish;h.ctx.addSubtitleOption=()=>{};
@@ -287,5 +287,30 @@ function harness() {
   assert.equal(automatic.ctx.player.cues[0].text, 'Yeni otomatik');
   assert.equal(automatic.tab.persistedTranslationLoading, false);
 
+  // The complete action also opens saved translations; the loader uses the primary channel.
+  const completion = harness();
+  completion.ctx.browserTrackSelection = () => completion.ctx.player.browserTracks[1];
+  completion.ctx.addSubtitleOption = () => {};
+  completion.ctx.renderBrowserTracks = () => {};
+  completion.ctx.renderTranscript = () => {};
+  completion.ctx.player.subtitles = [];
+  completion.ctx.player.subOrigins = {};
+  vm.runInContext(js.slice(js.indexOf('async function loadPersistedBrowserTranslation('), js.indexOf('function browserTrackSelection(')), completion.ctx);
+  vm.runInContext(js.slice(js.indexOf('async function completeSelectedBrowserTranslation('), js.indexOf('async function startBrowserLiveTranslation(')), completion.ctx);
+  assert.equal((await completion.ctx.completeSelectedBrowserTranslation()).ok, true, 'saved translation loaded in primary channel must report success');
+  assert.equal(completion.ctx.player.browserLoadedTrackId, 'tr');
+  assert.equal(completion.ctx.player.browserLoadedTrackId2, '');
+  // A late completion on the same tab with reused track ids belongs to the old video.
+  let videoGeneration = 1, completeRead;
+  completion.ctx.currentGeneration = () => videoGeneration;
+  completion.ctx.staleGeneration = captured => captured !== videoGeneration;
+  completion.ctx.player.browserTranslationTrackId = 'src';
+  completion.ctx.browserTrackSelection = () => completion.ctx.player.browserTracks[0];
+  completion.ctx.window.api.completeBrowserTranslation = () => new Promise(resolve => { completeRead = resolve; });
+  const pendingCompletion = completion.ctx.completeSelectedBrowserTranslation();
+  videoGeneration++;
+  completeRead({ok:true,remaining:12});
+  assert.equal((await pendingCompletion).ok, false, 'same-tab new video must reject the old completion notice');
+
   console.log('Browser subtitle selection: pair refresh, channel reset, live replacement, failed reads and return races passed.');
-})().catch((error) => { console.error(error); process.exitCode = 1; });
+});

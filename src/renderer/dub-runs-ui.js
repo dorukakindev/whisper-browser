@@ -32,7 +32,7 @@
  const body=section.querySelector('.dub-runs-body'),notice=section.querySelector('#dubRunsNotice'),list=section.querySelector('#dubRunsList'),count=section.querySelector('#dubRunsCount'),refreshButton=section.querySelector('#dubRunsRefresh');
  const dialog=section.closest('dialog');
  let epoch=0,listSeq=0,detailSeq=0,runs=[],loaded=false,loading=false,listError=false,extra={unreadable:[],orphans:[],orphanNote:null},active=null;
- let selected=null,detail=null,detailState='idle',loadable=null,audio=null;
+ let selected=null,detail=null,detailState='idle',loadable=null,loadCheck='idle',audio=null,renderedDetail=null;
  const messages=new Map(),previews={pinned:null,current:null},pending=new Set(),sourceNotes=new Map();
  const call=async request=>{try{return await window.api.dubRuns(request);}catch(_){return {ok:false,code:'transport'};}};
  const guard=(ep,seq,counter,id)=>ep===epoch&&(counter===undefined||seq===counter())&&(id===undefined||selected===id);
@@ -55,7 +55,7 @@
   if(selected&&!runs.some(row=>row.id===selected))closeDetail();
   busyEvent();render();
  }
- function closeDetail(){selected=null;detail=null;detailState='idle';loadable=null;previews.pinned=previews.current=null;stopAudio();detailSeq++;}
+ function closeDetail(){selected=null;detail=null;detailState='idle';loadable=null;loadCheck='idle';renderedDetail=null;previews.pinned=previews.current=null;stopAudio();detailSeq++;}
  async function select(id){
   if(selected===id){closeDetail();render();focusRow(id);return;}
   closeDetail();selected=id;detailState='loading';render();
@@ -67,11 +67,11 @@
  }
  // Whether this result matches the current subtitle/range/source is answered by the same saved-output check the dialog uses.
  async function probeLoadable(id,ep,seq){
-  const row=runs.find(item=>item.id===id);loadable=null;
+  const row=runs.find(item=>item.id===id);loadable=null;loadCheck='idle';
   if(!(row&&['completed','partial'].includes(row.state)&&row.output.state==='valid'&&window.DubGeneratorBridge))return;
-  const ok=await window.DubGeneratorBridge.probe(id);
+  loadCheck='checking';render();let ok;try{ok=await window.DubGeneratorBridge.probe(id);}catch(_){ok=null;}
   if(!guard(ep,seq,()=>detailSeq,id))return;
-  loadable=ok;render();
+  loadable=typeof ok==='boolean'?ok:null;loadCheck=loadable===null?'error':'ready';render();
  }
  function focusRow(id){const target=[...list.querySelectorAll('[data-run]')].find(row=>row.dataset.run===id)?.querySelector('.dub-run-main');target?.focus?.();}
 
@@ -101,8 +101,10 @@
   render();
  }
  async function loadIntoSection(id){
+  const key='load:'+id;if(pending.has(key))return;pending.add(key);
+  const ep=epoch;try{
   messages.set(id,{tone:'info',text:L('Denetleniyor…','Checking…')});render();
-  const ep=epoch;let result=await window.DubGeneratorBridge.load(id,{isCurrent:()=>guard(ep,undefined,undefined,id)});
+  let result=await window.DubGeneratorBridge.load(id,{isCurrent:()=>guard(ep,undefined,undefined,id)});
   if(!guard(ep,undefined,undefined,id))return;
   if(result?.code==='not-this-section'){
    // Distinguish "does not match this section" from "the file changed or disappeared" instead of blaming the section.
@@ -110,9 +112,12 @@
    if(!checked?.ok&&checked?.code==='output-changed'){messages.set(id,{tone:'bad',text:part(checked.error)+' '+part(checked.next)});render();await refresh();return;}
   }
   const text={ok:L('Bu bölüme yüklendi (çalmaya başlamadı). Ana üretim alanında inceleyebilirsin.','Loaded into this section (not playing). Review it in the main production area.'),
-   busy:L('Başka bir işlem sürüyor; bitince tekrar dene.','Another action is in progress; try again when it finishes.'),'no-subtitle':L('Önce bir altyazı seç.','Choose a subtitle first.'),
+   transport:L('Sonuç okunamadı. Açık sonuç değiştirilmedi; kayıtlı dosya korunuyor. Yeniden dene.','The result could not be read. The open result was not changed; the saved file is kept. Retry.'),busy:L('Başka bir işlem sürüyor; bitince tekrar dene.','Another action is in progress; try again when it finishes.'),'no-subtitle':L('Önce bir altyazı seç.','Choose a subtitle first.'),
    'not-this-section':L('Bu sonuç şu anki altyazı/aralıkla eşleşmiyor; yalnız dinlenebilir.','This result does not match the current subtitle/range; it can only be listened to.'),stale:L('Seçim değişti; tekrar dene.','The selection changed; try again.')}[result?.ok?'ok':result?.code]||L('Yüklenemedi.','Could not be loaded.');
   messages.set(id,{tone:result?.ok?'ok':'bad',text});render();
+  }catch(_){
+   if(guard(ep,undefined,undefined,id))messages.set(id,{tone:'bad',text:L('Yükleme doğrulanamadı. Kayıtlı dosya korunuyor; sonucu inceleyip yeniden dene.','The load could not be verified. The saved file is kept; review the result and retry.')});
+  }finally{if(ep===epoch&&pending.delete(key))render();}
  }
  async function preview(id,mode){
   const slot={mode,state:'loading',seq:(previews[mode]?.seq||0)+1};previews[mode]=slot;render();
@@ -173,7 +178,7 @@
   main.append(chip,title,meta);
   if(row.recovered||row.attempt>1){const tags=node('span','dub-run-tags');if(row.recovered)tags.append(node('em','',L('kurtarıldı','recovered')));if(row.attempt>1)tags.append(node('em','',L('deneme ','attempt ')+row.attempt));main.append(tags);}
   li.append(main);
-  if(selected===row.id)li.append(renderDetail(row));
+  if(selected===row.id){const detail=renderDetail(row);if(renderedDetail===row.id)detail.classList.add('is-refresh');renderedDetail=row.id;li.append(detail);}
   return li;
  }
  // Source evidence (what the run was made from and whether it can be reopened) is its own flat band, apart from the tools below.
@@ -226,8 +231,13 @@
   if(['running','running-elsewhere'].includes(row.state))box.append(node('p','dub-run-note',row.state==='running'?L('Bu üretim şu an çalışıyor; ilerleme ana üretim çubuğunda.','This generation is running now; progress is in the main production bar.'):L('Başka bir uygulama örneğinde çalışıyor; buradan dokunulmaz.','It is running in another app instance; it is not touched from here.')));
   if(row.recoverable)actions.append(button(L('Çıktıyı kurtar','Recover the output'),()=>recover(row.id),'btn btn-secondary btn-sm'));
   if(row.output.state==='valid'&&!['running','running-elsewhere'].includes(row.state))actions.append(button(L('Dinle (yalnız inceleme)','Listen (review only)'),()=>listen(row.id)));
-  if(loadable===true)actions.append(button(L('Bu bölüme yükle','Load into this section'),()=>loadIntoSection(row.id),'btn btn-secondary btn-sm'));
+  if(loadable===true){const busy=pending.has('load:'+row.id),load=button(busy?L('Yükleniyor…','Loading…'):L('Bu bölüme yükle','Load into this section'),()=>loadIntoSection(row.id),'btn btn-secondary btn-sm');load.dataset.runAction='load';load.disabled=busy;load.setAttribute('aria-busy',String(busy));actions.append(load);}
   if(loadable===false)box.append(node('p','dub-run-note',L('Bu sonuç şu anki altyazı/aralık/kaynakla eşleşmiyor; yalnız dinlenebilir.','This result does not match the current subtitle/range/source; it can only be listened to.')));
+  if(loadCheck==='checking'){const checking=node('p','dub-run-note',L('Kaynak, altyazı ve aralık eşleşmesi denetleniyor…','Checking source, subtitle and range match…'));checking.setAttribute('role','status');box.append(checking);}
+  if(loadCheck==='error'){
+   const warning=node('p','dub-run-note',L('Sonucun kaynak ve aralık eşleşmesi denetlenemedi. Kayıtlı ses korunuyor.','The result’s source and range match could not be checked. The saved audio is kept.'));warning.setAttribute('role','status');box.append(warning);
+   actions.append(button(L('Eşleşmeyi yeniden denetle','Check match again'),()=>probeLoadable(row.id,epoch,detailSeq),'btn btn-secondary btn-sm'));
+  }
   if(row.retryable){
    if(active)box.append(node('p','dub-run-note',L('Başka bir üretim çalışıyor; yeniden deneme önizlemesi bitince açılır.','Another production is running; retry previews open when it finishes.')));
    else for(const mode of ['pinned','current'])if(!previews[mode]||previews[mode].state==='closed')actions.append(button(MODES[mode].title()+'…',()=>preview(row.id,mode)));
@@ -278,6 +288,8 @@
   return panel;
  }
  function render(){
+  const focused=document.activeElement,oldRow=list.contains(focused)?focused.closest('.dub-run'):null;
+  const focus=oldRow?{id:oldRow.dataset.run,action:focused.dataset.runAction,label:focused.textContent,main:focused.classList.contains('dub-run-main'),index:[...list.children].indexOf(oldRow)}:null;
   const attention=runs.filter(row=>['interrupted','uncertain','running','running-elsewhere','failed','partial','output-missing'].includes(row.state)).length;
   section.dataset.state=!loaded&&loading?'loading':listError&&!loaded?'error':loaded&&!runs.length?'empty':'ready';
   count.textContent=loaded?String(runs.length):'';count.hidden=!loaded;
@@ -293,9 +305,10 @@
   if(!rows.length)rows.push(Object.assign(node('li','dub-run-empty',loading?L('Çalışmalar yükleniyor…','Loading runs…'):listError?'':L('Henüz kayıtlı bir üretim yok. Bir dublaj ürettiğinde burada görünür.','No saved productions yet. A dubbing you generate shows up here.')),{}));
   list.replaceChildren(...rows);
   list.setAttribute('aria-busy',loading?'true':'false');
+  if(focus){const row=[...list.querySelectorAll('.dub-run')].find(node=>node.dataset.run===focus.id),fallback=rows[Math.min(focus.index,rows.length-1)];const action=row&&[...row.querySelectorAll('button:not(:disabled)')].find(node=>focus.action?node.dataset.runAction===focus.action:!focus.main&&node.textContent===focus.label);(action||row?.querySelector('.dub-run-main')||fallback?.querySelector('.dub-run-main')||refreshButton).focus({preventScroll:true});}
  }
  // ---------- lifecycle ----------
- section.querySelector('#dubRunsRefresh').addEventListener('click',()=>void refresh());
+ section.querySelector('#dubRunsRefresh').addEventListener('click',event=>{event.preventDefault();event.stopPropagation();void refresh();});
  section.addEventListener('toggle',()=>{if(section.open&&!loaded&&!loading)void refresh();});
  const reset=()=>{epoch++;listSeq++;detailSeq++;closeDetail();for(const key of Object.keys(previews))previews[key]=null;pending.clear();messages.clear();sourceNotes.clear();render();};
  if(dialog){
