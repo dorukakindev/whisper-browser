@@ -1,4 +1,5 @@
-Güncel teslim: [Asistan yanıt iptali ve canlı Podcast kaynak zinciri](docs/devir/2026-11-08-1829.md)
+Güncel teslim: [Browser Podcast cümle arası gezinme ve gerçek Sahne devri](docs/devir/2026-11-08-1841.md)
+Önceki teslim: [Asistan yanıt iptali ve canlı Podcast kaynak zinciri](docs/devir/2026-11-08-1829.md)
 Önceki teslim: [Birikmiş asistan, Podcast ve Sahne teslimi](docs/devir/2026-11-08-1814.md)
 Önceki yerel tur: [Ses ve hız isteklerinin aynı kaynakta görünüm devri](docs/devir/2026-11-08-1806.md)
 Önceki yerel tur: [Durum eylemlerinin aynı kaynakta görünüm devri](docs/devir/2026-11-08-1754.md)

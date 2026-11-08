@@ -39,6 +39,32 @@ const evidence=require('../src/assistant-source-context').freezePodcast(snap,tra
  assert.deepEqual(commands.slice(replayStart).map(row => row.type), ['seek'], 'late seek never plays the replacement tab');
  player.browserActiveTabId = 'a';
  commandResult = () => ({ok:true});
+ // All positions below are video-clock positions after per-track drift/offset.
+ for(const [time,type,target] of [[15,'nextCue',25.01],[15,'previousCue',5.01],[40,'previousCue',25.01],[2,'nextCue',5.01],[2,'previousCue',5.01]]){
+  player.browserTime=time;const current=ui.snapshot();
+  const result=await ui.execute({type,mediaKey:current.mediaKey,generation:current.generation,trackId:current.sourceTrack.id,trackRevision:current.sourceTrack.revision});
+  assert.equal(result.ok,true,type+' at '+time);assert.equal(commands.at(-1).value,target,type+' must use its chronological neighbour at '+time);
+ }
+ for(const [time,type] of [[40,'nextCue'],[15,'replay']]){
+  player.browserTime=time;const current=ui.snapshot(),before=commands.length;
+  assert.equal((await ui.execute({type,mediaKey:current.mediaKey,generation:current.generation,trackId:current.sourceTrack.id,trackRevision:current.sourceTrack.revision})).ok,false);
+  assert.equal(commands.length,before,'no unrelated fallback cue may be sought');
+ }
+ // Overlapping captions choose the latest speaking cue, not the first match.
+ const originalEnd=player.cues[0].end;player.cues[0].end=20;player.browserTime=27;
+ {const current=ui.snapshot();await ui.execute({type:'replay',mediaKey:current.mediaKey,generation:current.generation,trackId:current.sourceTrack.id,trackRevision:current.sourceTrack.revision});assert.equal(commands.at(-1).type,'play');assert.equal(commands.at(-2).value,25.01);}
+ player.cues[0].end=originalEnd;
+ player.browserTime=6;
+ // Very short cues land inside their true interval; malformed/out-of-media cues do not seek.
+ player.cues.push({id:'tiny',start:30,end:30.002,text:'Brief'},{id:'tiny-next',start:30.002,end:30.004,text:'Next brief'},{id:'invalid',start:35,end:34,text:'Invalid'},{id:'outside',start:51,end:52,text:'Outside'});
+ for(const cueId of ['tiny','invalid','outside']){
+  const current=ui.snapshot(),before=commands.length,result=await ui.execute({type:'seekCue',cueId,mediaKey:current.mediaKey,generation:current.generation,trackId:current.sourceTrack.id,trackRevision:current.sourceTrack.revision});
+  if(cueId==='tiny'){assert.equal(result.ok,true);assert(commands.at(-1).value>65&&commands.at(-1).value<65.004,'landing stays inside a short mapped cue');}
+  else{assert.equal(result.ok,false);assert.equal(commands.length,before,'invalid timing never reaches the browser owner');}
+ }
+ player.browserTime=65.001;
+ {const current=ui.snapshot();await ui.execute({type:'nextCue',mediaKey:current.mediaKey,generation:current.generation,trackId:current.sourceTrack.id,trackRevision:current.sourceTrack.revision});assert(commands.at(-1).value>65.004&&commands.at(-1).value<65.008,'closely spaced cues are not skipped by a fixed tolerance');}
+ player.cues.splice(-4);player.browserTime=6;
  const oldRevision=snap.sourceTrack.revision;player.cues[0].text='Edited';assert.notEqual(ui.snapshot().sourceTrack.revision,oldRevision);assert.equal((await ui.execute(command)).code,'stale-track');
  const speed=document.querySelector('.browser-podcast-speed');speed.trigger.click();player.generation++;const before=commands.length;speedChange('1.5');assert.equal(commands.length,before,'old speed menu cannot change another generation');
  player.mediaKey='browser:replacement';assert.equal(ui.isActive(),false);player.mediaKey='browser:one';assert.equal(ui.isActive(),true);
