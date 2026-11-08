@@ -52,12 +52,18 @@
     if (!snap) return {ok:false,code:'stale-source'};
     if (command.type==='seekCue' || command.type==='previousCue' || command.type==='nextCue' || command.type==='replay') {
       const cues=sourceRole().cues;
-      let index=cues.findIndex(cue => snap.time>=cue.start && snap.time<cue.end);
-      if (command.type==='seekCue') index=cues.findIndex(cue => cue.id===command.cueId);
-      else if (command.type==='previousCue') index=Math.max(0,index-1);
-      else if (command.type==='nextCue') index=Math.min(cues.length-1,index+1);
-      if (index<0 || !cues[index]) return {ok:false,code:'unknown-cue'};
-      const result=await browserCommand('seek',Math.max(0,cues[index].start+.01),tab);
+      const timeline=cues.filter(cue=>Number.isFinite(cue.start)&&Number.isFinite(cue.end)&&cue.end>cue.start&&cue.end>0&&cue.start<snap.duration).sort((a,b)=>a.start-b.start);
+      // Compare video-clock positions, including independent subtitle drift/offset.
+      // A gap has no active cue: it must not reset next/replay to the first line.
+      let current=-1;
+      timeline.forEach((cue,index)=>{if(snap.time>=cue.start&&snap.time<cue.end)current=index;});
+      let cue=timeline[current];
+      if(command.type==='seekCue')cue=timeline.find(row=>row.id===command.cueId);
+      else if(command.type==='previousCue')cue=timeline.filter(row=>row.start<(cue?.start??snap.time)).at(-1)||timeline[0];
+      else if(command.type==='nextCue')cue=timeline.find(row=>row.start>(cue?.start??snap.time));
+      if(!cue)return {ok:false,code:'unknown-cue'};
+      const landing=Math.max(0,cue.start+Math.min(.01,(cue.end-cue.start)/2,(snap.duration-cue.start)/2));
+      const result=await browserCommand('seek',landing,tab);
       if (command.type==='replay' && result?.ok && snap.paused && player.browserPaused && key()===tab && player.mediaKey===snap.mediaKey && player.generation===snap.generation) return browserCommand('play',undefined,tab);
       return result;
     }
