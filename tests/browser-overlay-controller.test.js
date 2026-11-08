@@ -202,3 +202,10 @@ test('Stage caption isolation reaches Shadow DOM media and removes only its own 
 });
 
 console.log(`browser-overlay-controller: ${passed} test`);
+
+test('YouTube stage caption suppression hides native caption descendants and restores them when the app overlay is off',()=>{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('<!doctype html><html><head></head><body><div id="movie_player"><video class="html5-main-video"></video><div class="ytp-caption-window-container"><span class="ytp-caption-segment">Site caption</span></div></div></body></html>',{url:'https://www.youtube.com/watch?v=abcdefghijk',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
+ try{w.ResizeObserver=class{observe(){}disconnect(){}};const video=w.document.querySelector('video');video.currentTime=1;video.getBoundingClientRect=()=>({left:0,top:0,width:1280,height:720,right:1280,bottom:720});const payload={stageVideo:true,mode:'source',source:[{start:0,end:5,text:'Application caption'}],translation:[],style:{hideSiteCaptions:false}};w.eval(buildBrowserOverlayScript(payload,'(cues,t)=>cues.filter(c=>c.start<=t&&t<c.end)'));
+  const native=w.document.querySelector('.ytp-caption-segment'),sheet=w.document.querySelector('#__whisper_hide_native_captions');assert(sheet);assert.match(sheet.textContent,/#movie_player \.ytp-caption-window-container \*/,'suppression must beat Stage visibility on every native caption descendant');assert.equal(w.getComputedStyle(native).visibility,'hidden');assert.equal(w.document.querySelector('[data-kind=source]').textContent,'Application caption');w.__whisperBrowserOverlayController.update({...payload,mode:'off'});assert.equal(w.document.querySelector('#__whisper_hide_native_captions'),null);assert.equal(w.getComputedStyle(native).visibility,'visible');
+ }finally{w.close();}
+});

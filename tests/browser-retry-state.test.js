@@ -43,6 +43,10 @@ assert.match(renderer, /event\.retryable !== undefined[\s\S]{0,160}browserMangaR
 const sent = [];
 const context = {
   randomUUID,
+  dt: (_tr,en)=>en,
+  userscriptsService: { disposeTab() {} },
+  browserViewRegistry: { release() {} },
+  browserNavigationStateStore: { captureNavigationHistory:(_wc,previous)=>previous||null },
   console,
   setTimeout: (fn) => { context._timers.push(fn); return fn; },
   clearTimeout: (fn) => { const i = context._timers.indexOf(fn); if (i >= 0) context._timers.splice(i, 1); },
@@ -184,6 +188,7 @@ Object.assign(context, {
   browserSplitSecondaryTabId: '',
   browserTabUnloadDecision: () => ({ allowed: true }),
   browserTabRuntimeState: async () => ({ stateKnown: true }),
+  refreshBrowserUnloadProtection: async () => ({known:true,busy:false}),
   browserTabCapturePending: async () => ({ pending: 0 }),
   executeBrowserViewFrames: async () => [],
   browserCaptureHookScript: () => '',
@@ -211,7 +216,10 @@ vm.runInNewContext(unloadBody, context);
 // Bütçe tükenmiş + bayrak sarkan sekme boşaltılır: diriliş sonrası ilk hata
 // taze bütçeyle yeniden denenmeli (bug: attempt=3 kalıyordu → terminal).
 tab.loadRetryAttempt = 3; tab.loadRetryPendingNav = true; tab.crashRecoveryAttempt = 1;
-Promise.resolve(context.unloadBrowserTab('t1')).then((result) => {
+require('node:test').test('retry budget resets after an explicitly closed mini-player, not while it is protected',async()=>{
+  const protectedResult=await context.unloadBrowserTab('t1');assert.strictEqual(protectedResult.protected,true);assert.strictEqual(protectedResult.reason,'mini');assert.strictEqual(context.miniClosed,false);
+  context.browserExtras.mini.close();context.browserExtras.mini.owns=()=>false;
+  const result=await context.unloadBrowserTab('t1');
   assert.ok(result?.ok, `boşaltma başarısız: ${result?.error}`);
   assert.strictEqual(tab.lifecycle, 'unloaded');
   assert.strictEqual(tab.loadRetryAttempt, 0, 'bütçe dirilen sekmeye sızdı');

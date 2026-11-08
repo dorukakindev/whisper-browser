@@ -80,7 +80,7 @@
 .sh-mini .slot{width:128px;aspect-ratio:16/9;border-radius:11px;overflow:hidden;background:#000 linear-gradient(135deg,#1d2028,#0c0d10);border:1px solid var(--sh-line);display:grid;place-items:center;color:var(--sh-mute)}
 /* ── "lyrics" transkript ── */
 .sh-lyrics{position:relative;min-height:0;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 15%,#000 82%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 15%,#000 82%,transparent 100%)}
-.sh-scroll{height:100%;overflow-y:auto;scrollbar-width:none;padding:34vh 4px 38vh;scroll-behavior:smooth}.sh-scroll::-webkit-scrollbar{display:none}
+.sh-scroll{height:100%;overflow-y:auto;scrollbar-width:none;padding:34vh 4px 38vh}.sh-scroll::-webkit-scrollbar{display:none}
 .sh-line{position:relative;display:block;width:100%;text-align:left;padding:14px 20px;margin:2px 0;border-radius:20px;cursor:pointer;--d:0;opacity:calc(1 - min(var(--d),5)*.1);transition:opacity .45s var(--sh-ease)}
 .sh-line:hover{opacity:1!important;background:rgba(255,255,255,.045)}
 .sh-line .src{display:block;font:600 clamp(21px,2.3vw,34px)/1.28 var(--sh-display);letter-spacing:-.022em;color:rgba(255,255,255,.9);text-wrap:pretty}
@@ -390,3 +390,24 @@ html[data-sahne-hidden=true] .sh *{animation-play-state:paused!important}
 .sh-meta-next .sh-next-inline small{font-size:10px;letter-spacing:.14em;color:var(--sh-mute)}
 .sh-meta-next .sh-next-inline strong{font-weight:600;color:var(--sh-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sh-meta-next .sh-next-inline:hover,.sh-meta-next .sh-next-inline:focus-visible{border-color:var(--accent,#d6a35c);color:var(--sh-ink)}
+
+/* Preparation is distinct from a running background job; the interval stays frozen until enqueue finishes. */
+.sh-workbar .sh-btn[aria-busy=true]{position:relative;overflow:hidden;opacity:1;border-color:var(--sh-amber);color:var(--sh-ink)}
+.sh-workbar .sh-btn[aria-busy=true]::after{content:'';position:absolute;inset-inline-start:0;bottom:0;width:35%;height:2px;background:var(--sh-amber);animation:sh-preparing 1.3s ease-in-out infinite}
+@keyframes sh-preparing{from{transform:translateX(-110%)}to{transform:translateX(390%)}}
+html[data-cinema-motion=off] .sh-workbar .sh-btn[aria-busy=true]::after,html[data-cinema-motion=reduced] .sh-workbar .sh-btn[aria-busy=true]::after,html[data-media-window-inactive=true] .sh-workbar .sh-btn[aria-busy=true]::after{animation:none;width:100%;opacity:.65}
+@media(prefers-reduced-motion:reduce){.sh-workbar .sh-btn[aria-busy=true]::after{animation:none;width:100%;opacity:.65}}
+
+/* A note remains one draft across same-source scene views; stale evidence is explicit. */
+.sh-note-state{margin:0;font-size:12px;line-height:1.6;color:var(--sh-dim)}
+.sh-note-state:empty{display:none}
+.sh-note-card[data-state=stale] .sh-note-state{padding:10px 12px;border-inline-start:2px solid var(--sh-amber);background:var(--theme-bg-2);color:var(--sh-ink)}
+.sh-note-card textarea{resize:none;min-height:100px}
+.sh-note-card footer{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sh-note-card [data-a=noteSave]{margin-inline-start:auto;border-color:var(--sh-amber)}
+.sh-note-card [data-a=noteSave][aria-busy=true]{opacity:.8}
+.sh-job[data-state=partial],.sh-job[data-state=stopped]{border-color:var(--sh-line2)}
+
+.sh .sh-note-card [data-a=noteSave]:disabled,.sh .sh-note-card [data-a=noteSeek]:disabled{opacity:1;cursor:not-allowed;background:var(--theme-bg-2);border-color:var(--sh-line2);color:var(--sh-mute)}
+.sh-pbtn.pri:disabled{background:var(--theme-bg-2);color:var(--sh-mute);border-color:var(--sh-line2)}
+.sh-pbtn.pri:disabled small{color:var(--sh-mute)}

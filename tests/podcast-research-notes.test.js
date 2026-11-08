@@ -79,3 +79,15 @@ test('conflict overwrite changes personal fields without reverting a newer quota
  const h=researchWorld(t),old=h.writer.withRevision(h.a),changed=h.writer.save({...h.a,source:'New verified quotation',sourceVersion:'new-version',note:'Elsewhere'}).annotation;
  const result=h.writer.saveChecked({...old,note:'My explicit overwrite'},h.writer.revisionOf(changed));assert.equal(result.ok,true);assert.equal(result.annotation.source,'New verified quotation');assert.equal(result.annotation.sourceVersion,'new-version');assert.equal(result.annotation.note,'My explicit overwrite');
 });
+
+test('persisted notebook citations reopen after a new agent instance using only the canonical note and exact revision',t=>{
+ const h=researchWorld(t),card=h.read('read',{note_ids:['note-a']}).matches[0];
+ const fresh=require('../src/assistant-research-notes').createResearchNotes({notes:h.notes,manifest:require('../src/assistant-context-manifest'),validateOwner:()=>true});
+ const opened=fresh.handle(7,{action:'inspect',id:card.id,card:{...card,text:'Fabricated text',title:'javascript:fake'},owner:h.owner});assert.equal(opened.ok,true);assert.equal(opened.card.text,h.a.source);assert.equal(opened.annotation.id,h.a.id);assert.equal(h.store.list().length,2);
+ h.writer.save({...h.a,note:'Edited after the archived answer'});assert.equal(fresh.handle(7,{action:'inspect',id:card.id,card,owner:h.owner}).code,'source-changed');
+ assert.equal(fresh.handle(7,{action:'inspect',id:card.id,card:{...card,revision:'not-a-revision'},owner:h.owner}).ok,false);
+});
+
+test('saved draft references filter exact note IDs after reopening, including empty and missing selections',t=>{
+ const h=researchWorld(t);const reopened=new BrowserNoteStore(h.file);assert.deepEqual(reopened.filter({noteIds:['note-b']},8).map(row=>row.id),['note-b']);assert.deepEqual(reopened.filter({noteIds:[]},8),[]);assert.deepEqual(reopened.filter({noteIds:['missing']},8),[]);assert.equal(reopened.filter({noteIds:['note-a','note-b'],mediaType:'podcast'},8).length,1);
+});

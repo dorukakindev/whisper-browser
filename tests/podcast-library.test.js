@@ -57,7 +57,7 @@ async function listeningFixture(saved){
  w.player={openIntent:0,mediaKey:'',generation:0,workspaceAudio:null};w.UiLocale={get:()=> 'en'};w.HTMLMediaElement.prototype.pause=function(){this.dispatchEvent(new w.Event('pause'));};w.HTMLMediaElement.prototype.play=async function(){calls.push(['audio-play',this.id]);};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  w.PlayerLoopPolicy=require('../src/player-loop-policy');
  w.api={mediaShelf:async request=>{calls.push(['api',request.action,request]);if(request.action==='list')return {ok:true,music:[],stations:[],podcasts:[],listeningQueue:saved};return {ok:true};}};
- w.PlayerSourceCatalogIntegration={openPodcastEntry:async(id,options)=>{calls.push(['open',id,options.view]);if(opening)await opening(id);if(options.isCancelled?.())return;if(fail===id)throw Error('Unavailable episode');if(w.player.workspaceAudio?.entryId!==id){w.player.mediaKey='stream:'+id;w.player.generation++;w.player.workspaceAudio={entryId:id,mediaKey:w.player.mediaKey,generation:w.player.generation,title:id};} }};
+ w.PlayerSourceCatalogIntegration={openPodcastEntry:async(id,options)=>{calls.push(['open',id,options.view]);if(opening&&await opening(id)===false)return;if(options.isCancelled?.())return;if(fail===id)throw Error('Unavailable episode');if(w.player.workspaceAudio?.entryId!==id){w.player.mediaKey='stream:'+id;w.player.generation++;w.player.workspaceAudio={entryId:id,mediaKey:w.player.mediaKey,generation:w.player.generation,title:id};} }};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/music-queue'),'utf8'));w.eval(fs.readFileSync(require.resolve('../src/renderer/media-shelf-ui'),'utf8'));await tick();await tick();
  return {dom,w,calls,shelf:w.MediaShelfUI,fail:id=>fail=id,opening:fn=>opening=fn};
 }
@@ -216,4 +216,57 @@ test('The real listening queue names the next episode only while its current row
   const after=h.shelf.upNext();assert.equal(after.title,'Episode C');assert.equal((await h.shelf.playUpNext(after)).ok,true);await tick();await tick();assert.equal(h.w.player.workspaceAudio.entryId,'C');
   assert.equal(h.shelf.upNext(),null,'the last episode has no next one when repeat is off');
  }finally{h.dom.window.close();}
+});
+
+
+test('A superseded next-episode open does not claim an unrelated playback owner or report success', async()=>{
+ const h=await listeningFixture({rows:[{kind:'podcasts',id:'feed-A',entryId:'A',title:'A'},{kind:'podcasts',id:'feed-B',entryId:'B',title:'B'},{kind:'podcasts',id:'feed-C',entryId:'C',title:'C'}],index:0,repeat:'off'});
+ try{
+  h.shelf.openQueue();h.w.document.querySelector('.ms-queue-play').click();await tick();await tick();
+  const next=h.shelf.upNext();
+  h.opening(async id=>{if(id==='B'){h.w.player.mediaKey='stream:outside';h.w.player.generation++;h.w.player.workspaceAudio={entryId:'outside',mediaKey:h.w.player.mediaKey,generation:h.w.player.generation};return false;}});
+  const result=await h.shelf.playUpNext(next);
+  assert.equal(result.ok,false,'an opener that did not select B is not successful');
+  assert.equal(h.w.player.workspaceAudio.entryId,'outside');
+  assert.equal(h.shelf.upNext(),null,'the unrelated source must not own the queue current row');
+ }finally{h.dom.window.close();}
+});
+
+
+test('RSS resume at the end restarts the episode instead of immediately ending again',()=>{
+ const vm=require('node:vm'),source=fs.readFileSync(require.resolve('../src/renderer/player-source-catalog-integration'),'utf8');
+ const start=source.indexOf('  function videoRate('),end=source.indexOf('  let podcastPositionAt=',start),listeners=[];
+ const video={readyState:4,duration:16,currentTime:0,playbackRate:1,addEventListener:(_,fn)=>listeners.push(fn)},player={mediaKey:'A',generation:1};
+ const context={player,document:{getElementById:()=>video}};vm.runInNewContext(source.slice(start,end),context);
+ context.videoRate(1.25,16,{mediaKey:'A',generation:1});assert.equal(video.currentTime,0,'finished episode resumes from the beginning');assert.equal(video.playbackRate,1.25);
+ context.videoRate(1.25,5,{mediaKey:'A',generation:1});assert.equal(video.currentTime,5,'a real reading/listening position is preserved');
+ video.readyState=0;context.videoRate(1,8,{mediaKey:'A',generation:1});player.generation++;listeners[0]();assert.equal(video.currentTime,5,'a late metadata event cannot seek the next source');
+});
+
+
+test('native playback failure during episode preparation remains retryable after the queue takes ownership',async()=>{
+ const h=await listeningFixture({rows:[{kind:'podcasts',id:'feed-B',entryId:'B',title:'Episode B'}],index:0,repeat:'off'});
+ try{
+  let failed=true;h.w.NativePlayerUI={failure:()=>failed?{key:h.w.player.mediaKey,generation:h.w.player.generation,message:'Native media could not play.'}:null};
+  h.shelf.openQueue();h.w.document.querySelector('.ms-queue-play').click();await tick();await tick();
+  assert.match(h.w.document.querySelector('.ms-queue-error')?.textContent||'',/could not play/,'early native failure must not disappear before the queue owner is assigned');
+  assert.equal(h.shelf.musicContext().index,0);failed=false;h.w.document.querySelector('.ms-queue-play').click();await tick();await tick();
+  assert.equal(h.w.document.querySelector('.ms-queue-error'),null);assert.equal(h.shelf.ownsPodcastQueue(),true);
+ }finally{h.dom.window.close();}
+});
+
+
+test('native failure evidence is scoped to one media generation and clears on a new attempt',async()=>{
+ const dom=new JSDOM('<video id="playerVideo" src="https://fixture.invalid/audio"></video><div id="playerStage"></div>',{runScripts:'outside-only'}),w=dom.window;
+ try{
+  w.HTMLMediaElement.prototype.pause=()=>{};w.HTMLMediaElement.prototype.play=async()=>{};w.player={mediaKey:'A',generation:1};
+  let release;w.api={nativePlayer:async request=>request.action==='start'?{ok:false,error:'Native media could not play.'}:{ok:true},onNativePlayer:()=>{}};
+  w.osd=()=>{};w.activePlaybackRecovery=()=>null;w.showLocalPlaybackRecovery=async()=>{};
+  w.eval(fs.readFileSync(require.resolve('../src/renderer/native-player-ui'),'utf8'));
+  assert.equal(await w.NativePlayerUI.start(),false);assert.equal(w.NativePlayerUI.failure().key,'A');
+  w.player.generation++;assert.equal(w.NativePlayerUI.failure(),null,'old error cannot follow the next source');
+  w.api.nativePlayer=request=>request.action==='start'?new Promise(resolve=>release=resolve):Promise.resolve({ok:true});
+  const retry=w.NativePlayerUI.start();await tick();assert.equal(w.NativePlayerUI.failure(),null,'a fresh attempt clears the old failure');release({ok:false,error:'Native media could not play.'});await retry;
+  assert.equal(w.NativePlayerUI.failure().generation,2);
+ }finally{w.close();}
 });

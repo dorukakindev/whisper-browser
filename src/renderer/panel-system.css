@@ -263,7 +263,8 @@ html:root body .browser-menu-popover:has(.browser-menu-icon) > button:not(:has(.
 .sh-panel .sh-pbtn { border-radius:10px;min-height:44px;padding:11px 13px;text-align:left; }
 .sh-panel .sh-pbtn:hover:not(:disabled) { background:var(--sy-row);box-shadow:inset 3px 0 var(--accent); }
 .sh-panel .sh-pbtn small { line-height:1.6;color:var(--text-muted); }
-.sh-panel .sh-pbtn.pri { background:var(--accent-soft);border-color:var(--sy-edge); }
+.sh-panel .sh-pbtn.pri { background:var(--accent-soft);border-color:var(--sy-edge);color:var(--sh-ink); }
+.sh-panel .sh-pbtn.pri:disabled { background:var(--theme-bg-2);color:var(--sh-mute);border-color:var(--sh-line2); }
 @media(prefers-reduced-motion:reduce){.sh-panel:not([hidden]){animation:none;}}
 
 html:root body .aps-dialog :is(input,textarea) { background:var(--bg-1);color:var(--text);border-color:var(--border-strong); }

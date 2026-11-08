@@ -155,7 +155,8 @@ test('browser stage reading preferences stay with their own tab session across s
   f.window.BrowserPodcastUI={setMode(){},isActive:()=>false};
   const a=f.open('study'), original=f.window.CinemaSahne.current;
   const aIdentity=a.identity();
-  original.prefs=()=>({reading:{identity:aIdentity,query:'First video'}});
+  const draft={identity:aIdentity,text:'Keep this draft',pending:true};
+  original.prefs=()=>({reading:{identity:aIdentity,query:'First video',noteDraft:draft}});
   f.player.browserActiveTabId='b';
   f.player.mediaKey='browser:b';
   const b=f.open('study');
@@ -170,6 +171,8 @@ test('browser stage reading preferences stay with their own tab session across s
   const restored=f.open('study');
   assert.equal(f.window.CinemaSahne.current.o.prefs.reading.query,'First video');
   assert.equal(f.window.CinemaSahne.current.o.prefs.reading.identity,restored.identity());
+  assert.equal(f.window.CinemaSahne.current.o.prefs.reading.noteDraft,draft,'pending save receipt stays shared');
+  assert.equal(draft.identity,restored.identity());
   assert.equal(sessions.b.readingPrefs.reading.query,'Second video');
 });
 test('changing scene mode retains keyboard focus on its replacement tab without stealing external focus', t => {
@@ -538,7 +541,7 @@ test('Sahne podcast actions bind the exact episode and task status to the existi
  const snapshot=()=>({mediaKey:'shelf:one',generation,sourceVersion:'v1',title:'Episode',duration:30,capabilities:{seek:{support:'yes'}}});
  f.window.MediaShelfUI={readSnapshot:snapshot,isPodcastMode:()=>true,openPodcastMode:async()=>{},getTranscriptTracks:()=>[],executeExisting:async()=>({ok:true}),podcastTaskState:()=>({hasSourceTranscript:true,job:{id:'same-job',state:'queued',text:'Waiting'}}),runPodcastTask:async args=>{calls.push(args);return {queued:true,id:'same-job'};}};
  await f.window.CinemaSahne.openShelf();const a=f.window.CinemaSahne.current.a,actions=a.actions();assert.equal(actions.length,3);
- await actions[1].run();assert.equal(calls[0].operation,'transcribe-translate');assert.equal(calls[0].expected.sourceVersion,'v1');assert.equal(a.panel().job.state,'running');assert.equal(a.panel().job.text,'Waiting');
+ assert.equal(actions.find(row=>row.primary).id,'translate');await actions.find(row=>row.id==='transcribe-translate').run();assert.equal(calls[0].operation,'transcribe-translate');assert.equal(calls[0].expected.sourceVersion,'v1');assert.equal(a.panel().job.state,'running');assert.equal(a.panel().job.text,'Waiting');
  generation++;assert.throws(()=>actions[0].run(),/Source changed/);assert.equal(calls.length,1);assert.equal(calls[0].isCancelled(),true);
 });
 
@@ -808,4 +811,70 @@ test('Two overlapping Podcast Stage opens: the newest user choice stays even whe
  const older=f.window.CinemaSahne.openShelf({mode:'podcast'}),newer=f.window.CinemaSahne.openShelf({mode:'study'});await new Promise(setImmediate);assert.equal(releases.length,2);
  releases[1]();assert.equal((await newer).ok,true);assert.equal(f.window.CinemaSahne.current.o.mode,'study');
  releases[0]();const late=await older;assert.equal(late.ok,false);assert.equal(late.code,'superseded');assert.equal(f.window.CinemaSahne.current.o.mode,'study','the older open does not replace the newer view');
+});
+
+
+test('a saved partial Podcast translation prioritizes missing-only retry and remains visible after stopping',t=>{
+ const f=fixture(t),original=f.window.PlayerWorkspaceIntegration.snapshot,calls=[];f.window.PlayerWorkspaceIntegration.snapshot=()=>({...original(),sourceKind:'rss',sourceVersion:'v1'});
+ let job={state:'done'},status={hasSourceTranscript:true,translationRetry:{partial:true,failed:2,completed:3,total:5,canRetry:true},job};
+ f.window.PlayerSourceCatalogIntegration={podcastTaskState:()=>status,runPodcastTask:async request=>{calls.push(request);return {queued:true};}};
+ const adapter=f.open(),actions=adapter.actions();assert.equal(actions.find(row=>row.primary).id,'retry-translation');assert.equal(adapter.panel().job.state,'partial');assert.match(adapter.panel().job.text,/3.*5/);
+ adapter.panel().job.retry();assert.equal(calls[0].operation,'retry-translation');assert.equal(calls.length,1);
+ status={...status,job:{state:'stopped'}};assert.equal(adapter.panel().job.state,'stopped');
+ f.player.generation++;adapter.panel().job.retry?.();assert.equal(calls.length,1,'an old retry never applies to another media owner');
+});
+
+test('Stage saved-notes entry reuses the existing notebook and rejects an old media owner',async t=>{
+ const f=fixture(t),calls=[];const entry=f.document.createElement('button');entry.id='libraryViewResearch';entry.onclick=()=>calls.push('research');f.document.body.append(entry);
+ f.context.setSideTab=tab=>calls.push(tab);f.window.PlayerWorkspaceIntegration.openAdvanced=()=>calls.push('advanced');
+ const adapter=f.open(),item=adapter.panel().sections.flatMap(section=>section.items).find(item=>item.id==='saved-notes');assert(item);assert.equal(item.run().ok,true);assert.deepEqual(calls,['library','research','advanced']);assert.equal(f.commands.length,0,'opening notes does not play or write anything');
+ f.player.generation++;assert.equal((await adapter.cmd('notebook')).ok,false);assert.equal(item.run().ok,false);assert.equal(calls.length,3);
+});
+
+test('a retained Browser recovery callback cannot reload or open a different source',async()=>{
+ const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');const start=renderer.indexOf('function browserPlaybackRecovery(event)'),end=renderer.indexOf('function settleBrowserPlaybackRecovery',start);
+ for(const code of ['service-unavailable','http-access-denied']){
+  const calls=[],player={workspaceMode:'browser',browserActiveTabId:'a',browserPageUrl:'https://fixture.invalid/a',mediaKey:'video:a',generation:1,browserTime:12,positions:{}};
+  const context={player,interfaceChoice:(_tr,en)=>en,browserTabState:()=>({mediaId:'a'}),currentGeneration:()=>player.generation,staleGeneration:g=>g!==player.generation,playbackCheckpoint:()=>12,playerPositionKey:()=>'',browserChromeCommandBlocked:()=>false,runBrowserChromeCommand:async action=>{calls.push(action);return {ok:true};},window:{api:{openExternal:async url=>{calls.push(url);return {ok:true};}}}};
+  vm.runInNewContext(renderer.slice(start,end),context);context.browserPlaybackRecovery({diagnostic:{code,resourceKind:'media'},mediaId:'a'});const old=player.playbackRecovery;
+  await old.run();assert.equal(calls.length,1,'the current source retains its existing recovery');calls.length=0;player.pendingLibrarySeek=null;
+  player.browserActiveTabId='b';player.browserPageUrl='https://fixture.invalid/b';player.mediaKey='video:b';player.generation++;
+  await old.run();assert.equal(calls.length,0,code+': old callback never affects the new source');assert.equal(player.pendingLibrarySeek,null);
+ }
+});
+
+test('retained local recovery actions never load, relink or open a picker for the next source',async()=>{
+ const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');const start=renderer.indexOf('async function showLocalPlaybackRecovery'),end=renderer.indexOf('function updatePlayerMeta',start);
+ for(const availability of ['unknown','missing','denied','available','native']){
+  const calls=[],video={src:'file:///fixture-a.mp4',error:{code:3},currentTime:12,load:()=>calls.push('load'),play:async()=>calls.push('play')};
+  const player={workspaceMode:'player',mediaKey:'file:a',generation:1,openIntent:1,localPath:'fixture-a.mp4',positions:{}};
+  const context={player,interfaceChoice:(_tr,en)=>en,currentGeneration:()=>player.generation,staleGeneration:g=>g!==player.generation,playbackCheckpoint:()=>12,playerPositionKey:()=>'',MediaError:{MEDIA_ERR_DECODE:3,MEDIA_ERR_SRC_NOT_SUPPORTED:4},$:id=>id==='playerPickVideo'?{click:()=>calls.push('picker')}:null,offerMediaRelink:()=>calls.push('relink'),offerCompatibleMedia:()=>calls.push('compatible'),window:{api:{mediaPlaybackAvailability:async()=>availability},NativePlayerUI:{start:async()=>{calls.push('native');return true;}}}};
+  vm.runInNewContext(renderer.slice(start,end),context);await context.showLocalPlaybackRecovery(video,{code:availability==='available'?3:2,nativeFailure:availability==='native'});const old=player.playbackRecovery;
+  await old.run();assert(calls.length>0,availability+': the current action still works');calls.length=0;player.pendingLibrarySeek=null;
+  player.mediaKey='file:b';player.generation++;player.openIntent++;video.src='file:///fixture-b.mp4';await old.run();
+  assert.equal(calls.length,0,availability+': the next source is untouched');assert.equal(player.pendingLibrarySeek,null);
+ }
+});
+
+test('Browser sentence loops survive an in-range seek near B but respect escape, pause and another owner',()=>{
+ const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');const start=renderer.indexOf('function renderBrowserCueAt('),end=renderer.indexOf('async function showBrowserWorkspaceAttempt',start);
+ for(const scenario of [{name:'inside',target:19.88,time:20.25,previous:19.88,loop:true},{name:'inside with delayed sample',target:19.88,time:20.25,previous:5,loop:true},{name:'escape',target:25,time:25,previous:19.8,loop:false},{name:'paused',target:19.88,time:20.25,previous:19.88,paused:true,loop:false},{name:'other tab',target:25,time:20.25,previous:19.88,other:true,loop:true}]){
+  const calls=[],player={abA:10,abB:20,browserActiveTabId:'a',mediaKey:'video:a',generation:2,browserRate:1.25,browserPaused:!!scenario.paused,browserAdPlaying:false,cues:[],cues2:[],_ownSeekAt:Date.now()};
+  player._ownSeek={target:scenario.target,tabId:scenario.other?'b':'a',key:scenario.other?'video:b':'video:a',generation:2};
+  const context={player,browserQuickEditor:null,subtitleSourceTime:t=>t,applyBrowserSponsorSkip:()=>false,browserCommand:(command,time)=>{calls.push([command,time]);return Promise.resolve({ok:true});},applyPlaybackLearningPolicy(){},updateCueMeta(){},$:()=>({classList:{contains:()=>true}})};
+  vm.runInNewContext(renderer.slice(start,end),context);context.renderBrowserCueAt(scenario.time,scenario.previous,!!scenario.paused);
+  assert.deepEqual(calls,scenario.loop?[['seek',10]]:[],scenario.name);
+ }
+});
+
+test('Browser seek intent follows only its tab and stale or failed replies cannot replace a newer intent',async()=>{
+ const renderer=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8'),start=renderer.indexOf('function browserCommand(command'),end=renderer.indexOf('async function maybeAutoSkipBrowserAd',start);
+ const player={browserActiveTabId:'a',mediaKey:'video:a',generation:2};let release;
+ const context={player,clearTimeout(){},window:{api:{browserCommand:async(_tab,command)=>command==='seek-relative'?new Promise(resolve=>release=resolve):{ok:true,media:{currentTime:5}}}}};vm.runInNewContext(renderer.slice(start,end),context);
+ const pending=context.browserCommand('seek-relative',1);await Promise.resolve();await context.browserCommand('seek',19.88);const current=player._ownSeek;assert.equal(current.target,19.88);
+ release({ok:true,media:{currentTime:12}});await pending;assert.equal(player._ownSeek,current);assert.equal(current.target,19.88,'old reply cannot replace current target');
+ await context.browserCommand('seek',99,'b');assert.equal(player._ownSeek,current,'another tab never stamps the active loop');
+ context.window.api.browserCommand=async()=>({ok:false});await context.browserCommand('seek',50);assert.equal(player._ownSeek,null);assert.equal(player._ownSeekAt,0);
+  context.window.api.browserCommand=async()=>({ok:true,media:{currentTime:17.5}});await context.browserCommand('seek-relative',1);assert.equal(player._ownSeek.target,17.5,'relative/frame targets use the playback owner response');
+  context.window.api.browserCommand=async()=>{throw Error('Bridge failed');};await assert.rejects(context.browserCommand('frame-step',1),/Bridge failed/);assert.equal(player._ownSeek,null);
 });

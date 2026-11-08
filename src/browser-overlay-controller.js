@@ -321,7 +321,9 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         }
       }
       for (const [scope,sheet] of nativeCaptionSheets) if (!scopes.has(scope)) { sheet.remove(); nativeCaptionSheets.delete(scope); }
-      const css = 'video::cue { opacity: 0 !important; color: transparent !important; background: transparent !important; } .ytp-caption-window-container, .player-timedtext, .video-js .vjs-text-track-display { visibility: hidden !important; }';
+      // Stage isolation makes every movie-player descendant visible with !important. Suppression must beat that
+      // selector on the native caption AND its children, or children can become visible through the hidden parent.
+      const css = 'video::cue { opacity: 0 !important; color: transparent !important; background: transparent !important; } .ytp-caption-window-container, .ytp-caption-window-container *, .player-timedtext, .video-js .vjs-text-track-display { visibility: hidden !important; } html:not(:has(:fullscreen)) #movie_player .ytp-caption-window-container, html:not(:has(:fullscreen)) #movie_player .ytp-caption-window-container * { visibility: hidden !important; }';
       for (const scope of scopes) {
         let sheet=nativeCaptionSheets.get(scope);
         if (!sheet?.isConnected) {

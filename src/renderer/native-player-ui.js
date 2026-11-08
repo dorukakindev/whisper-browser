@@ -1,5 +1,6 @@
 (() => {
  'use strict';const video=document.getElementById('playerVideo');if(!video||!window.api.nativePlayer)return;
+ let lastFailure=null;
  let active=false,starting=false,key='',generation=0,sample={},source='',pulse=null,originals=new Map(),ended=false,startEpoch=0;
  const originalPlay=video.play.bind(video),originalPause=video.pause.bind(video);
  const event=name=>video.dispatchEvent(new Event(name));
@@ -49,6 +50,7 @@
   const requestedSource=video.src||video.currentSrc;
   const sameElementSource=video.currentSrc===requestedSource;
   const requestedKey=player.mediaKey,requestedGeneration=player.generation;
+  lastFailure=null;
   const pending=player.pendingLibrarySeek;
   const now=pending?.key===requestedKey&&pending.generation===requestedGeneration
    ?Number(pending.seconds)||0:sameElementSource?video.currentTime:0;
@@ -67,6 +69,7 @@
    if(!wasPaused)await video.play();layout();return true;
   }catch(error){
    if(epoch!==startEpoch)return false;
+   lastFailure={key:requestedKey,generation:requestedGeneration,message:String(error.message||'Native media could not play.').slice(0,400)};
    osd(error.message);
    if(active)await stop();
    else if(requestedKey===player.mediaKey&&requestedGeneration===player.generation){
@@ -84,6 +87,7 @@
  async function stop({resume=true}={}){if(!active&&!starting)return;startEpoch++;starting=false;const saved={...sample},time=Number(saved.time)||0,expectedKey=key,expectedGeneration=generation;active=false;layoutKey='';freeze?.remove();freeze=null;document.getElementById('playerStage').classList.remove('native-player-active');clearInterval(pulse);pulse=null;restore();await window.api.nativePlayer({action:'stop'}).catch(()=>null);if(player.mediaKey===expectedKey&&player.generation===expectedGeneration){try{video.currentTime=time;video.playbackRate=Number(saved.speed)||1;video.volume=Math.max(0,Math.min(1,Number(saved.volume)||0));video.muted=!!saved.muted;}catch{}event('timeupdate');if(resume&&saved.paused===false)void originalPlay().catch(()=>{});}}
  window.api.onNativePlayer(row=>{if(row.key!==key||row.generation!==generation)return;
   if(row.type==='error'){
+   lastFailure={key:row.key,generation:row.generation,message:String(playbackError(row.error)||'Native media could not play.').slice(0,400)};
    window.MediaShelfUI?.podcastQueueError?.({mediaKey:row.key,generation:row.generation});osd(playbackError(row.error));
    const position=Number(row.time)||Number(sample.time)||0,intent=player.openIntent;
    void stop({resume:false}).then(()=>{
@@ -97,6 +101,6 @@
  });
  window.addEventListener('resize',layout);document.addEventListener('toggle',layout,true);new MutationObserver(layout).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class','open','data-pw-occludes-native']});
  window.api.onAssistantVisibility?.(row=>{assistantOpen=!!row.expanded;layout();});
- window.NativePlayerUI=Object.freeze({start,stop,active:()=>active,busy:()=>active||starting,state:()=>({...sample}),command,layout});
+ window.NativePlayerUI=Object.freeze({start,stop,failure:()=>lastFailure&&lastFailure.key===player.mediaKey&&lastFailure.generation===player.generation?{...lastFailure}:null,active:()=>active,busy:()=>active||starting,state:()=>({...sample}),command,layout});
  void originalPlay;
 })();

@@ -44,3 +44,9 @@ test('Podcast scope is visible, localized and explains the frozen heard boundary
  h.publish({locale:'en',transcriptScope:true,sourceTarget:{kind:'podcast'},scope:'full'});assert.equal(h.$('scope').selectedOptions[0].textContent,'Saved transcript');assert.match(h.$('scopeHint').textContent,/may be shortened/);
  h.publish({transcriptScope:false});assert.equal(h.$('tools').hidden,true);
 });
+
+
+test('source disclosure presents the actual passage before model configuration and keeps user markup as text',t=>{
+ const h=fixture(t),passage='<img src=x onerror=bad()> A real selected passage';h.publish({sourceDescription:passage});
+ const content=h.$('sourceBox').querySelector('.source-detail-content');assert.equal(content.firstElementChild.className,'source-detail-description');assert.equal(h.$('sourceDescription').textContent,passage);assert.equal(h.$('sourceDescription').querySelector('img'),null);assert(content.contains(h.$('assistantSettings')));
+});

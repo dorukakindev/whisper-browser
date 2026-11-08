@@ -188,3 +188,23 @@ test('Source card click: the controller drives the real reopen helper and never 
   const result=await t.controller.click('a',card());assert.equal(result.state,'unconfirmed');
  }finally{t.dom.window.close();}
 });
+
+function unifiedReopenFixture(){
+ let release;const calls=[],a={id:'A',mediaId:'one',generation:1,url:'https://fixture.test/one'},b={id:'B',mediaId:'two',generation:2,url:'https://fixture.test/two'};
+ const context={player:{browserTabs:[a,b],browserActiveTabId:'A',workspaceMode:'browser',pendingLibrarySeek:null},window:{api:{}},activateBrowserTab:()=>new Promise(r=>release=r),browserTabState:id=>[a,b].find(tab=>tab.id===id),browserCommand:async(type,time,tabId)=>{calls.push({type,time,tabId:tabId||context.player.browserActiveTabId});return {ok:true};},logLine:()=>{}};
+ const start=source.indexOf('async function openUnifiedLibraryResult('),end=source.indexOf('async function restorePendingLibraryAnchor(',start);vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+ return {context,a,b,calls,release:()=>release(true),open:()=>context.openUnifiedLibraryResult({kind:'notes',mediaId:'browser:one',mediaType:'youtube',seconds:12,timed:true})};
+}
+
+test('unified saved-source reopen cannot seek a different active tab after delayed activation',async()=>{
+ const f=unifiedReopenFixture(),pending=f.open();f.context.player.browserActiveTabId='B';f.release();assert.equal(await pending,false);assert.equal(f.calls.length,0);assert.equal(f.context.player.pendingLibrarySeek,null);
+});
+
+test('unified source reopen rejects same-tab replacement and failed seek instead of reporting success',async()=>{
+ const changed=unifiedReopenFixture(),pending=changed.open();changed.a.mediaId='new-video';changed.a.generation++;changed.release();assert.equal(await pending,false);assert.equal(changed.calls.length,0);
+ const failed=unifiedReopenFixture();failed.context.browserCommand=async()=>({ok:false});const attempt=failed.open();failed.release();assert.equal(await attempt,false);
+});
+
+test('unified saved-source seek addresses the exact verified tab and leaves no deferred seek behind',async()=>{
+ const f=unifiedReopenFixture(),pending=f.open();f.release();assert.equal(await pending,true);assert.equal(f.calls.length,1);assert.deepEqual(f.calls[0],{type:'seek',time:12,tabId:'A'});assert.equal(f.context.player.pendingLibrarySeek,null);
+});
