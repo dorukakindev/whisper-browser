@@ -1,5 +1,10 @@
 # Bekleyen işler
 
+## Browser Podcast cümle arası gezinme — 2026-11-08 18:41
+
+- **Tamamlandı:** boşlukta yanlış ilk cümleye dönüş, son cümlede tekrar eden sonraki hedef ve kısa/çakışan satır hedefi düzeltildi. Son kodda196/196; LG1920×1080 gerçek Browser/VTT,+1.25s ile5.26/1.26s seek, oynarken1.5× iki yönlü Sahne devri ve Browser dönüşü geçti.
+- Dal `codex/browser-podcast-gap-navigation-20261108`; ürün commit `c9bd6b39f946f792049e63dee441c5ccdb60f535`. Yeni engel yok; kontrollü localhost medya canlı YouTube/ses kalitesi sayılmaz. [Kanıt ve sınırlar](docs/devir/2026-11-08-1841.md).
+
 ## Asistan yanıt iptali ve canlı Podcast kabulü — 2026-11-08 18:29
 
 - **Tamamlandı:** takılan JSON/SSE gövdesi iptali ve tamamlanan yanıtın temizleme beklemesi giderildi. Altı mevcut dosyada116/116; LG1920×1080 gerçek DeepInfra model→onay→Bölüm A1.00s→makbuz, zamansız okuma, tek not/güncelleme ve gecikmiş kaynak/sohbet sınırları geçti.
