@@ -35,6 +35,16 @@
   }catch(error){result={ok:false,cancelled:!!task.cancelled,error:String(error.message)};}
   if(result?.ok&&(task.cancelled||result.cancelled))result={...result,ok:false,cancelled:true};
   const current=window.AssistantAppActions.current(task.owner),state=result?.ok&&current?'complete':task.cancelled||result?.cancelled||!current?'stopped':'failed';
+  // IPC events and the final invoke result may arrive in either order. Recover only
+  // real main-process proposal cards for this still-current request; never execute them.
+  if(result?.ok&&current){
+   for(const action of result.actions||[]){
+    if(action?.kind!=='app_action'||typeof action.proposalId!=='string'||!action.proposalId||task.actions.some(row=>row.proposalId===action.proposalId))continue;
+    task.actions.push(action);proposalTasks.set(action.proposalId,{question:task.question,history:(task.history||[]).slice(-12).map(row=>({role:row.role,content:String(row.content||'').slice(0,5000)})),frozen:soFarQuestion(task.question)?task.context:null});
+   }
+   while(proposalTasks.size>50)proposalTasks.delete(proposalTasks.keys().next().value);
+   if(result.actions?.length)window.AssistantWorkspace?.evidence?.(task.job,{evidence:task.evidence,actions:task.actions});
+  }
   let text=result?.ok?(result.text?prefix+String(result.text):task.text):[task.text,task.cancelled?t('Stopped. Received text was kept.','Durduruldu. Alınan metin korundu.'):errorText(result?.error)||t('Assistant request failed.','Asistan isteği başarısız oldu.')].filter(Boolean).join('\n\n');
   if(result?.ok&&result.capabilities?.tools==='unsupported')text+='\n\n'+t('This provider rejected application tools. The reply is text only; no application action was performed.','Bu sağlayıcı uygulama araçlarını reddetti. Yanıt yalnız metindir; uygulama işlemi yapılmadı.');
   if(text.length>32000)text=t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n')+text.slice(-31800);

@@ -1,5 +1,10 @@
 /* One browser-derived work surface for browser, local video and RSS audio. */
 .sh-browser-study{background:var(--bg-0);--sh-glass:var(--bg-1);--sh-glass2:var(--bg-1)}
+.sh-browser-study :is([data-r=q],[data-r=chapterSearch])::selection{background:var(--accent);color:var(--on-accent,var(--sh-amber-ink))}
+.sh-browser-study .sh-dock .sh-tbtn.sh-skip{display:flex;align-items:center;justify-content:center;width:48px;gap:2px}
+.sh-browser-study .sh-skip-amount{position:static;margin:0;flex-shrink:0;font:600 11px/1 var(--sh-sans);font-variant-numeric:tabular-nums;color:inherit}
+.sh-browser-study .sh-scope-fields input[aria-invalid=true]{border-color:var(--accent);outline:1px solid var(--accent);outline-offset:1px}
+.sh-browser-study .src::selection,.sh-browser-study .src ::selection,.sh-browser-study .tr::selection,.sh-browser-study .tr ::selection{background:var(--accent);color:var(--on-accent,var(--sh-amber-ink))}
 .sh-browser-study .sh-bg,.sh-browser-study .sh-kbd,.sh-browser-study .sh-bars{display:none}
 .sh-browser-study .sh-top{padding:12px 22px;min-height:64px;border-bottom:1px solid var(--border);gap:12px;flex:none}
 .sh-browser-study .sh-btn{backdrop-filter:none;border-radius:8px;background:var(--bg-1);color:var(--text);height:36px;padding-inline:12px;font-size:12px}
@@ -191,6 +196,9 @@
  font:inherit;font-size:12px;font-variant-numeric:tabular-nums;cursor:pointer;color-scheme:dark;
 }
 .sh-browser-study .browser-study-rate select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sh-browser-study .browser-study-rate select[aria-busy=true]{border-color:var(--accent);color:var(--accent);cursor:progress}
+.sh-browser-study .sh-rate-state{font-size:12px;line-height:1.4;color:var(--accent);max-width:12ch}
+.sh-browser-study .sh-rate-state[hidden]{display:none}
 .sh-browser-study .browser-study-sleep{
  position:relative;display:inline-flex;align-items:center;color:var(--text-muted);
 }
@@ -259,6 +267,7 @@
 .sh-browser-study .sh-processing[open] summary{color:var(--text)}
 .sh-browser-study .sh-processing[open] summary::after{transform:rotate(225deg)}
 .sh-browser-study .sh-processing-body{display:grid;gap:8px;max-height:clamp(110px,25vh,240px);overflow:auto;padding:2px 4px 4px}
+@media(min-height:900px){.sh-browser-study .sh-processing-body:has(.sh-scope-fields:not([hidden])){max-height:min(40vh,400px)}}
 .sh-browser-study .sh-processing .sh-scope{padding:6px 0}
 .sh-browser-study .sh-processing .sh-scope-fields{position:static;padding:10px;box-shadow:none}
 .sh-browser-study .bp-footer{padding-block:8px}
@@ -339,6 +348,20 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 .sh-browser-study .sh-card.on [data-a=cueSeek]{color:var(--accent)}
 .sh-browser-study .sh-card.is-untimed{opacity:1;border-color:transparent;background:transparent}
 .sh-browser-study .sh-card.is-untimed .src{color:var(--text-dim)}
+.sh-browser-study .sh-card.cue-card.is-untimed{display:block;padding:10px 8px;margin-bottom:12px;border-color:transparent;background:transparent}
+.sh-browser-study .sh-card.cue-card.is-untimed .src{display:block}
+.sh-browser-study.hide-src .sh-card.cue-card.is-untimed .src,.sh-browser-study .sh-card.cue-card.is-untimed .src:empty{display:none}
+.sh-browser-study .sh-card.cue-card.is-untimed .src::before{content:"";float:inline-end;width:72px;height:28px}
+.sh-browser-study.hide-src .sh-card.cue-card.is-untimed .src + .tr::before,.sh-browser-study .sh-card.cue-card.is-untimed .src:empty + .tr::before{content:"";float:inline-end;width:72px;height:28px}
+.sh-browser-study .sh-card.cue-card.is-untimed .acts{position:absolute;inset-block-start:8px;inset-inline-end:8px;margin:0}
+.sh-browser-study .sh-card.cue-card.is-untimed .tr{margin-top:10px}
+html[data-theme=light] .sh-browser-study .sh-cover::before{opacity:.16}
+html[data-theme=light] .sh-browser-study .sh-cover-art{box-shadow:0 16px 34px -16px rgb(var(--media-scrim-rgb) / .25)}
+@media(min-width:1100px) and (min-height:761px){
+ .sh-browser-study.sh-audio.sh-long-title .sh-audio-summary{gap:18px}
+ .sh-browser-study.sh-audio.sh-long-title .sh-audio-summary .sh-meta{max-width:min(100%,44rem)}
+ .sh-browser-study.sh-audio.sh-long-title .sh-audio-summary .sh-title{font-size:clamp(24px,2.1vw,30px);line-height:1.3}
+}
 .sh-browser-study .sh-card.on.sh-translation-live .src{color:var(--text-muted);font-weight:400}
 @media(prefers-reduced-motion:reduce){.sh-browser-study .sh-card .acts{transition:none}}
 
@@ -409,7 +432,17 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 .sh-browser-study .sh-psec h3{font-size:12px;letter-spacing:.03em;text-transform:none;color:var(--text-dim)}
 .sh-browser-study .sh-pbtn{border-radius:8px;font-size:13px;overflow-wrap:anywhere}
 .sh-browser-study .sh-pnote{font-size:12px;line-height:1.6;color:var(--text-dim)}
-.sh-browser-study .sh-note-card{padding:0;gap:12px;border-radius:12px}
+.sh-browser-study .sh-note-card{padding:0;gap:12px;border-radius:12px;bottom:68px;max-height:calc(100% - 140px)}
+.sh-browser-study .sh-word-card{padding:0;gap:12px;bottom:68px;max-height:calc(100% - 140px);grid-template-rows:auto minmax(0,1fr) auto auto;overflow:hidden;border-radius:12px}
+.sh-word-body{min-height:0;overflow:auto;overscroll-behavior:contain;overflow-wrap:anywhere;display:grid;gap:12px;scrollbar-width:thin}
+.sh-browser-study .sh-word-body{padding:0 16px}
+.sh-browser-study .sh-word-body:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.sh-browser-study .sh-word-card>header{padding:14px 16px;border-bottom:1px solid var(--border)}
+.sh-browser-study .sh-word-card>header .sh-btn{flex-shrink:0}
+.sh-browser-study .sh-word-card>footer{padding:12px 16px;border-top:1px solid var(--border)}
+.sh-browser-study .sh-word-card>[data-r=wordState]{margin:0 16px;color:var(--accent)}
+.sh-browser-study .sh-word-card>[data-r=wordState][hidden]{display:none}
+.sh-browser-study .sh-word-card [aria-disabled=true]{cursor:progress;color:var(--text-dim)}
 .sh-browser-study .sh-note-card>header{padding:14px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;background:var(--bg-1)}
 .sh-browser-study .sh-note-excerpt{max-height:min(30vh,220px);overflow:auto;overscroll-behavior:contain;padding:0 16px;scrollbar-width:thin;overflow-wrap:anywhere}
 .sh-browser-study .sh-note-excerpt p+p{margin-top:12px}
@@ -419,6 +452,9 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 .sh-browser-study .sh-note-card [data-a=noteSave]{background:var(--accent);color:var(--on-accent,var(--bg-0));border-color:var(--accent);height:auto;min-height:36px;white-space:normal;text-align:left}
 
 .sh-browser-study .sh-note-card h2{font:600 18px/1.3 var(--sh-sans)}
+.sh-browser-study .sh-note-card .sh-note-state{margin:0 16px;overflow-wrap:anywhere;white-space:pre-wrap}
+.sh-browser-study .sh-note-card .sh-note-state:empty{display:none}
+.sh-browser-study .sh-note-card[data-state=error] .sh-note-state{padding:10px 12px;border:1px solid var(--theme-border-strong);border-radius:8px;background:var(--bg-2);color:var(--text);max-height:128px;overflow:auto;overscroll-behavior:contain}
 .sh-browser-study .sh-panel-h{font-family:var(--sh-sans)}
 
 .sh-browser-study .sh-offset{padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-0);gap:12px;min-width:0}
@@ -550,7 +586,7 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
   z-index: 70;
   left: auto;
   right: 16px;
-  bottom: 16px;
+  bottom: 68px;
   transform: translateY(10px);
   max-width: calc(100% - 32px);
   text-align: center;
@@ -558,6 +594,17 @@ details[data-mk-details]>summary{list-style:none}details[data-mk-details]>summar
 }
 
 .sh-browser-study .sh-toast.on { transform: translateY(0); }
+
+/* Keep task feedback clear of the open panel's action rows on desktop. */
+@media (min-width:1100px) {
+  .sh-browser-study.panel-open .sh-toast {
+    left:24px;
+    right:auto;
+    top:80px;
+    bottom:auto;
+    max-width:min(480px, calc(100% - 500px));
+  }
+}
 
 /* Keep the footer on one row at desktop width: the size selector keeps its aria-label, the shortcut guide stays reachable. */
 .sh-browser-study .bp-footer{gap:8px;flex-wrap:nowrap}

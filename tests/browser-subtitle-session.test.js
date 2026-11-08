@@ -102,3 +102,38 @@ assert.deepEqual(selectState({ subtitleSelectionExplicit: true }, { subPath: man
   assert.equal(loads.length, 1, 'Eksik dosya her iz olayında tekrar okunmamalı');
   assert.equal(tab.subtitleSelection.primaryFile, manualSelection.primaryFile, 'Dosyayı bulmak için seçim korunmalı');
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+// Restart uses the selected document and never starts playback; a user command/navigation cancels it.
+(async()=>{
+ const body=main.slice(main.indexOf('async function restoreBrowserPlaybackOnce('),main.indexOf('async function probeActiveBrowserMedia('));
+ const commands=[];let current=true,release;
+ const restore={mediaId:'same',position:18,duration:60,rate:1.5};
+ const tab={mediaId:'same',view:{},restoredPlayback:{...restore}};
+ const context={isCurrentBrowserContext:()=>current,buildBrowserMediaCommandScript:(command,value,token)=>({command,value,token}),
+  executeBrowserViewFrames:async(_view,command)=>{commands.push(command);return [{handled:true,currentTime:18,playbackRate:1.5,paused:true}];}};
+ vm.createContext(context);vm.runInContext(body,context);
+ const media={readyState:2,duration:60,docToken:'verified-document',adPlaying:false};
+ const result=await context.restoreBrowserPlaybackOnce(tab,media,tab.view,{});
+ assert.deepEqual(commands.map(c=>c.command),['pause','speed','seek']);assert(commands.every(c=>c.token===media.docToken));assert.equal(result.media.paused,true);assert.equal(tab.restoredPlayback,null);
+ for(const variant of [{mediaId:'other'},{duration:90},{docToken:''}]){
+  commands.length=0;tab.restoredPlayback={...restore};tab.mediaId=variant.mediaId||'same';
+  await context.restoreBrowserPlaybackOnce(tab,{...media,...variant},tab.view,{});assert.equal(commands.length,0,'unverified/changed source must not receive saved position');
+ }
+ tab.mediaId='same';tab.restoredPlayback={...restore};commands.length=0;
+ assert.equal((await context.restoreBrowserPlaybackOnce(tab,{...media,adPlaying:true},tab.view,{})).waiting,true);assert(tab.restoredPlayback);assert.equal(commands.length,0);
+ context.executeBrowserViewFrames=async(_view,command)=>{commands.push(command);await new Promise(r=>release=r);return [{handled:true}];};
+ const pending=context.restoreBrowserPlaybackOnce(tab,media,tab.view,{});await new Promise(setImmediate);tab.restoredPlayback=null;release();await pending;
+ assert.deepEqual(commands.map(c=>c.command),['pause'],'explicit user cancellation must prevent the pending seek/rate');
+ console.log('Browser restart: same document, paused restore, changed timeline, ads and cancellation passed.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
+
+// The assistant may be hosted in its own window while a restored Browser track loads.
+{
+ const overlay={};let painted='';
+ const ctx={$:id=>id==='playerVideo'?{currentTime:2,paused:true}:id==='subtitleOverlay'?overlay:null,
+  performance:{now:()=>0},player:{cues:[{start:1,end:3,text:'Restored sentence'}],cues2:[],offset:0,activeIdx:-1,renderCostRing:[]},
+  findCueAt:()=>0,highlightCueRow(){},updateCueMeta(){},aiChatCtxLabel(){throw Error('No attached assistant');},
+  setOverlayText:(_overlay,text)=>{painted=text;return true;},renderActiveCueWord(){},applyPlaybackLearningPolicy(){},scheduleFitSubtitleOverlays(){},scheduleTimelineDraw(){}};
+ vm.createContext(ctx);vm.runInContext(renderer.slice(renderer.indexOf('function renderCue() {'),renderer.indexOf('function localBufferedAhead(')),ctx);
+ ctx.renderCue();assert.equal(painted,'Restored sentence');
+}

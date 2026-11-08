@@ -14,6 +14,19 @@ async function doneRun(w,svc,id,{source='media-A',range}={}){
  fs.writeFileSync(outputOf(w.spawns[index]),wav(2));w.spawns[index].proc.exitCode=0;w.spawns[index].proc.emit('close',0);await tick();
  assert.equal(w.records().find(r=>r.id===id).result,'done',id);
 }
+
+test('assistant refuses a missing saved output without changing the open source or starting production',async()=>{
+ const w=world();try{
+  const svc=w.boot();await doneRun(w,svc,'missing-result');const p=panel(w,svc),spawns=w.spawns.length;
+  try{
+   await p.open();p.state.source='media-A';await p.chooseSubtitle();
+   fs.unlinkSync(outputOf(w.spawns[0]));
+   await assert.rejects(()=>p.win.AssistantVoiceRuns.open({run_id:'missing-result',target:'result'}));
+   assert.equal(p.state.source,'media-A');assert.equal(p.state.attached.length,0);assert.equal(w.spawns.length,spawns);
+   assert.equal(p.section.querySelector('audio.dub-run-audio'),null);
+  }finally{p.close_();}
+ }finally{w.close();}
+});
 test('REAL BRIDGE: a failed saved-output read stays unknown, is retryable and never claims a section mismatch',async()=>{
  const w=world();try{
   const svc=w.boot();await doneRun(w,svc,'prior-output');await doneRun(w,svc,'read-unavailable');const p=panel(w,svc),spawns=w.spawns.length;

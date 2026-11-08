@@ -11,7 +11,7 @@ const tab = { view: { webContents: { isDestroyed: () => false,
 vm.runInNewContext(main.slice(main.indexOf("ipcMain.handle('browser:tab:mute'"),
   main.indexOf("ipcMain.handle('browser:places:folder'")), {
   ipcMain: { handle: (_name, fn) => { handler = fn; } },
-  authorizedBrowserSender: () => authorized, browserTabById: () => tab, sendBrowserEvent() {},
+  authorizedBrowserSender: () => authorized, browserTabById: () => tab, sendBrowserEvent() {},releaseSourceReturnHold(){},
 });
 assert.equal(handler({}, 'a', true).ok, true); assert.equal(actualMute, true);
 handler({}, 'a', true); assert.equal(actualMute, true);
@@ -34,7 +34,14 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio, musicAudi
   return { dub, audio, calls, errors, revoked, c, advance: n => { clock += n; } };
 }
 (async () => {
+  const preserved=fixture();try{
+    await preserved.dub.attach({url:'file:///valid.wav'},preserved.c);const session=preserved.dub.session;
+    assert.equal(await preserved.dub.attach({url:'file:///invalid.wav',range:{start:9,end:2}},preserved.c),false);
+    assert.equal(preserved.dub.session,session,'invalid replacement must preserve the attached voice');
+  }finally{await preserved.dub.remove();}
   const f = fixture();
+  const changing=fixture({mute:async()=>{await flush();changing.c.generation++;return {ok:true};}});
+  try{assert.equal(await changing.dub.attach({url:'file:///stale.wav'},changing.c),false);assert.equal(changing.dub.session,null);assert.equal(changing.audio.paused,true);}finally{await changing.dub.remove();}
   try {
     assert.equal(await f.dub.attach({ name: 'test.wav' }, f.c), true);
     assert.deepEqual(f.calls, [['a', true]]);

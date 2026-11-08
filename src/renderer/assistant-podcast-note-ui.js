@@ -11,6 +11,9 @@
  async function open(card,{timeoutMs=20000}={}){
   if(active||!card?.locator)return false;
   const origin=document.activeElement;
+  const owner=window.AssistantAppActions?.snapshot?.();
+  const ownerCurrent=()=>window.AssistantAppActions?.current?.(owner)!==false;
+  const ownerChanged=()=>({ok:false,code:'owner-changed',error:t('The conversation or source changed. Reopen this passage to review its note.','Sohbet veya kaynak değişti. Notunu incelemek için bu pasajı yeniden aç.')});
   const state={draftId:'',token:'',step:'loading',busy:false,closed:false,blocked:false,saved:false,sequence:0,lastPreview:'',savedText:'',created:false};
   const dialog=node('dialog','mx-dialog media-surface assistant-note-dialog');dialog.dataset.uiUntranslated='';dialog.setAttribute('aria-labelledby','assistantNoteTitle');
   const title=node('h2','',t('Save as note','Not olarak kaydet'));title.id='assistantNoteTitle';
@@ -41,14 +44,18 @@
   const say=text=>{status.textContent=text;};
   async function call(action,extra={}){
    const sequence=++state.sequence;let result;
+   if(!ownerCurrent())return ownerChanged();
    try{
-    const pending=Promise.resolve(window.api.assistantPodcastNote({action,owner:window.AssistantAppActions?.snapshot?.(),draftId:state.draftId,...extra}));
+    const pending=Promise.resolve(window.api.assistantPodcastNote({action,owner,draftId:state.draftId,...extra}));
     // A save whose answer never arrives must not lock the dialog: after the wait it is reported as unknown (the same preview can be sent again safely).
     result=action==='save'?await Promise.race([pending,new Promise(resolve=>setTimeout(()=>resolve({ok:false,code:'transport',error:''}),timeoutMs))]):await pending;
    }
    catch(_){result={ok:false,code:'transport',error:''};}
    // A late answer for a closed dialog or a replaced request never changes what the user sees.
-   return state.closed||sequence!==state.sequence?null:result;
+   if(state.closed||sequence!==state.sequence)return null;
+   // Never present an old draft/approval as current. A dispatched save is different:
+   // its actual receipt (or unknown result) must still be reported honestly.
+   return action!=='save'&&!ownerCurrent()?ownerChanged():result;
   }
   function blocked(result){
    state.blocked=true;state.step=state.step==='loading'?'edit':state.step;
@@ -57,7 +64,7 @@
   }
   const finish=()=>{
    if(state.closed)return;state.closed=true;
-   if(state.draftId&&!state.saved)void Promise.resolve(window.api.assistantPodcastNote({action:'cancel',owner:window.AssistantAppActions?.snapshot?.(),draftId:state.draftId})).catch(()=>{});
+   if(state.draftId&&!state.saved)void Promise.resolve(window.api.assistantPodcastNote({action:'cancel',owner,draftId:state.draftId})).catch(()=>{});
    dialog.remove();active=null;window.syncBrowserOcclusion?.();origin?.focus?.({preventScroll:true});
   };
   closeButton.onclick=()=>dialog.close();

@@ -92,13 +92,15 @@ test('çıktı yoksa başlık girdiden gelir', () => {
   assert(api.loadHistory()[0].title === 'Sadece Girdi', 'baslik: ' + api.loadHistory()[0].title);
 });
 
-test('aynı medya tekrar işlenirse tek kayıt kalır (en yenisi)', () => {
+test('aynı medya için ayrı işler kendi sonuçlarını korur (en yenisi üstte)', () => {
   reset();
   api.recordJob(meta(), done({ segments: 10 }));
   api.recordJob(meta(), done({ segments: 99 }));
   const list = api.loadHistory();
-  assert(list.length === 1, 'kayit sayisi: ' + list.length);
+  assert(list.length === 2, 'ayrı işlerin kayıt sayısı: ' + list.length);
   assert(list[0].segments === 99, 'en yeni kayit ustte olmali');
+  assert(list[1].segments === 10, 'önceki işin sonucu korunmalı');
+  assert(list[0].id !== list[1].id, 'ayrı iş kimlikleri korunmalı');
 });
 
 test('farklı medyalar ayrı kayıt olur, en yeni başta', () => {

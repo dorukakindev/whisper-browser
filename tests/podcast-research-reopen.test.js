@@ -128,16 +128,33 @@ test('podcast source cards resolve exactly, seek only after re-verification and 
  assert.deepEqual([cleaned.timed,sources.cleanOne({...raw,timed:false,seconds:3,end:4}).seconds],[true,null],'an untimed card never carries a time');
 });
 
+test('podcast answer presentation removes only an exact duplicate source appendix while preserving raw text and unknown claims',()=>{
+ const sources=require('../src/renderer/assistant-podcast-sources'),card=sources.cleanOne({id:'P11111111-1111-1111-1111-111111111111',kind:'podcast',show:'Show',episode:'Episode',role:'source',timed:true,seconds:1,end:3,quote:'Exact quote\nSecond line.',locator:{action:'podcast-search-resolve',query:'quote',episode:'entry',token:'a'.repeat(64)},scope:{limit:6,more:false}});
+ for(const tr of [true,false]){
+  const heading=tr?'Kayıtlı podcast kaynakları':'Saved podcast sources',role=tr?'Özgün':'Original',footer=tr?'Uygulama doğrulaması: 0 gerçek işlem kartı oluşturuldu.':'Application verification: 0 real action cards created.';
+  const appendix='\n\n'+heading+'\n['+card.id+'] Show · Episode · '+role+' · 1.0–3.0 s · '+card.quote;
+  const raw='Original answer'+appendix+'\n\n'+footer;
+  assert.equal(sources.presentation(raw,[card]),'Original answer\n\n'+footer);
+  assert(raw.includes(card.quote),'raw persistence/copy input is untouched');
+  assert.equal(sources.presentation(raw,[]),raw,'no verified card means no removal');
+  assert.equal(sources.presentation(raw.replace('Exact quote','Altered quote'),[card]),raw.replace('Exact quote','Altered quote'),'unknown or changed content remains visible');
+  assert.equal(sources.presentation(raw.replace(appendix,appendix+'\nUnknown additional evidence'),[card]),raw.replace(appendix,appendix+'\nUnknown additional evidence'));
+ }
+ const proposalId='60a80c86-2e87-4c37-954b-179637e84a39',raw='Ready (proposalId: '+proposalId+'). Keep `proposalId: '+proposalId+'` as code.';
+ assert.equal(sources.presentation(raw,[],[{proposalId}],true),'Ready (onay kartı aşağıda). Keep `proposalId: '+proposalId+'` as code.');
+ assert.equal(sources.presentation(raw,[],[]),raw,'an unknown approval identifier is never hidden or represented as a real card');
+});
+
 test('Source card click: the controller drives the real reopen helper and never opens, seeks or reports success wrongly',async()=>{
  const sources=require('../src/renderer/assistant-podcast-sources'),{JSDOM}=require('jsdom'),token='c'.repeat(64);
  const card=(extra={})=>sources.cleanOne({id:'P'+'1'.repeat(8)+'-1111-1111-1111-'+'1'.repeat(12),kind:'podcast',usage:'cited',show:'Show',episode:'Episode',role:'source',timed:true,seconds:12,end:15,quote:'The lighthouse blinks.',locator:{action:'podcast-search-resolve',query:'lighthouse',episode:'entry-A',token},scope:{limit:6,more:false},...extra});
  const build=(options={})=>{
-  const h=setup(),workspace={thread:'thread-1'},changes=[],shelfCalls=[],dom=new JSDOM('');
+  const h=setup(),workspace={thread:'thread-1',key:'conversation'},changes=[],shelfCalls=[],dom=new JSDOM('');
   h.context.document=dom.window.document;h.context.syncBrowserOcclusion=()=>{};dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
   const row=extra=>({...h.result,token,quote:'The lighthouse blinks.',seconds:12,end:15,role:'source',...extra});
   const controller=sources.createController({locale:()=> 'en',
    mediaShelf:options.mediaShelf?async input=>options.mediaShelf(++shelfCalls.length,row,input):async()=>{shelfCalls.push(1);return {ok:true,row:row(options.row)};},
-   open:(found,opened)=>h.context.openPodcastResearchResult(found,opened),workspace:{key:()=> 'conversation',activeId:()=>workspace.thread},onChange:(id,state)=>changes.push([id,state.state])});
+   open:(found,opened)=>h.context.openPodcastResearchResult(found,opened),workspace:{key:()=>workspace.key,activeId:()=>workspace.thread},onChange:(id,state)=>changes.push([id,state.state])});
   return {h,controller,workspace,changes,shelfCalls,dom};
  };
  // 1. verified time: the real helper opens the episode in its playback owner and seeks to the verified second
@@ -176,6 +193,18 @@ test('Source card click: the controller drives the real reopen helper and never 
   t.workspace.thread='thread-2';t.release();const late=await first;
   assert.equal(late.state,'cancelled');assert.deepEqual(t.h.calls,[]);assert.equal(t.controller.state('b'),null);assert.equal(t.controller.state('a').state,'cancelled');
  }finally{t.dom.window.close();}
+ // A source switch leaves the old workspace's thread intact: it must still cancel a pending resolution.
+ t=build({mediaShelf:(count,row)=>count===1?new Promise(resolve=>{t.release=()=>resolve({ok:true,row:row()});}):({ok:true,row:row()})});try{
+  const first=t.controller.click('a',card());await new Promise(setImmediate);
+  t.workspace.key='different-source';t.release();
+  assert.equal((await first).state,'cancelled');assert.deepEqual(t.h.calls,[]);
+ }finally{t.dom.window.close();}
+ // A newer card owns navigation even when the earlier card resolves last.
+ t=build({mediaShelf:(count,row)=>count===1?new Promise(resolve=>{t.release=()=>resolve({ok:true,row:row()});}):({ok:true,row:row()})});try{
+  const first=t.controller.click('a',card());await new Promise(setImmediate);
+  assert.equal((await t.controller.click('b',card())).state,'opened');
+  const count=t.h.calls.length;t.release();assert.equal((await first).state,'cancelled');assert.equal(t.h.calls.length,count);
+ }finally{t.dom.window.close();}
  // 8. a missing episode keeps the saved quote readable with its reason
  t=build();try{
   delete t.h.context.window.PlayerSourceCatalogIntegration;
@@ -203,6 +232,14 @@ test('unified saved-source reopen cannot seek a different active tab after delay
 test('unified source reopen rejects same-tab replacement and failed seek instead of reporting success',async()=>{
  const changed=unifiedReopenFixture(),pending=changed.open();changed.a.mediaId='new-video';changed.a.generation++;changed.release();assert.equal(await pending,false);assert.equal(changed.calls.length,0);
  const failed=unifiedReopenFixture();failed.context.browserCommand=async()=>({ok:false});const attempt=failed.open();failed.release();assert.equal(await attempt,false);
+});
+
+test('unified saved-source seek accepts a verified zero and refuses invalid supplied times',async()=>{
+ for(const seconds of [0,-1,'not-a-time',Infinity,'',' ',false]){
+  const f=unifiedReopenFixture();const p=f.context.openUnifiedLibraryResult({kind:'notes',mediaId:'browser:one',mediaType:'youtube',seconds,timed:true});f.release();
+  assert.equal(await p,seconds===0);
+  assert.equal(f.calls.length,seconds===0?1:0);if(seconds===0)assert.equal(f.calls[0].time,0);
+ }
 });
 
 test('unified saved-source seek addresses the exact verified tab and leaves no deferred seek behind',async()=>{

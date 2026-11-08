@@ -196,6 +196,9 @@
       episode.onchange=role.onchange=invalidate;
       if(savedSearch.show&&savedSearch.show!==show.value||savedSearch.episode&&savedSearch.episode!==episode.value)invalidate();
       else render();
+      if(savedSearch.autorun&&input.value.trim()){
+        savedSearch.autorun=false;input.focus({preventScroll:true});void runSearch();
+      }
       if(area.open&&savedSearch.anchor){
         requestAnimationFrame(()=>{
           if(disposed)return;

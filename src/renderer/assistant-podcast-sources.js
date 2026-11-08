@@ -26,6 +26,22 @@
    quote:c.quote.slice(0,2000),locator,scope:{limit,more:c.scope?.more===true}};
  }
  const clean=raw=>Array.isArray(raw)?raw.slice(0,40).flatMap(c=>{const row=cleanOne(c);return row?[row]:[];}):[];
+ // Hide only the service's exact, redundant source appendix in the visual answer.
+ // Stored/copied text and the source cards remain complete; unknown text is never removed.
+ function presentation(raw,cards,actions=[],tr=false){
+  const text=String(raw||''),known=clean(cards);
+  const proposalIds=new Set((actions||[]).map(a=>a.proposalId).filter(id=>/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id||'')));
+  const readable=value=>value.split(/(```[\s\S]*?(?:```|$)|`[^`\n]*`)/g).map((part,index)=>index%2?part:part.replace(/\bproposalId:\s*([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})\b/gi,(full,id)=>proposalIds.has(id)?(tr?'onay kartı aşağıda':'review card below'):full)).join('');
+  for(const [heading,tr]of [['Saved podcast sources',false],['Kayıtlı podcast kaynakları',true]]){
+   const marker='\n\n'+heading+'\n',at=text.lastIndexOf(marker);if(at<0)continue;
+   const tail=text.slice(at+marker.length),verification=tr?'\n\nUygulama doğrulaması: ':'\n\nApplication verification: ',end=tail.indexOf(verification);
+   let rest=end<0?tail:tail.slice(0,end);const used=new Set();
+   const lines=known.map(c=>[c.id,[`[${c.id}] ${c.show} · ${c.episode}`,c.role==='translation'?(tr?'Çeviri':'Translation'):(tr?'Özgün':'Original'),c.timed?`${c.seconds.toFixed(1)}–${c.end.toFixed(1)} s`:(tr?'Salt okunur':'Read only'),c.quote].join(' · ')]);
+   while(rest){const match=lines.find(([id,line])=>!used.has(id)&&(rest===line||rest.startsWith(line+'\n')));if(!match)break;used.add(match[0]);rest=rest.slice(match[1].length);if(rest.startsWith('\n'))rest=rest.slice(1);}
+   if(!rest&&used.size)return readable(text.slice(0,at)+(end<0?'':tail.slice(end)));
+  }
+  return readable(text);
+ }
  function describe(c,tr=false){
   const t=(en,trText)=>tr?trText:en,full=[c.show||'Podcast',c.episode].filter(Boolean).join(' · ');
   const role=c.role==='translation'?t('Translation','Çeviri'):t('Original','Özgün');
@@ -65,21 +81,26 @@
  // already opening ignores a repeat click, a newer click owns the card, and an answer that arrives
  // after the conversation was switched is reported as cancelled on its own card only.
  function createController({mediaShelf,open,workspace,locale=()=>'en',onChange=()=>{},limit=200}){
-  const states=new Map(),owners=new Map();
+  const states=new Map(),owners=new Map();let navigation=0;
   const set=(id,value)=>{states.delete(id);states.set(id,value);while(states.size>limit)states.delete(states.keys().next().value);onChange(id,value);};
   return {
    state:id=>states.get(id)||null,
    async click(id,card){
     if(states.get(id)?.state==='opening')return states.get(id);
-    const key=workspace.key(),thread=workspace.activeId(key)||'',owner=Symbol('open');
+    const key=workspace.key(),thread=workspace.activeId(key)||'',owner=Symbol('open'),ticket=++navigation;
+    let opening=false;
+    const cancelled=()=>ticket!==navigation||(workspace.activeId(key)||'')!==thread||(!opening&&workspace.key()!==key);
     owners.set(id,owner);set(id,{state:'opening',note:''});
     let result;
-    try{result=await reveal(card,{mediaShelf,open,locale:locale(),isCancelled:()=>(workspace.activeId(key)||'')!==thread});}
+    // Resolving a quote must not navigate away from a newer source. Once the actual
+    // opener starts, its own intentional source transition is allowed; its existing
+    // generation/binding guards and this navigation ticket still protect every seek.
+    try{result=await reveal(card,{mediaShelf,open:async(row,options)=>{if(cancelled())return false;opening=true;return open(row,options);},locale:locale(),isCancelled:cancelled});}
     catch(_){result={state:'unavailable',note:locale()==='tr'?'Pasaj açılamadı. Hiçbir şey değişmedi.':'The passage could not be opened. Nothing was changed.'};}
     if(owners.get(id)===owner)set(id,result);
     return result;
    }
   };
  }
- return Object.freeze({clean,cleanOne,cleanLocator,describe,reveal,clock,createController});
+ return Object.freeze({clean,cleanOne,cleanLocator,presentation,describe,reveal,clock,createController});
 });

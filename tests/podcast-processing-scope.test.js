@@ -9,3 +9,9 @@ test('RSS explicit intervals are validated before acquisition and forwarded with
  const audio={mediaKey:'rss:one',generation:1,sourceVersion:'v1'},player={workspaceMode:'player',mediaKey:audio.mediaKey,generation:1,workspaceAudio:audio};const ctx={player,document:{getElementById:()=>({duration:60})},window:{PodcastTaskScope:Scope},t:(_tr,en)=>en,generatePodcast:async config=>{calls.push(config);return {queued:true};},translatePodcastTranscript:async()=>{throw Error('wrong operation');}};vm.runInNewContext(source.slice(a,b)+';globalThis.run=runPodcastTask;',ctx);
  await ctx.run({operation:'transcribe-translate',range:{start:'0:30',end:'0:42'}});assert.equal(calls[0].range.start,30);assert.equal(calls[0].range.end,42);await assert.rejects(ctx.run({operation:'transcribe',range:{start:0,end:61}}));assert.equal(calls.length,1);await ctx.run({operation:'transcribe'});assert.equal(calls[1].range,null);await assert.rejects(ctx.run({operation:'translate',range:{start:0,end:12}}),/transcribe/i);
 });
+
+test('processing range stamps preserve accepted millisecond precision instead of truncating the displayed scope',()=>{
+ for(const [value,expected]of [[.125,'0:00.125'],[.875,'0:00.875'],[.75,'0:00.75'],[59.999,'0:59.999'],[60.001,'1:00.001'],[60,'1:00']]){assert.equal(Scope.stamp(value),expected);assert.equal(Scope.seconds(Scope.stamp(value)),value);}
+ assert.equal(Scope.stamp(59.9999),'1:00');assert.equal(Scope.stamp(Infinity),'0:00');
+ const range=Scope.normalize({start:'0:00.125',end:'0:00.875'},1);assert.deepEqual(range,{start:.125,end:.875});assert.equal(Scope.stamp(range.end-range.start),'0:00.75');
+});

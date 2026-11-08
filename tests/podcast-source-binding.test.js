@@ -63,3 +63,32 @@ test('publisher HTTP status metadata and invalid UTF8 stay failures through exis
  for(const [status,code]of [[403,'forbidden'],[404,'not-found'],[429,'rate-limited'],[503,'unavailable']]){const result=await fetch(descriptor,options(status));assert.equal(result.ok,false);assert.equal(result.code,code);if(status===429||status===503)assert.equal(result.retryAfterSeconds,45);}
  await assert.rejects(fetch(descriptor,options(200,Buffer.from([0xff,0xff]))),/encoded data|encoding/i);
 });
+
+test('a saved translation tied to another audio copy is read-only even beside a publisher transcript',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),code=fs.readFileSync(require.resolve('../src/renderer/player-source-catalog-integration'),'utf8');
+ const load=code.slice(code.indexOf('  const savedPodcastResultLoads'),code.indexOf('  function podcastTools('));
+ for(const [exact,hash,canLoad] of [[false,'different-audio',false],[true,'different-audio',false],[true,'current-audio',true]]){
+  const calls=[],audio={entryId:'entry',mediaKey:'A',generation:1,sourceVersion:'v',exactAudio:exact,sourceBinding:{sha256:'current-audio'}};
+  const context={player:{workspaceAudio:audio,mediaKey:'A',generation:1},window:{PlayerWorkspaceIntegration:{refresh(){}},PodcastTaskScope:{stamp:String}},
+   t:tr=>tr,parseSubtitles:()=>[{text:'Saved translation'}],loadSubtitle:async(...args)=>{calls.push(args);context.player.sub2Path=args[0];},
+   api:async req=>req.action==='podcast-workspace'?{sourceVersion:'v',workspace:{transcript:{provenance:'publisher',state:'timed'},translation:{provenance:'asr',state:'timed',text:'stored',timeline:{sha256:hash}}}}:{path:'C:/translation.srt'}};
+  vm.createContext(context);vm.runInContext(load,context);await context.loadSavedPodcastResult('translation');
+  assert.equal(calls.length,canLoad?1:0);assert.equal(audio.transcriptState,canLoad?'timed':'untimed');if(!canLoad)assert.equal(audio.translationText,'Saved translation');
+ }
+});
+
+test('late saved result lookup cannot replace a newer choice for the same episode',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),code=fs.readFileSync(require.resolve('../src/renderer/player-source-catalog-integration'),'utf8');
+ const start=code.indexOf('  const savedPodcastResultLoads');const load=code.slice(start>=0?start:code.indexOf('  async function loadSavedPodcastResult('),code.indexOf('  function podcastTools('));
+ const audio={entryId:'entry',mediaKey:'A',generation:1,sourceVersion:'v'};let release,calls=0;
+ const result=text=>({sourceVersion:'v',workspace:{transcript:{state:'untimed',text}}});
+ const context={player:{workspaceAudio:audio,mediaKey:'A',generation:1},window:{PlayerWorkspaceIntegration:{refresh(){}}},t:tr=>tr,parseSubtitles:()=>[],api:()=>++calls===1?new Promise(r=>release=r):Promise.resolve(result('New saved text'))};
+ vm.createContext(context);vm.runInContext(load,context);const old=context.loadSavedPodcastResult();await context.loadSavedPodcastResult();release(result('Old saved text'));await old;assert.equal(audio.transcriptText,'New saved text');
+});
+
+test('a failed saved subtitle read is not reported as loaded just because its old path is still selected',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),code=fs.readFileSync(require.resolve('../src/renderer/player-source-catalog-integration'),'utf8');const load=code.slice(code.indexOf('  const savedPodcastResultLoads'),code.indexOf('  function podcastTools('));
+ const audio={entryId:'entry',mediaKey:'A',generation:1,sourceVersion:'v'};
+ const context={player:{workspaceAudio:audio,mediaKey:'A',generation:1,subPath:'C:/saved.srt'},window:{PlayerWorkspaceIntegration:{refresh(){throw Error('Must not refresh as success');}}},t:tr=>tr,loadSubtitle:async()=>({ok:false,error:'Saved file disappeared'}),api:async req=>req.action==='podcast-workspace'?{sourceVersion:'v',workspace:{transcript:{state:'timed',text:'Stored',provenance:'publisher'}}}:{path:'C:/saved.srt'}};
+ vm.createContext(context);vm.runInContext(load,context);await assert.rejects(()=>context.loadSavedPodcastResult(),/Saved file disappeared/);
+});

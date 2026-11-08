@@ -43,6 +43,13 @@
       const prefs = opts.prefs || {};
       this.readingSize = ['small','large'].includes(prefs.readingSize) ? prefs.readingSize : 'normal';
       const reading = prefs.reading?.identity && prefs.reading.identity === adapter.identity?.() ? prefs.reading : null;
+      const panelWork=reading?.panelWork;
+      this.panelWork=Object.prototype.toString.call(panelWork?.pending)==='[object Set]'&&Array.isArray(panelWork?.notices)?panelWork:{pending:new Set(),notices:[]};
+      this.panelPending=this.panelWork.pending;
+      if(Object.prototype.toString.call(this.panelWork.statusActions)!=='[object Map]')this.panelWork.statusActions=new Map();
+      this.volumeWork=this.panelWork.volume??={pending:false,next:null,requested:null};
+      Object.defineProperty(this.volumeWork,'owner',{value:this,writable:true,configurable:true});
+      Object.defineProperties(this,{volumePending:{get:()=>this.volumeWork.pending,set:value=>this.volumeWork.pending=value},nextVolume:{get:()=>this.volumeWork.next,set:value=>this.volumeWork.next=value}});
       this.lastAudibleVolume = reading?.lastAudibleVolume;
       this.s = {
         focus: !!prefs.focus, disp: prefs.disp || 'both', follow: reading?.follow ?? true,
@@ -51,12 +58,23 @@
       };
       this.lines = []; this.rows = []; this.dead = false; this.id0 = undefined;
       this.build();
+      if(reading?.processingScope&&this.scopeBox){
+        const scope=reading.processingScope;
+        for(const name of ['start','end'])if(typeof scope[name]==='string')this.scopeBox.querySelector(`[data-scope-time="${name}"]`).value=scope[name];
+        this.scopeBox.querySelector(`[data-scope="${scope.mode==='range'?'range':'full'}"]`).click();
+        this.scopeBox.querySelector('.sh-scope-fields').hidden=scope.mode!=='range'||!scope.open;
+      }
       const search = this.q('[data-r=q]');
       if (reading && search) search.value = reading.query;
       const chapters = this.q('[data-r=chapterSearch]');
       if (reading && chapters) chapters.value = reading.chapterQuery || '';
       this.readingScroll = reading && !reading.follow ? reading : null;
       this.tick();
+      if(reading?.searchMatch&&reading.searchMatch.rev===this.st?.rev&&search?.value){
+        const match=reading.searchMatch,index=this.rows.findIndex(row=>row.id===match.id&&row.trackId===match.trackId&&!!row.standaloneTranslation===!!match.standaloneTranslation);
+        if(index>=0&&!this.lines[index].hidden){this.matchLine=this.lines[index];this.paintMatches();}
+      }
+      if(reading?.searchAnchor&&reading.searchAnchor.rev===this.st?.rev)this.searchReadingAnchor={...reading.searchAnchor};
       if(reading?.assistantChoice){this.assistantChoice={...reading.assistantChoice,identity:this.id0};if(!this.assistantPassage())this.assistantChoice=null;}
       if(reading?.noteDraft?.identity===this.id0){this.noteDraft=reading.noteDraft;if(this.noteDraft.open)this.renderNote(this.noteDraft);}
       if (reading?.chapters && !this.q('.sh-chapter-entry')?.hidden) this.showReading(true);
@@ -68,11 +86,15 @@
       const { focus, disp, follow, sleep, sleepAt } = this.s;
       const prefs = { focus, disp, readingSize: this.readingSize };
       if (preserveReading && this.id0) {
+        const match=this.matchLine&&!this.matchLine.hidden?this.rows[Number(this.matchLine.dataset.i)]:null;
         prefs.reading = {
-          identity: this.id0, follow, sleep, sleepAt, lastAudibleVolume: this.lastAudibleVolume,
+          identity: this.id0, follow, sleep, sleepAt, lastAudibleVolume: this.lastAudibleVolume, panelWork:this.panelWork,
           assistantChoice:this.assistantPassage()?{...this.assistantChoice}:null,noteDraft:this.noteDraft||null,
           transcript: !!this.s.transcript, chapters: this.root.classList.contains('sh-chapters-open'),
           query: this.q('[data-r=q]')?.value || '',
+          searchAnchor:this.searchReadingAnchor?{...this.searchReadingAnchor}:null,
+          searchMatch:match?{rev:this.st?.rev,id:match.id,trackId:match.trackId,standaloneTranslation:!!match.standaloneTranslation}:null,
+          processingScope:this.scopeBox?{mode:this.scopeMode,start:this.scopeBox.querySelector('[data-scope-time=start]').value,end:this.scopeBox.querySelector('[data-scope-time=end]').value,open:!this.scopeBox.querySelector('.sh-scope-fields').hidden}:null,
           chapterQuery: this.q('[data-r=chapterSearch]')?.value || '',
           scrollTop: this.readingScroll?.scrollTop ?? (this.root.classList.contains('sh-chapters-open')
             ? this.transcriptScroll : this.q('[data-r=scroll]')?.scrollTop) ?? 0
@@ -155,7 +177,7 @@
     bind() {
       const r = this.root, a = this.a;
       r.addEventListener('error', event => {
-        if (event.target.matches?.('[data-r=cover] img')) event.target.replaceWith(this.coverInitials());
+        if (!this.dead&&event.target.matches?.('[data-r=cover] img')) event.target.replaceWith(this.coverInitials());
       }, true);
       const jumpForm = this.q('[data-r=jumpForm]');
       jumpForm?.addEventListener('submit', event => {
@@ -188,17 +210,11 @@
         rate.append(...[...RATES].sort((a,b) => a-b).map(option));
         rate.onchange = async () => {
           const value = Number(rate.value);
-          if (rate.hasAttribute('aria-busy') || !RATES.includes(value)) {
+          if (rate.disabled || this.a.state()?.canRate===false || rate.hasAttribute('aria-busy') || !RATES.includes(value)) {
             this.syncRate();
             return;
           }
-          rate.setAttribute('aria-busy', 'true');
-          this.syncRate();
-          try { await this.run('rate', value); }
-          finally {
-            rate.removeAttribute('aria-busy');
-            if (!this.dead) this.tick();
-          }
+          await this.runStatusAction(rate,()=>this.a.cmd('rate',value,this.st?.rev),'rate');
         };
         this.rateOption = option;
       }
@@ -223,7 +239,9 @@
           case 'mute': {
             const input = this.q('.sh-local-volume');
             if (!input || !Number.isFinite(this.st?.volume)) break;
-            input.value = Number(input.value) > 0 ? 0 : (this.lastAudibleVolume || 1);
+            const selected=Number(input.value);
+            if(selected>0)this.lastAudibleVolume=selected;
+            input.value = selected > 0 ? 0 : (this.lastAudibleVolume || 1);
             input.oninput();
             break;
           }
@@ -356,7 +374,15 @@
         this.paint();
       };
       sc.addEventListener('wheel', manual, { passive: true }); sc.addEventListener('touchmove', manual, { passive: true });
-      sc.addEventListener('pointerdown', (e) => { if (e.target === sc) manual(); });
+      // Keyboard users can inspect a sentence without pressing a scroll key.
+      // Treat focus entering the transcript as manual reading, just like wheel/touch,
+      // so the follow control never claims it is following while focus suppresses it.
+      if(this.o.mode!=='cinema')sc.addEventListener('focusin', manual);
+      sc.addEventListener('pointerdown', (e) => {
+        // Selecting a passage is manual reading too. Do not preventDefault:
+        // the browser must retain its native text selection and context menu.
+        if (e.target === sc || (e.button === 0 && e.target.closest?.('.src, .tr') && !e.target.closest('button, a, input, textarea, select'))) manual();
+      });
       sc.addEventListener('keydown', (e) => {
         if (['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown'].includes(e.key)) manual();
         if (!['cueSeek', 'translationSeek'].includes(e.target.dataset.a) || !['ArrowUp', 'ArrowDown'].includes(e.key)) return;
@@ -382,7 +408,10 @@
         const within=r.contains(e.target);
         if(!within&&e.target!==document.body)return;
         const target=e.target,k=e.key.toLowerCase();
+        // Let the nested picker own its keyboard flow before the Stage capture handler.
+        if(target.closest?.('.mk-popup[popover]'))return;
         if(k==='escape'){
+          if(target.closest?.('select'))return;
           if ((target === q || target === chapterSearch) && target.value) {
             target.value = '';
             if (target === q) this.filterRows(true);
@@ -391,7 +420,8 @@
             e.stopImmediatePropagation();
             return;
           }
-          if(target.closest?.('.sh-scope-fields'))return;
+          // The open interval editor owns Escape from its trigger as well as its fields.
+          if(target.closest?.('.sh-scope-fields') || (target.closest?.('.sh-scope') && this.scopeBox?.querySelector('.sh-scope-fields')?.hidden===false))return;
           const shortcuts = target.closest?.('.sh-key-guide[open]');
           if (shortcuts) {
             shortcuts.open = false;
@@ -405,10 +435,10 @@
           else if(this.s.word)this.closeWord();
           else if(this.s.panel)this.togglePanel();
           else if(this.s.transcript && (this.o.mode === 'cinema' || this.usesTranscriptDrawer()))this.toggleTranscript();
-          else if(document.fullscreenElement)void document.exitFullscreen?.();
+          else if(document.fullscreenElement)void this.run('fullscreen');
           else this.o.onClose?.();
         }else{
-          if(target.isContentEditable||target.closest?.('input,textarea,select,button,a,summary,[data-i],.sh-note-excerpt,[contenteditable]:not([contenteditable=false]),[role=button]'))return;
+          if(target.isContentEditable||target.closest?.('input,textarea,select,button,a,summary,[data-i],.sh-note-excerpt,.sh-word-body,[contenteditable]:not([contenteditable=false]),[role=button]'))return;
           if (e.repeat && [' ','l','f'].includes(k)) return;
           if(k===' ')this.run('toggle');
           else if(k==='j'){if(!this.q('[data-a=prev]')?.disabled)this.navigateSentence('prevCue');}
@@ -446,8 +476,11 @@
       r.addEventListener('pointermove',this.reveal);r.addEventListener('pointerdown',this.reveal);r.addEventListener('focusin',this.reveal);
       const volume = this.q('.sh-local-volume');
       if (volume) volume.oninput = () => {
+        if(this.dead||!volume.isConnected||(this.a.identity?.()??'')!==this.id0)return;
+        this.volumeWork.owner=this;
         const value = Number(volume.value);
         this.paintVolume(volume, value);
+        this.volumeWork.requested=value;
         this.nextVolume = value;
         if (!this.volumePending) void this.flushVolume();
       };
@@ -460,7 +493,7 @@
       this.scopeBox.querySelector('[data-scope-time=start]').value=root.PodcastTaskScope.stamp(now);
       this.scopeBox.querySelector('[data-scope-time=end]').value=root.PodcastTaskScope.stamp(duration>now?Math.min(duration,now+60):now+60);
       for(const button of this.scopeBox.querySelectorAll('[data-scope]'))button.onclick=()=>{this.scopeMode=button.dataset.scope;this.scopeBox.querySelector('.sh-scope-fields').hidden=this.scopeMode!=='range';this.scopeBox.querySelector('.sh-seg').style.setProperty('--i',this.scopeMode==='range'?1:0);for(const b of this.scopeBox.querySelectorAll('[data-scope]')){b.setAttribute('aria-pressed',String(b===button));b.setAttribute('aria-selected',String(b===button));}this.updateScope();};
-      this.scopeBox.querySelector('[data-scope-apply]').onclick=()=>{try{this.scopeRange();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;this.scopeBox.querySelector('[data-scope=range]').focus({preventScroll:true});}catch{this.updateScope();}};
+      this.scopeBox.querySelector('[data-scope-apply]').onclick=()=>{try{this.scopeRange();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;this.scopeBox.querySelector('[data-scope=range]').focus({preventScroll:true});}catch{this.updateScope();this.scopeBox.querySelector('[aria-invalid=true]')?.focus({preventScroll:true});}};
       this.scopeBox.onkeydown=event=>{if(event.key==='Enter'&&!event.isComposing&&event.target.matches('input')){event.preventDefault();event.stopPropagation();this.scopeBox.querySelector('[data-scope-apply]').click();return;}if(event.key==='Escape'&&!this.scopeBox.querySelector('.sh-scope-fields').hidden){event.preventDefault();event.stopPropagation();this.scopeBox.querySelector('.sh-scope-fields').hidden=true;this.scopeBox.querySelector('[data-scope=range]').focus();}};
       this.root.addEventListener('pointerdown',event=>{if(!this.scopeBox.contains(event.target))this.scopeBox.querySelector('.sh-scope-fields').hidden=true;});
       for(const input of this.scopeBox.querySelectorAll('input'))input.oninput=()=>this.updateScope();this.updateScope();
@@ -468,8 +501,18 @@
     scopeRange(){return !this.scopeBox||this.scopeMode!=='range'?null:root.PodcastTaskScope.normalize({start:this.scopeBox.querySelector('[data-scope-time=start]').value,end:this.scopeBox.querySelector('[data-scope-time=end]').value},this.a.processing()?.duration);}
     updateScope(){
       if(!this.scopeBox)return;const text=this.scopeBox.querySelector('.sh-scope-summary');
-      try{const range=this.scopeRange(),duration=Number(this.a.processing()?.duration);text.textContent=range?`${root.PodcastTaskScope.stamp(range.start)} – ${root.PodcastTaskScope.stamp(range.end)} · ${T('İşlenecek süre','Processing duration')}: ${root.PodcastTaskScope.stamp(range.end-range.start)}`:duration>0?`${T('İşlenecek süre','Processing duration')}: ${root.PodcastTaskScope.stamp(duration)}`:T('Bölümün tamamı · süre bilinmiyor','Whole episode · duration unknown');text.dataset.invalid='false';}
-      catch{ text.textContent=T('Geçerli başlangıç ve bitiş girin. Bölümün tamamı başlatılmayacak.','Enter valid start and end times. The whole episode will not start.');text.dataset.invalid='true';}
+      let message,invalid=false;
+      try{const range=this.scopeRange(),duration=Number(this.a.processing()?.duration);message=range?`${root.PodcastTaskScope.stamp(range.start)} – ${root.PodcastTaskScope.stamp(range.end)} · ${T('İşlenecek süre','Processing duration')}: ${root.PodcastTaskScope.stamp(range.end-range.start)}`:duration>0?`${T('İşlenecek süre','Processing duration')}: ${root.PodcastTaskScope.stamp(duration)}`:T('Bölümün tamamı · süre bilinmiyor','Whole episode · duration unknown');}
+      catch{message=T('Geçerli başlangıç ve bitiş girin. Bölümün tamamı başlatılmayacak.','Enter valid start and end times. The whole episode will not start.');invalid=true;}
+      if(text.textContent!==message)text.textContent=message;
+      if(text.dataset.invalid!==String(invalid))text.dataset.invalid=String(invalid);
+      const start=this.scopeBox.querySelector('[data-scope-time=start]'),end=this.scopeBox.querySelector('[data-scope-time=end]');
+      const startTime=root.PodcastTaskScope.seconds(start.value);
+      for(const input of [start,end]){
+        const bad=invalid&&(input===start?!Number.isFinite(startTime):Number.isFinite(startTime));
+        if(bad){if(input.getAttribute('aria-invalid')!=='true')input.setAttribute('aria-invalid','true');}
+        else if(input.hasAttribute('aria-invalid'))input.removeAttribute('aria-invalid');
+      }
     }
     taskButtons() {
       return (this.a.actions?.() || []).map(action => `<button class="sh-btn${action.primary ? ' sh-primary' : ''}" type="button" data-task="${esc(action.id)}" ${action.disabled || this.taskPending ? 'disabled' : ''} aria-busy="${!!this.taskPending&&this.pendingTaskId===action.id}" title="${esc(action.hint || action.label)}">${ic(action.id === 'retry-translation'?'replay':action.id === 'translate' ? 'swap' : 'mic')}<span>${esc(action.label)}${this.taskPending&&this.pendingTaskId===action.id?' · '+T('Hazırlanıyor…','Preparing…'):''}</span></button>`).join('');
@@ -480,6 +523,12 @@
       const processing = this.q('[data-r=processing]');
       if (processing) {
         processing.hidden = !html;
+        const state=this.q('[data-r=processingState]');
+        if(state){
+          const label=this.taskPending?T('Hazırlanıyor…','Preparing…'):this.st?.untimed?T('Okuma metni hazır','Reading text ready'):this.st?.rows.length?T('Zamanlı metin hazır','Timed text ready'):this.captionTrackCount?T('Altyazı izi mevcut','Caption track available'):T('Transkript yok','No transcript');
+          if(state.textContent!==label)state.textContent=label;
+          state.dataset.state=this.taskPending?'busy':this.st?.rows.length?'ready':'empty';
+        }
         if (html && !this.processingInitialized && this.st) {
           processing.open = !this.st.rows.length && !this.captionTrackCount;
           this.processingStartedEmpty = processing.open;
@@ -531,6 +580,8 @@
     }
     async setSentenceLoop(on, row, jump = false) {
       if (this.loopPending) return;
+      const cue=this.rows[row];
+      if(on&&(!cue?.timed||!Number.isFinite(cue.start)||!Number.isFinite(cue.end)||cue.end<=cue.start||cue.end<=0||cue.start>=this.st?.duration))return;
       const revision = this.st?.rev, identity = this.a.identity?.();
       this.loopPending = true;
       try {
@@ -562,7 +613,9 @@
         const text = parts.filter(part => part?.trim()).join('\n');
         if (!text) return;
         this.run('copy', text).then(result => {
-          if (!this.dead && result?.ok) this.toast(T('Metin kopyalandı.', 'Text copied.'));
+          if(this.dead)return;
+          if(result?.ok===true)this.toast(T('Metin kopyalandı.', 'Text copied.'));
+          else if(result?.ok!==false)this.toast(T('Kopyalama doğrulanamadı; yeniden deneyin.','Copying could not be confirmed; try again.'));
         });
       }
       else if (kind === 'save') this.openNote(i,opener);
@@ -570,6 +623,8 @@
     filterRows(resetScroll = false) {
       const normalize = text => text.normalize('NFC').trim().replace(/\s+/g, ' ');
       const query = normalize(this.q('[data-r=q]')?.value || '');
+      const readingScroll=this.q('[data-r=scroll]');
+      if(query&&!this.searchReadingAnchor)this.searchReadingAnchor={rev:this.st?.rev,scrollTop:readingScroll.scrollTop};
       const folded = query.toLowerCase(), turkish = query.toLocaleLowerCase('tr');
       const display = this.displayMode();
       let visible=0;
@@ -596,9 +651,12 @@
         empty.hidden = !this.rows.length || visible > 0;
         empty.querySelector('strong').textContent = query ? T('Eşleşme yok', 'No matches') : T('Görünür metin yok', 'No visible text');
         empty.querySelector('span').textContent = query
-          ? T('Başka bir ifade deneyin veya transkript dilini değiştirin.', 'Try a different phrase or change the transcript language.')
+          ? (this.rows.some(row=>row.src.trim())&&this.rows.some(row=>row.trs.some(text=>text.trim()))
+            ? T('Başka bir ifade deneyin veya transkript dilini değiştirin.', 'Try a different phrase or change the transcript language.')
+            : T('Başka bir ifade deneyin veya aramayı temizleyerek metne dönün.', 'Try a different phrase, or clear the search to return to the text.'))
           : T('Diğer transkript dilini seçin.', 'Select the other transcript language.');
       }
+      if(!query&&this.searchReadingAnchor){const anchor=this.searchReadingAnchor;this.searchReadingAnchor=null;if(!this.s.follow&&anchor.rev===this.st?.rev)readingScroll.scrollTop=anchor.scrollTop;}
     }
     paintMatches() {
       const visible = this.lines.filter(line => !line.hidden);
@@ -640,6 +698,13 @@
     syncRate() {
       const select = this.q('[data-r=rate]');
       if (!select || !this.rateOption) return;
+      const unavailable=this.st?.canRate===false;
+      const pending=this.panelWork.statusActions.get('rate'),busy=!!pending?.pending&&pending.identity===this.a.identity?.();
+      if(busy)select.setAttribute('aria-busy','true');else select.removeAttribute('aria-busy');
+      const notice=this.q('[data-r=rateState]');if(notice)notice.hidden=!busy;
+      if(select.disabled!==unavailable)select.disabled=unavailable;
+      const title=unavailable?T('Bu kaynakta hız ayarı henüz kullanılamıyor.','Playback speed is not currently available for this source.'):'';
+      if(select.title!==title)select.title=title;
       const value = Number(this.st?.rate) || 1;
       if (!RATES.includes(value) && select.lastElementChild?.value !== String(value)) {
         select.querySelector('[data-current-rate]')?.remove();
@@ -658,7 +723,7 @@
       this.s.sleepAt = minutes ? Date.now() + minutes * 60000 : 0;
       this.paint();
     }
-    toggleJump() {
+    toggleJump(restoreFocus=true) {
       const form = this.q('[data-r=jumpForm]');
       const opener = this.q('.sh-times [data-a=jump]');
       if (form.hidden && !this.canSeek) return;
@@ -668,7 +733,7 @@
       const input = this.q('[data-r=jumpTime]');
       this.q('[data-r=jumpError]').hidden = true;
       input.removeAttribute('aria-invalid');
-      if (form.hidden) opener.focus({preventScroll:true});
+      if (form.hidden) { if(restoreFocus)opener.focus({preventScroll:true}); }
       else {
         input.value = fmt(this.st.time);
         input.focus();
@@ -697,7 +762,7 @@
       form.setAttribute('aria-busy','true');
       try {
         const result = await this.run('seek', time);
-        if (!this.dead && !form.hidden && generation === this.jumpGeneration && identity === this.a.identity?.() && result?.ok !== false) this.toggleJump();
+        if (!this.dead && !form.hidden && generation === this.jumpGeneration && identity === this.a.identity?.() && result?.ok !== false) this.toggleJump(form.contains(document.activeElement));
       } finally {
         this.jumpPending = false;
         form.removeAttribute('aria-busy');
@@ -773,7 +838,7 @@
       if(r.hasAttribute('data-pw-occludes-native')!==overlay){if(overlay)r.setAttribute('data-pw-occludes-native','true');else r.removeAttribute('data-pw-occludes-native');root.syncBrowserOcclusion?.();}
       const f = r.querySelector('[data-a=follow]'); if (f) {
         if (this.o.mode === 'cinema') f.hidden = s.follow || this.cur < 0 || !this.rows[this.cur]?.timed;
-        else { const timed=this.rows.some(row=>row.timed);f.hidden=false;f.disabled=!timed;f.setAttribute('aria-pressed',String(timed&&s.follow));f.title=timed?'':T('Zamansız metinde otomatik takip yoktur.','Automatic follow is unavailable for untimed text.');f.querySelector('span').textContent=!timed?T('Salt okunur','Read-only'):s.follow?T('Takip açık','Follow on'):T('Konuşmaya dön','Back to speech'); }
+        else { const timed=this.rows.some(row=>row.timed);f.hidden=false;f.disabled=!timed;f.setAttribute('aria-pressed',String(timed&&s.follow));f.title=!timed?T('Zamansız metinde otomatik takip yoktur.','Automatic follow is unavailable for untimed text.'):s.follow?T('Konuşulan satır izleniyor. Metni okurken takip durur.','Following the spoken sentence. Reading the transcript pauses follow.'):T('Oynatma konumunu değiştirmeden konuşulan satıra dön.','Return to the spoken sentence without changing playback position.');f.querySelector('span').textContent=!timed?T('Salt okunur','Read-only'):s.follow?T('Takip açık','Follow on'):T('Konuşmaya dön','Back to speech'); }
       }
       r.querySelectorAll('[data-a=panel]').forEach(button=>button.setAttribute('aria-pressed', String(s.panel)));
     }
@@ -814,7 +879,7 @@
       const focusedSeek=focused?.dataset.a === 'cueSeek';
       const focusedTranslation=focused?.dataset.a === 'translationSeek'
         ? focusedRow?.translationCueIds?.[Number(focused.dataset.part)] : undefined;
-      const sameRow=(a,b)=>a && b && a.id===b.id && !!a.standaloneTranslation===!!b.standaloneTranslation;
+      const sameRow=(a,b)=>a && b && a.id===b.id && a.trackId===b.trackId && !!a.standaloneTranslation===!!b.standaloneTranslation;
       this.rows=st.rows;scroll.textContent='';this.lines=[];
       this.translationRowByCue = new Map();
       this.rows.forEach((row, index) => {
@@ -863,18 +928,21 @@
       if (!this.s.follow){scroll.scrollTop=previousScroll;if(anchor){const index=this.rows.findIndex(row=>sameRow(row,anchor.row)),line=this.lines[index];if(line&&!line.hidden)scroll.scrollTop+=line.getBoundingClientRect().top-scroll.getBoundingClientRect().top-anchor.offset;}}
     }
     async flushVolume() {
-      const identity = this.a.identity?.();
+      const identity = this.a.identity?.(),work=this.volumeWork;
       this.volumePending = true;
       try {
-        while (!this.dead && (identity ?? '') === this.id0 && identity === this.a.identity?.() && this.nextVolume != null) {
+        const current=()=>work.owner&&!work.owner.dead&&(identity??'')===work.owner.id0&&identity===work.owner.a.identity?.();
+        while (current() && this.nextVolume != null) {
           const value = this.nextVolume;
           this.nextVolume = null;
-          await this.run('volume', value);
+          let result;try{result=await work.owner.a.cmd('volume',value,work.owner.st?.rev);}catch(error){result={ok:false,message:error?.message};}
+          if(current()&&result?.ok===false)work.owner.toast(result.message||T('Ses düzeyi uygulanamadı.','Volume could not be changed.'));
         }
       } finally {
         this.nextVolume = null;
         this.volumePending = false;
-        if (!this.dead) this.tick();
+        work.requested=null;
+        if(work.owner&&!work.owner.dead)work.owner.tick();
       }
     }
     paintVolume(input, value) {
@@ -905,14 +973,22 @@
       const mx = Math.max(...d, 1), hs = d.map((v) => v ? .24 + .76 * Math.sqrt(v / mx) : .1);
       for (const n of [this.q('[data-r=bars]'), this.q('[data-r=fill]')]) n.replaceChildren(...hs.map((h) => { const i = document.createElement('i'); i.style.setProperty('--h', h.toFixed(3)); return i; }));
       const lg = this.q('[data-r=legend]'); if (lg) lg.textContent = any ? T('konuşma yoğunluğu · metinden', 'speech density · from text') : '';
-      const w = this.q('[data-r=wave]');w.dataset.density=String(any); w.querySelectorAll('.mark').forEach((n) => n.remove());
-      if (dur) for (const c of (info.chapters || [])) if (c.t > 0) { const m = document.createElement('i'); m.className = 'mark'; m.style.left = (c.t / dur * 100) + '%'; w.append(m); }
+      this.q('[data-r=wave]').dataset.density=String(any);this.drawWaveMarks(dur,info.chapters||[]);
+    }
+    drawWaveMarks(duration,chapters) {
+      const signature=JSON.stringify([duration,chapters.map(chapter=>chapter.t)]);if(signature===this.waveMarksKey)return;this.waveMarksKey=signature;
+      const wave=this.q('[data-r=wave]');wave.querySelectorAll('.mark').forEach(mark=>mark.remove());
+      if(duration>0)for(const chapter of chapters)if(chapter.t>0){const mark=document.createElement('i');mark.className='mark';mark.style.left=(chapter.t/duration*100)+'%';wave.append(mark);}
     }
     drawChapters(chapters) {
       const host=this.q('[data-r=chaps]');
       if(!host)return;
       const stamp=JSON.stringify(chapters);
       if(stamp===this.chapterStamp)return;
+      const oldButtons=[...host.querySelectorAll('button.sh-chap')];
+      const focused=oldButtons.indexOf(document.activeElement);
+      const focusKey=focused>=0?{time:oldButtons[focused].dataset.t,label:oldButtons[focused].querySelector('span')?.textContent}:null;
+      const previousScroll=host.scrollTop;
       this.chapterStamp=stamp;
       const navigation = this.q('[data-r=readingNav]');
       if (navigation) {
@@ -946,7 +1022,14 @@
         note.textContent=T('Zamanı doğrulanmayan başlıklar salt okunur.','Chapters without verified timing are read-only.');
         host.append(note);
       }
-      if (navigation) this.filterChapters();
+      if (navigation) { this.filterChapters(); host.scrollTop=previousScroll; }
+      if(focusKey){
+        const available=[...host.querySelectorAll('button.sh-chap')].filter(button=>!button.hidden&&!button.disabled);
+        const target=available.find(button=>button.dataset.t===focusKey.time&&button.querySelector('span')?.textContent===focusKey.label)
+          || available[Math.min(focused,available.length-1)]
+          || (navigation ? this.q(chapters.length?'[data-r=chapterSearch]':'[data-r=q]') : this.q('[data-a=toggle]'));
+        target?.focus({preventScroll:true});
+      }
     }
     filterChapters() {
       const search = this.q('[data-r=chapterSearch]');
@@ -1010,10 +1093,12 @@
       if (this.dead) return;
       const a = this.a, s = this.s;
       const id = a.identity ? a.identity() : ''; if (this.id0 === undefined) this.id0 = id; else if (id !== this.id0) { if (!this.gone) { this.gone = true; this.o.onSource?.(id, this.prefs()); } return; }
+      if(this.panelWork.notices.length)this.toast(this.panelWork.notices.splice(0).join('\n'));
+      for(const [action,receipt]of this.panelWork.statusActions){if(receipt.pending)continue;if(receipt.error&&receipt.identity===id&&receipt.owner===this.statusOwner(action))this.toast(receipt.error);this.panelWork.statusActions.delete(action);}
       if (s.sleep && Date.now() >= s.sleepAt) {
         s.sleep = 0;
         s.sleepAt = 0;
-        this.run('pause');
+        this.run('pause').then(result=>{if(!this.dead&&id===this.a.identity?.()&&result?.ok)this.toast(T('Uyku süresi doldu; oynatma duraklatıldı.','Sleep timer finished; playback paused.'));});
       }
       if (document.hidden) return;
       const st = this.st = a.state(), info = a.info();if(this.assistantChoice&&this.assistantChoice.rev!==st.rev){this.assistantChoice=null;document.dispatchEvent(new Event('media-context-changed'));}if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev&&!this.s.note.stale){this.s.note.stale=true;this.renderNote(this.s.note,false);}if(this.s.note?.result)this.finishNote(this.s.note);
@@ -1024,11 +1109,13 @@
       if (flow) flow.hidden = !st.rows.length;
       if (Number.isInteger(st.loopRow)) { s.loop = st.loopRow >= 0; s.loopRow = st.loopRow; }
       this.canSeek = st.canSeek !== false && Number(st.duration) > 0;
-      const key = `${st.rev}:${st.timingNotice||''}:${st.rows.length}:${st.rows.length ? '' : info.captionTrackCount || 0}:${!!info.youtubeCaptions}:${Math.round(st.duration || 0)}:${info.title}:${info.cover||''}:${info.sub||''}:${info.eyebrow||''}:${(info.langs || {}).src}:${(info.langs || {}).tr}:${JSON.stringify(info.chapters||[])}`;
+      const key = `${st.rev}:${st.timingNotice||''}:${st.rows.length}:${st.rows.length ? '' : info.captionTrackCount || 0}:${!!info.youtubeCaptions}:${Math.round(st.duration || 0)}:${(info.langs || {}).src}:${(info.langs || {}).tr}`;
       if (key !== s.key) {
-        s.key = key; this.rebuild(st, info); this.setTint(info.tint);
-        const t = this.q('[data-r=title]'); if (t) { t.textContent = info.title || T('Başlıksız bölüm', 'Untitled episode'); this.q('[data-r=eyebrow]').textContent = info.eyebrow || T('Şimdi çalıyor', 'Now playing'); this.q('[data-r=sub]').textContent = info.sub || ''; const c = this.q('[data-r=cover]'); c.replaceChildren(info.cover ? this.el(`<img src="${esc(info.cover)}" alt="">`) : this.coverInitials()); this.drawChapters(info.chapters||[]); }
+        s.key = key; this.rebuild(st, info);
       }
+      this.drawIdentity(info);
+      const chaptersKey=JSON.stringify([info.chapters||[],Math.round(st.duration||0)]);
+      if(chaptersKey!==this.chaptersKey){this.chaptersKey=chaptersKey;this.drawChapters(info.chapters||[]);this.drawWaveMarks(st.duration,info.chapters||[]);}
       const upNext = this.q('[data-r=upnext]');
       if (upNext) { const next = (info.queue || [])[0], sig = next ? JSON.stringify([next.index,next.title,next.queueKey]) : ''; if (sig !== this.metaQueueSig) { this.metaQueueSig = sig; upNext.replaceChildren(); upNext.hidden = !next; if (next) upNext.append(this.el(`<button class="sh-next-item sh-next-inline" type="button" data-a="queue" data-index="${Number(next.index)}" data-queue-key="${esc(next.queueKey)}"><small>${T('SIRADAKİ', 'UP NEXT')}</small><strong>${esc(next.title)}</strong></button>`)); } }
       const dur = Number(st.duration) || 0, observedTime = Number(st.time) || 0;
@@ -1103,14 +1190,27 @@
         : null);
       this.drawTasks();
       const volume = this.q('.sh-local-volume');
-      if (volume && Number.isFinite(st.volume) && !this.volumePending) {
-        if (st.volume > 0) this.lastAudibleVolume = st.volume;
-        this.paintVolume(volume, st.volume);
+      if (volume && Number.isFinite(st.volume)) {
+        const value=this.volumePending&&Number.isFinite(this.volumeWork.requested)?this.volumeWork.requested:st.volume;
+        if (value > 0) this.lastAudibleVolume = value;
+        this.paintVolume(volume, value);
       }
       this.paintCaptionVisibility(info, st, time, liveTranslation);
       this.paintLiveSpeech(st, time, liveTranslation);
       this.drawJob(); this.drawPanel(false); this.paint();
       this.restoreReadingPosition();
+    }
+    drawIdentity(info) {
+      const identityKey=JSON.stringify([info.title,info.cover,info.sub,info.eyebrow,info.tint]);
+      if(identityKey===this.identityKey)return;this.identityKey=identityKey;
+      const title=this.q('[data-r=title]');if(!title)return;
+      title.textContent=info.title||T('Başlıksız bölüm','Untitled episode');
+      this.root.classList.toggle('sh-long-title',Array.from(title.textContent).length>72);
+      this.q('[data-r=eyebrow]').textContent=info.eyebrow||T('Şimdi çalıyor','Now playing');
+      this.q('[data-r=sub]').textContent=info.sub||'';this.setTint(info.tint);
+      const cover=this.q('[data-r=cover]'),source=info.cover||'';
+      if(this.coverSource!==source||!cover.firstElementChild){this.coverSource=source;cover.replaceChildren(source?this.el(`<img src="${esc(source)}" alt="">`):this.coverInitials());}
+      else if(!cover.querySelector('img'))cover.replaceChildren(this.coverInitials());
     }
     coverInitials() {
       const initials = this.q('[data-r=title]').textContent.trim().split(/\s+/).slice(0,2).map(word => [...word][0]).join('');
@@ -1123,17 +1223,18 @@
       const hint = this.q('[data-r=transportHint]');
       if (!hint) return;
       const display = this.displayMode();
-      if (this.transportSeekable !== this.canSeek || this.transportLines !== this.lines || this.transportDisplay !== display) {
+      if (this.transportSeekable !== this.canSeek || this.transportLines !== this.lines || this.transportDisplay !== display || this.transportDuration !== this.st.duration) {
         this.transportSeekable = this.canSeek;
         this.transportLines = this.lines;
         this.transportDisplay = display;
+        this.transportDuration = this.st.duration;
         this.lines.forEach((line, index) => {
           if (!this.rows[index]?.timed) return;
           const seek = line.querySelector('[data-a=cueSeek]');
           if (seek) {
             const row = this.rows[index], translated = this.usesTranslationTime(row);
             const start = translated ? row.translationStart : row.start;
-            const valid = Number.isFinite(start) && start < this.st.duration;
+            const valid = Number.isFinite(start) && start < this.st.duration && Number.isFinite(row.end) && row.end>row.start && row.end>0;
             seek.disabled = !this.canSeek || !valid;
             const label = translated ? T('Çeviriye git', 'Go to translation') : T('Cümleye git', 'Go to sentence');
             const stamp = valid ? captionStamp(start, translated) : '—';
@@ -1142,16 +1243,17 @@
             seek.title = seek.getAttribute('aria-label');
           }
           const loop = line.querySelector('[data-act=loop]');
-          if (loop) loop.disabled = !this.canSeek;
+          if (loop) {const row=this.rows[index];loop.disabled = !this.canSeek || !Number.isFinite(row.start) || !Number.isFinite(row.end) || row.end<=row.start || row.start>=this.st.duration || row.end<=0;}
           for (const button of line.querySelectorAll('[data-a=translationSeek]')) {
-            button.disabled = !this.canSeek || this.rows[index].translationStarts[Number(button.dataset.part)] >= this.st.duration;
+            const start=this.rows[index].translationStarts?.[Number(button.dataset.part)];
+            button.disabled = !this.canSeek || !Number.isFinite(start) || start >= this.st.duration;
           }
         });
       }
       const hasTimed = this.rows.some(row => row.timed);
       const available = this.canSeek && hasTimed;
       const cue = this.rows[active ?? -1];
-      const next = available && this.rows.some(row => row.timed && !row.standaloneTranslation && row.start > (cue?.start ?? time) + .01);
+      const next = available && this.rows.some(row => row.timed && !row.standaloneTranslation && row.start<this.st.duration && row.start > (cue?.start ?? time) + .01);
       const enabled = {
         back: this.canSeek && time > 0, fwd: this.canSeek && time < this.st.duration, prev: available, next,
         replay: available && !!cue, loop: this.s.loop || (available && !!cue)
@@ -1170,6 +1272,8 @@
       }
       const noteSeek = this.q('[data-a=noteSeek]');
       if (noteSeek) noteSeek.disabled = !this.canSeek || !!this.s.note?.stale;
+      const noteRebind=this.q('[data-a=noteRebind]');
+      if(noteRebind)noteRebind.disabled=!!this.s.note?.pending||this.noteRowIndex(this.s.note)<0;
       for (const button of this.root.querySelectorAll('.browser-study-transport button[data-a]')) {
         const value = enabled[button.dataset.a];
         if (value !== undefined) button.disabled = !value;
@@ -1301,22 +1405,37 @@
     recoveryMarkup() {
       return this.el('<div class="sh-job sh-recovery" data-r="recovery" hidden><span role="status"></span><button class="sh-chip" data-a="playbackRetry" type="button"></button></div>');
     }
-    async runStatusAction(button, action) {
+    statusOwner(action){if(action==='playbackRetry')return this.a.recovery?.()?.ownerToken;if(!['jobcancel','jobretry'].includes(action))return undefined;const job=this.a.panel?.()?.job;return job?.ownerToken??job?.id;}
+    async runStatusAction(button, action, statusAction=button.dataset.a) {
       if (typeof action !== 'function' || button.disabled || this.dead || this.id0 !== (this.a.identity?.() ?? '')) return;
       const identity = this.a.identity?.();
+      const jobAction=['jobcancel','jobretry'].includes(statusAction);
+      const playback=statusAction==='playbackRetry',rateAction=statusAction==='rate',shared=jobAction||playback||rateAction;
+      const actionOwner=()=>this.statusOwner(statusAction);
+      const owner=jobAction||playback?actionOwner():undefined;
+      const current=()=>!this.dead&&identity===this.a.identity?.()&&(!(jobAction||playback)||owner===actionOwner());
+      const pending=button._shStatusAction={identity,owner,pending:true};
+      if(shared)this.panelWork.statusActions.set(statusAction,pending);
       const returnToTransport = button.dataset.a === 'playbackRetry' && document.activeElement === button;
       if (returnToTransport) this.q('[data-a=toggle]')?.focus({preventScroll:true});
-      button.disabled = true;
+      if(!rateAction)button.disabled = true;
       button.setAttribute('aria-busy','true');
+      if(playback)this.drawJob();
+      if(rateAction)this.syncRate();
       try {
         const result = await action();
-        if (result?.ok === false && result.message) throw new Error(result.message);
+        if (result?.ok === false) throw new Error(result.message||T('İşlem uygulanamadı. Yeniden deneyebilirsiniz.','The action could not be completed. You can retry.'));
       } catch (error) {
-        if (!this.dead && identity === this.a.identity?.()) this.toast(error?.message || T('İşlem uygulanamadı.', 'The action could not be completed.'));
+        const message=error?.message||T('İşlem uygulanamadı.','The action could not be completed.');
+        if(current())this.toast(message);
+        else if(this.dead&&shared&&identity===this.a.identity?.()&&this.panelWork.statusActions.get(statusAction)===pending)pending.error=message;
       } finally {
-        button.disabled = false;
-        button.removeAttribute('aria-busy');
-        if (returnToTransport && !this.dead && identity === this.a.identity?.()
+        pending.pending=false;
+        if(shared&&!pending.error&&this.panelWork.statusActions.get(statusAction)===pending)this.panelWork.statusActions.delete(statusAction);
+        if(button._shStatusAction===pending){delete button._shStatusAction;if(!rateAction)button.disabled=false;button.removeAttribute('aria-busy');}
+        if(playback&&!this.dead&&identity===this.a.identity?.())this.drawJob();
+        if(rateAction&&!this.dead)this.tick();
+        if (returnToTransport && current()
             && document.activeElement === document.body) {
           this.q('[data-a=toggle]')?.focus({preventScroll:true});
         }
@@ -1329,16 +1448,25 @@
         this.q('[data-a=toggle]')?.focus({preventScroll:true});
       }
       recoveryBox.hidden = !recovery;
+      const recoveryButton=recoveryBox.querySelector('button'),pendingRecovery=this.panelWork.statusActions.get('playbackRetry');
+      this.playbackRetryPending=!!recovery&&(!!recovery.busy||!!pendingRecovery?.pending&&pendingRecovery.identity===this.a.identity?.()&&pendingRecovery.owner===recovery.ownerToken);
+      recoveryButton.disabled=this.playbackRetryPending;if(this.playbackRetryPending)recoveryButton.setAttribute('aria-busy','true');else recoveryButton.removeAttribute('aria-busy');
+      recoveryBox.setAttribute('aria-busy',String(!!recovery&&!!this.playbackRetryPending));
       if (recovery) {
         const status = recoveryBox.querySelector('span'), button = recoveryBox.querySelector('button');
         if (status.textContent !== recovery.message) status.textContent = recovery.message;
-        if (button.textContent !== recovery.label) button.textContent = recovery.label;
+        const label=this.playbackRetryPending?T('Bekleyin…','Please wait…'):recovery.label;
+        if (button.textContent !== label) button.textContent = label;
       }
       const p = this.a.panel?.(); const j = p && p.job, box = this.q('[data-r=job]'); if (!box) return;
       const show = !!j && ['running','failed','stopped','partial','cancelled'].includes(j.state);
       if(!show&&box.contains(document.activeElement))this.q('[data-a=toggle]')?.focus({preventScroll:true});
       if (box.hidden === show) box.hidden = !show; if (!show) return;
       box.dataset.state = j.state;
+      let stateLabel=box.querySelector('.sh-job-state');
+      if(!stateLabel){stateLabel=document.createElement('strong');stateLabel.className='sh-job-state';box.prepend(stateLabel);}
+      const stateText={running:T('İşleniyor','Processing'),failed:T('Tamamlanamadı','Failed'),partial:T('Kısmi sonuç','Partial result'),stopped:T('Durduruldu','Stopped'),cancelled:T('İptal edildi','Cancelled')}[j.state];
+      if(stateLabel.textContent!==stateText)stateLabel.textContent=stateText;
       const status = this.q('[data-r=jobt]');
       const message = j.text || (['stopped','cancelled'].includes(j.state)?T('Durduruldu. Kaydedilmiş sonuçlar korunur; İşlemler’den kullanılabilir sonuçları açabilirsiniz.','Stopped. Saved results are kept; open available results in Tasks.'):j.state==='partial'?T('Kısmi sonuç kaydedildi. Hazır satırlar korunur; İşlemler’den eksikleri tamamlayabilirsiniz.','Partial result saved. Ready lines are kept; complete missing lines in Tasks.'):j.state === 'failed' ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…'));
       if (status.textContent !== message) status.textContent = message;
@@ -1356,7 +1484,9 @@
         else if (bar.getAttribute('aria-valuenow') !== String(progress)) bar.setAttribute('aria-valuenow', progress);
         if (percent.textContent !== fill) percent.textContent = fill;
       }
-      this.q('[data-a=jobcancel]').hidden = !(j.state === 'running' && j.cancel); const retry=this.q('[data-a=jobretry]');retry.hidden=!(['failed','partial','stopped'].includes(j.state)&&j.retry);retry.textContent=j.retryLabel||T('Yeniden dene','Retry');
+      this.q('[data-a=jobcancel]').hidden = !(j.state === 'running' && j.cancel); const retry=this.q('[data-a=jobretry]');retry.hidden=!(['failed','partial','stopped','cancelled'].includes(j.state)&&j.retry);
+      for(const button of [this.q('[data-a=jobcancel]'),retry]){const pending=this.panelWork.statusActions.get(button.dataset.a);button.disabled=!!pending?.pending&&pending.identity===this.a.identity?.()&&pending.owner===(j.ownerToken??j.id);if(button.disabled)button.setAttribute('aria-busy','true');else button.removeAttribute('aria-busy');}
+      retry.textContent=retry.disabled?T('Bekleyin…','Please wait…'):j.retryLabel||T('Yeniden dene','Retry');
       if(box.contains(document.activeElement)&&document.activeElement.hidden)this.q('[data-a=toggle]')?.focus({preventScroll:true});
     }
     togglePanel(opener) {
@@ -1422,10 +1552,12 @@
     drawPanel(force) {
       const box = this.q('[data-r=panel]'); if (!box) return; box.hidden = !this.s.panel; this.root.classList.toggle('panel-open', this.s.panel); this.paint(); if (!this.s.panel) return;
       const p = this.a.panel?.(); if (!p) { box.textContent = ''; return; }
-      const sig = JSON.stringify([this.taskPending,p.sections.map((s) => [s.title, s.items.map((i) => [i.id, i.primary, i.type, i.label, i.value, i.disabled, i.pressed, i.hint, (i.options || []).map((o) => o.value + o.label).join('|'), i.text])])]);
+      const sig = JSON.stringify([this.st?.rev,this.taskPending,[...this.panelPending],p.sections.map((s) => [s.title, s.items.map((i) => [i.id, i.primary, i.type, i.label, i.value, i.disabled, i.pressed, i.hint, (i.options || []).map((o) => o.value + o.label).join('|'), i.text])])]);
       if (!force && sig === this.s.psig) return; this.s.psig = sig;
-      const focused = box.contains(document.activeElement) ? document.activeElement.dataset.pid||'close' : null;
+      const focused = box.contains(document.activeElement) ? document.activeElement.dataset.pid||document.activeElement.closest('.mk-picker')?.querySelector('.mk-picker-trigger')?.dataset.pid||'close' : null;
       const previousScroll=box.scrollTop;box.textContent = '';
+      const panelIdentity=this.id0;
+      const fieldCurrent=control=>!this.dead&&this.s.panel&&!box.hidden&&box.contains(control)&&control.isConnected&&panelIdentity===this.id0&&panelIdentity===(this.a.identity?.()??'');
       box.append(this.el(`<div class="sh-panel-h"><b>${T('İşlemler', 'Tasks')}</b><button class="sh-btn icon" type="button" data-pclose aria-label="${T('Kapat', 'Close')}">${ic('close')}</button></div>`));
       box.querySelector('[data-pclose]').onclick=()=>this.togglePanel();
       p.sections.forEach((sec) => {
@@ -1440,21 +1572,24 @@
               const b = this.el(`<button type="button" class="sh-btn">${label}</button>`);
               b.dataset.pid = sec.title + ':' + n + ':' + delta;
               b.setAttribute('aria-label', it.label + ' · ' + label);
-              b.onclick = () => { try { it.run(delta); this.tick(); } catch (_) { this.toast(T('Zaman ayarı uygulanamadı.', 'Timing adjustment could not be applied.')); } };
+              b.onclick = () => { if(!fieldCurrent(b))return;try { it.run(delta); this.tick(); } catch (_) { this.toast(T('Zaman ayarı uygulanamadı.', 'Timing adjustment could not be applied.')); } };
               actions.append(b);
             }
             row.append(actions); s.append(row); return;
           }
-          if(it.type==='range'){const L=this.el(`<label class="sh-psel sh-prange"><span>${esc(it.label)}</span><output></output><input type="range" min="0" max="1" step="0.01" aria-label="${esc(it.label)}"></label>`);const input=L.querySelector('input');input.value=String(it.value);input.dataset.pid=sec.title+':'+n;const output=L.querySelector('output'),show=()=>{output.textContent=Math.round(Number(input.value)*100)+'%';};show();input.oninput=()=>{show();it.onChange(Number(input.value));};s.append(L);return;}
-          if (it.type === 'select') { const L = this.el(`<div class="sh-psel"><span>${esc(it.label)}</span></div>`);const select=root.PlayerUiKit.select({label:it.label,value:it.value,options:it.options,searchable:true,onChange:it.onChange});select.trigger.dataset.pid=`${sec.title}:${n}`;L.append(select);s.append(L); return; }
-          const b = this.el(`<button type="button" class="sh-pbtn${it.primary ? ' pri' : ''}" data-pid="${esc(it.id?'action:'+it.id:sec.title+':'+n)}" ${it.disabled || it.id && this.taskPending ? 'disabled' : ''} ${it.pressed !== undefined ? `aria-pressed="${!!it.pressed}"` : ''}><span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);
+          if(it.type==='range'){const L=this.el(`<label class="sh-psel sh-prange"><span>${esc(it.label)}</span><output></output><input type="range" min="0" max="1" step="0.01" aria-label="${esc(it.label)}"></label>`);const input=L.querySelector('input');input.value=String(it.value);input.dataset.pid=sec.title+':'+n;const output=L.querySelector('output'),show=()=>{output.textContent=Math.round(Number(input.value)*100)+'%';};show();input.oninput=()=>{if(!fieldCurrent(input))return;show();it.onChange(Number(input.value));};s.append(L);return;}
+          if (it.type === 'select') { const L = this.el(`<div class="sh-psel"><span>${esc(it.label)}</span></div>`);const select=root.PlayerUiKit.select({label:it.label,value:it.value,options:it.options,searchable:true,onChange:value=>{if(fieldCurrent(select.trigger))it.onChange(value);}});select.trigger.dataset.pid=`${sec.title}:${n}`;L.append(select);s.append(L); return; }
+          const actionKey=it.id?'action:'+it.id:'item:'+JSON.stringify([sec.id||sec.title,it.label,sec.items.slice(0,n).filter(item=>!item.id&&item.label===it.label).length]);
+          const pending=!!this.panelPending?.has(actionKey);
+          const b = this.el(`<button type="button" class="sh-pbtn${it.primary ? ' pri' : ''}" data-pid="${esc(actionKey)}" aria-busy="${pending}" ${it.disabled || pending || it.id && this.taskPending ? 'disabled' : ''} ${it.pressed !== undefined ? `aria-pressed="${!!it.pressed}"` : ''}><span>${esc(it.label)}</span>${pending ? `<small role="status">${T('Bekleyin…','Please wait…')}</small>` : it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`);
           b.onclick = async () => {
-            const identity=this.a.identity?.(),current=()=>!this.dead&&identity===this.a.identity?.();if(!current()||identity!==this.id0)return;
+            const identity=this.a.identity?.(),current=()=>!this.dead&&identity===this.a.identity?.();if(!current()||identity!==this.id0||this.panelPending?.has(actionKey))return;
+            const reportFailure=message=>{if(current())this.toast(message);else if(this.dead&&identity===this.a.identity?.())this.panelWork.notices.push(message);};
             if (it.id && (this.a.actions?.() || []).some(action => action.id === it.id)) { const pending=this.startTask(it.id); this.tick(); await pending; if(current())this.drawPanel(false); return; }
-            b.disabled=true;
-            try { const result=await it.run?.(); if(current()&&result?.ok===false)this.toast(result.message||T('İşlem uygulanamadı.','Task could not be applied.')); }
-            catch(error){if(current())this.toast(error?.message||T('İşlem uygulanamadı.','Task could not be applied.'));}
-            finally{if(current()){b.disabled=!!it.disabled;this.tick();}}
+            (this.panelPending??=new Set()).add(actionKey);b.disabled=true;this.drawPanel(true);
+            try { const result=await it.run?.(); if(result?.ok===false)reportFailure(result.message||T('İşlem uygulanamadı.','Task could not be applied.')); }
+            catch(error){reportFailure(error?.message||T('İşlem uygulanamadı.','Task could not be applied.'));}
+            finally{this.panelPending.delete(actionKey);if(current()){this.drawPanel(true);this.tick();}}
           }; s.append(b);
         });
         box.append(s);
@@ -1492,7 +1627,7 @@
       if(context.selectedText===passage.text)return context;
       return {...context,selectedText:passage.text,not:[context.not,'Explicit user-selected source passage. Selection does not establish what has been heard.'].filter(Boolean).join(' ')};
     }
-    noteRowIndex(note){return note?this.rows.findIndex(row=>row.id===note.rowId&&!!row.standaloneTranslation===!!note.standaloneTranslation):-1;}
+    noteRowIndex(note){return note?this.rows.findIndex(row=>row.id===note.rowId&&row.trackId===note.trackId&&!!row.standaloneTranslation===!!note.standaloneTranslation):-1;}
     openNote(row,opener){
       const cue=this.rows[row];if(!cue||!this.caps.save)return;
       const selection=root.getSelection?.(),source=this.lines[row]?.querySelector('.src');
@@ -1501,7 +1636,7 @@
       this.closeWord();const same=existing?.identity===this.id0&&this.noteRowIndex(existing)===row;
       if(existing?.identity===this.id0&&!same&&(existing.pending||existing.text?.trim())){this.renderNote(existing);this.toast(T('Önce açık taslağı kaydedin veya Taslağı bırak seçeneğini kullanın.','Save the open draft first, or choose Discard draft.'));return;}
       this.noteOpener=opener||document.activeElement;
-      const note=same?existing:{identity:this.id0,row,rowId:cue.id,standaloneTranslation:!!cue.standaloneTranslation,rev:this.st?.rev,source:cue.src,translations:[...cue.trs],start:cue.start,end:cue.end,timed:!!cue.timed,text:'',...(excerpt&&cue.src.includes(excerpt)?{excerpt}:{})};
+      const note=same?existing:{identity:this.id0,row,rowId:cue.id,trackId:cue.trackId,standaloneTranslation:!!cue.standaloneTranslation,rev:this.st?.rev,source:cue.src,translations:[...cue.trs],start:cue.start,end:cue.end,timed:!!cue.timed,text:'',...(excerpt&&cue.src.includes(excerpt)?{excerpt}:{})};
       note.open=true;this.noteDraft=note;this.renderNote(note);
       if(note.result)this.finishNote(note);
     }
@@ -1516,21 +1651,22 @@
       const input=box.querySelector('textarea');input.value=note.text||'';input.disabled=!!note.pending;input.oninput=()=>note.text=input.value;
       const save=box.querySelector('[data-a=noteSave]');save.disabled=!!note.pending||!!note.stale;save.setAttribute('aria-busy',String(!!note.pending));
       if(note.pending)save.textContent=T('Kaydediliyor…','Saving…');
-      box.querySelector('.sh-note-state').textContent=note.stale?T('Altyazı değişti. Taslağın korundu; kaydetmek için güncel pasajı önce incele.','The transcript changed. Your draft is kept; review the current passage before saving.'):note.pending?T('Kayıt sonucu bekleniyor. Görünüm değiştirmek ikinci kayıt başlatmaz.','Waiting for the save result. Switching views does not save a second copy.'):'';
+      else if(note.error&&!note.stale)save.textContent=T('Kaydetmeyi yeniden dene','Retry saving');
+      const notice=box.querySelector('.sh-note-state');notice.textContent=note.stale?T('Altyazı değişti. Taslağın korundu; kaydetmek için güncel pasajı önce incele.','The transcript changed. Your draft is kept; review the current passage before saving.'):note.pending?T('Kayıt sonucu bekleniyor. Görünüm değiştirmek ikinci kayıt başlatmaz.','Waiting for the save result. Switching views does not save a second copy.'):note.error||'';if(note.error)notice.tabIndex=0;
       box.querySelector('[data-a=noteSeek]')?.toggleAttribute('disabled',!!note.stale);box.querySelector('[data-a=noteRebind]')?.toggleAttribute('disabled',!!note.pending||this.noteRowIndex(note)<0);
-      box.dataset.state=note.stale?'stale':note.pending?'saving':'draft';this.paint();
-      if((focus&&!note.pending)||owned){const target=owned&&action?box.querySelector('[data-a="'+action+'"]:not(:disabled)'):note.pending?box.querySelector('[data-a=noteClose]'):input;target?.focus({preventScroll:true});if(wasInput&&!note.pending&&selection)input.setSelectionRange(...selection);}
+      box.dataset.state=note.stale?'stale':note.pending?'saving':note.error?'error':'draft';this.paint();
+      if((focus&&!note.pending)||owned){const fallback=note.pending?box.querySelector('[data-a=noteClose]'):input;const target=(owned&&action?box.querySelector('[data-a="'+action+'"]:not(:disabled)'):null)||fallback;target?.focus({preventScroll:true});if(wasInput&&!note.pending&&selection)input.setSelectionRange(...selection);}
     }
     closeNote(){const note=this.s.note;if(note){note.text=this.q('[data-note-text]')?.value??note.text;note.open=false;}this.s.note=null;const box=this.q('.sh-note-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore){const index=this.noteRowIndex(note);const row=index>=0?this.lines[index]:null;const opener=this.noteOpener?.isConnected?this.noteOpener:row&&!row.hidden&&row.querySelector('[data-act=save]');(opener||this.q('[data-r=q]'))?.focus({preventScroll:true});}}
     finishNote(note){
       if(!note.result||this.s.note!==note||this.dead)return;
       const result=note.result;note.result=null;
       if(result?.ok){this.closeNote();if(this.noteDraft===note)this.noteDraft=null;this.toast(T('Araştırma defterine kaydedildi.','Saved to research notebook.'));}
-      else{this.renderNote(note);this.q('.sh-note-state').textContent=result?.message||T('Not kaydedilemedi. Taslağın korundu; yeniden deneyebilirsin.','The note could not be saved. Your draft is kept; you can retry.');}
+      else{note.error=result?.message||T('Not kaydedilemedi. Taslağın korundu; yeniden deneyebilirsin.','The note could not be saved. Your draft is kept; you can retry.');this.renderNote(note,false);}
     }
     async saveNote(){
       const note=this.s.note;if(!note||note.pending||note.stale||note.rev!==this.a.state()?.rev||note.identity!==this.a.identity?.())return;
-      note.text=this.q('[data-note-text]')?.value||'';note.pending=true;this.renderNote(note);
+      note.text=this.q('[data-note-text]')?.value||'';note.error='';note.pending=true;this.renderNote(note);
       // This receipt belongs to the note, so a same-source view handoff cannot dispatch it twice.
       try{note.result=await this.a.cmd('save',{row:note.row,note:note.text,...(note.excerpt?{excerpt:note.excerpt}:{})},note.rev);}
       catch(error){note.result={ok:false,message:error?.message||T('Not kaydedilemedi.','Could not save the note.')};}
@@ -1540,10 +1676,13 @@
     async runWordAction(button) {
       const word = this.s.word;
       if (!word || word.pending) return;
+      if(word.rev!==this.a.state()?.rev){this.closeWord();return;}
       word.pending = true;
+      this.paintWordPending();
       const action = button.dataset.a;
       try {
         const result = await this.run(action, {row:word.row,word:word.word,cueId:word.cueId}, word.rev);
+        if(!this.dead&&this.s.word===word&&word.rev!==this.a.state()?.rev){this.closeWord();return;}
         if (!this.dead && result?.ok && this.s.word === word) {
           const focused = document.activeElement === button;
           this.s.word = {...word,...result,pending:false};
@@ -1552,10 +1691,12 @@
         }
       } finally {
         word.pending = false;
+        if(this.s.word===word&&!this.dead)this.paintWordPending();
       }
     }
     async openWord(row,word){
       this.closeNote();
+      const openingFocus=document.activeElement;
       const line = this.lines[row];
       this.wordOpener = line?.contains(document.activeElement) ? document.activeElement
         : line?.querySelector('[data-a=cueSeek]:not(:disabled), [data-act=copy]') || this.q('[data-r=q]');
@@ -1563,15 +1704,34 @@
       const result = await this.run('wordInfo', {row,word}, revision);
       if(this.dead||seq!==this.wordSeq||identity!==this.a.identity?.()||revision!==this.a.state().rev||!result?.ok)return;
       this.s.word={...result,row,rev:revision,cueId:this.rows[row]?.id};this.drawWord();this.paint();
-      this.q('.sh-word-card [data-a=wordClose]')?.focus({preventScroll:true});
+      if(document.activeElement===openingFocus)this.q('.sh-word-card [data-a=wordClose]')?.focus({preventScroll:true});
     }
     closeWord(){this.wordSeq=(this.wordSeq||0)+1;this.s.word=null;const box=this.q('.sh-word-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore)(this.wordOpener?.isConnected?this.wordOpener:this.q('[data-r=q]'))?.focus({preventScroll:true});}
+    paintWordPending(){
+      const box=this.q('.sh-word-card'),pending=!!this.s.word?.pending;
+      box.setAttribute('aria-busy',String(pending));
+      for(const button of box.querySelectorAll('[data-a=wordLookup],[data-a=wordSave]'))button.setAttribute('aria-disabled',String(pending||button.disabled));
+      const status=box.querySelector('[data-r=wordState]');if(status){status.hidden=!pending;if(pending)status.textContent=T('İşleniyor…','Working…');}
+    }
     drawWord(){
       const word=this.s.word,box=this.q('.sh-word-card');if(!word){box.hidden=true;return;}box.hidden=false;
-      box.innerHTML=`<header><h2>${esc(word.word)}</h2><button class="sh-btn" data-a="wordClose" type="button" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><p class="sh-word-context">${esc(word.source)}</p>${word.translations.map(x=>`<p class="sh-word-translation">${esc(x)}</p>`).join('')}<small>${T('Altyazı bağlamı · sözlük tanımı değildir.','Subtitle context · not a dictionary definition.')}</small><footer><button class="sh-btn" data-a="wordLookup" type="button" title="${T('Seçili sözcüğü mevcut sözlük tercihinizle uygulama dışında açar.','Opens the word outside the app with your existing dictionary preference.')}">${T('Sözlükte aç ↗','Open dictionary ↗')}</button><button class="sh-btn" data-a="wordSave" type="button" ${word.canSave?'':`disabled title="${T('Bu iz mevcut sözcük koleksiyonuna kaydedilemiyor.','This track cannot be saved to the existing word collection.')}"`}>${word.saved?T('Kayıtlı · Kaldır','Saved · Remove'):T('Sözcüğü kaydet','Save word')}</button></footer>`;
+      box.innerHTML=`<header><h2>${esc(word.word)}</h2><button class="sh-btn" data-a="wordClose" type="button" aria-label="${T('Kapat','Close')}">${ic('close')}</button></header><div class="sh-word-body" tabindex="0" role="region" aria-label="${T('Sözcüğün altyazı bağlamı','Subtitle context for the word')}"><p class="sh-word-context">${esc(word.source)}</p>${word.translations.map(x=>`<p class="sh-word-translation">${esc(x)}</p>`).join('')}<small>${T('Altyazı bağlamı · sözlük tanımı değildir.','Subtitle context · not a dictionary definition.')}</small></div><small data-r="wordState" role="status" hidden></small><footer><button class="sh-btn" data-a="wordLookup" type="button" title="${T('Seçili sözcüğü mevcut sözlük tercihinizle uygulama dışında açar.','Opens the word outside the app with your existing dictionary preference.')}">${T('Sözlükte aç ↗','Open dictionary ↗')}</button><button class="sh-btn" data-a="wordSave" type="button" ${word.canSave?'':`disabled title="${T('Bu iz mevcut sözcük koleksiyonuna kaydedilemiyor.','This track cannot be saved to the existing word collection.')}"`}>${word.saved?T('Kayıtlı · Kaldır','Saved · Remove'):T('Sözcüğü kaydet','Save word')}</button></footer>`;
+      this.paintWordPending();
     }
     frame() { const f = () => { if (this.dead) return; if (this.cur >= 0 && this.st && !this.st.paused) this.wordsTick(); this.raf = requestAnimationFrame(f); }; this.raf = requestAnimationFrame(f); }
-    destroy() { this.dead = true; document.removeEventListener('fullscreenchange', this.fullscreenChanged); cancelAnimationFrame(this.followRaf);root.removeEventListener('resize',this.followResize); clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true); if (this.s.loop) { try { this.a.cmd('loop', { on: false }); } catch (_) { /* kaynak gitmiş olabilir */ } } this.a.releaseSlot?.(); this.root.remove(); root.syncBrowserOcclusion?.(); }
+    destroy() {
+      if(this.dead)return;
+      if(this.volumeWork.owner===this)this.volumeWork.owner=null;
+      this.dead = true; document.removeEventListener('fullscreenchange', this.fullscreenChanged); cancelAnimationFrame(this.followRaf);root.removeEventListener('resize',this.followResize); clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true);
+      if (this.s.loop) {
+        try {
+          if(this.id0===(this.a.identity?.()??'')&&this.st?.rev===this.a.state()?.rev){
+            Promise.resolve(this.a.cmd('loop', { on: false },this.st?.rev)).catch(()=>{});
+          }
+        } catch (_) { /* source may already have been released */ }
+      }
+      this.a.releaseSlot?.(); this.root.remove(); root.syncBrowserOcclusion?.();
+    }
   }
   root.Sahne = Sahne; root.SahneFmt = fmt; root.SahneIcon = ic; root.SahneArt = artSVG;
 })(typeof window !== 'undefined' ? window : globalThis);

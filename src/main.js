@@ -13178,6 +13178,26 @@ function pollBrowserTabAudioStates() {
   }
 }
 
+async function restoreBrowserPlaybackOnce(tab, media, view, context) {
+  const saved=tab.restoredPlayback;
+  if(!saved)return null;
+  if(saved.mediaId!==tab.mediaId){tab.restoredPlayback=null;return null;}
+  if(media.adPlaying||media.readyState<1||!media.duration)return {waiting:true};
+  // A changed cut must not inherit a position from the previous audio/video timeline.
+  if(!media.docToken||!saved.duration||Math.abs(saved.duration-media.duration)>1){tab.restoredPlayback=null;return null;}
+  let result;
+  try{
+  for(const [command,value] of [['pause',0],['speed',saved.rate],['seek',Math.min(saved.position,Math.max(0,media.duration-0.05))]]){
+    if(tab.restoredPlayback!==saved||!isCurrentBrowserContext(context)||tab.view!==view)return null;
+    const replies=await executeBrowserViewFrames(view,buildBrowserMediaCommandScript(command,value,media.docToken));
+    if(tab.restoredPlayback!==saved||!isCurrentBrowserContext(context)||tab.view!==view)return null;
+    result=replies.find(reply=>reply?.handled);
+    if(!result)return null;
+  }
+  return {media:result};
+  }finally{if(tab.restoredPlayback===saved)tab.restoredPlayback=null;}
+}
+
 async function probeActiveBrowserMedia(requestedTab = null) {
   const tab = activeBrowserTab();
   if (!tab || (requestedTab && requestedTab !== tab) || tab.compatibilityMode
@@ -13259,6 +13279,10 @@ async function probeActiveBrowserMedia(requestedTab = null) {
         return true;
       }
     }
+    const restoredPlayback=await restoreBrowserPlaybackOnce(tab,safeMedia,activeView,context);
+    if(!isCurrentBrowserContext(context)||browserView!==activeView)return false;
+    if(restoredPlayback?.waiting)return true;
+    if(restoredPlayback?.media)Object.assign(safeMedia,restoredPlayback.media);
     tab.position = safeMedia.currentTime;
     safeMedia.publisher = String(media.publisher || '').trim().slice(0,300);
     tab.duration = safeMedia.duration;
@@ -14246,6 +14270,10 @@ function resumeRestoredBrowserPage(tab) {
       await waitForProtectedPlayback(url);
       if (!requestIsCurrent()) return;
       suspendBrowserInstrumentationForNavigation(tab, view);
+      tab.restoredPlayback={mediaId:tab.mediaId,position:tab.position,duration:tab.duration,rate:tab.rate};
+      releaseSourceReturnHold(tab);
+      tab.sourceReturnHold={wc:view.webContents,priorMuted:view.webContents.isAudioMuted()};
+      view.webContents.setAudioMuted(true);
       const history = browserNavigationStateStore.normalizeNavigationHistory(tab.navigationHistory);
       const matches = history?.entries[history.index]?.url === browserNavigationStateStore.historyUrl(url);
       const restored = matches && await browserNavigationStateStore.restoreNavigationHistory(view.webContents,history);
@@ -16388,6 +16416,7 @@ ipcMain.handle('browser:command', async (event, payload) => {
   if (!mainWindow || event.sender !== mainWindow.webContents || !browserView
       || browserView.webContents.isDestroyed() || !tab) return { ok: false, error: 'Tarayıcı açık değil veya sekme değişti.' };
   const wc = browserView.webContents;
+  if(['play','play-pause','seek','seek-relative','speed','frame-step'].includes(command))tab.restoredPlayback=null;
   if(['play','play-pause','mute'].includes(command))releaseSourceReturnHold(tab);
   const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
   try {

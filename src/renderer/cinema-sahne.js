@@ -174,7 +174,7 @@
             Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end > cue.start
               ? Math.min(start ?? Infinity, cue.start + num(sec.offsetSeconds)) : start, null);
           const copied = matched.some(c => String(c.text).trim() === String(r.sourceText).trim() && String(c.text).trim().length > 10);
-          return { id: r.cueId, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text), translationCueIds: matched.map(c=>c.id), translationStarts, translationStart, translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
+          return { id: r.cueId, trackId:src.id, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text), translationCueIds: matched.map(c=>c.id), translationStarts, translationStart, translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
         });
         const paired = new Set(rows.flatMap(row => row.translationCueIds));
         const standalone = mode === 'cinema' || sec.timed === false ? [] : sec.cues.filter(cue => !paired.has(cue.id)
@@ -184,7 +184,7 @@
         for (const cue of standalone) {
           const start = cue.start + num(sec.offsetSeconds), end = cue.end + num(sec.offsetSeconds);
           entries.push({
-            row: { id: cue.id, start, end, timed: true, src: '', trs: [cue.text], unc: [], words: null,
+            row: { id: cue.id, trackId:sec.id, start, end, timed: true, src: '', trs: [cue.text], unc: [], words: null,
               translationCueIds: [cue.id], translationStart: start, standaloneTranslation: true },
             binding: { cueId: cue.id, trackId: sec.id, trackRevision: sec.revision }
           });
@@ -193,7 +193,7 @@
         return { rows: entries.map(entry => entry.row), meta: entries.map(entry => entry.binding), untimed: !trackTimed };
       }
       if (sec.cues.length) { // yalnız çeviri izi yüklü: kaynak sanılmaz, yine de okunabilir
-        const timedTrack = sec.timed !== false; const rows = sec.cues.map((c) => { const timed = timedTrack && Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start; meta.push({ cueId: c.id, trackId: sec.id, trackRevision: sec.revision }); return { id: c.id, start: timed ? c.start + num(sec.offsetSeconds) : 0, end: timed ? c.end + num(sec.offsetSeconds) : 0, timed, src: '', trs: [String(c.text || '')], unc: [], words: null }; });
+        const timedTrack = sec.timed !== false; const rows = sec.cues.map((c) => { const timed = timedTrack && Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start; meta.push({ cueId: c.id, trackId: sec.id, trackRevision: sec.revision }); return { id: c.id, trackId:sec.id, start: timed ? c.start + num(sec.offsetSeconds) : 0, end: timed ? c.end + num(sec.offsetSeconds) : 0, timed, src: '', trs: [String(c.text || '')], unc: [], words: null }; });
         return { rows, meta, untimed: !timedTrack };
       }
       return { rows: [], meta, untimed: false };
@@ -212,7 +212,15 @@
       if (rev !== cache.rev) cache = { rev, ...build(src, sec, s), captionTracks: [src, sec] };
       return cache;
     }
-    const dispatch = (type, args = {}, rowIdx = -1) => { const m = rowIdx >= 0 ? cache.meta[rowIdx] : null; return Promise.resolve(F.dispatch({ type, mediaKey: bound.mediaKey, generation: bound.generation, ...(m ? { trackId: m.trackId, trackRevision: m.trackRevision } : {}), ...args })).then(norm); };
+    const dispatch = (type, args = {}, rowIdx = -1) => {
+      const m = rowIdx >= 0 ? cache.meta[rowIdx] : null, range=ownLoop;
+      const target=type==='seek'?args.time:type==='seekCue'?cache.rows[rowIdx]?.start:undefined;
+      return Promise.resolve(F.dispatch({ type, mediaKey: bound.mediaKey, generation: bound.generation, ...(m ? { trackId: m.trackId, trackRevision: m.trackRevision } : {}), ...args })).then(norm).then(result=>{
+        // A successful explicit jump out of this sentence must not snap back on the next media tick.
+        if(result.ok&&range&&ownLoop===range&&Number.isFinite(target)&&(target<range.a||target>=range.b))clearOwnedLoop();
+        return result;
+      });
+    };
     const landing = (start, end) => (window.PlayerTranscriptModel?.landingTime ? window.PlayerTranscriptModel.landingTime(start, end) : Math.max(0, num(start) + .01));
     const seekRow = i => cache.meta[i]?.trackId===F.snap()?.sourceTrack?.id ? dispatch('seekCue',{cueId:cache.rows[i].id},i) : dispatch('seek',{time:landing(cache.rows[i].start,cache.rows[i].end)});
     const idxAt = (t) => { let at = -1; cache.rows.forEach((r, i) => { if (r.timed && !r.standaloneTranslation && r.start <= t && t < r.end && (at < 0 || r.start >= cache.rows[at].start)) at = i; }); return at; };
@@ -254,6 +262,18 @@
     }
     const stale = { ok: false, code: 'stale-source' };
 
+    let fullscreenPending=null;
+    function toggleStageFullscreen(){
+      if(!current())return Promise.resolve(stale);
+      if(fullscreenPending)return fullscreenPending;
+      fullscreenPending=(async()=>{
+        if(doc.fullscreenElement&&doc.exitFullscreen)await doc.exitFullscreen();
+        else if(!doc.fullscreenElement&&host?.requestFullscreen)await host.requestFullscreen();
+        else return {ok:false,code:'unsupported'};
+        return current()?{ok:true}:stale;
+      })().finally(()=>{fullscreenPending=null;});
+      return fullscreenPending;
+    }
     function job() {
       const snap = F.snap(), service = kind === 'shelf' ? window.MediaShelfUI : snap?.sourceKind === 'rss' ? window.PlayerSourceCatalogIntegration : null;
       if (service) {
@@ -277,7 +297,7 @@
       const cancel = $('playerJobCancel') || $('cancelBtn');
       const retryAction = lastAction;
       const jobCurrent = () => current() && player.job === activeJob;
-      return { state: vis ? (failed ? 'failed' : 'running') : 'idle', text: text || (failed ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…')), progress: Number.isFinite(pct) && pct > 0 ? Math.min(1, pct / 100) : null, cancel: current() && cancel && !cancel.disabled ? () => { if(jobCurrent() && !cancel.disabled)cancel.click(); } : null, retry: current() && retryAction ? () => { if(!jobCurrent() || lastAction !== retryAction)return; const b = retryAction(); if (b && !b.disabled) b.click(); } : null };
+      return { ownerToken:activeJob, state: vis ? (failed ? 'failed' : 'running') : 'idle', text: text || (failed ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…')), progress: Number.isFinite(pct) && pct > 0 ? Math.min(1, pct / 100) : null, cancel: current() && cancel && !cancel.disabled ? () => { if(jobCurrent() && !cancel.disabled)cancel.click(); } : null, retry: current() && retryAction ? () => { if(!jobCurrent() || lastAction !== retryAction)return; const b = retryAction(); if (b && !b.disabled) b.click(); } : null };
     }
     const mirror = (resolver, label) => { const b = resolver(); if (!b) return null; const lbl = (label || b.textContent || '').trim().replace(/\s+/g, ' '); return { type: 'button', label: lbl || b.title, hint: b.disabled ? (b.title || '') : '', disabled: !!b.disabled, pressed: b.getAttribute('aria-pressed') === 'true' ? true : undefined, run: () => { if (!current()) return; const target = resolver(); if (target && !target.disabled) { lastAction = resolver; target.click(); } } }; };
     const trackLabel = (t) => (t.label || window.PlayerUiKit?.languageName?.(t.language, window.UiLocale?.get?.()) || T('Altyazı izi', 'Caption track')) + (t.role === 'translation' ? ' · ' + T('çeviri', 'translation') : '');
@@ -418,14 +438,13 @@
       }] });
       if(kind!=='shelf'&&$('libraryViewResearch'))sections.push({title:T('Okuma ve notlar','Reading and notes'),items:[{id:'saved-notes',type:'button',label:T('Kayıtlı pasajlar ve notlar','Saved passages and notes'),hint:T('Araştırma defterinde inceleyin, düzenleyin veya kaynağa dönün.','Review, edit or return to the source in your research notebook.'),run:openNotebook}]});
       sections.push({ title: T('Asistan', 'Assistant'), items: [{ type: 'button', label: T('Asistana sor', 'Ask assistant'), hint: T('Mevcut asistan penceresi, bu medyanın bağlamıyla açılır.', 'Opens the existing assistant window with this media as context.'), run: askAssistant }] });
-      sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='shelf'?num($('mediaShelfAudio')?.volume??1):kind==='browser'?num(player.browserVolume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:()=>{if(!current())return;if(doc.fullscreenElement)doc.exitFullscreen?.();else host?.requestFullscreen?.();}}]});
+      sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='shelf'?num($('mediaShelfAudio')?.volume??1):kind==='browser'?num(player.browserVolume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:toggleStageFullscreen}]});
       return { job: job(), sections };
     }
     return {
       caps: { loop: true, save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf', dub: typeof window.DubGeneratorUI?.prepareCurrent === 'function' },
       identity, panel, actions,
-      recovery: () => current() && (kind === 'shelf' ? window.MediaShelfUI?.playbackRecovery()
-        : activePlaybackRecovery() && { ...activePlaybackRecovery(), run: runPlaybackRecovery }),
+      recovery: () => {if(!current())return null;const recovery=kind==='shelf'?window.MediaShelfUI?.playbackRecovery():activePlaybackRecovery();return recovery?{...recovery,ownerToken:recovery,run:kind==='shelf'?recovery.run:()=>runPlaybackRecovery({expected:recovery,report:false})}:null;},
       processing:kind==='shelf'||F.snap()?.sourceKind==='rss'?()=>({duration:F.snap()?.duration}):null,
       info: () => {
         const s=F.snap(),l=F.langs(),audio=kind==='local'&&player.workspaceAudio;
@@ -454,7 +473,7 @@
         if (loopRow < 0 && ownLoop?.confirmed) ownLoop = null;
         const sample = F.sampleFor?.(s);
         const translationTargets = translationNavigation(s);
-        return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, timingNotice:F.timingNotice?.()||'', canSeek: s.capabilities?.seek?.support === 'yes', loopRow, adPlaying: !!s.adPlaying, displayTime: F.displayTime?.(s), captionTracks: r.untimed ? undefined : r.captionTracks, waiting: !!sample?.waiting && !s.paused, seeking: !!sample?.seeking, translationTargets };
+        return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, timingNotice:F.timingNotice?.()||'', canSeek: s.capabilities?.seek?.support === 'yes', canRate: !s.capabilities?.rate || s.capabilities.rate.support==='yes', loopRow, adPlaying: !!s.adPlaying, displayTime: F.displayTime?.(s), captionTracks: r.untimed ? undefined : r.captionTracks, waiting: !!sample?.waiting && !s.paused, seeking: !!sample?.seeking, translationTargets };
       },
       slot: (m) => { const el = F.slot(m); if (el) { el.classList.add('sh-slot-fill'); bounds(); } return el; },
       transferLoopTo(target) {
@@ -539,11 +558,7 @@
               return { ok:true };
             })();
           }
-          case 'fullscreen': {
-            if (doc.fullscreenElement && doc.exitFullscreen) return doc.exitFullscreen().then(()=>({ok:true}));
-            if (!doc.fullscreenElement && host?.requestFullscreen) return host.requestFullscreen().then(()=>({ok:true}));
-            return Promise.resolve({ok:false,code:'unsupported'});
-          }
+          case 'fullscreen': return toggleStageFullscreen();
           case 'wordInfo':case 'wordSave':case 'wordLookup':return wordAction(t,v);
           case 'openQueued':
             if (v?.queueKey) return window.MediaShelfUI.playUpNext(v).then(result => result?.code === 'stale-queue'
@@ -599,7 +614,7 @@
   }
 
   let mountedIdentity, mountedBrowserSession, mountedBrowserMediaKey;
-  function unmount() {
+  function unmount(keepFullscreenHost=false) {
     advancedOverlay?.close?.();
     if (inst) {
       if (mountedBrowserSession) {
@@ -613,22 +628,25 @@
     mountedBrowserMediaKey = undefined;
     mountedIdentity = undefined;
     restore();
-    host?.remove();
-    host = null;
-    layer.classList.remove('cp-sahne-on');
-    doc.body.classList.remove('shelf-sahne-on');
-    const old = doc.querySelector('.ms-podcast-workspace');
-    if (old) old.inert = false;
+    if(!keepFullscreenHost){
+      host?.remove();
+      host = null;
+      layer.classList.remove('cp-sahne-on');
+      doc.body.classList.remove('shelf-sahne-on');
+      const old = doc.querySelector('.ms-podcast-workspace');
+      if (old) old.inert = false;
+    }
     key = '';
   }
-  function mount(kind, mode, intro, prefs) {
+  function mount(kind, mode, intro, prefs, rebuild=false) {
     const k = `${kind}:${mode}`;
-    if (inst && key === k && mountedIdentity === inst.a.identity()) return;
+    if (!rebuild && inst && key === k && mountedIdentity === inst.a.identity()) return;
     const had = !!inst, active = doc.activeElement;
     if(!had&&active?.matches?.('button,a,summary')&&!active.closest('.sh-host'))stageOpener=active;
     const adapter = makeAdapter(kind, mode);
+    const keepFullscreenHost=!!inst&&key.startsWith(kind+':')&&mountedIdentity===adapter.identity()&&doc.fullscreenElement===host;
     if (inst && key.startsWith(kind + ':') && prefs?.reading?.identity === adapter.identity()) inst.a.transferLoopTo(adapter);
-    unmount();
+    unmount(keepFullscreenHost);
     mountedIdentity = adapter.identity();
     mountedBrowserSession = kind === 'browser' ? window.BrowserStudy?.stageSession?.() : null;
     if (mountedBrowserSession) {
@@ -644,7 +662,7 @@
         }
       }
     }
-    host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}
+    if(!host){host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}}
     host.style.top = kind === 'shelf' ? 'var(--window-controls-safe-height,38px)' : headH() + 'px';
     inst = new Sahne(host, adapter, {
       mode, intro: intro && !had, prefs,
@@ -700,7 +718,21 @@
   });
 
   new MutationObserver(evaluate).observe(layer, { attributes: true, attributeFilter: ['class'] });
-  doc.addEventListener('ui-locale-change', () => { if (inst) { const k = key, p = inst.prefs(true); unmount(); const [a, b] = k.split(':'); mount(a, b, false, p); } });
+  doc.addEventListener('ui-locale-change', () => {
+    if(!inst)return;
+    const active=doc.activeElement,identity=inst.a.identity();
+    const readingFocus=inst.root.contains(active)&&active.matches?.('[data-r=q],[data-r=chapterSearch]')
+      ?{role:active.dataset.r,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
+    const k=key,p=inst.prefs(true),[a,b]=k.split(':');
+    mount(a,b,false,p,true);
+    if(readingFocus&&inst?.a.identity()===identity){
+      const input=inst.root.querySelector(`[data-r="${readingFocus.role}"]`);
+      if(input&&!input.closest('[hidden]')){
+        input.focus({preventScroll:true});
+        if(readingFocus.start!==null)input.setSelectionRange(readingFocus.start,readingFocus.end,readingFocus.direction);
+      }
+    }
+  });
   const off = PW()?.subscribe?.(() => { if(!document.hidden)evaluate(); });
   doc.addEventListener('visibilitychange',()=>{doc.documentElement.dataset.sahneHidden=String(document.hidden);if(!document.hidden)evaluate();});
   window.addEventListener('resize',()=>{if(host&&!key.startsWith('shelf:'))host.style.top=headH()+'px';});

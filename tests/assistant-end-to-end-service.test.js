@@ -123,6 +123,7 @@ test('saved podcast results cite real text, retain ownership and use the reviewe
   const proposed=await h.call('agentRun',{requestId:'open-passage',question:'Open this quote',owner:h.owner});
   assert(proposed.ok,proposed.error);
   const action=h.events.find(row=>row.packet.type==='proposal').packet.action;
+  assert.deepEqual(proposed.actions,[action],'the final response carries the same real approval card as the event');
   assert.equal(action.tool,'open_saved_podcast_passage');assert.equal(h.renderer.length,0);
   h.expectRenderer(packet=>{assert.equal(packet.expectedSettings.locator.episode,entry.id);return {status:'completed',mode:'read-only'};});
   assert.equal((await h.call('agentApply',{proposalId:action.proposalId,owner:h.owner})).result.mode,'read-only');
@@ -192,6 +193,33 @@ test('podcast cards report the real six-result limit and that more matches exist
   const run=await h.call('agentRun',{requestId:'more',question:'Find lighthouse',owner:h.owner});
   assert(run.ok,run.error);assert.equal(run.podcastCitations.length,6);
   assert(run.podcastCitations.every(card=>card.scope.limit===6&&card.scope.more===true&&card.usage==='found'));
+ }finally{h.close();}
+});
+
+test('an empty saved-podcast search replaces an invented answer with no-match information and no source card',async()=>{
+ let turn=0;const h=fixture(()=>++turn===1?tool('search_saved_podcasts',{query:'nonexistent-marker'}):reply({role:'assistant',content:'An invented episode says nonexistent-marker at 12:34.'}));
+ try{
+  podcastFixture(h,[{title:'Real episode',transcript:timedTranscript('Only the lighthouse is mentioned.')}]);
+  const result=await h.call('agentRun',{requestId:'empty-podcast',question:'Find nonexistent-marker in my saved podcasts',owner:h.owner});
+  assert(result.ok,result.error);assert.match(result.text,/no matching passage/);assert.doesNotMatch(result.text,/invented episode|12:34/i);
+  assert.deepEqual(result.podcastCitations,[]);assert.equal(h.renderer.length,0);assert.equal(h.notes.list().length,0);
+ }finally{h.close();}
+});
+
+test('multiple archive searches retain separate genuine passages for comparison without writing or seeking',async()=>{
+ let turn=0;const h=fixture(body=>{
+  if(++turn===1)return tool('search_saved_podcasts',{query:'lighthouse'});
+  if(turn===2)return tool('search_saved_podcasts',{query:'harbour'});
+  const results=body.messages.filter(m=>m.role==='tool').map(m=>JSON.parse(m.content));
+  const ids=results.flatMap(r=>r.matches||[]).map(r=>r.id);
+  return reply({role:'assistant',content:'Compare these returned excerpts: '+ids.map(id=>'['+id+']').join(' ')});
+ });
+ try{
+  podcastFixture(h,[{title:'Light',transcript:timedTranscript('The lighthouse blinks twice.')},{title:'Harbour',transcript:{state:'untimed',format:'plain',text:'The harbour is sheltered.',provenance:'publisher'}}]);
+  const result=await h.call('agentRun',{requestId:'multi-podcast',question:'Find and compare lighthouse and harbour passages in saved podcasts',owner:h.owner});
+  assert(result.ok,result.error);assert.equal(result.podcastCitations.length,2);assert(result.podcastCitations.every(c=>c.usage==='cited'));
+  assert.deepEqual(new Set(result.podcastCitations.map(c=>c.episode)),new Set(['Light','Harbour']));
+  assert.equal(h.renderer.length,0);assert.equal(h.notes.list().length,0);
  }finally{h.close();}
 });
 
