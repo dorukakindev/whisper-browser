@@ -1,5 +1,25 @@
 # Changelog
 
+- Podcast kütüphanesi ve Browser Sahne birikmiş düzeltmeleri toplu teslim edildi. Kaynak ve sekme sahipliği, ortak Whisper hazırlığı, kısmi çeviri/zaman gösterimi, asistan/dublaj devri, kuyruk ve İleri araçlar kapsamı; 536/536 hedefli test. [Toplu devir](docs/devir/2026-11-09-1220.md)
+
+- **Yerel** Podcast kütüphanesinden Sahne’ye açılan bölümün kısmi çevirisi artık gizlenmez. Kayıtlı fakat açık RSS sesiyle doğrulanmamış zamanlar salt okunur aralıklarla gösterilir; doğrulanmış Whisper ses kopyası açıldığında aynı oynatıcıda satır takibi, atlama ve dublaj hazırlığı kullanılabilir. Asistan etkin Podcast’i tanır, cümle birleştirme ayarını okuyabilir ve mevcut onaylı ayar akışında değiştirebilir. Kuyruk sayısı/üyeliği görünür, İleri araçlar penceresinin boş simge düzeni düzeltildi. [Devir](docs/devir/2026-11-09-1212.md)
+
+- **Yerel** Podcast’in indirilebilir sesi ortak Whisper ayarlarıyla işlenir ve Sahne seçili model/motor/cihazı gösterir. Eski sese ait altyazı dosyası geç yüklenemez. Duraklatılmış sekmeye dönüş güncel ses ölçümünü yeniden yayımlar; pasaj ve asistan onayı bu sesle doğrulanır. [Devir](docs/devir/2026-11-09-1042.md)
+
+- **Yerel** Podcast bağlantı penceresi, doğrulanmış bölüm veya RSS adayının yanında yayıncı sayfasını Browser’da açma seçeneğini korur. Pasaj atlaması ana süreçte beklenen ses öğesini doğrular. Asistan Whisper hazırlama hatasının nedenini ve kayıtlı metnin yeniden kullanımını ayrı bildirir. [Devir](docs/devir/2026-11-09-1032.md)
+
+- **Yerel** Browser Podcast pasaj notu zaman çıpasını algılanan sesin kaynak kimliğine bağlar. Asistan algılanmış yayıncı sesi için Whisper onay kartı sunabilir ve “şimdiye kadar” sorusunda yalnız dinleme sınırından önce biten gerçek transkript satırlarını kullanır. [Devir](docs/devir/2026-11-09-1028.md)
+
+- **Yerel** Browser Sahne tamamlanan, kısmi ve başarısız altyazı işlerini ayrı gösterir ve biten işin iptal düğmesini kaldırır. İşlemler önce Whisper ve çeviriyi gösterir. Dublaj paneli aynı etkin altyazı izinden dosyayı ve aralığı alır. [Devir](docs/devir/2026-11-09-1022.md)
+
+- **Yerel** Browser Podcast ve ses odaklı Çift dilli Sahne bölüm kapağını, programı ve yayıncıyı ayrı gösterir. Bölüm görseli yoksa program kapağı denenir. Yalnız ses çalarken web sayfası katmanı gizlenir ve mevcut oynatma ile transkript takibi sürer. [Devir](docs/devir/2026-11-09-1015.md)
+
+- **Yerel** Kapatılmış Sahne’nin gecikmiş görünüm ve odak işlemleri etkisiz kalır. Arka plan sekmesi yeniden oynatmaya kalkarsa erişilebilir medya duraklatılır. Sekmeye dönüşte oynatma durumu Browser’dan alınır. [Devir](docs/devir/2026-11-09-1009.md)
+
+- **Yerel** Sahne metin seçimine ve aramaya geçince otomatik kaydırmayı bırakır. Arama sonucundan Escape ile sorgu ve okuma konumu korunarak arama alanına dönülür. Çeviri cümle kontrolleri hedef satırın içine iner. [Devir](docs/devir/2026-11-09-1003.md)
+
+- **Yerel** Browser Podcast geçici ses önbelleği yer açarken çalışan Whisper işinin girdisini korur. İndirilemeyen seste Sahne, mevcut Canlı Whisper onayına doğrudan eylem sunar. [Devir](docs/devir/2026-11-09-0959.md)
+
 - Browser Podcast, kayıtlı zamanlı metni bölüm kimliği, ses özeti ve aralık eşleştiğinde yeni Whisper işi olmadan açar. Geç biten çıktı kendi iş kaydında kalır. İndirme veya iş hatasında aynı kapsamla yeniden deneme yalnız ilgili bölümde görünür. [Devir](docs/devir/2026-11-09-0949.md)
 
 - Browser Sahne’de Whisper hazırlığı iptal edilebilir. Yalnız yazıya dökme, yazıya dökme ve çeviri ile mevcut metni çevirme ayrı eylemler olarak görünür. Bölümün tamamı veya seçili aralığın süresi başlatmadan önce gösterilir. [Devir](docs/devir/2026-11-09-0938.md)

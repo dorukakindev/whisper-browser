@@ -1,8 +1,29 @@
 # Bekleyen işler
 
-## Browser podcast · 10–12 doğrulandı, sıradaki 13–15
+## Podcast kütüphanesi → Sahne · ekran görüntülerindeki bağlantılar
 
-- Aynı bölüm ve ses sürümünde kayıtlı metni açma, geç çıktıyı kendi iş kaydında tutma ve kapsamı koruyan hata sonrası yeniden deneme [yerelde doğrulandı](docs/devir/2026-11-09-0949.md). Sıradaki turda önce dört geçici ses sınırını çalışan işin girdisini koruyarak ele al. Ardından indirilemeyen seste Canlı Whisper alternatifini ve gerçek oynatma saatinde satır takibini doğrula.
+- **Doğrulandı, toplu teslim:** kısmi çevirinin saklanmasına rağmen gizlenmesi, eski kütüphane bölümünün feed kimliğini kaybetmesi, açık Podcast’in asistana medyasız görünmesi, gizli oynatıcıya yönlenen dublaj hazırlığı, kuyruk üyeliği/sayısı ve boş İleri araçlar yerleşimi. [Kanıt ve dosyalar](docs/devir/2026-11-09-1212.md). Ürün commit’i `6c2298845afcdcf50599ef4c1c55751dd77a7f49`; [toplu teslim](docs/devir/2026-11-09-1220.md). Kişisel farklar korunuyor.
+- **Canlı kabul sınırı:** kullanıcının Gresham bölümündeki eksik çeviri satırları bu turda yeniden üretilmedi; sağlayıcı hatasının gerçek nedeni belirlenmedi. Sonraki adım: izole profilde aynı bölümün kayıtlı iş/recovery bilgisini incele; güvenli eksik-satır kurtarması varsa yalnız onu, yoksa görünür yeniden çeviri önizlemesini kullan. Sonucu gerçek kayıt ve seçilen dil üzerinden doğrula; tüm bölümün tamamlandığını kısmi durumdan çıkarma.
+- **Canlı model / dublaj:** asistanın gerçek renderer yürütücüsü dublaj panelini açtı; ayar okuma/değiştirme/geri alma kontrollü testte geçti. Doğal Türkçe sorunun canlı modelce doğru araca yönlendirilmesi ve VoxCPM2 üretimi bu turda denenmedi. Kesin sonraki kabul: aynı izole bölümde “cümleleri birleştir açık mı” → `get_workflow_settings`, değişiklik → mevcut onaylı `configure_workflow`, dublaj → `open_voice_preparation`; doğrulanmış 2–8 saniyelik çeviri izini panelde inceleyip ayrı üretim onayıyla kısa ses çıktısını dinle. Gizli oynatıcı, belirsiz RSS zamanları ve kısmi metin tamamlanmış üretim sayılmaz.
+
+## Browser podcast · 28–30 yerel
+
+- Yarım kalan iki sekmeli pasaj kabulü, eski sesle kayıtlı metin karışması ve asistan onayının ses bağlamı [tamamlama notunda](docs/devir/2026-11-09-1042.md). Podcast indirilebilir sesi mevcut YouTube Whisper hattına verir; seçili kalite ayarları iş başında sabitlenir.
+
+- Bağlantı penceresinde Browser seçeneği, kaynak değişimine karşı pasaj atlaması ve Whisper işlem bildirimi [son takip notunda](docs/devir/2026-11-09-1032.md).
+- Pasaj dönüşü, asistanın yayıncı sesi araçları ve gerçek 12 saniyelik Whisper/Sahne zinciri [28–30 devir notunda](docs/devir/2026-11-09-1028.md).
+- Bu turda asistan sağlayıcısı kontrollüydü. Canlı kabul için algılanmış bir yayıncı bölümünde onay kartını, ilk “şimdiye kadar” yanıtını ve kaynak değişince reddedilen kartı izole profilde doğrula.
+
+- İş sonuçları, İşlemler düzeni ve dublaj önizlemesi [25–27 devir notunda](docs/devir/2026-11-09-1022.md). VoxCPM2 üretimi bu turda denenmedi. Canlı motor kabulü gerekirse aynı doğrulanmış bölümde 0:02–0:08 aralığını ve izole ses profilini onaylayıp çıktı ve senkronu gözlemle.
+
+- Kapak önceliği, bölüm/program/yayıncı kimliği ve yalnız ses için Çift dilli kompozisyon [22–24 devir notunda](docs/devir/2026-11-09-1015.md). LG’de gerçek Apaçık Radyo sesi ve kayıtlı metinle sınandı.
+- Görünüm devri, Browser’a dönüş ve sekme bağlamı [19–21 devir notunda](docs/devir/2026-11-09-1009.md).
+- Manuel okuma, cümle kontrolleri ve aramaya dönüş [16–18 devir notunda](docs/devir/2026-11-09-1003.md).
+
+## Browser podcast · 13–15 doğrulandı
+
+- Geçici ses tahliyesi, Canlı Whisper eylemi ve gerçek oynatma saatinde satır takibi [devir notunda](docs/devir/2026-11-09-0959.md). Canlı Whisper eyleminin mevcut onay akışına bağlandığı kontrollü olarak sınandı. Canlı ses yakalama kabulü için indirilemeyen bir kaynağı açıp düğmeden sistem sesi paylaşımını onayla ve ilk satırı gözlemle.
+- Kayıtlı metni açma, geç çıktıyı kendi iş kaydında tutma ve aynı kapsamla yeniden deneme [10–12 devir notunda](docs/devir/2026-11-09-0949.md).
 - Hazırlık iptali, ayrı Whisper eylemleri ve bölüm kapsamı [7–9 devir notunda](docs/devir/2026-11-09-0938.md).
 - Birden fazla ses seçimi ve hazırlık durumları [4–6 devir notunda](docs/devir/2026-11-09-0930.md). Aynı anda çalan benzer sesleri otomatik ayırmak kesin değildir. İşlemler menüsündeki ses seçimi kullanılabilir.
 
