@@ -963,7 +963,7 @@ function syncBrowserOcclusion() {
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
     || !!(commandPalette && !commandPalette.classList.contains('hidden'))
-    || settingsOverlay || !!document.querySelector('dialog[open], .sh[data-pw-occludes-native="true"]')
+    || settingsOverlay || !!document.querySelector('dialog[open], .sh[data-pw-occludes-native="true"], .sh-web-source.sh-audio')
     || !!playerLayer?.classList.contains('narrow-panel-takeover')
     || (typeof player !== 'undefined' && (!!player.pdfReader || player.browserSurface === 'settings'));
   window.api.setAssistantModalBlocked?.(!!_activeModal || !!document.querySelector('dialog[open]'));
@@ -995,7 +995,8 @@ async function applyBrowserOcclusion(occluded) {
   const slot = $('browserViewSlot');
   // Dar ekranda panel sayfayı tamamen örter. Donmuş kare görünmeyeceği için
   // capturePage'i beklemek native görünümün panel üstünde kalmasına yol açar.
-  const fullyCovered = $('playerLayer')?.classList.contains('narrow-panel-takeover') && !$('playerSide')?.classList.contains('bp-panel');
+  const fullyCovered = !!slot?.closest('.sh-web-source.sh-audio')
+    || ($('playerLayer')?.classList.contains('narrow-panel-takeover') && !$('playerSide')?.classList.contains('bp-panel'));
   if (occluded && !fullyCovered && !browserOcclusionApplied && slot && window.api.snapshotBrowserPage
       && typeof player !== 'undefined' && player.workspaceMode === 'browser') {
     // Start capture while the page is visible, but do not await capture or paint
@@ -4591,6 +4592,8 @@ async function finishProgressiveJob(job) {
     $('cancelBtn').classList.add('hidden');
     rememberPendingPlayerLoad({ files: job.outputFiles || [], outputs: job.outputDescriptors || [] }, job,
       'Aşamalı çıktı kaydedildi; elle seçtiğin altyazı oynatıcıda korundu.');
+    $('playerJobText').textContent = interfaceChoice('Çıktı kaydedildi. Seçili altyazı korundu.','Output saved. The selected subtitles were kept.');
+    settlePlayerJobBar(job, 'done');
     logLine(`Aşamalı çıktı birleştirildi: ${source.length} blok; elle seçilen altyazı değiştirilmedi.`, 'success');
     return;
   }
@@ -4634,7 +4637,9 @@ async function finishProgressiveJob(job) {
       holdMs: job.translationTerminal?.stopProgressive ? 10000 : 6000,
     });
   }
-  setTimeout(() => $('playerJobBar').classList.add('hidden'), 4000);
+  const incomplete = job.outputDescriptors?.some(item=>item.status==='partial')
+    || (job.translationTerminal?.stopProgressive && job.translationTerminal.skipped!=='same_language');
+  settlePlayerJobBar(job, incomplete ? 'partial' : 'done');
   logLine(`Öncelikli altyazı üretimi tamamlandı: ${source.length} blok${translationStopReason ? ` · ${translationStopReason}` : ''}`,
     job.translationTerminal?.stopProgressive && job.translationTerminal.skipped !== 'same_language' ? 'warn' : 'success');
   refreshHistory();
@@ -4700,18 +4705,27 @@ async function handleProgressiveTerminal(event, job) {
       }
       next(job);
     };
+    const finishOutput = () => continueWhenCurrent(() => {
+      void finishProgressiveJob(job).catch(error => {
+        if (job!==player.job || job.mediaKey!==player.mediaKey || job.generation!==player.generation) return;
+        job.loading = false;
+        handleProgressiveTerminal({type:'error',message:error?.message || String(error)},job);
+        job.awaitingExit = false; // This failure occurred after the worker exited.
+        settlePlayerJobBar(job, 'failed');
+      });
+    });
     if (job.translationTerminal?.stopProgressive) {
       const reason = job.translationTerminal.skipped === 'same_language'
         ? 'Kaynak dil zaten hedef dille aynı; çeviri yapılmadan kaynak altyazı hazırlandı.'
         : `Çeviri kalıcı sağlayıcı hatası nedeniyle durdu: ${subtitleOutputContract.errorLabel(job.translationTerminal.lastError || 'api_failure')}`;
       logLine(reason, job.translationTerminal.skipped ? 'warn' : 'error');
       setBrowserSignal(reason, false, { priority: 100, holdMs: 10000 });
-      setTimeout(() => continueWhenCurrent(finishProgressiveJob), 80);
+      setTimeout(finishOutput, 80);
     } else if (job.rangeIndex + 1 < job.ranges.length) {
       job.rangeIndex++;
       setTimeout(() => continueWhenCurrent(startProgressiveChunk), 80);
     } else {
-      setTimeout(() => continueWhenCurrent(finishProgressiveJob), 80);
+      setTimeout(finishOutput, 80);
     }
     return true;
   }
@@ -4770,7 +4784,7 @@ function playerJobEvent(event) {
       if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
       if (player.job === job) player.job = null;
       txt.textContent = 'İş iptal edildi.';
-      setTimeout(() => bar.classList.add('hidden'), 1200);
+      settlePlayerJobBar(job, 'cancelled', 1200);
       aiChatCtxLabel();
       updateMakeTransState();
     }
@@ -4814,7 +4828,7 @@ function playerJobEvent(event) {
     if (state.abCollect) { const c = state.abCollect; state.abCollect = null; c.resolve(null); }
     if (player.job === job) player.job = null;
     txt.textContent = 'Altyazı işi tamamlanmadan kapandı.';
-    setTimeout(() => bar.classList.add('hidden'), 4000);
+    settlePlayerJobBar(job, 'failed');
     logLine('Altyazı işi tamamlanmadan kapandı; çıktı üretilmedi.', 'warn');
     aiChatCtxLabel();
     updateMakeTransState();
@@ -4840,7 +4854,7 @@ function playerJobEvent(event) {
     return true;
   }
 
-  const finish = (message, level) => {
+  const finish = (message, level, outcome = level==='error'?'failed':'done') => {
     job.running = false;
     job.awaitingExit = true;
     state.running = false;         // oynaticidan baslatilan is bitti
@@ -4851,7 +4865,7 @@ function playerJobEvent(event) {
     txt.textContent = message;
     updateMakeTransState();
     updatePlayerAutoSyncState();
-    setTimeout(() => bar.classList.add('hidden'), 4000);
+    settlePlayerJobBar(job, outcome);
     if (level) logLine(message, level);
   };
 
@@ -5081,7 +5095,7 @@ function playerJobEvent(event) {
         : 'Altyazı hazır ve oynatıcıya yüklendi.';
       finish(result.loaded ? successText
         : `Dosya kaydedildi; oynatıcıya yüklenemedi: ${result.reason}`,
-        result.loaded && !translationPartial ? 'success' : 'warn');
+        result.loaded && !translationPartial ? 'success' : 'warn', translationPartial?'partial':'done');
       if (job.browserTrackId) {
         const latestTrack = player.browserTracks.find((track) => track.id === job.browserTrackId);
         if (latestTrack && Number(latestTrack.cueCount || 0) > Number(job.browserSourceCueCount || 0)) {
@@ -5135,6 +5149,16 @@ function playerJobEvent(event) {
   // asamalarini, onizlemesini ve sonuc modalini degistirmemeli. Yalniz log
   // satirlarini ortak gunlukte gostermeye devam et.
   return event.type !== 'log';
+}
+
+function settlePlayerJobBar(job, outcome, delay = 4000) {
+  const bar = $('playerJobBar');
+  const terminal = {job, outcome, mediaKey:job.mediaKey, generation:job.generation ?? player.generation};
+  player.jobBarTerminal = terminal;
+  bar?.setAttribute?.('data-terminal', outcome);
+  setTimeout(() => {
+    if (player.jobBarTerminal===terminal && (!player.job || player.job===job)) bar?.classList.add('hidden');
+  }, delay);
 }
 
 function completedSubtitleOutputs(event, fallbackRole = 'source') {
@@ -7130,6 +7154,7 @@ function syncBrowserTabs(snapshots, activeTabId, split) {
       browserDuration: Number.isFinite(Number(snapshot.duration)) ? Number(snapshot.duration) : (tab.browserDuration || 0),
       browserRate: Number.isFinite(Number(snapshot.rate)) ? Number(snapshot.rate) : (tab.browserRate || 1),
       browserVolume: Number.isFinite(Number(snapshot.volume)) ? Number(snapshot.volume) : tab.browserVolume,
+      browserPaused: typeof snapshot.paused === 'boolean' ? snapshot.paused : tab.browserPaused,
       browserMuted: snapshot.muted !== undefined ? !!snapshot.muted : tab.browserMuted,
       tabMuted: snapshot.tabMuted !== undefined ? !!snapshot.tabMuted : tab.tabMuted,
       audible: snapshot.audible !== undefined ? !!snapshot.audible : tab.audible,
@@ -7244,7 +7269,7 @@ if ($('browserFindInput')) {
   $('browserFindClose').addEventListener('click', () => closeBrowserFind());
 }
 
-function browserCommand(command, value, tabId = player.browserActiveTabId) {
+function browserCommand(command, value, tabId = player.browserActiveTabId, expectedAudioToken) {
   if (command === 'speed' && tabId === player.browserActiveTabId) window.BrowserDubAudioUI?.setBaseRate?.(value);
   if (['play', 'pause', 'play-pause', 'seek', 'seek-relative'].includes(command)) {
     clearTimeout(player.shadowResumeTimer);
@@ -7258,7 +7283,8 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
     seek = player._ownSeek = { tabId, key:player.mediaKey, generation:player.generation,
       target:command==='seek'&&value!==null&&Number.isFinite(Number(value))?Number(value):null };
   }
-  const request=window.api.browserCommand(tabId, command, value);
+  const request=expectedAudioToken===undefined?window.api.browserCommand(tabId, command, value)
+    :window.api.browserCommand(tabId,command,value,expectedAudioToken);
   if(!seek)return request;
   const observedTime = player.browserTime;
   const retire=()=>{if(player._ownSeek===seek){player._ownSeek=null;player._ownSeekAt=0;}};
@@ -10239,7 +10265,8 @@ function scheduleDeferredBrowserTrackAction() {
     const pending = player.browserDeferredTrackAction;
     if (!pending) return;
     const trackExists = player.browserTracks.some((track) => track.id === pending.trackId);
-    if (pending.tabId !== player.browserActiveTabId || !trackExists) {
+    if (pending.tabId !== player.browserActiveTabId || pending.mediaKey!==player.mediaKey
+        || pending.generation!==currentGeneration() || !trackExists) {
       clearDeferredBrowserTrackAction();
       return;
     }
@@ -10888,13 +10915,18 @@ async function useBrowserTrack(translate, requestedTrackId = '', config = {}) {
     ? player.browserTracks.find((item) => item.id === requestedTrackId)
     : browserTrackSelection();
   if (!track) return;
+  const audioMatches=()=>!track.mediaToken||currentBrowserWhisperAudio()?.mediaToken===track.mediaToken;
+  if(track.sourceMismatch||!audioMatches())return {ok:false,stale:true};
   if (translate && track.role === 'translation') {
     await loadPersistedBrowserTranslation(track);
     return;
   }
   if (state.running || state.queueRunning || player.browserTranslatePreparing) {
+    if(config.isCancelled)return {ok:false,busy:true};
     player.browserDeferredTrackAction = {
       tabId: player.browserActiveTabId,
+      mediaKey: player.mediaKey,
+      generation: currentGeneration(),
       trackId: track.id,
       translate: !!translate,
     };
@@ -10947,11 +10979,12 @@ async function useBrowserTrack(translate, requestedTrackId = '', config = {}) {
     }
     if (!track || player.browserActiveTabId !== tabId || staleGeneration(gen)) return;
   }
+  if(config.isCancelled?.()||!audioMatches())return {ok:false,cancelled:true};
   addSubtitleOption(track.path, `Web · ${track.language || track.label}`);
   $('playerSubSelect').value = track.path;
-  await loadSubtitle(track.path);
+  await loadSubtitle(track.path,false,{isCancelled:()=>config.isCancelled?.()||!audioMatches()});
   if (player.subPath !== track.path || player.browserActiveTabId !== tabId || staleGeneration(gen)
-      || config.isCancelled?.()) return { ok: false, cancelled: true };
+      || config.isCancelled?.() || !audioMatches()) return { ok: false, cancelled: true };
   player.browserLoadedTrackId = track.id;
   rememberBrowserTrackUse(track);
   setPlayerSidebarCollapsed(false);
@@ -11754,6 +11787,15 @@ function browserAudioPreparationStatus() {
   }
   if (browserAudioPreparationMatches(browserAudioPreparationError)) {
     const failure=browserAudioPreparationError;
+    if(failure.liveFallback){
+      if(player.browserLiveAsrActive||player.browserLiveAsrStarting)return null;
+      return {state:'failed',ownerToken:failure,text:failure.error,
+        retryLabel:interfaceChoice('Canlı Whisper’ı aç','Open Live Whisper'),
+        retry:!state.running&&!state.queueRunning
+          ?()=>{if(browserAudioPreparationError===failure&&browserAudioPreparationMatches(failure)
+              &&!state.running&&!state.queueRunning&&!player.browserLiveAsrActive&&!player.browserLiveAsrStarting)return toggleBrowserLiveAsr();}
+          :null};
+    }
     return {state:'failed',ownerToken:failure,text:browserWhisperFailureText(failure.error,true),
       retry:failure.retry?()=>{if(browserAudioPreparationError===failure&&browserAudioPreparationMatches(failure))return failure.retry();}:null};
   }
@@ -11766,7 +11808,7 @@ function browserAudioPreparationStatus() {
 }
 function browserWhisperFailureText(raw, preparing, stage) {
   const error=String(raw||'');
-  if (/\benospc\b|no space left|disk full|diskte yer kalmadı/i.test(error)) return interfaceChoice(
+  if (/\benospc\b|no space left|disk full|insufficient space|diskte yer kalmadı/i.test(error)) return interfaceChoice(
     'Diskte yer açıp aynı kapsamı yeniden deneyin.','Free disk space, then retry the same scope.');
   if (!preparing&&(stage==='load_model'||/failed to load (?:the )?model|model.*(?:yüklenemedi|not found|could not be loaded)|cuda out of memory|cublas.*alloc/i.test(error))) return interfaceChoice(
     'Whisper modelini veya aygıt seçimini kontrol edip yeniden deneyin.','Check the Whisper model or device setting, then retry.');
@@ -11849,6 +11891,8 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
   const mediaKey = player.mediaKey;
   const url = currentBrowserYoutubeUrl();
   const audioSource=!url?currentBrowserWhisperAudio():null;
+  const sameSource=()=>player.browserActiveTabId===tabId&&player.mediaKey===mediaKey&&!config.isCancelled?.()
+    &&(!audioSource||currentBrowserWhisperAudio()?.mediaToken===audioSource.mediaToken);
   if (!url&&!audioSource) {
     setBrowserSignal('Whisper işlemi için browser içinde bir YouTube video sayfası açın.', false);
     return;
@@ -11872,8 +11916,9 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
       && (!selectedProvider || String(track.provider || '').replace(/\/+$/, '') === selectedProvider)
       && track.status === 'complete' && !Number(track.failed)) : null;
   if (reusableTranslation) {
-    await useBrowserTrack(false, reusableTranslation.id);
-    if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey || config.isCancelled?.()) return;
+    const loaded=await useBrowserTrack(false, reusableTranslation.id,{isCancelled:()=>!sameSource()});
+    if (!sameSource()) return {ok:false,cancelled:true};
+    if(loaded?.busy)return {ok:false,message:interfaceChoice('Başka bir işlem sürüyor. Bittikten sonra yeniden deneyin.','Another task is running. Try again when it finishes.')};
     if (player.subPath === reusableTranslation.path || player.sub2Path === reusableTranslation.path) {
       setSubtitleMode('translation', false);
       setBrowserSignal('Bu video için hazırlanmış Whisper çevirisi bulundu ve yeniden işlem yapılmadan yüklendi.', true,
@@ -11885,8 +11930,9 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     ['whisper', 'whisper-range'].includes(track.generatedBy) && sameAudio(track) && sameRange(track) && track.role === 'source' && track.path
       && (!track.status || track.status === 'complete') && !Number(track.failed) && track.captureComplete !== false);
   if (reusableSource) {
-    await useBrowserTrack(false, reusableSource.id);
-    if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey || config.isCancelled?.()) return;
+    const loaded=await useBrowserTrack(false, reusableSource.id,{isCancelled:()=>!sameSource()});
+    if (!sameSource()) return {ok:false,cancelled:true};
+    if(loaded?.busy)return {ok:false,message:interfaceChoice('Başka bir işlem sürüyor. Bittikten sonra yeniden deneyin.','Another task is running. Try again when it finishes.')};
     if (!translate && player.subPath === reusableSource.path) {
       setSubtitleMode('source', false);
       setBrowserSignal('Bu video için hazırlanmış Whisper altyazısı bulundu ve yeniden işlem yapılmadan yüklendi.', true,
@@ -11913,7 +11959,8 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
     savedOnly:config.savedOnly===true,
     browserWhisperRetry:audioSource ? () => startBrowserYoutubeWhisper(translate,{...config,clipRange,targetLanguage,forSpeech}) : null,
   });
-  if(prepared?.reused||config.savedOnly)return prepared;
+  if(!sameSource())return {ok:false,cancelled:true};
+  if(typeof prepared?.ok==='boolean'||config.savedOnly)return prepared;
   return { ok: !!player.job && player.job !== previousJob && !player.job.failed,
     job: player.job !== previousJob ? player.job : null };
 }
@@ -15309,8 +15356,13 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         mediaKey: player.mediaKey, generation: player.generation, time: player.browserTime,
         mediaType: event.media.tagName === 'audio' ? 'audio' : event.media.tagName === 'video' ? 'video' : '',
         mediaToken: typeof event.media.docToken==='string'?event.media.docToken:'',
+        audioSourceIdentity: event.media.audioSourceIdentity || '',
         artworkUrl: typeof event.media.artworkUrl==='string'?event.media.artworkUrl:'',
+        fallbackArtworkUrl: event.media.fallbackArtworkUrl || '',
         audioTitle: event.media.audioTitle || '',
+        showTitle: event.media.showTitle || '',
+        publisher: event.media.publisher || '',
+        siteName: event.media.siteName || '',
         audioChoices: Array.isArray(event.media.audioChoices) ? event.media.audioChoices : [],
         pinnedAudio: event.media.pinnedAudio || '',
         sourceChanged: event.media.tagName==='audio' && !!tab?.sourceAudioChanged,
@@ -20075,7 +20127,10 @@ async function handleResearchLibraryAction(event) {
     researchOpening.delete(annotation.id);
     if (opened === false) {
       researchReturnState = null;
-      researchOpenNotes.set(annotation.id, { tone: 'bad', text: interfaceChoice('Kaynak açılamadı. Alıntın ve notun korunuyor. Kaynağı kütüphanede yeniden aç veya yeniden bağla, sonra tekrar dene.', 'The source could not be opened. Your quote and note are kept. Reopen or relink the source in the library, then try again.') });
+      const browserAudio=annotation.mediaType==='browser'&&(annotation.sourceVersion?.startsWith('browser-audio:')||/^browser:web:url:[^:]+:stream:/.test(annotation.mediaId));
+      researchOpenNotes.set(annotation.id, { tone: 'bad', text: browserAudio
+        ? interfaceChoice('Konum doğrulanamadı. Yayıncı sayfasında bu bölümü oynatıp yeniden dene. Notun korunuyor.','The position could not be verified. Play this episode on the publisher page and retry. Your note is kept.')
+        : interfaceChoice('Kaynak açılamadı. Alıntın ve notun korunuyor. Kaynağı kütüphanede yeniden aç veya yeniden bağla, sonra tekrar dene.', 'The source could not be opened. Your quote and note are kept. Reopen or relink the source in the library, then try again.') });
     } else researchOpenNotes.delete(annotation.id);
     renderResearchLibrary(captureResearchLibraryDrafts());
   }
@@ -20405,7 +20460,7 @@ async function loadSelectedEmbeddedSubtitle() {
   logLine('Gömülü altyazı çıkarıldı ve oynatıcıya yüklendi; Whisper çalıştırılmadı.', 'success');
 }
 
-async function openWatchLibraryItem(item, seconds) {
+async function openWatchLibraryItem(item, seconds, {seek=true}={}) {
   if (!item) return;
   if(item.type==='torrent'){await window.MediaHubUI.reopenTorrent(item,seconds);return;}
   if(item.type==='stream'){const r=await window.api.mediaHub({action:'network',url:item.sourceRef});if(!r?.ok)throw Error(r?.error||'Stream unavailable');await window.MediaHubUI.playStream(r,seconds);return;}
@@ -20413,14 +20468,15 @@ async function openWatchLibraryItem(item, seconds) {
     player.browserSceneReopen = { key: item.key };
     $('playerLayer').classList.remove('hidden');
     setWorkspaceMode('browser');
-    player.pendingLibrarySeek = {
+    player.pendingLibrarySeek = seek ? {
       key: item.key, generation: null, seconds: Number(seconds) || 0,
-    };
+    } : null;
     if ($('browserAddress')) { $('browserAddress').value = item.sourceRef || ''; if (typeof updateBrowserAddressMirror === 'function') updateBrowserAddressMirror(); }
     const result = await navigateBrowserFromAddress();
     if (!result?.ok && player.pendingLibrarySeek?.key === item.key) {
       player.pendingLibrarySeek = null;
     }
+    return result;
   } else if (item.type === 'youtube') {
     const intent = ++player.openIntent;
     $('playerLayer').classList.remove('hidden');
@@ -21244,16 +21300,22 @@ async function openUnifiedLibraryResult(result) {
     return !!activated;
   }
   const comparableMediaId = String(result.mediaId || '').replace(/^browser:/, '');
-  const matchingTab = result.mediaId
+  const audioVersion = result.kind==='notes' && result.mediaType==='browser' && result.sourceVersion?.startsWith('browser-audio:')
+    ? result.sourceVersion.slice('browser-audio:'.length) : '';
+  const browserAudioNote = !!audioVersion || (result.kind==='notes' && result.mediaType==='browser'
+    && /^web:url:[^:]+:stream:/.test(comparableMediaId));
+  const matchingAudioTabs=audioVersion?player.browserTabs.filter(tab=>!tab.closing&&tab.browserClockSample?.audioSourceIdentity===audioVersion):[];
+  const matchingTab = matchingAudioTabs.find(tab=>tab.id===player.browserActiveTabId) || matchingAudioTabs[0] || (result.mediaId
     ? player.browserTabs.find((tab) => tab.mediaId === comparableMediaId
       || `browser:${tab.mediaId}` === result.mediaId)
-    : player.browserTabs.find((tab) => tab.url && result.url && tab.url === result.url);
+    : player.browserTabs.find((tab) => tab.url && result.url && tab.url === result.url));
   if (matchingTab) {
     // Capture before activation: the object itself can be updated in place while we await IPC.
     const expected={id:matchingTab.id,mediaId:matchingTab.mediaId,generation:matchingTab.generation,url:matchingTab.url};
     const stillTarget=()=>{const tab=browserTabState(expected.id);return !!tab&&!tab.closing&&player.workspaceMode==='browser'&&player.browserActiveTabId===expected.id
       &&tab.mediaId===expected.mediaId&&(!Number.isSafeInteger(expected.generation)||tab.generation===expected.generation)
       &&(!!expected.mediaId||tab.url===expected.url);};
+    const switched=player.browserActiveTabId!==expected.id;
     const activated = await activateBrowserTab(expected.id);
     if (!activated || !stillTarget()) return false;
     if (result.anchor && result.annotationId && window.api.restoreLearningAnnotationAnchor) {
@@ -21269,8 +21331,24 @@ async function openUnifiedLibraryResult(result) {
       if(!Number.isFinite(seconds)||seconds<0)return false;
       // A loaded tab is commanded directly. A global deferred seek could survive this action and be replayed later.
       if(!result.mediaId||!expected.mediaId)return false;
-      const outcome=await browserCommand('seek',seconds,expected.id);
-      return outcome?.ok===true&&stillTarget();
+      let expectedAudioToken;
+      if(browserAudioNote){
+        let audio=currentBrowserWhisperAudio();
+        if(!audio&&switched&&matchingAudioTabs.includes(matchingTab)){
+          const until=Date.now()+1500;
+          while(!audio&&stillTarget()&&Date.now()<until){
+            await new Promise(resolve=>setTimeout(resolve,75));
+            audio=currentBrowserWhisperAudio();
+          }
+        }
+        if(!stillTarget())return false;
+        if(!audio?.mediaToken||(!audioVersion&&audio.mediaKey!==result.mediaId)||audio.tabId!==expected.id||seconds>=player.browserDuration)return false;
+        if(audioVersion&&browserTabState(expected.id)?.browserClockSample?.audioSourceIdentity!==audioVersion)return false;
+        expectedAudioToken=audio.mediaToken;
+      }
+      const outcome=expectedAudioToken?await browserCommand('seek',seconds,expected.id,expectedAudioToken):await browserCommand('seek',seconds,expected.id);
+      return outcome?.ok===true&&stillTarget()
+        &&(!expectedAudioToken||currentBrowserWhisperAudio()?.mediaToken===expectedAudioToken);
     }
     return stillTarget();
   }
@@ -21283,6 +21361,14 @@ async function openUnifiedLibraryResult(result) {
   if (!item.sourceRef && item.type !== 'local') {
     logLine('Bu kayıt için güvenli yeniden açma adresi yok. Not ve altyazı korunuyor.', 'warn');
     return false;
+  }
+  if(browserAudioNote){
+    // Publisher pages may initially play a live stream or a different episode.
+    // Reopen the page without arming a seek until the matching audio is observed.
+    const publisherTab=player.browserTabs.find(tab=>tab.url===item.sourceRef&&!tab.closing);
+    const opened=publisherTab?await activateBrowserTab(publisherTab.id)
+      :(await openWatchLibraryItem({...item,type:'browser'},null,{seek:false}))?.ok;
+    return !!opened&&(result.timed===false||result.seconds==null);
   }
   if (result.anchor && result.annotationId) {
     player.pendingLibraryAnchor = {
@@ -26940,14 +27026,15 @@ async function startProgressivePlayerTranscription(config = {}) {
       if(prep.cancelled||!browserAudioPreparationMatches(prep)||config.isCancelled?.())return;
       if(!prepared?.ok||!prepared.path||prepared.mediaToken!==audioSource.mediaToken){
         const error=prepared?.error||interfaceChoice('Ses hazırlanamadı. Canlı Whisper ile devam edebilirsin.','Could not prepare audio. You can use Live Whisper.');
-        browserAudioPreparationError={...audioSource,error,retry:config.browserWhisperRetry};setBrowserSignal(error,false);return;
+        browserAudioPreparationError={...audioSource,error,retry:config.browserWhisperRetry,
+          liveFallback:prepared?.code==='live-whisper-available'};setBrowserSignal(error,false);return {ok:false,message:error};
       }
       if(recovered?.loaded){
         setBrowserSignal(interfaceChoice('Bu ses sürümünün kayıtlı metni yüklendi.','Saved transcript loaded for this audio version.'),true);
         if(config.translateOverride&&!config.savedOnly){
           const translation=await startPlayerSubtitleTranslation({translationConfig:config.translationConfig,forSpeech:config.translateForSpeech,
             targetLanguage:config.targetLanguage,range:config.clipRange,isCancelled:config.isCancelled});
-          return translation||{ok:true,reused:true,path:recovered.path};
+          return translation||{ok:false,message:interfaceChoice('Kayıtlı metin açıldı ancak çeviri başlamadı.','Saved transcript opened, but translation did not start.')};
         }
         return {ok:true,reused:true,path:recovered.path};
       }
@@ -27029,6 +27116,8 @@ async function startProgressivePlayerTranscription(config = {}) {
   state.outputFiles = [];
   $('startBtn').classList.add('hidden');
   $('cancelBtn').classList.remove('hidden');
+  player.jobBarTerminal = null;
+  $('playerJobBar').removeAttribute?.('data-terminal');
   $('playerJobBar').classList.remove('hidden');
   $('playerJobFill').style.width = '0%';
   $('playerJobText').textContent = ranges.length > 1
@@ -27075,6 +27164,7 @@ if ($('playerJobCancel')) $('playerJobCancel').addEventListener('click', async (
   }
   state.aiJob = false;
   const cancelResult = await window.api.cancelTranscribe();
+  if (player.job !== job) return;
   if (!cancelResult || !cancelResult.ok) {
     job.awaitingExit = false;
     job.cancelled = false;
@@ -27091,7 +27181,7 @@ if ($('playerJobCancel')) $('playerJobCancel').addEventListener('click', async (
   $('startBtn').classList.remove('hidden');
   $('cancelBtn').classList.add('hidden');
   $('playerJobText').textContent = 'Altyazı işi iptal edildi.';
-  setTimeout(() => $('playerJobBar').classList.add('hidden'), 2000);
+  settlePlayerJobBar(job, 'cancelled', 2000);
 });
 
 // "Ceviri olustur": EKRANDA YUKLU altyaziyi cevirir. Ses indirme ve Whisper
@@ -27191,6 +27281,8 @@ if ($('playerAutoSync')) $('playerAutoSync').addEventListener('click', async () 
   state.startTime = Date.now();
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'sync', liveSource: [],
     selectedSubPath: player.subPath || '', secondSubPath: player.sub2Path || '' };
+  player.jobBarTerminal = null;
+  $('playerJobBar').removeAttribute?.('data-terminal');
   $('playerJobBar').classList.remove('hidden');
   $('playerJobFill').style.width = '0%';
   $('playerJobText').textContent = 'Ses ritmi analiz ediliyor…';
@@ -27314,6 +27406,8 @@ async function startPlayerSubtitleTranslation(config = {}) {
       browserSourceCueCount: browserTrack ? Number(browserTrack.cueCount || 0) : 0 };
     const bar = $('playerJobBar');
     if (bar) {
+      player.jobBarTerminal = null;
+      bar.removeAttribute?.('data-terminal');
       bar.classList.remove('hidden');
       $('playerJobFill').style.width = '0%';
       $('playerJobText').textContent = `Çeviri başlatılıyor · önceki/sonraki ${Number(opts.translateContext || 0)} satır`;
@@ -34528,6 +34622,7 @@ window.podcastQueueTaskState=function(expected,id){
  if(item.podcastBinding?.stopConfirmed)return {id:item.id,state:'stopped',text:'',progress:null,cancellable:false};
  const persisted=item.podcastBinding?.persistence;
  if(persisted==='saving')return {id:item.id,state:'running',text:interfaceChoice('Sonuç kaydediliyor…','Saving result…'),progress:null,cancellable:false};
+ if(persisted==='partial')return {id:item.id,state:'partial',text:interfaceChoice('Kısmi sonuç kaydedildi. Hazır çeviriler gösteriliyor; İşlemler’den yalnız eksikleri tamamlayın.','Partial result saved. Available translations are shown; complete missing lines in Tasks.'),progress:null,cancellable:false};
  if(persisted==='failed')return {id:item.id,state:'failed',text:item.podcastBinding.persistenceError||interfaceChoice('Sonuç kaydedilemedi.','Result could not be saved.'),progress:null,cancellable:false};
  const progress=Number(active?.percent);
  return {id:item.id,state:item.status==='running'?'running':item.status==='pending'?'queued':item.status==='done'?'complete':item.status==='error'?'failed':['cancelled','canceled','stopped'].includes(item.status)?'stopped':'idle',text:String(active?.stage||item.stage||item.error||'').slice(0,300),progress:active&&Number.isFinite(progress)&&progress>0?Math.min(1,progress/100):null,cancellable:!!item.podcastText&&item.status==='running'||!!active&&!!state.running};
@@ -34629,8 +34724,7 @@ async function persistPodcastJobOutputs(event,binding){
   }
  }
  if(binding.expectedTranslation&&!outputs.translation?.path)throw Error('Source saved, but translation did not finish / Kaynak kaydedildi, çeviri tamamlanmadı.');
- if([outputs.source,outputs.translation].some(output=>output?.status==='partial'))throw Error('Partial podcast output saved / Kısmi podcast sonucu kaydedildi.');
- binding.persistence='saved';
+ binding.persistence=[outputs.source,outputs.translation].some(output=>output?.status==='partial')?'partial':'saved';
  }catch(error){binding.persistence='failed';binding.persistenceError=error.message;throw error;}finally{if(binding.downloadToken)await releasePodcastQueueItem({podcastBinding:binding});}
 }
 

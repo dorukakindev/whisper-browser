@@ -1,6 +1,44 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');
+test('A browser episode note seeks only the currently verified audio, including a zero anchor',async()=>{
+ const mediaId='browser:web:url:page:stream:episode',url='https://publisher.example/episode';
+ const tab={id:'A',generation:2,mediaId:mediaId.slice(8),url},calls=[];
+ const context={player:{browserTabs:[tab],browserDuration:90,workspaceMode:'browser',browserActiveTabId:'A'},browserTabState:()=>tab,
+  activateBrowserTab:async()=>true,currentBrowserWhisperAudio:()=>null,browserCommand:async(...args)=>{calls.push(args);return {ok:true};},
+  watchItemByKey:()=>null,playerLibraryResults:[],openWatchLibraryItem:async(...args)=>calls.push(['open',...args])};
+ const start=source.indexOf('async function openUnifiedLibraryResult('),end=source.indexOf('async function restorePendingLibraryAnchor(',start);
+ vm.runInNewContext(source.slice(start,end),context);
+ const note={kind:'notes',mediaType:'browser',mediaId,url,timed:true,seconds:0};
+ assert.equal(await context.openUnifiedLibraryResult(note),false);assert.equal(calls.length,0);
+ context.currentBrowserWhisperAudio=()=>({mediaKey:mediaId,tabId:'A',mediaToken:'audio-A'});
+ assert.equal(await context.openUnifiedLibraryResult(note),true);assert.deepEqual(calls.shift(),['seek',0,'A','audio-A']);
+ const bound={...note,sourceVersion:'browser-audio:web:url:page:stream:episode'};
+ tab.browserClockSample={audioSourceIdentity:'web:url:page:stream:replacement'};
+ assert.equal(await context.openUnifiedLibraryResult(bound),false);assert.equal(calls.length,0);
+ tab.browserClockSample.audioSourceIdentity='web:url:page:stream:episode';
+ assert.equal(await context.openUnifiedLibraryResult(bound),true);assert.deepEqual(calls.shift(),['seek',0,'A','audio-A']);
+ context.player.browserTabs=[];
+ assert.equal(await context.openUnifiedLibraryResult(note),false);
+ assert.equal(calls[0][0],'open');assert.equal(calls[0][3].seek,false);
+});
+test('A note prefers the active verified copy and waits for the switched tab to confirm its audio again',async()=>{
+ const mediaId='browser:web:url:page',version='web:url:page:stream:episode',calls=[];
+ const tab=id=>({id,generation:2,mediaId:'web:url:page',browserClockSample:{audioSourceIdentity:version}});
+ const a=tab('A'),b=tab('B'),player={browserTabs:[a,b],browserDuration:90,workspaceMode:'browser',browserActiveTabId:'B'};
+ const context={player,setTimeout,browserTabState:id=>player.browserTabs.find(tab=>tab.id===id),
+  activateBrowserTab:async id=>{calls.push(['activate',id]);player.browserActiveTabId=id;if(id==='A'){a.browserClockSample=null;setTimeout(()=>{a.browserClockSample={audioSourceIdentity:version};},5);}return true;},
+  currentBrowserWhisperAudio:()=>player.browserTabs.find(tab=>tab.id===player.browserActiveTabId)?.browserClockSample&&{mediaKey:mediaId,tabId:player.browserActiveTabId,mediaToken:'token-'+player.browserActiveTabId},
+  browserCommand:async(...args)=>{calls.push(args);return {ok:true};}};
+ const start=source.indexOf('async function openUnifiedLibraryResult('),end=source.indexOf('async function restorePendingLibraryAnchor(',start);
+ vm.runInNewContext(source.slice(start,end),context);
+ const note={kind:'notes',mediaType:'browser',mediaId,sourceVersion:'browser-audio:'+version,timed:true,seconds:12};
+ assert.equal(await context.openUnifiedLibraryResult(note),true);
+ assert.deepEqual(calls.splice(0),[['activate','B'],['seek',12,'B','token-B']]);
+ b.browserClockSample={audioSourceIdentity:'replacement'};
+ assert.equal(await context.openUnifiedLibraryResult(note),true);
+ assert.deepEqual(calls,[['activate','A'],['seek',12,'A','token-A']]);
+});
 function setup(){const calls=[],notices=[];const binding={episodeIdentity:'episode-A',resource:'https://example.test/audio.mp3',revision:1,mime:'audio/mpeg',sha256:'unknown'};let snapshot={mediaKey:'stream-A',generation:2,sourceVersion:'version-A',sourceBinding:binding,episodeIdentity:'episode-A',entryId:'entry-A'};
  const context={window:{UiLocale:{get:()=> 'en'},PlayerSourceCatalogIntegration:{openPodcastEntry:async id=>calls.push(['open-rss',id])},PlayerWorkspaceIntegration:{executeExisting:async packet=>{calls.push(['seek-rss',packet]);return {ok:true};}},CinemaSahne:{open:async()=>{},openShelf:async()=>{}},MediaShelfUI:{readSnapshot:()=>null,openPodcast:async(id,url)=>calls.push(['open-shelf',id,url]),executeExisting:async packet=>{calls.push(['seek-shelf',packet]);return {ok:true};}},api:{mediaShelf:async()=>({ok:true,podcasts:[{id:'show-A',episodes:[{url:'https://example.test/audio.mp3',episodeIdentity:'episode-A'}]}]})}},player:{workspaceMode:'player',get workspaceAudio(){return snapshot;},mediaKey:'stream-A',generation:2},osd:text=>notices.push(text),logLine:text=>notices.push(text)};
  const start=source.indexOf('async function openPodcastResearchResult('),end=source.indexOf('async function openUnifiedLibraryResult(',start);assert(start>=0,'podcast library reopen helper exists');vm.runInNewContext(source.slice(start,end),context);

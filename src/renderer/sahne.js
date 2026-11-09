@@ -17,6 +17,7 @@
   };
   P.volumeZero = 'M11 5 6 9H3v6h3l5 4V5Z|m15 10 5 5|m20 10-5 5';
   P.clock = 'M21 12a9 9 0 1 1-18 0 9 9 0 1 1 18 0Z|M12 7v5l3 2';
+  P.list = 'M9 6h11|M9 12h11|M9 18h11|M4 6h.01|M4 12h.01|M4 18h.01';
   const FILLED = new Set(['play', 'pause']);
   const ic = (n) => `<svg class="i${FILLED.has(n) ? ' f' : ''}" viewBox="0 0 24 24" aria-hidden="true">${P[n].split('|').map((d) => `<path d="${d}"/>`).join('')}</svg>`;
   const fmt = (v) => { const s = Math.max(0, Math.floor((Number(v) || 0)+.001)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
@@ -143,7 +144,7 @@
         <header class="sh-top">
           <div><button class="sh-btn" data-a="close" type="button">${ic('close')}<span>${T('Kapat', 'Close')}</span></button></div>
           <div class="sh-seg" role="tablist" style="--n:${this.caps.cinema?3:2};--i:${this.caps.cinema?['cinema','podcast','study'].indexOf(m):(study?1:0)}" aria-label="${T('Sahne türü', 'Stage type')}">${this.caps.cinema?`<button role="tab" type="button" data-mode="cinema" aria-selected="${cinema}">${ic('play')}${T('Oynatıcı','Player')}</button>`:''}<button role="tab" type="button" data-mode="podcast" aria-selected="${m==='podcast'}">${ic('mic')}${T('Podcast', 'Podcast')}</button><button role="tab" type="button" data-mode="study" ${this.caps.study===false?`disabled title="${T('Ses kaynağında iki dil alttaki dil seçicisinden okunur.','Read both languages with the language selector below.')}"`:""} aria-selected="${m==='study'}">${ic('classic')}${T('Çift dilli', 'Bilingual')}</button></div>
-          <div class="sh-top-r"><button class="sh-btn" data-a="panel" type="button" aria-pressed="false" aria-haspopup="dialog">${ic('tools')}<span>${T('İşlemler', 'Tasks')}</span></button><button class="sh-btn" data-a="sleep" type="button" aria-pressed="false">${ic('moon')}<span data-r="sleeplbl">${T('Uyku', 'Sleep')}</span></button><button class="sh-btn" data-a="classic" type="button" title="${T('Klasik panele dön', 'Back to classic panel')}">${ic('classic')}<span>${T('Klasik panel', 'Classic panel')}</span></button></div>
+          <div class="sh-top-r">${this.caps.queue?`<button class="sh-btn" data-a="listeningQueue" type="button">${ic('list')}<span>${T('Dinleme kuyruğu', 'Listening queue')}</span></button>`:''}<button class="sh-btn" data-a="panel" type="button" aria-pressed="false" aria-haspopup="dialog">${ic('tools')}<span>${T('İşlemler', 'Tasks')}</span></button><button class="sh-btn" data-a="sleep" type="button" aria-pressed="false">${ic('moon')}<span data-r="sleeplbl">${T('Uyku', 'Sleep')}</span></button><button class="sh-btn" data-a="classic" type="button" title="${T('Klasik panele dön', 'Back to classic panel')}">${ic('classic')}<span>${T('Klasik panel', 'Classic panel')}</span></button></div>
         </header>
         <div class="sh-job" data-r="job" role="status" hidden><span class="sh-job-t" data-r="jobt"></span><span class="sh-job-bar" data-r="jobbar"><i></i></span><button class="sh-chip" data-a="jobcancel" type="button" hidden>${T('İptal', 'Cancel')}</button><button class="sh-chip" data-a="jobretry" type="button" hidden>${T('Yeniden dene', 'Retry')}</button></div>
         <div class="sh-workbar" data-r="workbar" hidden></div><div class="sh-main"></div>
@@ -210,7 +211,9 @@
     bind() {
       const r = this.root, a = this.a;
       r.addEventListener('error', event => {
-        if (!this.dead&&event.target.matches?.('[data-r=cover] img')) event.target.replaceWith(this.coverInitials());
+        if (this.dead || !event.target.matches?.('[data-r=cover] img')) return;
+        if (this.coverFallback && event.target.getAttribute('src')!==this.coverFallback) event.target.src=this.coverFallback;
+        else event.target.replaceWith(this.coverInitials());
       }, true);
       const jumpForm = this.q('[data-r=jumpForm]');
       this.q('[data-r=jumpTime]')?.addEventListener('input', () => {
@@ -298,12 +301,18 @@
           }
           case 'cueSeek': {
             const index = Number(b.closest('[data-i]').dataset.i);
-            if (this.canSeek && this.rows[index]?.timed) this.run(this.usesTranslationTime(this.rows[index]) ? 'seekTranslation' : 'seekCue', index);
+            if (this.canSeek && this.rows[index]?.timed) {
+              this.selectSearchResult(index);
+              this.run(this.usesTranslationTime(this.rows[index]) ? 'seekTranslation' : 'seekCue', index);
+            }
             break;
           }
           case 'translationSeek': {
             const row = Number(b.closest('[data-i]').dataset.i);
-            if (this.canSeek) this.run('seekTranslation', { row, part: Number(b.dataset.part) });
+            if (this.canSeek) {
+              this.selectSearchResult(row);
+              this.run('seekTranslation', { row, part: Number(b.dataset.part) });
+            }
             break;
           }
           case 'clearSearch': {
@@ -313,6 +322,8 @@
           case 'fullscreen':this.run('fullscreen');break;
           case 'clearAssistantSelection':this.clearAssistantSelection();break;
           case 'assistant':this.captureAssistantPassage();if(this.assistantSelectionError){this.toast(this.assistantSelectionError);break;}this.run('assistant');break;
+          case 'verifiedAudio':this.run('verifiedAudio');break;
+          case 'listeningQueue':this.run('listeningQueue');break;
           case 'dub':this.run('dub');break;
           case 'noteClose':this.closeNote();break;
           case 'noteSave':void this.saveNote();break;
@@ -418,6 +429,9 @@
         this.paint();
       };
       sc.addEventListener('wheel', manual, { passive: true }); sc.addEventListener('touchmove', manual, { passive: true });
+      sc.addEventListener('selectstart', e => {
+        if(e.target.closest?.('.src, .tr'))manual();
+      });
       // Keyboard users can inspect a sentence without pressing a scroll key.
       // Treat focus entering the transcript as manual reading, just like wheel/touch,
       // so the follow control never claims it is following while focus suppresses it.
@@ -441,7 +455,7 @@
       const cover = this.q('.sh-cover'); if (cover) { cover.addEventListener('pointermove', (e) => { const b = cover.getBoundingClientRect(), x = (e.clientX - b.left) / b.width - .5, y = (e.clientY - b.top) / b.height - .5; cover.style.setProperty('--ry', (x * 14) + 'deg'); cover.style.setProperty('--rx', (-y * 14) + 'deg'); }); cover.addEventListener('pointerleave', () => { cover.style.setProperty('--ry', '0deg'); cover.style.setProperty('--rx', '0deg'); }); }
       const q = this.q('[data-r=q]');
       if (q) {
-        q.addEventListener('input', () => { this.s.follow = false; this.filterRows(true); this.paint(); });
+        q.addEventListener('input', () => { manual(); this.filterRows(true); this.paint(); });
         q.addEventListener('keydown', event => {
           if (this.o.mode === 'cinema' || event.key !== 'Enter' || event.isComposing || !q.value.trim()) return;
           if (this.moveMatch(event.shiftKey ? -1 : 1, true)) event.preventDefault();
@@ -478,6 +492,7 @@
           else if(this.s.note)this.closeNote();
           else if(this.s.word)this.closeWord();
           else if(this.s.panel)this.togglePanel();
+          else if(q?.value.trim()&&target.closest?.('[data-i], [data-r=searchNav]'))q.focus({preventScroll:true});
           else if(this.s.transcript && (this.o.mode === 'cinema' || this.usesTranscriptDrawer()))this.toggleTranscript();
           else if(document.fullscreenElement)void this.run('fullscreen');
           else this.o.onClose?.();
@@ -754,6 +769,15 @@
       if (focus) (this.sentenceSeekControls(line)[0] || line.querySelector('[data-act=copy]'))?.focus();
       return true;
     }
+    selectSearchResult(index) {
+      const line=this.lines[index];
+      if(!this.q('[data-r=q]')?.value.trim()||!line||line.hidden)return;
+      cancelAnimationFrame(this.readingLayoutRaf);
+      this.s.follow=false;
+      this.matchLine=line;
+      this.paintMatches();
+      this.paint();
+    }
     sentenceSeekControls(line) {
       const display = this.displayMode();
       const parts = [...line.querySelectorAll('[data-a=translationSeek]')];
@@ -972,7 +996,7 @@
       const standalone = c.standaloneTranslation
         ? `<small class="sh-translation-origin">${T('Bağımsız çeviri satırı', 'Standalone translation line')}</small>` : '';
       const time = fmt(c.start);
-      const stamp = !c.timed ? '' : shared
+      const stamp = !c.timed ? (c.recordedRange?`<span class="sh-recorded-time">${fmt(c.recordedRange.start)}–${fmt(c.recordedRange.end)} · ${T('Kayıtlı zaman · salt okunur','Saved time · read only')}</span>`:'') : shared
         ? `<button class="at cue-card-time" type="button" data-a="cueSeek" aria-label="${time} · ${T('Cümleye git', 'Go to sentence')}">${ic('play')}<span>${time}</span></button>`
         : `<span class="at">${time}</span>`;
       return `${stamp}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${standalone}${review}${acts}`;
@@ -1017,7 +1041,7 @@
         const browser = youtube ? `<button class="sh-btn" type="button" data-a="retryCaptions" title="${T('Videoyu kaldığınız konumda yeniden yükler; kayıtlı altyazılar korunur.', 'Reloads the video at your position and keeps saved captions.')}">${T('Altyazıyı yeniden dene','Retry captions')}</button><button class="sh-btn" type="button" data-a="close">${T('Browser’da CC’yi aç','Open CC in browser')}</button>` : '';
         frag.append(this.el(`<div class="sh-empty">${ic(available || youtube ? 'classic' : 'mic')}<h2>${title}</h2><p>${hint}</p>${browser}<button class="sh-btn" type="button" data-a="panel" ${available ? 'data-caption-entry' : ''}>${action}</button></div>`));
       }
-      if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = st.timingNotice || T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); frag.append(n); }
+      if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = st.timingNotice || T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); if(this.a.verifyTiming?.()){const button=document.createElement('button');button.type='button';button.className='sh-btn sh-verify-audio';button.dataset.a='verifiedAudio';button.textContent=T('Zamanlı ses kopyasıyla aç','Open with the timed audio copy');n.append(document.createElement('br'),button);}frag.append(n); }
       st.rows.forEach((c, i) => {
         const row = document.createElement('div'); row.className = (this.o.mode !== 'cinema' ? 'sh-card cue-card' : 'sh-card') + (c.timed ? '' : ' is-untimed'); row.dataset.i = i;
         if (c.timed && this.o.mode === 'cinema') { row.tabIndex = 0; row.setAttribute('role', 'button'); row.addEventListener('keydown', (e) => { if (this.canSeek && ['Enter',' '].includes(e.key) && e.target === row) {e.preventDefault();e.stopPropagation();this.run('seekCue', i);} }); }
@@ -1231,6 +1255,7 @@
       this.drawIdentity(info);
       const chaptersKey=JSON.stringify([info.chapters||[],Math.round(st.duration||0)]);
       if(chaptersKey!==this.chaptersKey){this.chaptersKey=chaptersKey;this.drawChapters(info.chapters||[]);this.drawWaveMarks(st.duration,info.chapters||[]);}
+      const queueButton=this.q('[data-a=listeningQueue] span');if(queueButton){const q=info.listeningQueue;const text=T('Dinleme kuyruğu','Listening queue')+(q?.rows?.length?' · '+q.rows.length:'');if(queueButton.textContent!==text)queueButton.textContent=text;}
       const upNext = this.q('[data-r=upnext]');
       if (upNext) { const next = (info.queue || [])[0], sig = next ? JSON.stringify([next.index,next.title,next.queueKey]) : ''; if (sig !== this.metaQueueSig) { const restoreFocus=upNext.contains(document.activeElement);this.metaQueueSig = sig; upNext.replaceChildren(); upNext.hidden = !next; if (next) upNext.append(this.el(`<button class="sh-next-item sh-next-inline" type="button" data-a="queue" data-index="${Number(next.index)}" data-queue-key="${esc(next.queueKey)}"><small>${T('SIRADAKİ', 'UP NEXT')}</small><strong>${esc(next.title)}</strong></button>`));if(restoreFocus)(upNext.querySelector('button')||this.q('[data-a=toggle]'))?.focus({preventScroll:true}); } }
       const dur = Number(st.duration) || 0, observedTime = Number(st.time) || 0;
@@ -1273,7 +1298,11 @@
       if (translationFocus) {
         idx = translationRow ?? -1;
       }
-      this.updateScope();this.time = time; this.cur = idx;this.paintTransport(observedTime, playbackIndex);this.root.classList.toggle('sh-audio',!!info.audio);
+      this.updateScope();this.time = time; this.cur = idx;this.paintTransport(observedTime, playbackIndex);
+      if(this.root.classList.contains('sh-audio')!==!!info.audio){
+        this.root.classList.toggle('sh-audio',!!info.audio);
+        if(info.webSource)root.syncBrowserOcclusion?.();
+      }
       if (idx !== s.idx || this.activeLine !== this.lines[idx]) {
         const prev = s.idx;
         this.activeLine?.classList.remove('on');
@@ -1316,15 +1345,21 @@
       this.restoreReadingPosition();
     }
     drawIdentity(info) {
-      const identityKey=JSON.stringify([info.title,info.cover,info.sub,info.eyebrow,info.tint]);
+      const identityKey=JSON.stringify([info.title,info.cover,info.fallbackCover,info.program,info.sub,info.eyebrow,info.tint]);
       if(identityKey===this.identityKey)return;this.identityKey=identityKey;
       const title=this.q('[data-r=title]');if(!title)return;
       title.textContent=info.title||T('Başlıksız bölüm','Untitled episode');
       this.root.classList.toggle('sh-long-title',Array.from(title.textContent).length>72);
       this.q('[data-r=eyebrow]').textContent=info.eyebrow||T('Şimdi çalıyor','Now playing');
       this.q('[data-r=sub]').textContent=info.sub||'';this.setTint(info.tint);
-      const cover=this.q('[data-r=cover]'),source=info.cover||'';
-      if(this.coverSource!==source||!cover.firstElementChild){this.coverSource=source;cover.replaceChildren(source?this.el(`<img src="${esc(source)}" alt="">`):this.coverInitials());}
+      const program=this.q('[data-r=program]');
+      if(program){program.textContent=info.program||'';program.hidden=!info.program;}
+      const cover=this.q('[data-r=cover]'),source=info.cover||info.fallbackCover||'';
+      const fallback=info.cover&&info.fallbackCover!==source?info.fallbackCover||'':'';
+      if(this.coverSource!==source||this.coverFallback!==fallback||!cover.firstElementChild){
+        this.coverSource=source;this.coverFallback=fallback;
+        cover.replaceChildren(source?this.el(`<img src="${esc(source)}" alt="">`):this.coverInitials());
+      }
       else if(!cover.querySelector('img'))cover.replaceChildren(this.coverInitials());
     }
     coverInitials() {
@@ -1612,16 +1647,16 @@
         if (button.textContent !== label) button.textContent = label;
       }
       const p = this.a.panel?.(); const j = p && p.job, box = this.q('[data-r=job]'); if (!box) return;
-      const show = !!j && ['running','failed','stopped','partial','cancelled'].includes(j.state);
+      const show = !!j && ['running','done','failed','stopped','partial','cancelled'].includes(j.state);
       if(!show&&box.contains(document.activeElement))this.q('[data-a=toggle]')?.focus({preventScroll:true});
       if (box.hidden === show) box.hidden = !show; if (!show) return;
       box.dataset.state = j.state;
       let stateLabel=box.querySelector('.sh-job-state');
       if(!stateLabel){stateLabel=document.createElement('strong');stateLabel.className='sh-job-state';box.prepend(stateLabel);}
-      const stateText={running:T('İşleniyor','Processing'),failed:T('Tamamlanamadı','Failed'),partial:T('Kısmi sonuç','Partial result'),stopped:T('Durduruldu','Stopped'),cancelled:T('İptal edildi','Cancelled')}[j.state];
+      const stateText={running:T('İşleniyor','Processing'),done:T('Tamamlandı','Completed'),failed:T('Tamamlanamadı','Failed'),partial:T('Kısmi sonuç','Partial result'),stopped:T('Durduruldu','Stopped'),cancelled:T('İptal edildi','Cancelled')}[j.state];
       if(stateLabel.textContent!==stateText)stateLabel.textContent=stateText;
       const status = this.q('[data-r=jobt]');
-      const message = j.text || (['stopped','cancelled'].includes(j.state)?T('Durduruldu. Kaydedilmiş sonuçlar korunur; İşlemler’den kullanılabilir sonuçları açabilirsiniz.','Stopped. Saved results are kept; open available results in Tasks.'):j.state==='partial'?T('Kısmi sonuç kaydedildi. Hazır satırlar korunur; İşlemler’den eksikleri tamamlayabilirsiniz.','Partial result saved. Ready lines are kept; complete missing lines in Tasks.'):j.state === 'failed' ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…'));
+      const message = j.text || (j.state==='done'?'':['stopped','cancelled'].includes(j.state)?T('Kaydedilmiş sonuçlar korunur.','Saved results are kept.'):j.state==='partial'?T('Kısmi sonuç kaydedildi. Hazır satırlar korunur; İşlemler’den eksikleri tamamlayabilirsiniz.','Partial result saved. Ready lines are kept; complete missing lines in Tasks.'):j.state === 'failed' ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…'));
       if (status.textContent !== message) status.textContent = message;
       const running = j.state === 'running';
       const progress = running && Number.isFinite(j.progress) ? Math.round(Math.max(0, Math.min(1, j.progress)) * 100) : null;

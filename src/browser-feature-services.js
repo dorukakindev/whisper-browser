@@ -19,6 +19,15 @@ function registerBrowserFeatureServices(deps) {
   const jobs = new Map(), captures = new Map();
   const references = new Map();
   const preparedAudio = new Map();
+  function evictPreparedAudio() {
+    for (const [key, item] of preparedAudio) {
+      if (item.inUse) continue;
+      try { fs.rmSync(item.path, {force:true}); } catch { continue; }
+      preparedAudio.delete(key);
+      return true;
+    }
+    return false;
+  }
   const audioStat = file => {
     try {
       const stat=fs.statSync(file);
@@ -30,7 +39,7 @@ function registerBrowserFeatureServices(deps) {
     return !!stat&&stat.size===item.stat.size&&stat.mtimeMs===item.stat.mtimeMs&&stat.ino===item.stat.ino;
   };
   const dl=(tr,en)=>deps.dialogText?.(tr,en)||tr;
-  app.once?.('will-quit',()=>{for(const item of preparedAudio.values())try{fs.rmSync(item.path,{force:true});}catch{}preparedAudio.clear();});
+  app.once?.('will-quit',()=>{for(const item of preparedAudio.values())if(!item.inUse)try{fs.rmSync(item.path,{force:true});}catch{}preparedAudio.clear();});
   const encodingPreviews = new Map();
   let seriesStore = null;
   const series = () => seriesStore ||= require('./browser-series-context').createBrowserSeriesContext({
@@ -228,7 +237,9 @@ function registerBrowserFeatureServices(deps) {
           const media=best.media,expected=String(payload.mediaToken||'');
           if(!expected||media?.docToken!==expected||media.tagName!=='audio')throw Error(dl('Ses kaynağı değişti. Bölümü oynatıp yeniden deneyin.','The audio source changed. Play the episode and try again.'));
           const url=String(media.sourceUrl||'');
-          if(!/^https?:\/\//i.test(url))throw Error(dl('Bu ses indirilebilir bir bağlantı sunmuyor. Canlı Whisper kullanabilirsiniz.','This audio has no downloadable URL. You can use Live Whisper.'));
+          if(!/^https?:\/\//i.test(url))return {ok:false,code:'live-whisper-available',
+            error:dl('Bu bölüm indirilebilir bir ses bağlantısı sunmuyor. Canlı Whisper oynatılan sesi yazıya döker.',
+              'This episode has no downloadable audio link. Live Whisper transcribes the audio as it plays.')};
           const identity=require('./browser-media-identity').observedDirectMediaIdentity(tab.view.webContents.getURL(),url,'audio');
           const lookup = saved => {
             const outputs=payload.findSaved===true&&saved.binding
@@ -236,13 +247,17 @@ function registerBrowserFeatureServices(deps) {
             return {path:saved.path,mediaToken:expected,...(outputs?.length?{outputs}:{})};
           };
           const cacheKey=tab.id+':'+expected,cached=preparedAudio.get(cacheKey);
-          if(validPreparedAudio(cached)){publish('verified');result=lookup(cached);break;}
+          if(validPreparedAudio(cached)){
+            preparedAudio.delete(cacheKey);
+            preparedAudio.set(cacheKey,cached);
+            publish('verified');result=lookup(cached);break;
+          }
           if(cached){
+            if(cached.inUse)throw Error(dl('Ses dosyası şu anda kullanılıyor.','The audio file is in use.'));
             preparedAudio.delete(cacheKey);
             await fs.promises.rm(cached.path,{force:true}).catch(()=>{});
             assertCurrent();
           }
-          if(preparedAudio.size>=4)throw Error(dl('Hazırlanmış ses sınırına ulaşıldı. Uygulamayı yeniden açıp deneyin.','The prepared audio limit was reached. Reopen the app and try again.'));
           const dir=path.join(app.getPath('userData'),'browser-whisper-audio');await fs.promises.mkdir(dir,{recursive:true});
           let file=path.join(dir,randomUUID()+'.partial');
           try{
@@ -262,8 +277,10 @@ function registerBrowserFeatureServices(deps) {
               identity,sha256:proof.sha256,title:String(media.audioTitle||tab.view.webContents.getTitle?.()||tab.title||'').trim().slice(0,300),
             }:null,stat:audioStat(file)};
             if(!saved.stat)throw Error(dl('Hazırlanan ses dosyası bulunamadı.','The prepared audio file is missing.'));
-            preparedAudio.set(cacheKey,saved);
+            if(preparedAudio.size>=4&&!evictPreparedAudio())throw Error(dl('Geçici sesler kullanılıyor veya silinemiyor. Sonra tekrar deneyin.',
+              'Cached audio is in use or could not be removed. Try again later.'));
             result=lookup(saved);
+            preparedAudio.set(cacheKey,saved);
             publish('verified');
           }catch(error){await fs.promises.rm(file,{force:true}).catch(()=>{});throw error;}
           break;
@@ -494,11 +511,21 @@ function registerBrowserFeatureServices(deps) {
       assertCurrent();
       return { ok: true, ...result };
     } catch (error) {
+      if(payload.action==='whisper-audio'&&current()&&/^Podcast audio (?:format is unsupported|unavailable or response is not audio|exceeds 512 MiB)\.$/.test(error.message)){
+        return {ok:false,code:'live-whisper-available',error:dl(
+          'Bölüm sesi toplu işleme için alınamadı. Canlı Whisper oynatılan sesi yazıya döker.',
+          'Episode audio could not be prepared for batch processing. Live Whisper transcribes the audio as it plays.')};
+      }
       return { ok: false, stale: !current(), error: String(error.message || 'Video aracı çalıştırılamadı.').slice(0, 600) };
     } finally { if (jobs.get(key) === controller) jobs.delete(key); }
   });
   return { mini, cancel, hasJobs: () => jobs.size > 0,
-    whisperInputBinding: file => [...preparedAudio.values()].find(item=>item.path===file&&validPreparedAudio(item))?.binding || null,
+    retainWhisperInput(file) {
+      const item=[...preparedAudio.values()].find(entry=>entry.path===file&&validPreparedAudio(entry));
+      if(!item)return null;
+      item.inUse=(item.inUse||0)+1;
+      return {binding:item.binding,release:()=>{item.inUse--;}};
+    },
     translationContext: (tab, targetLanguage) => {
     const language = require('./browser-series-context').targetLanguageOf(targetLanguage);
     return language ? series().translationContext(mediaKey(tab).key, language) : null;

@@ -16,6 +16,9 @@
   const stale=()=>isCancelled()||Date.now()>=deadline||!window.AssistantAppActions.current(owner);
   if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
   const ui=window.DubGeneratorUI?.assistant;
+  const shelf=window.MediaShelfUI?.isPodcastMode?.()?window.MediaShelfUI.readSnapshot():null;
+  if(shelf&&name==='get_voice_status')return {status:'completed',voice:{opened:false,subtitleReady:false,engineAndReferenceReady:false,sourceKind:'podcast-library',hasMedia:true,needsPreparation:true,output:null,groups:[]},attached:false,note:t('This podcast is already playing. Use open_voice_preparation to open its saved source and translation in the shared dubbing panel; no generation starts. Do not use a hidden player context.','Bu podcast zaten açık. Kayıtlı kaynak ve çevirisini ortak dublaj panelinde incelemek için open_voice_preparation kullanın; üretim başlamaz. Gizli oynatıcı bağlamını kullanmayın.')};
+  if(shelf&&!['get_voice_status','list_voice_references'].includes(name))throw Error(t('Review this podcast with open_voice_preparation first. No audio was changed.','Önce open_voice_preparation ile bu podcasti inceleyin. Ses değiştirilmedi.'));
   if(name==='get_voice_status')return {status:'completed',voice:ui?.state(args)||{opened:false},attached:!!window.BrowserDubAudioUI?.originalPlayback(),note:t('Only selected settings and bounded check results; the model has not listened to this audio.','Yalnız seçili ayarlar ve sınırlı kontrol sonuçlarıdır; model bu sesi dinlemedi.')};
   if(name==='list_voice_references'){
    const result=await window.api.listVoiceReferences(),config=await window.api.dubConfig();if(stale()||!result?.ok||!config?.ok)throw Error(t('References could not be read.','Referanslar okunamadı.'));

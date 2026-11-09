@@ -148,16 +148,22 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    // Keep the latest delivered human request separate from the accumulated
    // provider history. Old explicit wording must not resolve a later ambiguity.
    flow.humanIntent??={question:flow.question,revision:0};
-   const podcastWatched=owner.kind==='studio'&&(flow.podcastEvidence||input.context?.workspace==='podcast')&&watchedQuestion(flow.question);
+   const podcastWatched=['studio','page','video'].includes(owner.kind)&&(flow.podcastEvidence||input.context?.workspace==='podcast')&&watchedQuestion(flow.question);
    const watchedOnly=(owner.kind==='video'||podcastWatched)&&watchedQuestion(flow.question);
    // Continuation retains the episode packet, not a hidden player pool or a newly broadened context.
    const podcastContext=flow.podcastEvidence||input.context;
    const ownerHorizon=Number.isFinite(flow.owner?.time)?Math.min(flow.owner.time,owner.time):owner.time;
    const horizon=podcastWatched&&Number.isFinite(podcastContext?.watched_cutoff)?Math.max(0,Math.min(ownerHorizon,podcastContext.watched_cutoff)):ownerHorizon;
-   const podcastRows=Array.isArray(podcastContext?.evidence)?podcastContext.evidence:[];
+   const transcript=podcastContext?.transcript_evidence;
+   const podcastRows=Array.isArray(podcastContext?.evidence)?podcastContext.evidence:
+    (Array.isArray(transcript?.evidence)?transcript.evidence.map(row=>({
+     start:row?.baslangic,end:row?.bitis,text:row?.metin,translation:row?.ceviri
+    })):[]);
+   const sourceCoverage=podcastContext?.sourceCoverage??transcript?.coverage;
+   const sourceTruncated=podcastContext?.sourceTruncated??(sourceCoverage==='partial');
    const sourcePool=manifest.pool(reviewMode?[]:podcastWatched?podcastRows.map((row,index)=>({...row,id:'U'+index})):input.pool).filter(row=>!watchedOnly||row.end<=horizon);
-   if(podcastWatched&&!flow.podcastEvidence)flow.podcastEvidence={workspace:'podcast',evidence:sourcePool,watched_cutoff:horizon,sourceTruncated:podcastContext.sourceTruncated,sourceCoverage:podcastContext.sourceCoverage};
-   const sourceContext=watchedOnly?{title:owner.title,...(podcastWatched?{workspace:'podcast',evidence:sourcePool,sourceTruncated:podcastContext.sourceTruncated,sourceCoverage:podcastContext.sourceCoverage}:{}),sinir:'Only timed excerpts ending by the frozen playback position are available.'}:input.context;
+   if(podcastWatched&&!flow.podcastEvidence)flow.podcastEvidence={workspace:'podcast',evidence:sourcePool,watched_cutoff:horizon,sourceTruncated,sourceCoverage};
+   const sourceContext=watchedOnly?{title:owner.title,...(podcastWatched?{workspace:'podcast',evidence:sourcePool,sourceTruncated,sourceCoverage}:{}),sinir:'Only timed excerpts ending by the frozen playback position are available.'}:input.context;
    owner.hasSubtitles=sourcePool.length>0;
    const config=getConfig();
    controller=new AbortController();session={id:input.requestId,controller,owner,flow,reviewMode,runtime:runtimeTools.createRuntime(input.requestId)};sessions.set(event.sender.id,session);

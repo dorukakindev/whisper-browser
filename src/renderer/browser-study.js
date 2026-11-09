@@ -41,16 +41,20 @@
     refresh();
     if (typeof scheduleBrowserOverlaySync === 'function') scheduleBrowserOverlaySync();
     const openedKey = key();
+    const openedRevision = presentationRevision;
     requestAnimationFrame(() => {
-      if (!layer.classList.contains('cp-sahne-on') && openedKey === key() && box?.isConnected && !box.hidden) (controls.querySelector('button:not(:disabled)') || box).focus({ preventScroll: true });
+      if (openedRevision === presentationRevision && !layer.classList.contains('cp-sahne-on')
+          && openedKey === key() && active() && box?.isConnected && !box.hidden) {
+        (controls.querySelector('button:not(:disabled)') || box).focus({ preventScroll: true });
+      }
     });
   }
   function close() {
     presentationRevision++;
     if (key()) selectedMedia.set(key(), media());
-    window.BrowserPodcastUI?.setMode(false);
     const previous = currentSession();
     if (previous) previous.closed = true;
+    window.BrowserPodcastUI?.setMode(false);
     if (previous && player.viewMode === 'study' && previous.view !== player.viewMode) setViewMode(previous.view);
     if (previous?.subtitleMode) setSubtitleMode(previous.subtitleMode, false);
     refresh();

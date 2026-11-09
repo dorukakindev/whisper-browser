@@ -1,6 +1,19 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const P=require('../src/feed-parser');
+test('episode schema follows the observed enclosure and keeps episode and show artwork separate',()=>{
+ const episode=(id)=>({'@type':'PodcastEpisode',name:'Episode '+id,image:'/episode-'+id+'.jpg',
+  associatedMedia:{'@type':'AudioObject',contentUrl:'/audio-'+id+'.mp3'},
+  partOfSeries:{name:'The program',image:'/show.jpg',publisher:{name:'The publisher'}}});
+ const html='<script type="application/ld+json">'+JSON.stringify([episode(1),episode(2)])+'</script>';
+ const page='https://feed.example/episodes';
+ assert.equal(P.discoverPodcastEpisode(html,page),null);
+ const matched=P.discoverPodcastEpisode(html,page,'https://feed.example/audio-2.mp3');
+ assert.equal(matched.episode.image,'https://feed.example/episode-2.jpg');
+ assert.equal(matched.podcast.image,'https://feed.example/show.jpg');
+ assert.equal(matched.podcast.publisher,'The publisher');
+ assert.equal(P.discoverPodcastEpisode(html,page,'https://feed.example/promo.mp3'),null);
+});
 test('RSS, Atom and JSON Feed normalize safe text, native identity and enclosure types',()=>{
  const rss=P.parseFeed('<rss version="2.0"><channel><title>Sinema</title><language>tr</language><item><guid>native:1</guid><title>Öykü</title><link>/one</link><description><![CDATA[<p>Kaynağın özeti</p><script>bad()</script>]]></description><enclosure url="https://audio.example/one.mp3" type="audio/mpeg"/></item></channel></rss>','https://feed.example/rss');
  assert.equal(rss.entries[0].externalId,'native:1');assert.equal(rss.entries[0].kind,'podcast');assert.equal(rss.entries[0].url,'https://feed.example/one');assert.equal(rss.entries[0].contentScope,'summary');assert.doesNotMatch(rss.entries[0].text,/bad|script/);

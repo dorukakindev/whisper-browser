@@ -76,8 +76,11 @@
     const entry=current.entry,enclosure=entry.enclosures?.find(e=>/^audio\//.test(e.type));if(!enclosure)throw Error(t('Ses kaynağı yok.','No audio enclosure.'));
     const saved=await api({action:'podcast-workspace',entryId:entry.id});
     if(request!==epoch||!intentCurrent())return;
-    const exact=exactVersion&&saved.sourceVersion===exactVersion
-      ?await api({action:'podcast-exact-audio',entryId:entry.id}):null;
+    // Prefer the verified bytes used by Whisper when reopening a saved ASR result.
+    // A missing cache falls back to read-only stream text; an explicit copy request must fail.
+    const desiredExact=exactVersion||(saved.workspace?.transcript?.provenance==='asr'&&saved.workspace.transcript.timeline?saved.sourceVersion:null);
+    const candidate=desiredExact&&saved.sourceVersion===desiredExact?await api({action:'podcast-exact-audio',entryId:entry.id}):null;
+    const exact=candidate?.available&&candidate.sourceVersion===desiredExact?candidate:null;
     if(request!==epoch||!intentCurrent())return;
     if(exactVersion&&(!exact?.available||exact.sourceVersion!==exactVersion))return {readOnly:true};
     const stream=exact
@@ -246,7 +249,7 @@
     const result=saved.workspace?.[role==='translation'?'translation':'transcript'];
     if(!result?.text)throw Error(t('Bu kaynak için kayıtlı sonuç yok.','No saved result is available for this source.'));
     const requiresExactAudio=result.provenance==='asr'||!!result.timeline||saved.workspace?.transcript?.provenance==='asr';
-    if(saved.sourceVersion===audio.sourceVersion&&(!requiresExactAudio||audio.exactAudio&&!!result.timeline?.sha256&&result.timeline.sha256===audio.sourceBinding?.sha256)&&result.state==='timed'&&result.status!=='partial'){
+    if(saved.sourceVersion===audio.sourceVersion&&(!requiresExactAudio||audio.exactAudio&&!!result.timeline?.sha256&&result.timeline.sha256===audio.sourceBinding?.sha256)&&result.state==='timed'){
       const materialized=await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:saved.sourceVersion,role});if(!valid())return;
       const loaded=await loadSubtitle(materialized.path,role==='translation',{silent:true,select:true,role,isCancelled:()=>!valid()});if(!valid())return;
       if(loaded?.ok===false)throw Error(loaded.error||t('Kayıtlı dosya okunamadı. Sonucu yeniden yükleyin.','The saved file could not be read. Reload the result.'));
@@ -260,8 +263,8 @@
       const cues=result.state==='timed'?parseSubtitles(result.text):[];
       const text=cues.length?cues.map(cue=>String(cue.text||'')).join('\n\n'):String(result.text);
       if(role==='translation')audio.translationText=text;
-      else {audio.transcriptText=text;delete audio.translationText;const translation=saved.workspace?.translation;if(translation?.text&&translation.status!=='partial')audio.translationText=translation.state==='timed'?parseSubtitles(translation.text).map(cue=>String(cue.text||'')).join('\n\n'):translation.text;}
-      audio.transcriptState='untimed';audio.transcriptTimingNotice=t('Salt okunur sonuç: açık ses ile kaynak sürümü/zaman eşleşmesi doğrulanmadı veya çıktı kısmi. Metin konum atlamak ve bu ana kadar kapsamı için kullanılamaz.','Read-only result: the open audio source version/timing is unverified or the result is partial. Text cannot be used for seeking or evidence of what has been heard.');
+      else {audio.transcriptText=text;delete audio.translationText;const translation=saved.workspace?.translation;if(translation?.text)audio.translationText=translation.state==='timed'?parseSubtitles(translation.text).map(cue=>String(cue.text||'')).join('\n\n'):translation.text;}
+      if(role!=='translation'||!player.subPath)audio.transcriptState='untimed';audio.transcriptTimingNotice=t('Salt okunur sonuç: açık ses ile kaynak sürümü/zaman eşleşmesi doğrulanmadı. Metin konum atlamak ve bu ana kadar kapsamı için kullanılamaz.','Read-only result: the open audio source version/timing is unverified. Text cannot be used for seeking or evidence of what has been heard.');
     }
     if(result.state==='untimed'&&saved.workspace?.transcript?.state==='untimed')audio.transcriptTimingNotice=t('Yayıncı metni zamansızdır; özgün metin ve çeviri yalnızca okunur.','Publisher text has no timing; source and translation are read-only.');
     if(role!=='translation'){audio.transcriptCoverage=result.coverage||null;if(result.coverage)audio.transcriptTimingNotice=(audio.transcriptTimingNotice||'')+' '+t('Seçili aralık','Selected interval')+': '+window.PodcastTaskScope.stamp(result.coverage.start)+' – '+window.PodcastTaskScope.stamp(result.coverage.end)+'. '+t('Bölümün tamamı değildir.','This is not the whole episode.');}

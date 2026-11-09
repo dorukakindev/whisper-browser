@@ -55,3 +55,10 @@ test('mixed setting summaries omit unchanged fields but still validate their sna
  assert.equal(model.summary('transcription','{"model":"large-v3","beamSize":3}','en',{values:{model:'large-v3',beamSize:5}}),'Beam size: 5 → 3\nApplies to future jobs; running and already queued jobs keep their settings. No job starts.');
  assert.match(model.summary('assistant','{"flex":false}','tr',{values:{flex:false}}),/değişiklik yok/);
 });
+
+test('sentence continuation is readable, editable and reversible without an attached subtitle',async t=>{
+ const h=setup(t),before=h.read('transcription').values.mergeContinuation;
+ const result=await h.run('configure_workflow',{domain:'transcription',changes_json:JSON.stringify({mergeContinuation:!before})});
+ assert.equal(result.status,'completed');assert.equal(h.read('transcription').values.mergeContinuation,!before);
+ await h.run('undo_workflow_settings',{domain:'transcription'});assert.equal(h.read('transcription').values.mergeContinuation,before);
+});

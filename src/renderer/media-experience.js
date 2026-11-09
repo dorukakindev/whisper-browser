@@ -92,10 +92,12 @@
       actions:[{label:t('Stop','Durdur'),kind:'stop',run:()=>window.api.cancelYoutubeDownload()}] });
     return rows;
   }
-  async function openVoice() {
+  async function openVoice({receipt=false}={}) {
     // Opens the existing source/reference/range review, never starts generation.
     try {
-      if (window.DubGeneratorUI?.prepareCurrent) return await window.DubGeneratorUI.prepareCurrent();
+      const scene=window.CinemaSahne?.current;
+        if(scene?.a?.caps?.queue&&window.MediaShelfUI?.isPodcastMode?.()) {const result=await scene.a.cmd('dub');if(!result?.ok)throw Error(result?.message||t('Voice window could not be opened.','Ses penceresi açılamadı.'));return receipt?result:true;}
+        if (window.DubGeneratorUI?.prepareCurrent) return await window.DubGeneratorUI.prepareCurrent();
       $('dubMainOpen')?.click();
     } catch (error) {
       const message = error?.message || t('Voice window could not be opened.','Ses penceresi açılamadı.');

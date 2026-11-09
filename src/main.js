@@ -4415,6 +4415,7 @@ function browserTabSnapshot(tab) {
     duration: Number(tab?.duration) || 0,
     rate: Number(tab?.rate) || 1,
     volume: Number.isFinite(Number(tab?.volume)) ? Number(tab.volume) : 1,
+    paused: tab?.playbackPaused,
     muted: !!tab?.muted,
     tabMuted: wc ? !!wc.isAudioMuted?.() : !!tab?.tabMuted,
     audible: wc ? !!wc.isCurrentlyAudible?.() : false,
@@ -13251,10 +13252,13 @@ async function probeActiveBrowserMedia(requestedTab = null) {
       ? NaN : Number(media.totalVideoFrames);
     const adRemaining = media.adRemaining === null || media.adRemaining === undefined
       ? NaN : Number(media.adRemaining);
+    const { podcastSchema, sourceUrl, ...mediaFields } = media;
+    const feedParser = require('./feed-parser');
     const safeMedia = {
-      ...media,
+      ...mediaFields,
       audioChoices: probed.flatMap(item=>item?.audioChoices||[]).slice(0,12),
-      artworkUrl: require('./feed-parser').safeUrl(media.artworkUrl,pageUrl),
+      artworkUrl: feedParser.safeUrl(media.artworkUrl,pageUrl),
+      fallbackArtworkUrl: feedParser.safeUrl(media.fallbackArtworkUrl,pageUrl),
       live: media.live === true,
       currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
       duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
@@ -13276,13 +13280,21 @@ async function probeActiveBrowserMedia(requestedTab = null) {
       adRemaining: Number.isFinite(adRemaining) ? Math.max(0, adRemaining) : null,
     };
     const directIdentity=!safeMedia.adPlaying&&safeMedia.readyState>=1
-      ? observedDirectMediaIdentity(pageUrl,media.sourceUrl,media.tagName) : '';
-    // The raw resource URL is only used inside main for a redacted identity;
-    // signed URLs never become renderer diagnostics, provider context or logs.
-    delete safeMedia.sourceUrl;
-    if (media.tagName==='audio' && directIdentity) {
-      tab.pageArtworkAudioIdentity ||= directIdentity;
-      if (tab.pageArtworkAudioIdentity!==directIdentity&&!media.audioArtworkBound) safeMedia.artworkUrl='';
+      ? observedDirectMediaIdentity(pageUrl,sourceUrl,media.tagName) : '';
+    if (media.tagName==='audio') {
+      safeMedia.audioSourceIdentity = directIdentity;
+      const episode = directIdentity && podcastSchema
+        ? feedParser.discoverPodcastEpisode(podcastSchema,pageUrl,sourceUrl) : null;
+      const otherAudio = safeMedia.audioChoices.some(choice=>choice.token!==media.docToken);
+      if (directIdentity && !otherAudio) tab.pageArtworkAudioIdentity ||= directIdentity;
+      const pageArtwork = directIdentity && tab.pageArtworkAudioIdentity===directIdentity && !otherAudio
+        ? safeMedia.artworkUrl : '';
+      safeMedia.artworkUrl = (media.audioArtworkBound && safeMedia.artworkUrl) || episode?.episode.image || pageArtwork;
+      safeMedia.fallbackArtworkUrl ||= episode?.podcast.image || '';
+      safeMedia.audioTitle = episode?.episode.title || media.audioTitle || '';
+      safeMedia.showTitle ||= episode && episode.podcast.title!==episode.episode.title ? episode.podcast.title : '';
+      const publisher = episode?.podcast.publisher;
+      safeMedia.publisher ||= publisher && publisher!==new URL(pageUrl).hostname ? publisher : media.siteName || publisher || '';
     }
     if(directIdentity){
       const previous=tab.observedDirectMediaIdentity;
@@ -13308,17 +13320,18 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     if(restoredPlayback?.waiting)return true;
     if(restoredPlayback?.media)Object.assign(safeMedia,restoredPlayback.media);
     tab.position = safeMedia.currentTime;
-    safeMedia.publisher = String(media.publisher || '').trim().slice(0,300);
+    safeMedia.publisher = String(safeMedia.publisher || '').trim().slice(0,300);
     tab.duration = safeMedia.duration;
     tab.contentDuration = retainCeaExpectedDuration(tab.contentDuration, safeMedia);
     tab.rate = safeMedia.playbackRate;
     tab.volume = safeMedia.volume;
+    tab.playbackPaused = !!safeMedia.paused;
     tab.muted = !!safeMedia.muted;
     tab.translationScheduler?.updatePlayhead(tab.position);
     const playbackDiagnostics = tab.playbackDiagnostics.observeMediaSample(safeMedia);
     for (const diagnostic of playbackDiagnostics) publishBrowserPlaybackDiagnostics(tab, diagnostic);
     tab.activeAudioToken=media.tagName==='audio'?media.docToken:'';
-    const mediaSignature = [safeMedia.docToken || '', safeMedia.publisher, safeMedia.artworkUrl, safeMedia.audioTitle, JSON.stringify(safeMedia.audioChoices), safeMedia.pinnedAudio, safeMedia.live, Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
+    const mediaSignature = [safeMedia.docToken || '', safeMedia.audioSourceIdentity, safeMedia.publisher, safeMedia.artworkUrl, safeMedia.fallbackArtworkUrl, safeMedia.audioTitle, safeMedia.showTitle, safeMedia.siteName, JSON.stringify(safeMedia.audioChoices), safeMedia.pinnedAudio, safeMedia.live, Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
       Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused, !!safeMedia.adPlaying,
       !!safeMedia.adSkippable, safeMedia.adRemaining ?? '', safeMedia.readyState, !!safeMedia.seeking, !!safeMedia.ended, safeMedia.spinnerVisible].join('|');
     if (mediaSignature !== tab.lastMediaEventSignature) {
@@ -13731,6 +13744,11 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   wc.on('media-started-playing', () => {
     if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
     if(tab.sourceReturnHold?.wc===wc){void executeBrowserViewFrames(view,buildBrowserMediaCommandScript('pause')).catch(()=>{});return;}
+    const leaving = tab.id === browserActiveTabId && tab.lifecycle === 'background';
+    if(leaving || (tab.id!==browserActiveTabId && tab.id!==browserSplitSecondaryTabId && !browserExtras?.mini.owns(tab))){
+      void pauseBrowserTabMedia(view).catch(()=>{});
+      return;
+    }
     updateBrowserPlaybackState(tab, true);
     if (tab.id === browserActiveTabId) {
       scheduleBrowserDiscoveryProbe(tab, 0);
@@ -13741,6 +13759,7 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
   wc.on('media-paused', () => {
     if (tab.closing || tab.view !== view || browserTabById(tab.id) !== tab) return;
     updateBrowserPlaybackState(tab, false);
+    if(tab.lifecycle==='background')tab.playbackPaused=true;
     if (tab.id === browserActiveTabId) void probeActiveBrowserMedia(tab);
   });
   wc.on('unresponsive', () => noteBrowserResponsiveness(tab, false));
@@ -14327,6 +14346,19 @@ function resumeRestoredBrowserPage(tab) {
   })();
 }
 
+function pauseBrowserTabMedia(view) {
+  return executeBrowserViewFrames(view, `(() => {
+    const roots = [document];
+    for (let i = 0; i < roots.length; i++) {
+      for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
+    }
+    for (const root of roots) for (const media of root.querySelectorAll('video,audio')) {
+      try { media.pause(); } catch (_) {}
+    }
+    return true;
+  })()`);
+}
+
 async function activateBrowserTab(rawId) {
   const next = browserTabById(rawId);
   if (!next) return null;
@@ -14376,18 +14408,12 @@ async function activateBrowserTab(rawId) {
     // switching tabs so only the selected site can produce audio or advance
     // playback in the background. This is best-effort: a hostile page cannot
     // block the tab transition or make the renderer hang.
-    await withTimeout(executeBrowserViewFrames(previous.view, `(() => {
-      const roots = [document];
-      for (let i = 0; i < roots.length; i++) {
-        for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
-      }
-      for (const root of roots) for (const media of root.querySelectorAll('video,audio')) {
-        try { media.pause(); } catch (_) {}
-      }
-      return true;
-    })()`), 450, 'Background pause timed out').catch(() => {});
+    await withTimeout(pauseBrowserTabMedia(previous.view), 450, 'Background pause timed out').catch(() => {});
   }
   browserActiveTabId = next.id;
+  // The renderer clears its clock sample on activation. Republish even if the
+  // paused media has the same timestamp and track metadata as before.
+  next.lastMediaEventSignature = '';
   // The same WebContentsView cannot occupy both sides. This occurs when the
   // active tab closes and the previous split-secondary tab becomes active.
   if (browserSplitSecondaryTabId === next.id) browserSplitSecondaryTabId = '';
@@ -16440,10 +16466,12 @@ async function unloadBrowserTab(rawId) {
 
 ipcMain.handle('browser:command', async (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
-  const { command, value } = payload || {};
+  const { command, value, expectedAudioToken } = payload || {};
   const tab = activeRequestedBrowserTab(payload && payload.tabId);
   if (!mainWindow || event.sender !== mainWindow.webContents || !browserView
       || browserView.webContents.isDestroyed() || !tab) return { ok: false, error: 'Tarayıcı açık değil veya sekme değişti.' };
+  const audioChanged=()=>expectedAudioToken!==undefined&&(command!=='seek'||typeof expectedAudioToken!=='string'||!expectedAudioToken||expectedAudioToken!==tab.activeAudioToken);
+  if(audioChanged())return {ok:false,stale:true,error:dt('Ses kaynağı değişti.','The audio source changed.')};
   const wc = browserView.webContents;
   if(['play','play-pause','seek','seek-relative','speed','frame-step'].includes(command))tab.restoredPlayback=null;
   if(['play','play-pause','mute'].includes(command))releaseSourceReturnHold(tab);
@@ -16535,7 +16563,7 @@ ipcMain.handle('browser:command', async (event, payload) => {
       let media = null;
       let commandError = '';
       const ranked=rankBrowserMediaCandidates(candidates);
-      if(tab.activeAudioToken&&ranked[0]?.media.docToken!==tab.activeAudioToken){
+      if(audioChanged()||(tab.activeAudioToken&&ranked[0]?.media.docToken!==tab.activeAudioToken)){
         void probeActiveBrowserMedia(tab);
         return {ok:false,stale:true,error:dt('Ses kaynağı değişti.','The audio source changed.')};
       }
@@ -20783,6 +20811,7 @@ require('./assistant-agent-service').register({app,ipcMain,authorized:authorized
     if(!['page','video'].includes(owner.kind))return true;
     const tab=browserTabById(owner.tabId);
     return !!tab&&tab.id===browserActiveTabId&&tab.generation===owner.generation
+      &&(!owner.hasBrowserAudio||(!!owner.audioKey&&tab.activeAudioToken===owner.audioKey))
       &&require('./assistant-source-context').pageKey(tab.url||tab.view?.webContents.getURL())===owner.pageKey;
   }});
 require('./media-compatibility').register({app,ipcMain,authorized:authorizedBrowserSender,authorize:authorizeLocalMediaPath,grant:file=>mediaFileAccess.grant(file),ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe')});
@@ -21626,6 +21655,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   }
   jobStarting = true;
   const startSeq = ++jobStartSeq;
+  const browserAudio = browserExtras?.retainWhisperInput(options.input);
+  let browserAudioHandedOff = false;
   try {
   await dubService.releaseIdle();
   if (options.youtube) {
@@ -21973,7 +22004,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     input: options.youtube || options.input || '',
     source: options.youtube ? 'youtube' : 'local',
     video: options.youtube ? '' : (subtitlePlayback?.input || options.input || ''),
-    browserWhisper: !options.translateOnly && browserExtras?.whisperInputBinding(options.input),
+    browserWhisper: !options.translateOnly && browserAudio?.binding,
     translateOnly:!!options.translateOnly,subtitlePlayback,
     language: options.lang || options.language || '', targetLanguage: options.translateTo || options.targetLang || options.targetLanguage || '',
     model: options.model || '',
@@ -21994,6 +22025,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     const argvUnits = [pythonPath, ...args].reduce((sum, arg) => sum + String(arg).length * 2 + 3, 0);
     if (argvUnits > 30000) throw new Error('Komut satırı çok uzun. Başlangıç metnini, sözlüğü veya dosya yollarını kısaltın.');
     activeJob = spawn(pythonPath, args, { env, cwd: appDir, windowsHide: true });
+    if(browserAudio){
+      activeJob.once('close',browserAudio.release);
+      browserAudioHandedOff=true;
+    }
     activeQueueItemId = jobMeta.queueItemId;
     persistQueueRunning(jobMeta.queueItemId, options,
       (message) => writeJobLog({ type: 'log', level: 'error', message, jobId }));
@@ -22235,6 +22270,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   startPowerBlocker();
   return { ok: true, jobId };
   } finally {
+    if(!browserAudioHandedOff)browserAudio?.release();
     jobStarting = false;
   }
 });

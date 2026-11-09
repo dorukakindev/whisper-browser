@@ -265,6 +265,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
   });
   await test('transcribe error → close eski kilidi erken açmaz, olaylar iş kimliği taşır', async () => {
     const emitted = [], terminals = [], spawned = [];
+    let retainedAudio=0;
     const fakeAppDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-appdir-'));
     fs.mkdirSync(path.join(fakeAppDir, 'backend'), { recursive: true });
     fs.writeFileSync(path.join(fakeAppDir, 'backend', 'transcribe.py'), '# stub\n');
@@ -294,7 +295,8 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       },
       persistQueueRunning: () => {}, persistQueueTerminal: (id, event) => terminals.push({ id, event }),
       sendEvent: (event) => emitted.push(event), writeJobLog: () => {}, startJobLog: () => {},
-      endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {}, browserExtras:null,
+      endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {},
+      browserExtras:{retainWhisperInput:()=>{retainedAudio++;return {release:()=>{retainedAudio--;}};}},
       startPowerBlocker: () => {}, stopPowerBlocker: () => {},
       // transcribe:start artik her ise bir terminal mandali baglar; harness
       // GERCEK mandali enjekte eder, sahte bir cift degil -- yoksa "tek is =
@@ -323,8 +325,10 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     const proc = spawned[0];
     proc.emit('error', Object.assign(Error('missing'), { code: 'ENOENT' }));
     assert.equal(sandbox.activeJob, proc);
+    assert.equal(retainedAudio,1,'worker error must not release the audio before close');
     assert.equal((await sandbox.start({}, { input: 'fake.mp4', queueItemId: 11 })).ok, false);
     proc.emit('close', -1);
+    assert.equal(retainedAudio,0);
     assert.equal(sandbox.activeJob, null); assert.equal(sandbox.modelProcesses.size, 0);
     assert.equal(terminals.length, 1);
     assert(emitted.every((event) => event.queueItemId === 10));
@@ -340,6 +344,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     const pendingStart = sandbox.start({}, { input: 'fake.mp4' });
     await new Promise(setImmediate);
     assert.equal(sandbox.jobStarting, true, 'preflight must retain the start lock');
+    assert.equal(retainedAudio,1,'audio must be retained throughout preflight');
     assert.equal((await sandbox.start({}, { input: 'second.mp4' })).busy, true);
     sandbox.ipcMain = { handle: (_name, fn) => { sandbox.cancel = fn; } };
     vm.runInContext(handlers.get('transcribe:cancel'), sandbox);
@@ -347,6 +352,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
     releaseProbe('10');
     assert.equal((await pendingStart).cancelled, true);
     assert.equal(spawned.length, 2, 'cancelled preflight must never spawn');
+    assert.equal(retainedAudio,0,'cancelled preflight must release the input');
     assert.equal(sandbox.jobStarting, false);
   });
   await test('R58-08: explain işi altyazı girdisini medya yetkilendiricisine göndermez', async () => {

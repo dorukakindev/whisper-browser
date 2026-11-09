@@ -4,13 +4,13 @@
  function clean(raw={}){
   const kind=['video','page','book','library','studio'].includes(raw.kind)?raw.kind:'studio';
   return {version:1,kind,owner:text(raw.owner,8000),thread:text(raw.thread,100),tabId:text(raw.tabId,200),generation:Number.isSafeInteger(raw.generation)?raw.generation:0,
-   subtitleKey:text(raw.subtitleKey,100),title:text(raw.title,300),pageKey:text(raw.pageKey,100),time:Number.isFinite(raw.time)?Math.max(0,raw.time):0,
-   hasFeedSources:raw.hasFeedSources===true,hasFeedEntries:raw.hasFeedEntries===true,hasSubtitles:raw.hasSubtitles===true,hasMedia:raw.hasMedia===true,voiceStudio:raw.voiceStudio===true,
+   subtitleKey:text(raw.subtitleKey,100),audioKey:text(raw.audioKey,160),title:text(raw.title,300),pageKey:text(raw.pageKey,100),time:Number.isFinite(raw.time)?Math.max(0,raw.time):0,
+   hasFeedSources:raw.hasFeedSources===true,hasFeedEntries:raw.hasFeedEntries===true,hasSubtitles:raw.hasSubtitles===true,hasMedia:raw.hasMedia===true,hasBrowserAudio:raw.hasBrowserAudio===true,voiceStudio:raw.voiceStudio===true,
    range:raw.range&&Number.isFinite(raw.range.start)&&Number.isFinite(raw.range.end)&&raw.range.start>=0&&raw.range.end>raw.range.start?{start:raw.range.start,end:raw.range.end}:null,
    tracks:(Array.isArray(raw.tracks)?raw.tracks:[]).slice(0,60).filter(row=>row&&typeof row.id==='string').map(row=>({id:text(row.id,200),role:row.role==='translation'?'translation':'source',language:text(row.language,24),partial:row.partial===true}))};
  }
- function same(left,right){return !!left&&!!right&&['kind','owner','thread','tabId','generation','pageKey'].every(key=>left[key]===right[key])&&left.range?.start===right.range?.start&&left.range?.end===right.range?.end;}
- function publicContext(raw){const {owner,thread,tabId,generation,pageKey,...safe}=clean(raw);return safe;}
+ function same(left,right){return !!left&&!!right&&['kind','owner','thread','tabId','generation','pageKey'].every(key=>left[key]===right[key])&&(left.audioKey||'')===(right.audioKey||'')&&left.range?.start===right.range?.start&&left.range?.end===right.range?.end;}
+ function publicContext(raw){const {owner,thread,tabId,generation,pageKey,audioKey,...safe}=clean(raw);return safe;}
  // Counts describe text delivered in this JSON, never evidence that the model read a whole source.
  function sourceSize(value={}){
   let characters=0,units=0;

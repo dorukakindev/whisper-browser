@@ -59,7 +59,8 @@ async function run() {
   assert.equal(audioProgress[2].progress,.5);
   assert(audioProgress.every(event=>event.mediaToken==='audio-one'&&event.requestId==='audio-test'&&!event.url));
   assert.equal((await request('whisper-audio',{mediaToken:'audio-one'})).path,prepared.path);assert.equal(audioDownloads.length,1,'same verified audio is reused');
-  assert.equal(service.whisperInputBinding(prepared.path).sha256,'a'.repeat(64));
+  const lease=service.retainWhisperInput(prepared.path);
+  assert.equal(lease.binding.sha256,'a'.repeat(64));
   assert.equal((await request('whisper-audio',{mediaToken:'audio-one',findSaved:true,range:{start:0,end:12}})).outputs[0].path,encodingFixture);
   assert.equal((await request('whisper-audio',{mediaToken:'old-token'})).ok,false);
   audioMedia={docToken:'audio-two',tagName:'audio',sourceUrl:'https://publisher.example/two.mp3'};
@@ -82,7 +83,25 @@ async function run() {
   assert.equal(audioGrants.length,1);
   assert.equal(fs.readdirSync(path.dirname(prepared.path)).length,1,'cancelled partial input is removed');
   audioMutation=null;audioMedia={docToken:'blob-audio',tagName:'audio',sourceUrl:'blob:https://publisher.example/123'};
-  assert.match((await request('whisper-audio',{mediaToken:'blob-audio'})).error,/Canlı Whisper/);audioMedia=null;
+  const unsupported=await request('whisper-audio',{mediaToken:'blob-audio'});
+  assert.match(unsupported.error,/Canlı Whisper/);
+  assert.equal(unsupported.code,'live-whisper-available');
+  const added=[];
+  for(let i=0;i<4;i++){
+    const mediaToken='cached-'+i;
+    audioMedia={docToken:mediaToken,tagName:'audio',sourceUrl:'https://publisher.example/'+i+'.mp3'};
+    const result=await request('whisper-audio',{mediaToken});
+    assert.equal(result.ok,true,result.error);
+    added.push(result.path);
+  }
+  assert(fs.existsSync(prepared.path),'active worker input was evicted');
+  assert(!fs.existsSync(added[0]),'oldest idle audio was retained');
+  assert.equal(fs.readdirSync(path.dirname(prepared.path)).length,4);
+  lease.release();
+  audioMedia={docToken:'newest',tagName:'audio',sourceUrl:'https://publisher.example/newest.mp3'};
+  assert.equal((await request('whisper-audio',{mediaToken:'newest'})).ok,true);
+  assert(!fs.existsSync(prepared.path),'released input did not become evictable');
+  audioMedia=null;
 
   const saved = await request('skip-save', { record: { id: 'intro-1', kind: 'intro',
     start: 10, end: 40 } });

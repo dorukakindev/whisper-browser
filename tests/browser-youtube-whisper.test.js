@@ -31,6 +31,22 @@ ctx.URL = URL;
 const endpointStart = code.indexOf('function translationEndpointReady(');
 vm.runInContext(code.slice(endpointStart, code.indexOf('\n}', endpointStart) + 2), ctx);
 function section(from, to) { const start = code.indexOf(from); assert(start >= 0); return code.slice(start, code.indexOf(to, start)); }
+{
+ let token='audio-A',read=0,loaded='';
+ const track={id:'saved',path:'C:/saved.srt',mediaToken:'audio-A'};
+ const scope={player:{browserTracks:[track],mediaKey:'episode-A',browserActiveTabId:'A'},state:{},
+  currentBrowserWhisperAudio:()=>({mediaToken:token}),clearDeferredBrowserTrackAction(){},currentGeneration:()=>1,
+  addSubtitleOption(){},$:()=>({value:''}),loadSubtitle:async(path,_secondary,options)=>{
+   read++;token='audio-B';if(!options.isCancelled?.())loaded=path;
+  },staleGeneration:()=>false};
+ vm.runInNewContext(section('async function useBrowserTrack(', "const BROWSER_RECENT_TRACKS_KEY"),scope);
+ const verify=async()=>{
+  const result=await scope.useBrowserTrack(false,'saved');
+  assert.equal(result.cancelled,true);assert.equal(read,1);assert.equal(loaded,'');
+  assert.equal((await scope.useBrowserTrack(false,'saved')).stale,true);assert.equal(read,1);
+ };
+ ctx.trackOwnerCheck=verify;
+}
 vm.runInContext(section('function youtubeVideoId(', 'function mediaKeyFor('), ctx);
 vm.runInContext(section('function progressiveRanges(', 'async function startProgressiveChunk('), ctx);
 vm.runInContext(section('function cueKey(', 'function progressiveRanges('), ctx);
@@ -41,6 +57,7 @@ vm.runInContext(section('function parseClipInput(', "['clipStart', 'clipEnd']"),
 ctx.uiText = text => text;
 vm.runInContext(section('async function startProgressivePlayerTranscription(', '// "Altyazı oluştur"'), ctx);
 (async () => {
+  await ctx.trackOwnerCheck();
   assert.equal(ctx.currentBrowserYoutubeUrl(), 'https://www.youtube.com/watch?v=abcdefghijk');
   for (const url of ['https://evil.test/watch?v=abcdefghijk', 'https://youtube.com/', 'https://youtube.com.evil.test/watch?v=abcdefghijk']) {
     ctx.player.browserPageUrl = url;
@@ -241,6 +258,20 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   ctx.window={api:{browserExtras:async request=>{audioRequests.push(request);return {ok:true,path:'prepared.mp3',mediaToken:'audio-one'};}}};
   await ctx.startBrowserYoutubeWhisper(false,{clipRange:{start:0,end:10}});
   assert.equal(audioRequests[0].action,'whisper-audio');assert.equal(ctx.player.job.baseOpts.input,'prepared.mp3');assert.equal(ctx.player.job.baseOpts.youtube,undefined);assert.equal(ctx.player.job.browserMediaToken,'audio-one');assert.equal(ctx.player.job.ranges[0].end,10);
+  ctx.state.running=false;
+  const build=ctx.buildOptsFromUI;let selectedModel='large-v3';
+  ctx.buildOptsFromUI=()=>({...build(),model:selectedModel,engine:'faster',device:'cuda',computeType:'float16',beamSize:5,wordTimestamps:true,vadFilter:true});
+  ctx.window.api.browserExtras=async request=>{
+    audioRequests.push(request);selectedModel='tiny';
+    return {ok:true,path:'prepared.mp3',mediaToken:'audio-one'};
+  };
+  await ctx.startBrowserYoutubeWhisper(false,{clipRange:{start:0,end:10}});
+  const frozen=ctx.player.job.baseOpts;
+  assert.equal(frozen.model,'large-v3');assert.equal(frozen.engine,'faster');
+  assert.equal(frozen.device,'cuda');assert.equal(frozen.computeType,'float16');
+  assert.equal(frozen.beamSize,5);assert.equal(frozen.wordTimestamps,true);assert.equal(frozen.vadFilter,true);
+  assert.equal(frozen.input,'prepared.mp3');assert.equal(frozen.youtube,undefined);
+  ctx.buildOptsFromUI=build;
   ctx.state.running=false;await ctx.startBrowserYoutubeWhisper(true,{clipRange:{start:0,end:10}});assert.equal(ctx.player.job.baseOpts.translate,true);assert.equal(ctx.player.job.baseOpts.translateKeepSource,true);
   ctx.pSecToTime=seconds=>String(seconds)+'s';
   ctx.PodcastTaskScope=require('../src/renderer/podcast-task-scope');
@@ -305,5 +336,19 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   assert.match(workerFailure.text,/modelini veya aygıt/);
   audioTab.browserClockSample.mediaToken='other-audio';
   assert.equal(ctx.browserAudioPreparationStatus(),null,'old retry must not appear on another episode');
+  ctx.state.running=false;
+  ctx.window.api.browserExtras=async()=>({ok:false,code:'live-whisper-available',error:'No download link'});
+  let liveCalls=0;
+  ctx.toggleBrowserLiveAsr=()=>{liveCalls++;};
+  const unavailable=await ctx.startBrowserYoutubeWhisper(false);
+  assert.equal(unavailable.ok,false);
+  assert.equal(unavailable.message,'No download link');
+  const alternative=ctx.browserAudioPreparationStatus();
+  assert.equal(alternative.retryLabel,'Canlı Whisper’ı aç');
+  assert.equal(liveCalls,0);
+  await alternative.retry();
+  audioTab.browserClockSample.mediaToken='next-episode';
+  await alternative.retry();
+  assert.equal(liveCalls,1,'fallback must be explicitly selected and bound to the current source');
   console.log('Browser Whisper: YouTube and observed audio, intent, reuse, time range, race and stop passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -19,6 +19,17 @@ test('An explicit Whisper range is job-local and keeps the assistant source owne
  h.player.browserWhisperRange={start:1,end:61};assert.equal(request.isCancelled(),true,'A later human scope change still cancels the pending start');
 });
 
+test('Replacing the browser audio invalidates its approval even before the tab generation changes',async()=>{
+ const h=setup();let token='episode-A',effects=0;
+ h.sandbox.currentBrowserYoutubeUrl=()=>'';h.sandbox.currentBrowserWhisperAudio=()=>({mediaToken:token});
+ h.sandbox.window.BrowserDubAudioUI={context:()=>({hasMedia:true,visible:true})};
+ h.sandbox.startBrowserYoutubeWhisper=async()=>{effects++;token='episode-B';return {ok:true,reused:true};};
+ const owner=h.actions.snapshot();
+ await assert.rejects(h.actions.execute('start_whisper',{translate:false},owner),/could not be confirmed/);
+ await assert.rejects(h.actions.execute('start_whisper',{translate:false},owner),/source or conversation changed/);
+ assert.equal(effects,1);
+});
+
 test('Voice preparation cannot report completed when its existing window failed to open',async()=>{
  const h=setup();h.sandbox.window.MediaExperience={openVoice:async()=>false};
  await assert.rejects(h.actions.execute('open_voice_preparation',{},h.actions.snapshot()),/not.*open|could not.*open/i);
@@ -72,4 +83,23 @@ test('An approved podcast passage can change playback context but cannot seek af
   return false;
  };
  await assert.rejects(apply(), /could not be opened/);
+});
+
+test('active shelf Podcast reports its own media clock and subtitle revision instead of a hidden player',()=>{
+ const h=setup();h.sandbox.globalAssistantContext=()=>({workspace:'podcast',episodeIdentity:'A',sourceVersion:'stream',title:'Episode A'});
+ let revision='r1';h.sandbox.window.MediaShelfUI={isPodcastMode:()=>true,readSnapshot:()=>({episodeIdentity:'A',sourceVersion:'stream',time:71}),getTranscriptTracks:()=>[{id:'track-A'.repeat(30),revision,timed:true,cues:[{start:0,end:2,text:'Actual'}]}]};
+ const owner=h.actions.snapshot();assert.equal(owner.hasMedia,true);assert.equal(owner.hasSubtitles,true);assert.equal(owner.time,71);
+ revision='r2';assert.notEqual(h.actions.snapshot().subtitleKey,owner.subtitleKey);
+ h.sandbox.globalAssistantContext=()=>({workspace:'podcast',episodeIdentity:'B',sourceVersion:'stream'});assert.equal(h.actions.snapshot().hasMedia,false);
+});
+
+test('voice preparation accepts only a verified shelf handoff and still rejects a changed conversation',async()=>{
+ const h=setup();h.sandbox.document.getElementById=id=>id==='dubGeneratorDialog'?{open:true}:null;
+ h.sandbox.window.MediaShelfUI={isPodcastMode:()=>true,readSnapshot:()=>({mediaKey:'shelf:A',generation:4})};
+ const owner=h.actions.snapshot();h.sandbox.window.MediaExperience={openVoice:async()=>{
+ h.sandbox.aiSourceScope=()=> 'new-player-scope';Object.assign(h.player,{mediaKey:'copy:A',generation:8,workspaceAudio:{entryId:'A',mediaKey:'copy:A',generation:8}});
+ return {ok:true,from:{mediaKey:'shelf:A',generation:4},handoff:{entryId:'A',mediaKey:'copy:A',generation:8}};}};
+ assert.equal((await h.actions.execute('open_voice_preparation',{},owner)).status,'completed');
+ const next=h.actions.snapshot();h.sandbox.window.MediaExperience.openVoice=async()=>{h.sandbox.window.AssistantWorkspace.activeId=()=> 'another-thread';return {ok:true,from:{mediaKey:'shelf:A',generation:4},handoff:{entryId:'A',mediaKey:'copy:A',generation:8}};};
+ await assert.rejects(h.actions.execute('open_voice_preparation',{},next),/changed/);
 });

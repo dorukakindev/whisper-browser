@@ -27,7 +27,8 @@ function normalizeAnnotation(raw = {}) {
   const timed = raw.timed !== false;
   const start = timed ? Math.max(0, Number(raw.start) || 0) : null;
   const source = String(raw.source || '').trim().slice(0, 4000);
-  const identity = `${mediaId}|${start}|${type}|${source}` + (raw.mediaType === 'podcast' && raw.sourceVersion ? `|podcast-version:${String(raw.sourceVersion).slice(0,500)}` : '');
+  const version = String(raw.sourceVersion || '').slice(0,500);
+  const identity = `${mediaId}|${start}|${type}|${source}` + (version && (raw.mediaType === 'podcast' || version.startsWith('browser-audio:')) ? `|podcast-version:${version}` : '');
   const trackIdentity = raw.trackId || raw.cueId ? JSON.stringify([String(raw.trackId || ''), String(raw.cueId || '')]) : '';
   const anchor = normalizeTextAnchor(raw.anchor);
   const fingerprint = crypto.createHash('sha1').update(identity + trackIdentity + (anchor ? JSON.stringify(anchor) : ''), 'utf8').digest('hex').slice(0, 16);

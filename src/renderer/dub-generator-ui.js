@@ -525,10 +525,11 @@
     if (!['browser','player'].includes(context?.mode) || typeof player === 'undefined') return '';
     // A hidden player or a player without media (e.g. while a library Podcast is shown) is not the media being dubbed.
     if (context.visible === false || context.hasMedia === false) return '';
-    const candidate = player.sub2Role === 'translation' && player.sub2Path ? player.sub2Path : player.subPath;
+    const selectedPath = player.sub2Role === 'translation' && player.sub2Path ? player.sub2Path : player.subPath;
+    const candidate = context.mode==='browser' && Object.hasOwn(context,'subtitleTrack') ? context.subtitleTrack?.path : selectedPath;
     if (typeof candidate !== 'string' || !/\.srt$/i.test(candidate) || !/^(?:[a-z]:[\\/]|[/\\])/i.test(candidate)) return '';
     // Browser tracks belong to the active tab. Never adopt a leftover player path.
-    if (context.mode === 'browser' && !(player.browserTracks || []).some(track => track.path === candidate)) return '';
+    if (context.mode === 'browser' && !(player.browserTracks || []).some(track => track.path === candidate && !track.sourceMismatch)) return '';
     return candidate;
   }
   function adoptCurrentSubtitle(candidate) {

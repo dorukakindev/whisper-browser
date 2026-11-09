@@ -30,11 +30,12 @@ test('Arguments reject unknown actions, secret fields, wrong types and partial r
  assert.throws(()=>registry.validate('start_whisper',{translate:false},{kind:'book'}));
 });
 test('Manifest drops private fields and bounds source material without producing invalid JSON',()=>{
- const raw={kind:'video',owner:'private-local-media-key',thread:'t',tabId:'tab',generation:7,hasSubtitles:true,apiKey:'secret',tracks:[{id:'A',role:'source',path:'private.wav',language:'en'}]};
+ const raw={kind:'video',owner:'private-local-media-key',audioKey:'private-audio',thread:'t',tabId:'tab',generation:7,hasSubtitles:true,apiKey:'secret',tracks:[{id:'A',role:'source',path:'private.wav',language:'en'}]};
  const publicValue=manifest.publicContext(raw);assert(!JSON.stringify(publicValue).includes('private'));assert(!JSON.stringify(publicValue).includes('secret'));assert.equal(publicValue.tracks[0].path,undefined);
  const text=manifest.sourceText({apiKey:'secret',settings:{token:'secret'},chapterText:'a'.repeat(60000),excerpt:'b'.repeat(8000),page:{blocks:Array.from({length:100},(_,id)=>({id:'S'+id,text:'c'.repeat(1000)}))}},10000);
  assert(JSON.stringify(text).length<=10000);assert(!JSON.stringify(text).includes('secret'));assert.doesNotThrow(()=>JSON.parse(JSON.stringify(text)));
  const a=manifest.clean(raw);assert(manifest.same(a,manifest.clean(raw)));assert(!manifest.same(a,manifest.clean({...raw,generation:8})));
+ assert(!manifest.same(a,manifest.clean({...raw,audioKey:'other-audio'})));
 });
 
 

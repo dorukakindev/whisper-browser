@@ -580,23 +580,30 @@ function controllerBootstrap() {
           '[data-testid="player-spinner"]',
         ]);
         const rect = item.getBoundingClientRect?.();
-        const audioTitle = isAudio(item) && String(item.getAttribute?.('aria-label') || item.title || '').trim().slice(0,120);
-        const audioArtwork = isAudio(item) && String(item.dataset?.artwork || item.dataset?.image || '').slice(0,4096);
+        const audio = isAudio(item);
+        const audioTitle = audio && String(item.dataset?.episodeTitle || item.getAttribute?.('aria-label') || item.title || '').trim().slice(0,300);
+        const audioArtwork = audio && String(item.dataset?.artwork || item.dataset?.image || '').slice(0,4096);
+        const meta = selector => document.querySelector(selector)?.getAttribute?.('content') || '';
+        const pageArt = meta('meta[property="og:image"]') || meta('meta[name="twitter:image"]');
+        const podcastSchema = audio && includeChoices ? Array.from(document.querySelectorAll('script[type="application/ld+json"]')).slice(0,6)
+          .map(node=>String(node.textContent || '')).filter(body=>body.length<=20000)
+          .map(body=>'<script type="application/ld+json">'+body+'</script>').join('') : '';
         return {
           docToken: tokenFor(item),
           sourceUrl: String(item.currentSrc || item.src || '').slice(0,16384),
-          artworkUrl: String(audioArtwork || item.poster || document.querySelector('meta[property="og:image"]')?.getAttribute?.('content') || document.querySelector('meta[name="twitter:image"]')?.getAttribute?.('content') || '').slice(0,4096),
+          artworkUrl: String(audioArtwork || item.poster || (pageArt !== meta('meta[property="og:logo"]') ? pageArt : '')).slice(0,4096),
           live: item.duration === Infinity,
           ...(pinnedAudio ? {userSelected:true} : {}),
           ...(audioTitle ? {audioTitle} : {}),
           ...(audioArtwork ? {audioArtworkBound:true} : {}),
-          ...(pinnedAudio ? {userSelected:true} : {}),
-          ...(isAudio(item) && item.getAttribute?.('aria-label') ? {audioTitle:String(item.getAttribute('aria-label')).trim().slice(0,120)} : {}),
+          ...(audio && includeChoices ? {podcastSchema, showTitle:String(item.dataset?.showTitle || item.dataset?.program || '').trim().slice(0,200),
+            fallbackArtworkUrl:String(item.dataset?.showArtwork || '').slice(0,4096),
+            siteName:String(meta('meta[property="og:site_name"]')).trim().slice(0,200)} : {}),
           ...(includeChoices ? {pinnedAudio, audioChoices:candidates().filter(isAudio).slice(0,8).map(audio=>({
             token:tokenFor(audio), label:String(audio.getAttribute?.('aria-label')||audio.title||'').trim().slice(0,120),
             duration:finite(audio.duration), paused:!!audio.paused,
           }))} : {}),
-          publisher: String(document.querySelector('ytd-watch-metadata ytd-video-owner-renderer #channel-name a, #owner #channel-name a')?.textContent || '').trim().slice(0,300),
+          publisher: String((audio && item.dataset?.publisher) || document.querySelector('ytd-watch-metadata ytd-video-owner-renderer #channel-name a, #owner #channel-name a')?.textContent || '').trim().slice(0,300),
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
           paused: !!item.paused,
