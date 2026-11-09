@@ -1,5 +1,227 @@
 # Bekleyen işler
 
+## Browser podcast · 10–12 doğrulandı, sıradaki 13–15
+
+- Aynı bölüm ve ses sürümünde kayıtlı metni açma, geç çıktıyı kendi iş kaydında tutma ve kapsamı koruyan hata sonrası yeniden deneme [yerelde doğrulandı](docs/devir/2026-11-09-0949.md). Sıradaki turda önce dört geçici ses sınırını çalışan işin girdisini koruyarak ele al. Ardından indirilemeyen seste Canlı Whisper alternatifini ve gerçek oynatma saatinde satır takibini doğrula.
+- Hazırlık iptali, ayrı Whisper eylemleri ve bölüm kapsamı [7–9 devir notunda](docs/devir/2026-11-09-0938.md).
+- Birden fazla ses seçimi ve hazırlık durumları [4–6 devir notunda](docs/devir/2026-11-09-0930.md). Aynı anda çalan benzer sesleri otomatik ayırmak kesin değildir. İşlemler menüsündeki ses seçimi kullanılabilir.
+
+## Podcast kapağında gerçek sayfa görseli — doğrulandı, 2026-11-09 08:58
+
+- Bölüm görseli mevcut kapağa bağlandı; kaynak/generation ve YouTube kimliği korunuyor. 92/92 hedefli node:test özeti ve LG’de gerçek Apaçık Radyo görseliyle iki görünüm kabulü geçti. Metadata bulunmayan siteler mevcut yedeği kullanır. [Devir](docs/devir/2026-11-09-0858.md)
+
+## Browser podcast sesinden Whisper — doğrulandı, 2026-11-09 08:54
+
+- YouTube’a bağlı kalan düğmeler ve ses edinme bağlantısı tamamlandı. LG gerçek bölümde 0–12 sn, tiny CPU/int8 Whisper → SRT → aynı Sahne kabulü geçti. Hedefli node:test özeti 112/112. Canlı çeviri/CUDA denenmedi; blob/DRM için toplu Whisper garantisi yok. Oturumdaki dört yönetilen ses sınırı ve aktif iş korunarak olası cache tahliyesi sonraki kapsam olarak [devirde](docs/devir/2026-11-09-0854.md) açıklandı.
+
+## RSS olmadan sayfadan podcast oynatma — doğrulandı, 2026-11-09 08:38
+
+- Browser fallback ve gizli audio algılama düzeltildi. Apaçık Radyo gerçek sayfasında aynı kaynakla Podcast/Çift dilli, duraklat/devam et ve seek LG’de doğrulandı. Hedefli node:test özeti 120/120. RSS aboneliği/JSON-LD tek bölüm içe aktarımı eklenmedi; bu ayrı yetenek için kimlik/ses doğrulamalı mevcut shelf önizlemesi gerekir. Genel web kapak metadatası 08:58 tesliminde eklendi; bildirmeyen sayfalarda baş harfli kapak korunuyor. Yeni ASR/çeviri yapılmadı. [Devir](docs/devir/2026-11-09-0838.md)
+
+## Podcast yayıncı bölüm sayfası — doğrulandı, 2026-11-09 08:24
+
+- HTML/RSS ayrımı ve kaynak keşfi düzeltildi; 28/28 hedefli test geçti. Apaçık Radyo gerçek sayfası RSS adresi bildirmiyor; doğrudan bölüm içe aktarma bu düzeltmede yok. Böyle bir akış için main tarafında JSON-LD kimliği/ses doğrulaması ve mevcut shelf önizleme/onay bağlantısı gerekir. Canlı oynatma denenmedi. [Devir ve kanıt](docs/devir/2026-11-09-0824.md)
+
+## Kayıtlı çeviri pasajına görünür dönüş — doğrulandı, 2026-11-09 08:17
+
+- Pasaj/çeviri odaklı 27 ve örtüşen kayıtlı kaynak açma kapsamındaki 18 kontrol geçti. LG gerçek Sahne gösterimi doğrulandı. Toplu teslim bilgisi güncel devir notunda. [Devir](docs/devir/2026-11-09-0817.md)
+
+## Çeviri ve tekrar birleşik kabulü — doğrulandı, 2026-11-09 08:14
+
+- İlk tam koşu sonlu olmayan bitiş zamanı gerilemesini yakaladı ve düzeltildi. Hedefli 49 kontrol geçti. Son tam test sonucu ve LG gerçek çeviri/vurgu/tekrar zinciri [devirde](docs/devir/2026-11-09-0814.md). Toplu teslim bilgisi güncel devir notunda.
+
+## Çeviri zaman düğmeleri ve video sınırları — doğrulandı, 2026-11-09 08:10
+
+- 70/70 entegrasyon, örtüşen hedefli seçkide 48/48 ve LG gerçek düğme denemesi geçti. Toplu teslim bilgisi güncel devir notunda. [Devir](docs/devir/2026-11-09-0810.md)
+
+## Yakın altyazı satırları ve Browser saati — doğrulandı, 2026-11-09 08:05
+
+- 79 hedefli test ve LG gerçek düğme denemesi geçti. Toplu teslim bilgisi güncel devir notunda. [Devir](docs/devir/2026-11-09-0805.md)
+
+## Geciken tekrar ve yeni Sahne komutu — doğrulandı, 2026-11-09 07:59
+
+- 68/68 ve LG'de üç düğme senaryosu geçti. Yeni Sahne komutu eski tekrarın otomatik oynatma adımını iptal ediyor. Toplu teslim bilgisi güncel devir notunda. [Devir](docs/devir/2026-11-09-0759.md)
+
+## Ortak Sahne tekrarında iz doğrulaması — doğrulandı, 2026-11-09 07:56
+
+- 68/68 ve LG'de dört düğme senaryosu geçti. Gecikmiş tekrar kaynak veya çeviri izi değişince durur. Toplu teslim bilgisi güncel devir notunda. [Devir](docs/devir/2026-11-09-0756.md)
+
+## Browser replay güncel iz/kapanış sınırı — doğrulandı, 2026-11-08 22:33
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** seek sonrası kaynak iz revizyonu ve gerçek Sahne açıklığı doğrulanır; normal aynı-sahip Çift dilli devri korunur. 68/68; LG1920×1080 gerçek embedded Browser/VTT/medya, kontrollü seek cevabı kabulü geçti. [Devir](docs/devir/2026-11-08-2233.md).
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; localhost fixture, canlı YouTube değil; model0. Yeni engel yok. Sonraki adım açık toplu Git teslim talimatıyla9renderer/6mevcut test kapsamını almak; commit/push yok.
+
+## Son birleşik yerel kabul — 2026-11-08 22:28
+
+- **Toplu Git teslim talimatı bekliyor:** birikmiş8renderer/5mevcut test dosyası son hâliyle birlikte kontrol edildi. LG1920×1080 gerçek main/preload/not deposu arama→pasaj→bekleyen not→görünüm→pasajı kaldır→kayıt sonucu→replay/takip geçti. Bu tur ek ürün değişikliği yok. [Test sonucu ve devir](docs/devir/2026-11-08-2228.md).
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; kontrollü feed/WAV/gecikme, model0. Yeni engel yok. Kesin sonraki adım açık toplu commit/push/merge talimatı; kendiliğinden Git teslimi yapılmadı.
+
+## Açık pasaj ve konuşmaya dönüş önceliği — doğrulandı, 2026-11-08 22:25
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** açık pasaj eski başlık dönüş konumunu iptal eder. 10/10; LG1920×1080 açık pasaj ve gerçek replay/takip/klavye odağı kabulü geçti. [Devir](docs/devir/2026-11-08-2225.md).
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; kontrollü metadata/feed/WAV, model0. Yeni engel yok. Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Son duyulur sürgü seçimi — doğrulandı, 2026-11-08 22:23
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** hızlı sürgü.8→0→geri aç.8değerini korur; görünüm devrinde aynı davranış. 11/11 ve LG gerçek medya ses/hız kabulü. [Devir](docs/devir/2026-11-08-2223.md).
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; kontrollü feed/WAV, model0. Yeni engel yok. Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Başlıklardan transkript konumuna dönüş — doğrulandı, 2026-11-08 22:20
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** başlık paneli açıkken aynı kaynakta devredilen gerçek satır dayanağı dönüşte korunur. 17/17 ve LG1920×1080 başlık/büyük yazı/Çift dilli/dönüş kabulü geçti. [Devir](docs/devir/2026-11-08-2220.md).
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; kontrollü metadata/feed/WAV, model0; yeni engel yok. Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Yazı boyutunda okuma ve panel önceliği — doğrulandı, 2026-11-08 22:17
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** yazı boyutu aynı satırı korur; dil/başlık geçişi eski yerleşimi iptal eder. 10/10; LG1920×1080 normal/büyük/küçük ve odak kabulü geçti. [Devir](docs/devir/2026-11-08-2217.md).
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; kontrollü feed/WAV, model0. Yeni engel yok. Kesin sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Hızlı arama gezinmesinde konum sahipliği — doğrulandı, 2026-11-08 22:15
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** ileri/geri eşleşme eski yerleşimi iptal eder; canlı adaptör kimliği her karede doğrulanır. 7/7; LG1920×1080 iki yönde12adım hızlı gezinme geçti. [Devir](docs/devir/2026-11-08-2215.md).
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`. Kontrollü feed/WAV, model0; yeni engel yok. Kesin sonraki adım açık toplu Git teslim talimatı; commit/push yok.
+
+## Gerçek okuma satırının görünüm devri — doğrulandı, 2026-11-08 22:11
+
+- **Yerel düzeltme, toplu commit talimatı bekliyor:** piksel konumu yerine aynı kaynak/revizyon/satır dayanağı korunur; ertelenmiş Chromium geometrisi sınırlı yerleştirilir ve manuel okuma önceliklidir. LG1920×1080 iki yönlü geçiş ve derin aramadan dönüş geçti. [Devir](docs/devir/2026-11-08-2211.md).
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; kontrollü feed/WAV, model0. Son tam test sonucu devirde. Yeni engel yok. Kesin sonraki adım açık toplu Git teslim talimatı; commit/push yok.
+
+## Birleşik arama/pasaj/not kabulü — doğrulandı, 2026-11-08 21:55
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** on dosyada389/389; LG1920×1080 gerçek main/preload/renderer/not deposunda gecikmiş kayıt, görünüm devri, pasajı kaldırma, arama/odak ve konuşmaya dönüş birlikte geçti. Ürün koduna bu tur ek değişiklik gerekmedi.
+- Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; kontrollü feed/WAV/gecikme, model0. Yeni engel yok. [Devir](docs/devir/2026-11-08-2155.md). Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Asistan pasajının tekrar açılışı — doğrulandı, 2026-11-08 21:50
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** DOM seçimi yokken geçerli açık pasaj tekrar açılışta korunur; kaldırılan pasaj geri gelmez, yeni kaynak/revizyona taşınmaz. İki mevcut dosyada256/256.
+- LG1920×1080 gerçek Selection/4asistan açılış sinyali/görünüm/kaldırma zinciri geçti; model0. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2150.md). Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Seçili asistan pasajını görme ve kaldırma — doğrulandı, 2026-11-08 21:47
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** transkript araçlarında mevcut açık seçimin özeti/Kaldır eylemi EN/TR kullanılabilir; not ve oynatma değişmez. İki mevcut dosyada254/254.
+- LG1920×1080 gerçek Selection/görünüm devri/native Enter/odak/yeni bölüm kontrolü geçti; model0. Native Enter denetim betiği düzeltmesi devirde açıklandı. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2147.md). Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Uzun asistan seçiminin açıklamalı sınırı — doğrulandı, 2026-11-08 21:41
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** uzun açık kaynak seçimi genel bağlama sessizce düşmez; kısaltma ve tekrar yolu EN/TR açıktır.251/251 ve son adaptör66/66 (örtüşen kapsam).
+- LG1920×1080 gerçek Selection/uzun seçimde show0/kısa seçimde show1 ve tam kanıt kontrolü geçti; model0. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2141.md). Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Arama seçimi ve konuşulan satırın ayrımı — doğrulandı, 2026-11-08 21:38
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** aramada seçili kart gerçek sıra/toplam etiketiyle belirgin; kaynak metni ve gerçek aktif satır korunur. İki mevcut dosyada249/249.
+- LG1920×1080 uzun transkript/iki Sahne/iki dil/konuşmaya dönüş geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2138.md). Sonraki adım açık toplu teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Kart kapanışında görünür odak dönüşü — doğrulandı, 2026-11-08 21:34
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** not/sözcük kapanışında gizli/inert/devre dışı eski kontrol atlanır; görünür arama/transport hedefi kullanılır. İki dosyada248/248.
+- LG1920×1080 iki Sahne/iki kart/native Escape, sorgu ve konumu koruma geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2134.md). Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Aynı satırda yeni alıntı ve not görünürlüğü — doğrulandı, 2026-11-08 21:31
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** boş taslak yeni açık alıntıyı kullanır; yazılmış/pending/bayat taslak korunur. Masaüstünde toast not eylemlerini örtmez. İki dosyada244/244.
+- LG1920×1080 gerçek Selection/tek doğru alıntı kaydı ve geometri kabulü geçti. Dar/sözcük varyantı ayrıca render edilmedi. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2131.md). Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Kapalı notun kayıt sonucunu işleme — doğrulandı, 2026-11-08 21:27
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** başarılı kapalı taslak temizlenir; hata/taslak korunur, pencere açılmaz ve odak çekilmez. İki mevcut dosyada241/241.
+- LG1920×1080 gerçek izole not deposunda tek doğru kaynak kaydı/görünüm devri ve kontrollü ret sonrası retry geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2127.md). Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Kopyalamada son isteğin bildirim sahipliği — doğrulandı, 2026-11-08 21:23
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** eski kopyalama başarı/hatası son isteğin bildirimini değiştirmez. İki mevcut dosyada238/238; pano yazma yolu değiştirilmedi.
+- LG1920×1080 gerçek satır düğmeleri/preload/IPC ve kontrollü ters yanıt sırası/yeni bölüm kabulü geçti; kişisel panoya dokunulmadı. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2123.md). Sonraki adım açık toplu teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Uyku zamanlayıcısında duraklatma saati — doğrulandı, 2026-11-08 21:19
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** kalan süre/saat/iptal ve pending açıklaması EN/TR iyileştirildi. İki dosyada236/236; mevcut kaynak/iptal mantığında yeni hata bulunmadı.
+- LG1920×1080 gerçek pause/iptal/görünüm devri/yeni bölüm koruması geçti; süre dolumu kontrollü hızlandırıldı. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2119.md). Sonraki adım açık toplu Git teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Birikmiş oynatıcı kabulü ve döngü odağı — doğrulandı, 2026-11-08 21:13
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** bekleyen döngü düğmesinden güvenli satır/transport odağı ve sonuçta dış odağı koruma tamamlandı. Birikmiş değişiklikler on ilgili dosyada368/368.
+- LG1920×1080 gerçek A–B/iki yönlü görünüm/odak/arama/replay+follow zinciri geçti; ilk son-takip başarısızlığı ve kanıt sınırı devirde açıklandı. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2113.md). Sonraki adım açık toplu Git teslim talimatında birikmiş kapsamı almak; commit/push yok.
+
+## Cümle döngüsünde bekleme kilidi — doğrulandı, 2026-11-08 21:01
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** aynı kaynakta görünüm değişince ikinci döngü engellenir; transport ve satır kontrollerinde bekleme EN/TR görünür. Başka kaynak bağımsızdır. İki dosyada233/233.
+- LG1920×1080 iki yönlü gerçek A–B/gecikmiş cevap/busy ve arama/replay/follow zinciri geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2101.md). Sonraki adım açık toplu teslim talimatıyla birikmiş kapsamı almak; commit/push yok.
+
+## Zaman atlama kilidinin görünüm devri — doğrulandı, 2026-11-08 20:56
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** bekleyen aynı-kaynak form kilidi görünüm devrinde korunur; yeni taslak tutulur ve durum EN/TR görünür. Başka kaynağa kilit/eski hata taşınmaz. İki dosyada231/231.
+- LG1920×1080 gerçek seek/Çift dilli geçiş/tek gönderim ve kilit sonrası18s uygulama geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2056.md). Sonraki adım açık toplu teslim talimatında birikmiş kapsamı almak; commit/push yok.
+
+## Bekleyen zaman atlamasında yeni taslak — doğrulandı, 2026-11-08 20:53
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** yeni zaman girişi eski başarılı yanıtla kaybolmaz; geçersiz giriş düzeltilince doğrulama durumu temizlenir. İki mevcut dosyada229/229.
+- LG1920×1080 iki Sahne modunda gerçek seek/gecikmiş cevap/yeni taslağı uygulama geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2053.md). Sonraki adım açık teslim talimatında birikmiş kapsamı almak; commit/push yok.
+
+## Reddedilen cümle döngüsünde aralık sahipliği — doğrulandı, 2026-11-08 20:49
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** aynı görünümde uygulanmış ret/istisna sonrası sahipsiz A–B aralığı engellendi; önceki etkin/dış/yeni kaynak aralıkları korunur. İki mevcut dosyada226/226.
+- LG1920×1080 gerçek komut+kontrollü ret/başka aralık kabulü geçti; yerleşmiş son durumda süre30 ve seek kullanılabilir. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2049.md). Sonraki adım açık toplu teslim talimatında birikmiş kapsamı almak; commit/push yapılmadı.
+
+## Uzun transkript aramasında dil filtresi — doğrulandı, 2026-11-08 20:44
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** dil filtresi hâlâ eşleşen seçimi ve okuma konumunu korur; sorgu değişimi sıfırlar. İki mevcut dosyada222/222.
+- LG1920×1080,60satırlık kontrollü kayıtlı iki dilde29/60seçim ve görünüm devri/konuşmaya dönüş geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2044.md). Sonraki adım açık toplu Git teslim talimatında birikmiş işleri almak; commit/push yapılmadı.
+
+## Bekleyen cümle döngüsünün görünüm devri — doğrulandı, 2026-11-08 20:24
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** uygulanmış fakat onay cevabı bekleyen döngü iki Sahne görünümünde korunur. Ret/dış aralık ve tek hata bildirimi kontrolleri tamamlandı; üç mevcut dosyada250/250.
+- LG1920×1080 gerçek A–B komutu/iki yönlü geçiş/arama seçimi ve kısa replay+follow zinciri geçti. Medya/feed/yanıt geciktirmesi kontrollüdür. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2024.md). Sonraki adım açık toplu teslim talimatında birikmiş kapsamı almak; commit/push yapılmadı.
+
+## Sahne metadata yenilemesinde klavye odağı — doğrulandı, 2026-11-08 20:16
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** başlıklar kaldırılınca gizlenen aramadan transkripte dönüş ve Sıradaki kart güncellemesi/boşalmasında odak tamamlandı; dış odak korunur. Mevcut aile245/245.
+- LG1920×1080 iki Sahne modu ve kısa gerçek HTML medya saati/aktif satır geçti; metadata/feed/ses kontrollüdür. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2016.md). Sonraki adım açık teslim talimatında birikmiş işleri birlikte almak; commit/push yapılmadı.
+
+## Dublaj hazırlığının açılış oturumu — doğrulandı, 2026-11-08 20:12
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** aynı kaynakta kapanış/yeniden açılış sonrası eski sonuç önizlemesi ve kapalı panelin ayar sonrası devamı engellendi. Üç test önce kırmızı, sonra yeşil; ilgili aile87/87.
+- LG1920×1080 gerçek Sahne girişi, main/IPC ve native Escape ile aynı kaynakta yeniden açılış geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2012.md). Sonraki adım açık teslim talimatında birikmiş işleri birlikte almak; commit/push yapılmadı.
+
+## Çeviri karşılaştırmasının pencere sahipliği — doğrulandı, 2026-11-08 20:08
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** tek pencere, ana panel/kaynakla kapanış, geç okuma ve klavye/odak sınırları tamamlandı; toplam eşleşme ile sayfa aralığı ayrıldı.
+- 84/84 ve LG1920×1080 gerçek Electron/native Escape/Podcast bölüm değişimi geçti. İlk gerçek kaynak değişimi başarısızlığı mevcut medya yükleme olaylarına bağlanarak düzeltildi. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-2008.md). Sonraki adım açık Git teslim talimatında birikmiş yerel kapsamı birlikte almak; commit/push yapılmadı.
+
+## Birikmiş yerel paketin birlikte kabulü — 2026-11-08 19:58
+
+- **Doğrulandı, toplu commit talimatı bekliyor:** beş ürün modülü/dört mevcut testte birikmiş işler on ilgili dosyada334/334 geçti. Dublaj karşılaştırmasının bekleyen ses bağlamasıyla yarışma açığı bulundu ve ortak busy kapısına alındı.
+- LG1920×1080 birleşik not kaydı+uyku+görünüm+dublaj paneli turu doğru bölüme tek kayıt; ayrı gerçek panel turunda ortak karşılaştırma kilidi geçti. Kontrollü gecikme/medya/çıktı sınırları [devirde](docs/devir/2026-11-08-1958.md). Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. Commit/push yapılmadı; açık talimat beklenir.
+
+## Not taslağının düzenleme konumu — doğrulandı, 2026-11-08 19:53
+
+- **Doğrulandı, commit bekliyor:** altyazı yenilemesi/aynı kaynakta görünüm devri not textarea scrollunu, seçim yönünü ve alıntı okuma odağını korur. Ret/yeniden açılışta taslak aynı yerde; dış odak çekilmez, yeni bölüm eski taslağı almaz.
+- Son kodda211/211; LG1920×1080 gerçek textarea250px ve150–220/backward seçimi, stale save engeli ve bölüm değişimi geçti. Not yazımı/model çağrısı0. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir](docs/devir/2026-11-08-1953.md). Önceki yerel işler korunur; commit/push yok.
+
+## Seek sonucunun görünüm devri — doğrulandı, 2026-11-08 19:48
+
+- **Doğrulandı, commit bekliyor:** aynı bölümde Podcast↔Çift dilli geçişinde seek hatası kaybolmaz; son isteğin hatası bir kez gösterilir. Eski sonuç yeni kaynak/isteği etkilemez, odak çekmez ve yeniden seek başlatmaz.
+- Son kodda206/206; LG1920×1080 iki yönlü kontrollü geç ret ve gerçek pointer seek18.004769s geçti. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir ve görsel kanıt sınırı](docs/devir/2026-11-08-1948.md). Önceki yerel işler korunur; commit/push yok.
+
+## Sesi kullan panel sahipliği — doğrulandı, 2026-11-08 19:40
+
+- **Doğrulandı, commit bekliyor:** kapatılan/yeniden açılan panel eski ses doğrulamasını uygulamaz; kontrol yenilemesi kilidi kaldırmaz, çift tıklama tek işlem kalır. Yeni panel kilidi eski yanıtla açılmaz; ret sonrası açık retry mümkündür. Bağlama beklerken yeni üretim başlatılmaz.
+- Son kodda68/68 ve LG1920×1080 gerçek ses denetleyicisi/kontrollü hazır çıktı kanıtı geçti: kapalı panel bağlanma0, açık panel tek bağlanma, medya paused=true. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. [Devir ve sınırlar](docs/devir/2026-11-08-1940.md). Önceki yerel işler korunur; commit/push yok.
+
+## Dublaj karşılaştırması panel sahipliği — doğrulandı, 2026-11-08 19:31
+
+- **Doğrulandı, commit bekliyor:** geç gruplama sonucu kapalı/yeniden açılmış panelde veya yeni medya neslinde pencere açmaz, eski hata yeni durumu ezmez. Sahipli alt pencere parent/kaynakla kapanır, Escape odağı düğmeye döndürür. Ham ayar kodları EN/TR adlarla gösterilir.
+- Son kodda70/70 ve LG1920×1080 gerçek model-free SRT planı/kontrollü gecikme/kapanış kabulü. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; yeni engel yok. Önceki uyku/kuyruk/native düzeltmeleri yerelde korunuyor. [Devir ve sınırlar](docs/devir/2026-11-08-1931.md). Commit/push yapılmadı.
+
+## Kuyruk odağı ve native otomatik çalma — doğrulandı, 2026-11-08 19:14
+
+- **Doğrulandı, commit bekliyor:** asenkron kuyruk yenilemesinde satır odağı/filtre/scroll ve kaynak değişimi sonrası kapanış odağı korunur. Native ağ kaynağı autoplay isteği yalnız güncel kaynak/istekte mevcut motoru çaldırır; kaynak-only açılışı duraklatılmış kalır.
+- Son kodda103/103; LG1920×1080 gerçek native saat0.993014, kuyruk hatası0, B→A bölüm/Çift dilli/asistan seçimi sınırları ve odak dönüşü geçti. Kontrol edilmiş native taşıma eşlemesi canlı yayıncı kanıtı değildir. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; [devir ve başarısız düzenek sınırları](docs/devir/2026-11-08-1914.md). Yeni engel yok; önceki uyku düzeltmesi de yerelde korunuyor.
+
+## Uyku zamanlayıcısı görünüm devri — doğrulandı, 2026-11-08 18:51
+
+- **Doğrulandı, commit bekliyor:** bekleyen uyku pause sonucu aynı kaynakta Podcast↔Çift dilli devrinde kaybolmaz; bekleme görünür, tek komut/tek bildirim korunur. Yeni zamanlayıcı/kaynak/kapalı görünüm eski sonuçtan etkilenmez; hata başarı sayılmaz.
+- Son kodda201/201, LG1920×1080 gerçek pause ve kontrollü gecikme/ret kabulü. Dal master, HEAD `1964bfc51272f0bf91cc23e1586df71e0174ee95`; iki ürün/test dosyası yerel değişiklik. Yeni engel yok. [Devir ve sınırlar](docs/devir/2026-11-08-1851.md).
+- Güncel Git tercihi: geliştirmeler yerelde birikir; otomatik commit/push/PR/merge yapılmaz. Yeterli toplu ilerlemeden sonra önerilir ve açık talimat beklenir. Eski sürekli-yetki notları tarihsel kalır.
+
 ## Browser Podcast cümle arası gezinme — 2026-11-08 18:41
 
 - **Tamamlandı:** boşlukta yanlış ilk cümleye dönüş, son cümlede tekrar eden sonraki hedef ve kısa/çakışan satır hedefi düzeltildi. Son kodda196/196; LG1920×1080 gerçek Browser/VTT,+1.25s ile5.26/1.26s seek, oynarken1.5× iki yönlü Sahne devri ve Browser dönüşü geçti.
