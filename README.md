@@ -24,6 +24,8 @@ Whisper Browser is a desktop media library, player and embedded browser, with di
 
 Proje bilgisi sohbetle sınırlı tutulmaz. Yeni çalışmaya aşağıdaki kök dosyalardan başla:
 
+**Son teslim (2026-11-09):** Podcast, altyazı ve dublaj iyileştirmelerinin kapsamı ve doğrulama sınırları [teslim notunda](docs/devir/2026-11-09-1633.md). Açık kabuller [BACKLOG.md](BACKLOG.md) dosyasında.
+
 | Dosya | Ne için? |
 | --- | --- |
 | [AGENTS.md](https://github.com/dorukakindev/whisper-browser/blob/master/AGENTS.md) | Kısa çalışma, tasarım, doğrulama ve teslim kuralları. |
@@ -51,7 +53,7 @@ Aktif podcastte “bu bölümü yazıya dök” veya “eksik çeviriyi tamamla�
 - **Arayüz:** Electron + Node.js; ağırlıklı düz JavaScript/HTML/CSS, React değil. Grafit/amber sinematik kimlik ve onaylı Claude v2 kompozisyonları korunur. Browser, ana sayfa, RSS ve yerel girişler ortak Podcast/Çift dilli Sahne'yi kullanır; kaynağın mevcut oynatma sahibi korunur.
 - **Sınırlar:** `src/main.js` ve servisleri dosya/oturum/iş/sağlayıcı ve alt süreçleri yönetir; `src/preload.js` sınırlı `window.api` IPC köprüsüdür; sandbox ve context isolation açık `src/renderer/` arayüz ve özellik modülleridir.
 - **Medya/AI:** Python `backend/`, faster-whisper, CTranslate2, PyTorch/CUDA, opsiyonel WhisperX/konuşmacı ayrımı; FFmpeg, yt-dlp, VoxCPM2. PDF.js, HLS.js, JASSUB; Ghostery ve Dark Reader. Haricî LLM sağlayıcıları mevcut ayarlardan kullanılır. Python ilerlemesi NDJSON → main → IPC → renderer akar.
-- **Tamamlanan yakın işler:** Spotify bağlantısından uygun RSS adayı bulma; erişilebilir kaynakta mevcut Whisper/çeviri kuyruğu; zamanlı/zamansız transkript ayrımı, kaldığın yerden devam, yalnız eksik çeviriyi tamamlama ve kaynak bağlı notlar. Asistan gerçek iş sonucunu bekler; “bu ana kadar” bağlamı soru anında sınırlanır. Zevk önerileri gerçek puan dayanaklarını ve karşıt kanıtları korur; kalıcı değişiklikler mevcut onay kapısından geçer.
+- **Tamamlanan yakın işler:** Spotify bağlantısından RSS adayı; Podcast dinleme kuyruğu, kaynaklı transkript araması ve notlar; Keşfet karar akışı ve zevk dayanaklarını düzeltme; asistan kaynak kartları, onay makbuzları ve dublaj iş geçmişi. Son teslimde Browser/Podcast/Çift dilli geçişleri, indirilebilir sesin ortak Whisper hattı, kısmi çevirinin gösterimi, doğrulanmış ses kopyasında zamanlı takip, doğru dublaj paneline devir, kuyruk görünürlüğü ve İleri araçlar düzeltildi. Asistanın “bu ana kadar” sınırı ve kalıcı değişiklik onayları korunur. Ayrıntı ve gerçek kabul sınırları [önceki ürün tesliminde](docs/devir/2026-11-09-1220.md).
 - **Kalanlar:** [BACKLOG.md](BACKLOG.md) esas alınır. Kaynak erişimi/Spotify DRM, tüm sağlayıcılar ve GPU koşulları için genel başarı garantisi yoktur. Tamamlanan işi eski rapor var diye yeniden açma; test ve canlı/native kanıtını ayır.
 
 Yeni sohbet yalnız repoyu görebilir: önceki konuşma veya ekran görüntülerine eriştiğini varsayma. Gerekli görsel referansları dosya/ZIP olarak sağla. Güncel çalışma kökü `D:\Whisper Local`, gerçek ana dal adı `master`, normal açılış `start.bat`. Kişisel profil ve yerel farkları koru; Computer Use, dosya izin penceresi, uzun matris/CPU kampanyası ve GitHub Actions kullanma. Ayrıntı [AGENTS.md](AGENTS.md), [DESIGN.md](DESIGN.md) ve [çalışma rehberinde](docs/WORKING_GUIDE.md).

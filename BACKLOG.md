@@ -1,5 +1,15 @@
 # Bekleyen işler
 
+## Podcast, altyazı ve dublaj · açık kabuller (2026-11-09)
+
+Ürün, hedefli testler ve önceki gerçek LG/VoxCPM2 kanıtları [teslim notunda](docs/devir/2026-11-09-1633.md). Sonraki adımlar:
+
+- **Gresham eksik çevirisi:** Gerçek işlemi kullanıcı başlatır. İzole profilde kayıtlı DeepInfra bilgisi çözülemediği için canlı istek gönderilmedi. 616 satırın 246 tanesi kayıtta api_failure durumunda. Kullanıcının başlattığı sonuçta nedeni, yalnız eksiklerin işlendiğini ve hazır satırların korunduğunu kontrol et. [Yerel doğrulama](docs/devir/2026-11-09-1558.md)
+- **Canlı asistan:** Algılanmış Podcast bölümünde gerçek modelle cümle birleştirme ayarını oku, değişikliği mevcut onayla uygula ve dublaj hazırlığına yönlendirmeyi kontrol et. Kaynak değişince eski kartı yeniden dene.
+- **Dublaj sesi ve panel:** Kaynak/dublaj WAV çiftini dinleyip 2,06 saniyelik duraklamanın etkisini değerlendir. Ayrı 12 saniyelik örnekte Whisper, Marie Curie adını ve iki yılı doğru çözdü. Telaffuzun doğallığını dinleyerek değerlendir. Dar gerçek Electron panelinde ileri ayarların erişimini doğrula. [Senkron](docs/devir/2026-11-09-1612.md) · [Telaffuz örneği](docs/devir/2026-11-09-1630.md)
+
+Aşağıdaki önceki dilimler tarihsel kayıtlardır. Güncel kapsam için yukarıdaki teslim notunu kullan.
+
 ## Podcast kütüphanesi → Sahne · ekran görüntülerindeki bağlantılar
 
 - **Doğrulandı, toplu teslim:** kısmi çevirinin saklanmasına rağmen gizlenmesi, eski kütüphane bölümünün feed kimliğini kaybetmesi, açık Podcast’in asistana medyasız görünmesi, gizli oynatıcıya yönlenen dublaj hazırlığı, kuyruk üyeliği/sayısı ve boş İleri araçlar yerleşimi. [Kanıt ve dosyalar](docs/devir/2026-11-09-1212.md). Ürün commit’i `6c2298845afcdcf50599ef4c1c55751dd77a7f49`; [toplu teslim](docs/devir/2026-11-09-1220.md). Kişisel farklar korunuyor.
