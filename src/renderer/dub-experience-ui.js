@@ -7,8 +7,8 @@
  const host=el('details','dub-experience'),head=el('div','dub-experience-head'),title=el('summary'),tools=el('div','dub-experience-tools'),status=el('p','dub-experience-status');status.setAttribute('role','status');
  const inspect=button('',()=>void preflight()),compare=button('',()=>void comparison()),repair=button('',()=>void repairNow());
  const details=el('details','dub-preflight'),summary=el('summary'),list=el('div','dub-preflight-list');details.hidden=true;details.append(summary,list);tools.append(inspect,compare,repair);head.append(tools);host.append(title,head,status,details);
- let inspectedSource='';
- function reviewVisibility(){const snapshot=ui().experience(),identity=JSON.stringify([snapshot.owner,snapshot.srt]);if(inspectedSource&&inspectedSource!==identity){serial++;status.textContent='';details.hidden=true;list.replaceChildren();inspectedSource='';}host.hidden=!snapshot.srt&&!snapshot.groups.length&&!snapshot.output?.url;inspect.disabled=snapshot.busy;repair.disabled=snapshot.busy||(!snapshot.srt&&!snapshot.groups.length);}
+ let inspectedSource='',groupCompare=null,groupingPending=false,translationDialog=null,translationOwner='';
+ function reviewVisibility(){const snapshot=ui().experience(),identity=JSON.stringify([snapshot.owner,snapshot.srt]);if(inspectedSource&&inspectedSource!==identity){serial++;status.textContent='';details.hidden=true;list.replaceChildren();inspectedSource='';}host.hidden=!snapshot.srt&&!snapshot.groups.length&&!snapshot.output?.url;inspect.disabled=compare.disabled=snapshot.busy;repair.disabled=snapshot.busy||(!snapshot.srt&&!snapshot.groups.length);if(groupCompare)groupCompare.disabled=groupingPending||snapshot.busy;}
  host.hidden=true;
  window.addEventListener('dub-takes:context',reviewVisibility);
  window.addEventListener('dub-generator:busy',reviewVisibility);
@@ -46,15 +46,56 @@
   }catch(error){if(request===serial)status.textContent=error.message;}finally{if(request===serial)inspect.disabled=false;}
  }
  async function repairNow(){const ok=await ui().editAtCurrent();if(!ok)status.textContent=t('No unique subtitle or dub group at the current video time.','Güncel video anında tek bir altyazı veya dublaj grubu eşleşmedi.');else status.textContent=t('Group opened. Edit and apply the text, then regenerate only this group.','Grup açıldı. Metni düzenleyip uygula; sonra yalnız bu grubu yeniden üret.');}
- const groupCompare=button('',()=>void groupingComparison());groupCompare.classList.add('dub-group-compare');tools.append(groupCompare);
- async function groupingComparison(){groupCompare.disabled=true;try{const result=await ui().compareGrouping();if(!result){status.textContent=t('Plan changed or comparison is unavailable. Prepare the current subtitle first.','Plan değişti veya karşılaştırma kullanılamıyor. Önce güncel altyazıyı hazırla.');return;}const d=el('dialog','speech-compare-dialog dub-grouping-dialog media-surface'),header=el('header'),close=button('×',()=>d.close());close.setAttribute('aria-label',t('Close comparison','Karşılaştırmayı kapat'));header.append(el('h2','',t('Sentence flow · compare grouping','Cümle akışı · gruplamayı karşılaştır')),close);const body=el('div','speech-compare-body');body.append(el('p','',t('Text planning only. Speaker labels, overlap and long silence remain boundaries. This does not compare voice quality; listen to samples before choosing. Your current plan and edits are unchanged.','Yalnız metin planı. Konuşmacı işaretleri, örtüşme ve uzun sessizlikler sınır olarak korunur. Bu bir ses kalitesi karşılaştırması değildir; karar vermeden önce örnekleri dinle. Güncel planın ve düzenlemelerin değişmedi.')));const columns=el('div','speech-compare-columns');for(const [label,mode,rows]of [[t('Current','Güncel'),result.currentMode,result.current],[t('Alternative','Alternatif'),result.mode,result.alternative]]){const c=el('section');c.append(el('h3','',label+' · '+mode+' · '+rows.length+' '+t('groups','grup')));for(const g of rows.slice(0,6)){const row=el('article','dub-grouping-row');row.append(el('small','',(g.start/1000).toFixed(1)+'–'+(g.end/1000).toFixed(1)+' s'),el('p','',g.text));c.append(row);}if(rows.length>6)c.append(el('p','',t('First six groups shown.','İlk altı grup gösteriliyor.')));columns.append(c);}body.append(columns);d.append(header,body);document.body.append(d);d.addEventListener('close',()=>d.remove(),{once:true});d.showModal();}catch(e){status.textContent=e.message;}finally{groupCompare.disabled=false;}}
- async function comparison(){files.open=false;
+ groupCompare=button('',()=>void groupingComparison());groupCompare.classList.add('dub-group-compare');tools.append(groupCompare);
+ let groupingSerial=0,groupingDialog=null,groupingOwner='';
+ function invalidateGrouping(){groupingSerial++;groupingPending=false;groupingOwner='';reviewVisibility();if(groupingDialog?.open)groupingDialog.close();}
+ $('dubGeneratorDialog').addEventListener('close',invalidateGrouping);
+ document.addEventListener('media-context-changed',()=>{if(groupingOwner&&groupingOwner!==ui().experience().requestOwner)invalidateGrouping();});
+ async function groupingComparison(){
+  const parent=$('dubGeneratorDialog');if(!parent.open||groupCompare.disabled)return;
+  if(groupingDialog?.open){groupingDialog.focus();return;}
+  const ticket=++groupingSerial,owner=groupingOwner=ui().experience().requestOwner;
+  const current=()=>ticket===groupingSerial&&parent.open&&owner===ui().experience().requestOwner;
+  groupingPending=true;groupCompare.disabled=true;
+  try{
+   const result=await ui().compareGrouping();if(!current())return;
+   if(!result){status.textContent=t('Plan changed or comparison is unavailable. Prepare the current subtitle first.','Plan değişti veya karşılaştırma kullanılamıyor. Önce güncel altyazıyı hazırla.');return;}
+   const d=el('dialog','speech-compare-dialog dub-grouping-dialog media-surface'),header=el('header'),close=button('×',()=>d.close());
+   close.setAttribute('aria-label',t('Close comparison','Karşılaştırmayı kapat'));header.append(el('h2','',t('Sentence flow · compare grouping','Cümle akışı · gruplamayı karşılaştır')),close);
+   const body=el('div','speech-compare-body');body.append(el('p','',t('Text planning only. Speaker labels, overlap and long silence remain boundaries. This does not compare voice quality; listen to samples before choosing. Your current plan and edits are unchanged.','Yalnız metin planı. Konuşmacı işaretleri, örtüşme ve uzun sessizlikler sınır olarak korunur. Bu bir ses kalitesi karşılaştırması değildir; karar vermeden önce örnekleri dinle. Güncel planın ve düzenlemelerin değişmedi.')));
+   const columns=el('div','speech-compare-columns');
+   for(const [label,mode,rows]of [[t('Current','Güncel'),result.currentMode,result.current],[t('Alternative','Alternatif'),result.mode,result.alternative]]){
+    const modeLabel={akici:t('Flowing blocks','Akıcı bloklar'),anlatim:t('Sentence flow','Cümle akışı'),cumle:t('Sentence groups','Cümle grupları'),satir:t('Subtitle rows','Altyazı satırları')}[mode]||t('Grouping','Gruplama');
+    const c=el('section');c.append(el('h3','',label+' · '+modeLabel+' · '+rows.length+' '+t('groups','grup')));
+    for(const g of rows.slice(0,6)){const row=el('article','dub-grouping-row');row.append(el('small','',(g.start/1000).toFixed(1)+'–'+(g.end/1000).toFixed(1)+' s'),el('p','',g.text));c.append(row);}
+    if(rows.length>6)c.append(el('p','',t('First six groups shown.','İlk altı grup gösteriliyor.')));columns.append(c);
+   }
+   body.append(columns);d.append(header,body);document.body.append(d);groupingDialog=d;
+   d.addEventListener('close',()=>{d.remove();if(groupingDialog===d)groupingDialog=null;if(current()&&groupCompare.isConnected&&!groupCompare.disabled)groupCompare.focus({preventScroll:true});},{once:true});d.showModal();
+  }catch(e){if(current())status.textContent=e.message;}
+  finally{if(ticket===groupingSerial){groupingPending=false;reviewVisibility();}}
+ }
+ function closeTranslation(){if(translationDialog?.open)translationDialog.close();}
+ $('dubGeneratorDialog').addEventListener('close',closeTranslation);
+ function checkComparisonOwner(){
+  const owner=ui().experience().requestOwner;
+  if(translationDialog&&translationOwner!==owner)closeTranslation();
+  if(groupingOwner&&groupingOwner!==owner)invalidateGrouping();
+ }
+ document.addEventListener('media-context-changed',checkComparisonOwner);
+ window.addEventListener('browser-panel-layout',checkComparisonOwner);
+ for(const event of ['loadstart','emptied','loadedmetadata'])$('playerVideo')?.addEventListener(event,checkComparisonOwner);
+ async function comparison(){
+  const parent=$('dubGeneratorDialog');if(!parent.open)return;
+  if(translationDialog?.open){translationDialog.focus();return;}
+  if(ui().experience().busy)return;
+  const owner=translationOwner=ui().experience().requestOwner;files.open=false;
   const d=el('dialog','speech-compare-dialog media-surface'),h=el('header'),heading=el('h2','',t('Translation workbench','Çeviri karşılaştırması')),close=button('×',()=>d.close());close.setAttribute('aria-label',t('Close comparison','Karşılaştırmayı kapat'));h.append(heading,close);
   const note=el('p','',t('Compare overlapping timestamps. Differences are review clues, not proof of an error. Files stay unchanged.','Örtüşen zamanları karşılaştırır. Farklar inceleme ipucudur, kesin hata kanıtı değildir. Dosyalar değişmez.'));
-  const controls=el('div','speech-compare-controls'),filters=el('div','speech-compare-filters'),body=el('div','speech-compare-body'),pager=el('div','speech-compare-pager'),feedback=el('p');feedback.setAttribute('role','status');let page=0,alive=true;const versions={source:0,normal:0,speech:0},data={source:[],normal:[],speech:[]},names={},fileLabels={};let comparison=model.comparisonRows(data);
+  const controls=el('div','speech-compare-controls'),filters=el('div','speech-compare-filters'),body=el('div','speech-compare-body'),pager=el('div','speech-compare-pager'),feedback=el('p');feedback.setAttribute('role','status');let page=0,alive=true;const current=()=>alive&&parent.open&&owner===ui().experience().requestOwner&&translationDialog===d;const versions={source:0,normal:0,speech:0},data={source:[],normal:[],speech:[]},names={},fileLabels={};let comparison=model.comparisonRows(data);
   const changedOnly=el('input'),numbersOnly=el('input');for(const [input,label]of [[changedOnly,t('Only changed passages','Yalnız değişen metin')],[numbersOnly,t('Missing numbers','Eksilen sayılar')]]){input.type='checkbox';const wrap=el('label');wrap.append(input,document.createTextNode(' '+label));filters.append(wrap);input.addEventListener('change',()=>{page=0;draw();});}
   function draw(){
-   body.replaceChildren();const comparable=!!data.normal.length&&!!data.speech.length;changedOnly.disabled=numbersOnly.disabled=!comparable;
+   if(!current())return;body.replaceChildren();const comparable=!!data.normal.length&&!!data.speech.length;changedOnly.disabled=numbersOnly.disabled=!comparable;
    const selected=comparison.rows.filter(row=>(!changedOnly.checked||row.changed)&&(!numbersOnly.checked||row.missingNumbers.length)),total=Math.ceil(selected.length/12);page=Math.max(0,Math.min(page,Math.max(0,total-1)));
    for(const item of selected.slice(page*12,page*12+12)){const cue=item.cue,row=el('article','speech-compare-row'),time=el('h3','',cue.start.toFixed(1)+'–'+cue.end.toFixed(1)+t(' s',' sn')),columns=el('div','speech-compare-columns');row.append(time,columns);const values={};let limited=item.limited;
     for(const key of ['source','normal','speech']){const value=model.indexedOverlap(comparison.indexes[key],cue.start,cue.end);values[key]=value.text;limited||=value.limited;}
@@ -65,11 +106,14 @@
    }
    if(!selected.length)body.append(el('p','speech-compare-empty',comparison.rows.length?t('No passages match these filters.','Bu filtrelerle eşleşen metin yok.'):t('Choose subtitle files to begin.','Başlamak için altyazı dosyalarını seçin.')));
    for(const key of ['source','normal','speech'])if(fileLabels[key]){fileLabels[key].textContent=names[key]||t('No file selected','Dosya seçilmedi');fileLabels[key].title=names[key]||'';}
-   feedback.textContent=t(`${selected.length} of ${comparison.rows.length} passages`,`${comparison.rows.length} metinden ${selected.length} gösteriliyor`)+t(` · ${comparison.rows.filter(r=>r.unmatchedSpeech).length} unmatched subtitle passages`, ` · ${comparison.rows.filter(r=>r.unmatchedSpeech).length} eşleşmeyen altyazı metni`)+['source','normal','speech'].map(key=>{const rows=comparison.indexes[key].rows;const label={source:t('Source','Kaynak'),normal:t('Subtitle translation','Normal çeviri'),speech:t('Voice script','Seslendirme metni')}[key];return ` · ${label}: ${rows.length?rows[0].start.toFixed(1)+'–'+Math.max(...rows.map(r=>r.end)).toFixed(1)+' s':'—'}`;}).join('')+(comparison.limited?t(' · Only the first 5,000 cues per file are shown.',' · Dosya başına ilk 5.000 blok gösteriliyor.'):'');pageInfo.textContent=(total?page+1:0)+' / '+total;prev.disabled=page===0;next.disabled=page+1>=total;
+   feedback.textContent=t(`${selected.length} of ${comparison.rows.length} passages match`,`${comparison.rows.length} metinden ${selected.length} eşleşiyor`)+t(` · Showing ${selected.length?page*12+1:0}–${Math.min((page+1)*12,selected.length)}`,` · Gösterilen: ${selected.length?page*12+1:0}–${Math.min((page+1)*12,selected.length)}`)+t(` · ${comparison.rows.filter(r=>r.unmatchedSpeech).length} unmatched subtitle passages`, ` · ${comparison.rows.filter(r=>r.unmatchedSpeech).length} eşleşmeyen altyazı metni`)+['source','normal','speech'].map(key=>{const rows=comparison.indexes[key].rows;const label={source:t('Source','Kaynak'),normal:t('Subtitle translation','Normal çeviri'),speech:t('Voice script','Seslendirme metni')}[key];return ` · ${label}: ${rows.length?rows[0].start.toFixed(1)+'–'+Math.max(...rows.map(r=>r.end)).toFixed(1)+' s':'—'}`;}).join('')+(comparison.limited?t(' · Only the first 5,000 cues per file are shown.',' · Dosya başına ilk 5.000 blok gösteriliyor.'):'');pageInfo.textContent=(total?page+1:0)+' / '+total;prev.disabled=page===0;next.disabled=page+1>=total;
   }
-  async function load(key,file){if(typeof file!=='string'||!file)return;const request=++versions[key];try{const r=await window.api.readSubtitle(file);if(!alive||request!==versions[key])return;if(!r?.ok)throw Error(r?.error||t('Subtitle read failed','Altyazı okunamadı'));const cues=parseSubtitles(r.text).sort((a,b)=>a.start-b.start);if(!cues.length)throw Error(t('No readable subtitle cues found.','Okunabilir altyazı bloğu bulunamadı.'));data[key]=cues;names[key]=String(file).split(/[\\/]/).at(-1);comparison=model.comparisonRows(data);page=0;draw();}catch(error){if(alive&&request===versions[key])feedback.textContent=error.message;}}
-  for(const [key,label]of [['source',t('Choose source','Kaynak seç')],['normal',t('Choose normal translation','Normal çeviri seç')],['speech',t('Choose voice script','Seslendirme metni seç')]]){const group=el('div','speech-file-control'),name=el('span');fileLabels[key]=name;group.append(button(label,async()=>{const file=await window.api.selectFile('subtitle');if(alive)await load(key,file);}),name);controls.append(group);}
-  const prev=button(t('Previous','Önceki'),()=>{page--;draw();}),next=button(t('Next','Sonraki'),()=>{page++;draw();}),pageInfo=el('span');pager.append(prev,pageInfo,next);d.append(h,note,controls,filters,feedback,body,pager);d.addEventListener('keydown',event=>{if(!event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.repeat||/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)||event.target.isContentEditable)return;const target=event.key==='ArrowLeft'?prev:event.key==='ArrowRight'?next:null;if(target){event.preventDefault();if(!target.disabled)target.click();}});document.body.append(d);d.addEventListener('close',()=>{alive=false;d.remove();},{once:true});d.showModal();draw();const file=ui().experience().srt;if(file)await load('speech',file);
+  async function load(key,file){if(!current()||typeof file!=='string'||!file)return;const request=++versions[key];try{const r=await window.api.readSubtitle(file);if(!current()||request!==versions[key])return;if(!r?.ok)throw Error(r?.error||t('Subtitle read failed','Altyazı okunamadı'));const cues=parseSubtitles(r.text).sort((a,b)=>a.start-b.start);if(!cues.length)throw Error(t('No readable subtitle cues found.','Okunabilir altyazı bloğu bulunamadı.'));data[key]=cues;names[key]=String(file).split(/[\\/]/).at(-1);comparison=model.comparisonRows(data);page=0;draw();}catch(error){if(current()&&request===versions[key])feedback.textContent=error.message;}}
+  for(const [key,label]of [['source',t('Choose source','Kaynak seç')],['normal',t('Choose normal translation','Normal çeviri seç')],['speech',t('Choose voice script','Seslendirme metni seç')]]){const group=el('div','speech-file-control'),name=el('span');fileLabels[key]=name;group.append(button(label,async()=>{const file=await window.api.selectFile('subtitle');if(current())await load(key,file);}),name);controls.append(group);}
+  const prev=button(t('Previous','Önceki'),()=>{page--;draw();}),next=button(t('Next','Sonraki'),()=>{page++;draw();}),pageInfo=el('span');pager.append(prev,pageInfo,next);d.append(h,note,controls,filters,feedback,body,pager);d.addEventListener('keydown',event=>{if(!event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.repeat||/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)||event.target.isContentEditable)return;const target=event.key==='ArrowLeft'?prev:event.key==='ArrowRight'?next:null;if(target){event.preventDefault();if(!target.disabled)target.click();}});document.body.append(d);translationDialog=d;d.addEventListener('close',()=>{
+   alive=false;d.remove();if(translationDialog===d){translationDialog=null;translationOwner='';}
+   if(parent.open&&owner===ui().experience().requestOwner&&!document.querySelector('dialog[open]:not(#dubGeneratorDialog)')&&compare.isConnected&&!compare.disabled)compare.focus({preventScroll:true});
+  },{once:true});d.showModal();draw();const file=ui().experience().srt;if(file)await load('speech',file);
  }
  const continuity=el('details','dub-preflight'),continuityTitle=el('summary'),continuityRows=el('div','dub-preflight-list');continuity.hidden=true;continuity.append(continuityTitle,continuityRows);host.append(continuity);let continuitySignature='';
  function showContinuity(){const snapshot=ui().experience(),groups=snapshot.groups.map(g=>({...g,continuity:model.continuity(g.continuity)})).filter(g=>g.continuity),signature=JSON.stringify([window.UiLocale?.get?.(),snapshot.busy,groups.map(g=>({key:g.key,group:g.group,continuity:g.continuity}))]);if(signature===continuitySignature)return;continuitySignature=signature;continuity.hidden=!groups.length;continuityTitle.textContent=t('Measured speech continuity','Ölçülen ses devamlılığı');continuityRows.replaceChildren();
@@ -83,7 +127,7 @@
   }
  }
  window.addEventListener('dub-takes:context',showContinuity);document.addEventListener('ui-locale-change',showContinuity);
- document.addEventListener('keydown',event=>{if(event.ctrlKey&&event.altKey&&!event.shiftKey&&event.code==='KeyR'&&!event.repeat&&!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)&&!event.target.isContentEditable){event.preventDefault();void repairNow();}});
+ document.addEventListener('keydown',event=>{if(event.defaultPrevented||event.isComposing||[...document.querySelectorAll('dialog[open]')].some(dialog=>dialog!==$('dubGeneratorDialog')))return;if(event.ctrlKey&&event.altKey&&!event.shiftKey&&event.code==='KeyR'&&!event.repeat&&!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)&&!event.target.isContentEditable){event.preventDefault();void repairNow();}});
  window.addEventListener('dub-preflight-ready',()=>void preflight());
  document.addEventListener('ui-locale-change',labels);labels();
  window.DubExperienceUI=Object.freeze({preflight,repairNow,comparison});

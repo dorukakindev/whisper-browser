@@ -10,11 +10,13 @@ function browserMediaCandidateRank(item) {
   // A 1px tracking/ad video must not steal commands from the visible player.
   // Playing visible media wins; audible audio wins over paused video; then the
   // largest usable paused video. Hidden playing videos are a last resort.
-  const tier = playing && area > 16 && audible ? 7
+  const duration = Number(item.duration);
+  const shortAudio = audio && duration > 0 && duration < 30;
+  const tier = playing && audible && shortAudio ? 5.5
+    : playing && area > 16 && audible ? 7
     : playing && audio && audible ? 6
       : area > 16 && audible ? 5
         : playing && area > 16 ? 4 : playing && audio ? 3 : area > 16 ? 2 : playing ? 1 : 0;
-  const duration = Number(item.duration);
   return [tier, area, Number(item.readyState) || 0, Number.isFinite(duration) ? duration : 0];
 }
 

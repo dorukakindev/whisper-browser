@@ -294,7 +294,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       },
       persistQueueRunning: () => {}, persistQueueTerminal: (id, event) => terminals.push({ id, event }),
       sendEvent: (event) => emitted.push(event), writeJobLog: () => {}, startJobLog: () => {},
-      endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {},
+      endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {}, browserExtras:null,
       startPowerBlocker: () => {}, stopPowerBlocker: () => {},
       // transcribe:start artik her ise bir terminal mandali baglar; harness
       // GERCEK mandali enjekte eder, sahte bir cift degil -- yoksa "tek is =
@@ -379,7 +379,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       },
       persistQueueRunning: () => {}, persistQueueTerminal: () => {},
       sendEvent: () => {}, writeJobLog: () => {}, startJobLog: () => {},
-      endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {},
+      endJobLog: () => {}, recordJob: () => {}, setTaskbarProgress: () => {}, browserExtras:null,
       startPowerBlocker: () => {}, stopPowerBlocker: () => {},
       createProcessTerminalLatch,
       assistantJobs: require('../src/assistant-jobs').createJobs(),
@@ -442,6 +442,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       const navigate = register('browser:navigate', {
         authorizedBrowserSender: auth, activeRequestedBrowserTab: () => tab,
         normalizeBrowserUrl: (u) => u, waitForProtectedPlayback: async () => {},
+        releaseSourceReturnHold: () => {},
         setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },
         browserCompatibilityModeForUrl: () => false,
         suspendBrowserInstrumentationForNavigation: () => {},

@@ -20,3 +20,7 @@
 @media(max-width:700px){.pdl-head{padding:20px}.pdl-scroll{padding:18px 20px}.pdl-footer{padding:14px 20px;flex-wrap:wrap}.pdl-modes{align-self:stretch}.pdl-candidate{padding:12px;gap:10px}.pdl-cover{flex-basis:36px;height:52px;font-size:16px}}
 @media(prefers-reduced-motion:reduce){.pdl-modes::before{transition:none}}
 :is([data-cinema-motion=off],[data-cinema-motion=reduced],[data-motion=off],[data-motion=reduced]) .pdl-modes::before{transition:none}
+.pdl-episode-preview{display:flex;align-items:center;gap:14px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1)}
+.pdl-episode-preview img{width:96px;aspect-ratio:16/9;object-fit:cover;border-radius:7px;flex:none}
+.pdl-episode-preview>div{min-width:0}
+.pdl-source .pdl-episode-preview h3{margin:0 0 4px}

@@ -1026,6 +1026,7 @@ function openManagedModal(modal, initialFocus, returnFocus = null) {
   _activeModal = modal;
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
+  if (modal.tagName === 'DIALOG') modal.showModal();
   setModalBackgroundInert(modal, true);
   document.body.classList.add('modal-open');
   syncBrowserOcclusion();
@@ -1043,6 +1044,7 @@ function closeManagedModal(modal, restoreFocus = true) {
   const wasActive = _activeModal === modal;
   const queued = wasActive ? _queuedModalOpen : null;
   if (wasActive) _queuedModalOpen = null;
+  if (modal.tagName === 'DIALOG' && modal.open) modal.close();
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden', 'true');
   setModalBackgroundInert(modal, false);
@@ -4542,7 +4544,7 @@ async function startProgressiveChunk(job) {
     ? `Altyazı bölümü ${n}/${job.ranges.length} hazırlanıyor…`
     : 'Altyazı hazırlanıyor…';
   const result = await startTranscribeSafe(opts);
-  if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  if (job !== player.job || (!job.browserMediaToken && job.mediaKey !== player.mediaKey)) return;
   if(result?.ok&&job.ranges.length===1)job.backendJobId=result.jobId;
   if (!result || !result.ok) {
     job.running = false;
@@ -4550,7 +4552,9 @@ async function startProgressiveChunk(job) {
     state.running = false;
     $('startBtn').classList.remove('hidden');
     $('cancelBtn').classList.add('hidden');
-    $('playerJobText').textContent = `Altyazı başlatılamadı: ${(result && result.error) || 'bilinmeyen hata'}`;
+    job.browserWhisperError=(result && result.error) || '';
+    if(job.browserMediaToken&&browserWhisperSourceChanged(job)){updateBrowserWhisperActions();return;}
+    $('playerJobText').textContent = `Altyazı başlatılamadı: ${job.browserWhisperError || 'bilinmeyen hata'}`;
     logLine($('playerJobText').textContent, 'error');
     updateBrowserWhisperActions();
   }
@@ -4638,8 +4642,11 @@ async function finishProgressiveJob(job) {
 
 async function handleProgressiveTerminal(event, job) {
   if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId
-      || job.mediaKey !== player.mediaKey || player.workspaceMode !== 'browser')) {
-    if (event.type === 'done') rememberPendingPlayerLoad(event, job, 'Whisper çıktısı hazır; kaynak sekme artık açık görünümde değil.');
+      || job.mediaKey !== player.mediaKey || player.workspaceMode !== 'browser' || (job.browserMediaToken && browserWhisperSourceChanged(job)))) {
+    if (event.type === 'done') {
+      job.browserWhisperSaved=event.browserWhisperSaved===true;
+      if (!job.browserWhisperSaved) rememberPendingPlayerLoad(event, job, 'Whisper çıktısı hazır; kaynak sekme artık açık görünümde değil.');
+    }
     if (event.type === 'exit') {
       job.running = false; job.awaitingExit = false; state.running = false;
       finishRun(false);
@@ -4647,6 +4654,7 @@ async function handleProgressiveTerminal(event, job) {
     return true;
   }
   if (event.type === 'done') {
+    job.browserWhisperSaved=event.browserWhisperSaved===true;
     const selected = completedSubtitleOutputs(event, 'source');
     if (event.translation && typeof event.translation === 'object') {
       job.translationTerminal = { ...event.translation };
@@ -4682,10 +4690,10 @@ async function handleProgressiveTerminal(event, job) {
     const continueWhenCurrent = (next) => {
       if (job !== player.job) return;
       if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId
-          || job.mediaKey !== player.mediaKey || player.workspaceMode !== 'browser')) {
+          || job.mediaKey !== player.mediaKey || player.workspaceMode !== 'browser' || (job.browserMediaToken && browserWhisperSourceChanged(job)))) {
         job.running = false;
         state.running = false;
-        rememberPendingPlayerLoad({ files: job.outputFiles || [], outputs: job.outputDescriptors || [] }, job,
+        if(!job.browserWhisperSaved)rememberPendingPlayerLoad({ files: job.outputFiles || [], outputs: job.outputDescriptors || [] }, job,
           'Bölümler arasında sekme değişti; mevcut Whisper çıktısı korundu.');
         finishRun(false);
         return;
@@ -4713,6 +4721,7 @@ async function handleProgressiveTerminal(event, job) {
     job.running = false; state.running = false;
     $('startBtn').classList.remove('hidden');
     $('cancelBtn').classList.add('hidden');
+    job.browserWhisperError=String(event.message||'');
     $('playerJobText').textContent = `Altyazı oluşturulamadı: ${friendlyYoutubeError(event.message || '').slice(0, 240)}`;
     logLine($('playerJobText').textContent, 'error');
     updateBrowserWhisperActions();
@@ -4744,7 +4753,7 @@ function playerJobEvent(event) {
   const fill = $('playerJobFill');
   if (!bar) return false;
   if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId
-      || job.mediaKey !== player.mediaKey || player.workspaceMode !== 'browser')
+      || job.mediaKey !== player.mediaKey || player.workspaceMode !== 'browser' || (job.browserMediaToken && browserWhisperSourceChanged(job)))
       && !['done', 'exit', 'error', 'log'].includes(event.type)) return true;
 
   // Iptal edilen oynatici isi kapanirken gec bir error/done uretebilir. Bunlar
@@ -4900,6 +4909,7 @@ function playerJobEvent(event) {
   }
   if (event.type === 'status' && event.text) {
     job.stage = event.text;
+    if(job.browserMediaToken)job.browserWhisperStage=event.stage;
     txt.textContent = event.text;
     // A new stage has its own progress; transcription's 100% is not translation's.
     if (event.stage && job.progressStage !== event.stage) {
@@ -5167,6 +5177,7 @@ function registerCompletedBrowserOutputs(outputs, job) {
       language,
       label: labelParts.join(' · '),
       backendJobId: job.backendJobId || null,
+      mediaToken:job.browserMediaToken||'',
       cueCount: Math.max(0, Number(item.total) || 0),
       updatedAt: Date.now(),
       generatedBy: job.clipRange ? 'whisper-range' : item.generatedBy || job.generatedBy || 'whisper', clipRange: job.clipRange ? { ...job.clipRange } : null,
@@ -5193,6 +5204,7 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
   if (!job || !player.mediaKey) return { loaded: false, reason: 'Oynatıcı açık değil.' };
   const outputs = completedSubtitleOutputs(event, job.kind === 'translate' ? 'translation' : 'source');
   if (!outputs.items.length) return { loaded: false, reason: 'Altyazı çıktısı bulunamadı.' };
+  if(job.browserMediaToken&&browserWhisperSourceChanged(job))return {loaded:false,reason:interfaceChoice('Ses kaynağı değişti; kayıtlı çıktı yeni bölüme yüklenmedi.','The audio source changed; saved output was not loaded into the new episode.')};
   if (player.mediaKey !== job.mediaKey || job.podcastBinding && !podcastJobMatchesCurrent(job)) {
     return { loaded: false, reason: 'Çıktı başka videoya ait olduğu için yüklenmedi.' };
   }
@@ -5200,6 +5212,8 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
     return { loaded: false, reason: 'Çıktının kaynak sekmesi seçili değil.' };
   }
   const draftOpen = () => player.editing === true;
+  const stopLoad = () => draftOpen() || options.isCancelled?.();
+  if (options.isCancelled?.()) return {loaded:false,reason:'Source changed or load cancelled.'};
   if (draftOpen()) {
     const reason = interfaceChoice('Altyazı taslağı açık. Çıktıyı taslağı kapattıktan sonra yükleyin.',
       'A subtitle draft is open. Load the output after closing the draft.');
@@ -5224,7 +5238,8 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
   try {
     if (source) {
       $('playerSubSelect').value = source.path;
-      await loadSubtitle(source.path, false, { silent: true, role: 'source', isCancelled: draftOpen });
+      await loadSubtitle(source.path, false, { silent: true, role: 'source', isCancelled: stopLoad });
+      if (options.isCancelled?.())return {loaded:false,reason:'Source changed or load cancelled.'};
       if (staleGeneration(gen) || player.mediaKey !== job.mediaKey) return { loaded: false, reason: 'Video değişti.' };
       if (player.subPath !== source.path) throw new Error('kaynak altyazı seçilemedi');
       loadedPath = source.path;
@@ -5233,13 +5248,13 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
       const sourceInPrimary = player.subRole === 'source' && player.cues.length > 0;
       if (source || sourceInPrimary) {
         $('playerSubSelect2').value = translation.path;
-        await loadSubtitle(translation.path, true, { silent: true, role: 'translation', isCancelled: draftOpen });
+        await loadSubtitle(translation.path, true, { silent: true, role: 'translation', isCancelled: stopLoad });
         if (player.sub2Path !== translation.path) throw new Error('çeviri altyazısı seçilemedi');
       } else {
         // Yalnız çeviri çıktısında dosyayı kaynak sanma. Birincil kanalda
         // açıkça translation rolüyle göster; dosyaya kaynak cue yazılmaz.
         $('playerSubSelect').value = translation.path;
-        await loadSubtitle(translation.path, false, { silent: true, role: 'translation', isCancelled: draftOpen });
+        await loadSubtitle(translation.path, false, { silent: true, role: 'translation', isCancelled: stopLoad });
         if (player.subPath !== translation.path) throw new Error('çeviri altyazısı seçilemedi');
       }
       if (staleGeneration(gen) || player.mediaKey !== job.mediaKey) return { loaded: false, reason: 'Video değişti.' };
@@ -5253,7 +5268,7 @@ async function attachCompletedJobSubtitles(event, job = state.activeOutputJob, o
   }
   if (!loadedPath && outputs.dual) {
     $('playerSubSelect').value = outputs.dual.path;
-    await loadSubtitle(outputs.dual.path, false, { silent: true, role: 'source', isCancelled: draftOpen });
+    await loadSubtitle(outputs.dual.path, false, { silent: true, role: 'source', isCancelled: stopLoad });
     loadedPath = player.subPath === outputs.dual.path ? outputs.dual.path : '';
   }
   if (!loadedPath) return { loaded: false, reason: 'Yüklenebilir çıktı bulunamadı.' };
@@ -6879,14 +6894,24 @@ function saveActiveBrowserTabWorkspace() {
     subtitleRecordQuarantine: (tab.subtitleRecordQuarantine || []).map((item) => ({ ...item })),
   });
   if (window.api.updateBrowserSessionTab) {
+    // A generated episode transcript needs byte-level source verification
+    // after reopen. The live tab may retain it, but the page preference may not.
+    const persistedSelection=selection?{...selection}:null;
+    if(persistedSelection){
+      for(const role of ['primary','secondary']){
+        const track=player.browserTracks.find(item=>item.mediaToken
+          && (item.id===selection[role+'Id']||item.path===selection[role+'File']));
+        if(track){delete persistedSelection[role+'File'];persistedSelection[role+'Id']='';}
+      }
+    }
     const refs = [];
     if (player.browserLoadedTrackId) {
       const track = player.browserTracks.find((item) => item.id === player.browserLoadedTrackId);
-      refs.push({ id: player.browserLoadedTrackId, assetId: track?.assetId || '', role: track?.role || 'source' });
+      if(!track?.mediaToken)refs.push({ id: player.browserLoadedTrackId, assetId: track?.assetId || '', role: track?.role || 'source' });
     }
     if (player.browserLoadedTrackId2) {
       const track = player.browserTracks.find((item) => item.id === player.browserLoadedTrackId2);
-      refs.push({ id: player.browserLoadedTrackId2, assetId: track?.assetId || '', role: 'secondary' });
+      if(!track?.mediaToken)refs.push({ id: player.browserLoadedTrackId2, assetId: track?.assetId || '', role: 'secondary' });
     }
     const savingMediaId = tab.mediaId;
     const reportPreferenceSave = error => {
@@ -6902,7 +6927,7 @@ function saveActiveBrowserTabWorkspace() {
       rate: tab.browserRate, volume: tab.browserVolume, muted: tab.browserMuted,
       offset: tab.offset, captureEnabled: tab.captureEnabled,
       viewMode: player.viewMode, subtitleMode: savedSubtitleMode,
-      subtitleSelection: selection,
+      subtitleSelection: persistedSelection,
       targetLanguage: $('translateTo')?.value || '',
       trackRefs: refs,
       subtitleSyncRecords: tab.subtitleSyncRecords || [],
@@ -7235,10 +7260,22 @@ function browserCommand(command, value, tabId = player.browserActiveTabId) {
   }
   const request=window.api.browserCommand(tabId, command, value);
   if(!seek)return request;
+  const observedTime = player.browserTime;
   const retire=()=>{if(player._ownSeek===seek){player._ownSeek=null;player._ownSeekAt=0;}};
   return Promise.resolve(request).then(result=>{
     if(result?.ok===false)retire();
-    else if(player._ownSeek===seek&&seek.target===null&&Number.isFinite(result?.media?.currentTime))seek.target=result.media.currentTime;
+    else if (player._ownSeek === seek && Number.isFinite(result?.media?.currentTime)) {
+      const confirmedTime = result.media.currentTime;
+      if (seek.target === null) seek.target = confirmedTime;
+      // Paused seeks within the media event's time bucket still need to move the active caption.
+      if (result.ok === true && result.media.paused === true && player.browserPaused && !player.browserAdPlaying
+        && player.browserActiveTabId === seek.tabId && player.mediaKey === seek.key && player.generation === seek.generation
+        && player.browserTime === observedTime) {
+        player.browserTime = Math.max(0, confirmedTime);
+        const tab = browserTabState();
+        if (tab) tab.browserTime = player.browserTime;
+      }
+    }
     return result;
   },error=>{retire();throw error;});
 }
@@ -11672,34 +11709,102 @@ function openTranslationKeySetup() {
   }, 120);
 }
 
+function currentBrowserWhisperAudio() {
+  const tab=typeof browserTabState==='function'?browserTabState():null,sample=tab?.browserClockSample;
+  if(player.workspaceMode!=='browser'||!player.browserMediaSeen||sample?.mediaType!=='audio'||sample.live||!sample.mediaToken||sample.mediaKey!==player.mediaKey||sample.generation!==player.generation)return null;
+  return {tabId:tab.id,generation:tab.generation,mediaId:tab.mediaId,mediaKey:player.mediaKey,ownerGeneration:player.generation,mediaToken:sample.mediaToken};
+}
+function browserWhisperSourceChanged(job) {
+  if(!job?.browserMediaToken)return false;
+  const source=currentBrowserWhisperAudio();
+  return !source||source.tabId!==job.browserTabId||source.mediaKey!==job.mediaKey||source.mediaToken!==job.browserMediaToken||source.ownerGeneration!==job.generation;
+}
+var browserAudioPreparation=null;
+var browserAudioPreparationError=null;
+var browserAudioPreparationSequence=0;
+async function cancelBrowserAudioPreparation(prep) {
+  if (browserAudioPreparation !== prep || prep.cancelled || !browserAudioPreparationMatches(prep)) return;
+  prep.cancelled = true;
+  setBrowserSignal(interfaceChoice('Ses hazırlığı iptal edildi.','Audio preparation cancelled.'),true);
+  try {
+    await window.api.browserExtras({action:'cancel-whisper-audio',tabId:prep.tabId,generation:prep.generation,
+      mediaId:prep.mediaId,mediaToken:prep.mediaToken,requestId:prep.requestId});
+  } catch {
+    // The local cancellation still blocks handoff to Whisper.
+  }
+}
+function browserAudioPreparationMatches(preparation) {
+  const source = currentBrowserWhisperAudio();
+  return !!source && !!preparation && source.tabId === preparation.tabId && source.mediaKey === preparation.mediaKey
+    && source.mediaToken === preparation.mediaToken && source.ownerGeneration === preparation.ownerGeneration;
+}
+function browserAudioPreparationStatus() {
+  if (browserAudioPreparationMatches(browserAudioPreparation)) {
+    const prep=browserAudioPreparation;
+    const labels={
+      checking:interfaceChoice('Ses kaynağı kontrol ediliyor…','Checking the audio source…'),
+      downloading:interfaceChoice('Bölüm sesi indiriliyor…','Downloading episode audio…'),
+      verifying:interfaceChoice('İndirilen ses doğrulanıyor…','Verifying the downloaded audio…'),
+      verified:interfaceChoice('Ses doğrulandı. Whisper başlatılıyor…','Audio verified. Starting Whisper…'),
+    };
+    return {state:'running',ownerToken:prep,text:prep.cancelled
+      ?interfaceChoice('Ses hazırlığı durduruluyor…','Stopping audio preparation…'):labels[prep.phase],
+      progress:!prep.cancelled&&prep.phase==='downloading'?prep.progress:null,
+      cancel:prep.cancelled?null:()=>cancelBrowserAudioPreparation(prep)};
+  }
+  if (browserAudioPreparationMatches(browserAudioPreparationError)) {
+    const failure=browserAudioPreparationError;
+    return {state:'failed',ownerToken:failure,text:browserWhisperFailureText(failure.error,true),
+      retry:failure.retry?()=>{if(browserAudioPreparationError===failure&&browserAudioPreparationMatches(failure))return failure.retry();}:null};
+  }
+  const job=player.job;
+  if(job?.failed&&job.browserWhisperRetry&&!browserWhisperSourceChanged(job)){
+    return {state:'failed',ownerToken:job,text:browserWhisperFailureText(job.browserWhisperError,false,job.browserWhisperStage),
+      retry:job.awaitingExit?null:()=>{if(player.job===job&&!job.awaitingExit&&!browserWhisperSourceChanged(job))return job.browserWhisperRetry();}};
+  }
+  return null;
+}
+function browserWhisperFailureText(raw, preparing, stage) {
+  const error=String(raw||'');
+  if (/\benospc\b|no space left|disk full|diskte yer kalmadı/i.test(error)) return interfaceChoice(
+    'Diskte yer açıp aynı kapsamı yeniden deneyin.','Free disk space, then retry the same scope.');
+  if (!preparing&&(stage==='load_model'||/failed to load (?:the )?model|model.*(?:yüklenemedi|not found|could not be loaded)|cuda out of memory|cublas.*alloc/i.test(error))) return interfaceChoice(
+    'Whisper modelini veya aygıt seçimini kontrol edip yeniden deneyin.','Check the Whisper model or device setting, then retry.');
+  if (preparing&&/econn|etimedout|timeout|fetch failed|http\s+[45]\d\d|network/i.test(error)) return interfaceChoice(
+    'Bölüm sesi indirilemedi. Sayfada sesin açıldığını kontrol edip yeniden deneyin.','Could not download the episode audio. Check that it plays on the page, then retry.');
+  return preparing&&error?friendlySystemError(error).slice(0,240):preparing
+    ?interfaceChoice('Ses hazırlanamadı. Bölümü oynatıp yeniden deneyin.','Audio preparation failed. Play the episode and retry.')
+    :interfaceChoice('Whisper işlemi tamamlanamadı. Aynı kapsamı yeniden deneyebilirsiniz.','Whisper could not complete. You can retry the same scope.');
+}
 function updateBrowserWhisperActions() {
   const url = currentBrowserYoutubeUrl();
-  const busy = !!(state.running || state.queueRunning);
+  const audio=currentBrowserWhisperAudio(),available=!!(url||audio);
+  const busy = !!(state.running || state.queueRunning || browserAudioPreparation);
   if (player.workspaceMode === 'browser' && $('makeSubsBtn')) {
-    $('makeSubsBtn').disabled = !url || busy;
+    $('makeSubsBtn').disabled = !available || busy;
     $('makeSubsBtn').title = url
       ? (translationReadyForCreate()
         ? 'Bu YouTube videosu için Whisper altyazısı ve çeviri oluştur'
         : 'Bu YouTube videosu için Whisper altyazısı oluştur')
-      : 'Whisper için bir YouTube videosu açın; diğer sitelerde Canlı Whisper kullanılabilir';
+      : audio?interfaceChoice('Bu bölümün erişilebilir sesinden Whisper altyazısı oluştur','Create Whisper captions from this episode’s accessible audio'):'Whisper için bir YouTube videosu açın; diğer sitelerde Canlı Whisper kullanılabilir';
   }
   const descriptions = {
     browserWhisperSubtitles: url
       ? 'Açık YouTube videosunun sesini Whisper ile yazıya çevir ve bu sekmeye yükle'
-      : 'Bu işlem yalnız açık bir YouTube video sayfasında kullanılabilir',
+      : audio?interfaceChoice('Bu bölümün erişilebilir sesini Whisper ile yazıya dök','Transcribe this episode’s accessible audio with Whisper'):'Bu işlem yalnız açık bir YouTube video sayfasında kullanılabilir',
     browserWhisperTranslate: url
       ? 'Açık YouTube videosunu Whisper ile yazıya çevir, Türkçeye çevir ve bu sekmeye yükle'
-      : 'Bu işlem yalnız açık bir YouTube video sayfasında kullanılabilir',
+      : audio?interfaceChoice('Bu bölümün erişilebilir sesini yazıya dök ve çevir','Transcribe and translate this episode’s accessible audio'):'Bu işlem yalnız açık bir YouTube video sayfasında kullanılabilir',
   };
   for (const [id, title] of Object.entries(descriptions)) {
     const button = $(id);
     if (button) {
-      button.disabled = !url || busy;
+      button.disabled = !available || busy;
       button.title = busy ? 'Başka bir altyazı işi çalışıyor.' : title;
     }
     const menuButton = $(`${id}Menu`);
     if (menuButton) {
-      menuButton.disabled = !url || busy;
+      menuButton.disabled = !available || busy;
       menuButton.setAttribute?.('aria-disabled', menuButton.disabled ? 'true' : 'false');
       menuButton.title = busy ? 'Başka bir altyazı işi çalışıyor.' : title;
     }
@@ -11739,11 +11844,12 @@ function configureSpeechTranslation(opts, enabled) {
 
 async function startBrowserYoutubeWhisper(translate, config = {}) {
   if (config.isCancelled?.()) return { ok: false, cancelled: true };
-  if (state.running || state.queueRunning) return;
+  if (state.running || state.queueRunning || (typeof browserAudioPreparation!=='undefined'&&browserAudioPreparation)) return;
   const tabId = player.browserActiveTabId;
   const mediaKey = player.mediaKey;
   const url = currentBrowserYoutubeUrl();
-  if (!url) {
+  const audioSource=!url?currentBrowserWhisperAudio():null;
+  if (!url&&!audioSource) {
     setBrowserSignal('Whisper işlemi için browser içinde bir YouTube video sayfası açın.', false);
     return;
   }
@@ -11753,11 +11859,12 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
   const selectedModel = String(config.translationConfig?.model||$('translateModel')?.value || '').trim();
   const selectedProvider = String(config.translationConfig?.endpoint||($('translateEndpointPreset')?.value === 'custom'
     ? $('translateBaseUrl')?.value || '' : $('translateEndpointPreset')?.value || '')).replace(/\/+$/, '');
+  const sameAudio=track=>!audioSource||track.mediaToken===audioSource.mediaToken;
   const sameRange = track => clipRange
     ? track.clipRange?.start === clipRange.start && track.clipRange?.end === clipRange.end
     : !track.clipRange;
   const reusableTranslation = translate ? player.browserTracks.find((track) =>
-    ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'translation' && track.path
+    ['whisper', 'whisper-range'].includes(track.generatedBy) && sameAudio(track) && sameRange(track) && track.role === 'translation' && track.path
       && track.language === targetLanguage
       && !!track.forSpeech === forSpeech
       && (!forSpeech || track.speechProtocol === 'speech-v18-pronoun-context-review')
@@ -11766,28 +11873,27 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
       && track.status === 'complete' && !Number(track.failed)) : null;
   if (reusableTranslation) {
     await useBrowserTrack(false, reusableTranslation.id);
-    if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey
-        || config.isCancelled?.()
-        || (player.subPath !== reusableTranslation.path && player.sub2Path !== reusableTranslation.path)) return;
-    setSubtitleMode('translation', false);
-    setBrowserSignal('Bu video için hazırlanmış Whisper çevirisi bulundu ve yeniden işlem yapılmadan yüklendi.', true,
-      { priority: 70, holdMs: 5000 });
-    return { ok: true, reused: true, trackId: reusableTranslation.id, path: reusableTranslation.path };
+    if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey || config.isCancelled?.()) return;
+    if (player.subPath === reusableTranslation.path || player.sub2Path === reusableTranslation.path) {
+      setSubtitleMode('translation', false);
+      setBrowserSignal('Bu video için hazırlanmış Whisper çevirisi bulundu ve yeniden işlem yapılmadan yüklendi.', true,
+        { priority: 70, holdMs: 5000 });
+      return { ok: true, reused: true, trackId: reusableTranslation.id, path: reusableTranslation.path };
+    }
   }
   const reusableSource = player.browserTracks.find((track) =>
-    ['whisper', 'whisper-range'].includes(track.generatedBy) && sameRange(track) && track.role === 'source' && track.path
+    ['whisper', 'whisper-range'].includes(track.generatedBy) && sameAudio(track) && sameRange(track) && track.role === 'source' && track.path
       && (!track.status || track.status === 'complete') && !Number(track.failed) && track.captureComplete !== false);
   if (reusableSource) {
     await useBrowserTrack(false, reusableSource.id);
-    if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey
-        || config.isCancelled?.() || player.subPath !== reusableSource.path) return;
-    if (!translate) {
+    if (player.browserActiveTabId !== tabId || player.mediaKey !== mediaKey || config.isCancelled?.()) return;
+    if (!translate && player.subPath === reusableSource.path) {
       setSubtitleMode('source', false);
       setBrowserSignal('Bu video için hazırlanmış Whisper altyazısı bulundu ve yeniden işlem yapılmadan yüklendi.', true,
         { priority: 70, holdMs: 5000 });
       return { ok: true, reused: true, trackId: reusableSource.id, path: reusableSource.path };
     }
-    if ($('makeTransBtn') && !$('makeTransBtn').disabled) {
+    if (player.subPath === reusableSource.path && $('makeTransBtn') && !$('makeTransBtn').disabled) {
       setBrowserSignal('Whisper altyazısı zaten hazır; ses yeniden işlenmeden yalnız çeviri başlatıldı.', true,
         { priority: 70, holdMs: 5000 });
       return startPlayerSubtitleTranslation({translationConfig:config.translationConfig,forSpeech,targetLanguage,range:clipRange,isCancelled:config.isCancelled});
@@ -11795,14 +11901,19 @@ async function startBrowserYoutubeWhisper(translate, config = {}) {
   }
   if (config.isCancelled?.()) return { ok: false, cancelled: true };
   const previousJob = player.job;
-  await startProgressivePlayerTranscription({
+  const prepared = await startProgressivePlayerTranscription({
     browserYoutube: true,
+    browserAudioSource:audioSource,
+    isCancelled:config.isCancelled,
     translateOverride: !!translate,
     translationConfig:config.translationConfig,
     translateForSpeech: forSpeech,
     targetLanguage,
     clipRange,
+    savedOnly:config.savedOnly===true,
+    browserWhisperRetry:audioSource ? () => startBrowserYoutubeWhisper(translate,{...config,clipRange,targetLanguage,forSpeech}) : null,
   });
+  if(prepared?.reused||config.savedOnly)return prepared;
   return { ok: !!player.job && player.job !== previousJob && !player.job.failed,
     job: player.job !== previousJob ? player.job : null };
 }
@@ -12739,6 +12850,7 @@ function updateBrowserNavigation(data, options = {}) {
       navTab.browserAdSkippable = false;
       navTab.browserAdRemaining = null;
       navTab.browserClockSample = null;
+      navTab.sourceAudioChanged = data.audioChanged === true;
     } }
     player.browserRate = 1;
     player.browserVolume = 1;
@@ -13462,7 +13574,7 @@ function setWorkspaceMode(mode, persist = true) {
     }
   }
   if ($('makeSubsBtn')) {
-    $('makeSubsBtn').disabled = mode === 'browser' && !currentBrowserYoutubeUrl();
+    $('makeSubsBtn').disabled = mode === 'browser' && !currentBrowserYoutubeUrl()&&!currentBrowserWhisperAudio();
     $('makeSubsBtn').title = mode === 'browser'
       ? 'YouTube videosunda Whisper altyazısı oluştur; diğer sitelerde Canlı Whisper kullanılabilir'
       : 'Bu video için altyazı oluştur';
@@ -15150,8 +15262,16 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
     if (index < 0) logLine(`${event.track.role === 'translation' ? 'Web çevirisi' : 'Web altyazısı'} bulundu: ${event.track.label} · ${event.track.cueCount} satır`, 'success');
   } else if (event.type === 'cea-capture-progress') {
     applyBrowserCeaCaptureProgress(event, browserTabState());
+  } else if (event.type === 'whisper-audio-progress') {
+    const prep=browserAudioPreparation;
+    if(prep?.requestId===event.requestId && !prep.cancelled && prep.mediaToken===event.mediaToken && browserAudioPreparationMatches(prep)
+      && ['checking','downloading','verifying','verified'].includes(event.phase)) {
+      prep.phase=event.phase;
+      prep.progress=typeof event.progress==='number'&&Number.isFinite(event.progress)?Math.max(0,Math.min(1,event.progress)):null;
+    }
   } else if (event.type === 'media' && event.media) {
     const mediaTab = browserTabState();
+    const previousMediaToken=mediaTab?.browserClockSample?.mediaToken;
     if (mediaTab) mediaTab.mediaPublisher = String(event.media.publisher || '').slice(0,300);
     if (!player.browserMediaSeen) {
       player.browserMediaSeen = true;
@@ -15187,6 +15307,14 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       browserAdRemaining: player.browserAdRemaining,
       browserClockSample: {
         mediaKey: player.mediaKey, generation: player.generation, time: player.browserTime,
+        mediaType: event.media.tagName === 'audio' ? 'audio' : event.media.tagName === 'video' ? 'video' : '',
+        mediaToken: typeof event.media.docToken==='string'?event.media.docToken:'',
+        artworkUrl: typeof event.media.artworkUrl==='string'?event.media.artworkUrl:'',
+        audioTitle: event.media.audioTitle || '',
+        audioChoices: Array.isArray(event.media.audioChoices) ? event.media.audioChoices : [],
+        pinnedAudio: event.media.pinnedAudio || '',
+        sourceChanged: event.media.tagName==='audio' && !!tab?.sourceAudioChanged,
+        live: event.media.live === true,
         seeking: !!event.media.seeking,
         waiting: !event.media.ended && (event.media.spinnerVisible || Number(event.media.readyState) < 3),
         at: performance.now(), advancing: player.browserTime > previousTime && !wasPaused
@@ -15201,6 +15329,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       if (player.workspaceMode === 'browser') syncPlayerSpeedControl(browserRate);
     }
     syncBrowserLiveAsrClock();
+    if(previousMediaToken!==event.media.docToken)updateBrowserWhisperActions();
     const now = Date.now();
     if (!player.browserPaused) {
       if (!player.watchSession) beginWatchSession();
@@ -21100,7 +21229,7 @@ async function openPodcastResearchResult(result, { beforeSeek, isCancelled = () 
       if(isCancelled()||!latest||latest.mediaKey!==snapshot.mediaKey||latest.generation!==snapshot.generation
         ||result.playbackOwner!=='media-shelf'&&(player.mediaKey!==snapshot.mediaKey||player.generation!==snapshot.generation))return false;
       if(receipt)receipt.mode='seek';
-      if(result.role||result.cueId||exact)window.CinemaSahne?.current?.focusPassage?.(time);
+      if(result.role||result.cueId||exact)window.CinemaSahne?.current?.focusPassage?.(time,{role:result.role});
     }
     return beforeSeek ? !!sought?.ok : true;
   } catch (error) { logLine(String(error?.message || error), 'warn'); return false; }
@@ -26776,15 +26905,61 @@ async function startProgressivePlayerTranscription(config = {}) {
   }
   const opts = buildOptsFromUI();
   const key = player.mediaKey || '';
+  let verifiedAudioRange=null;
   const browserYoutube = config.browserYoutube === true || player.workspaceMode === 'browser';
   if (browserYoutube) {
     const url = currentBrowserYoutubeUrl();
-    if (!url) {
+    const audioSource=config.browserAudioSource||(!url?currentBrowserWhisperAudio():null);
+    if (!url&&!audioSource) {
       setBrowserSignal('Whisper işlemi yalnız browser içinde açık bir YouTube video sayfasında kullanılabilir.', false);
       return;
     }
-    opts.youtube = url;
-    delete opts.input;
+    if(audioSource){
+      if(browserAudioPreparation)return;
+      const prep={...audioSource,requestId:'browser-audio-'+(++browserAudioPreparationSequence),phase:'checking',progress:null};
+      browserAudioPreparation=prep;browserAudioPreparationError=null;updateBrowserWhisperActions();
+      setBrowserSignal(interfaceChoice('Bölümün sesi Whisper için hazırlanıyor…','Preparing episode audio for Whisper…'),true);
+      let prepared;
+      let recovered;
+      const selection={selectedSubPath:player.subPath||'',secondSubPath:player.sub2Path||''};
+      const range=config.clipRange||progressiveRanges(Number(player.browserDuration))[0];
+      verifiedAudioRange={...range};
+      try{
+        prepared=await window.api.browserExtras({action:'whisper-audio',...audioSource,requestId:prep.requestId,findSaved:true,
+          range:{start:Number.isFinite(range.start)?range.start:null,end:Number.isFinite(range.end)?range.end:null}});
+        if(prepared?.ok&&prepared.mediaToken===audioSource.mediaToken&&prepared.outputs?.length
+            && !prep.cancelled&&!config.isCancelled?.()&&browserAudioPreparationMatches(prep)){
+          recovered=await attachCompletedJobSubtitles({outputs:prepared.outputs},{
+            ...selection,workspaceMode:'browser',mediaKey:prep.mediaKey,generation:prep.ownerGeneration,
+            browserMediaToken:prep.mediaToken,browserTabId:prep.tabId,clipRange:config.clipRange,
+          },{isCancelled:()=>prep.cancelled||config.isCancelled?.()||!browserAudioPreparationMatches(prep)});
+        }
+      }
+      catch(error){prepared={ok:false,error:error.message};}
+      finally{if(browserAudioPreparation===prep)browserAudioPreparation=null;updateBrowserWhisperActions();}
+      if(prep.cancelled||!browserAudioPreparationMatches(prep)||config.isCancelled?.())return;
+      if(!prepared?.ok||!prepared.path||prepared.mediaToken!==audioSource.mediaToken){
+        const error=prepared?.error||interfaceChoice('Ses hazırlanamadı. Canlı Whisper ile devam edebilirsin.','Could not prepare audio. You can use Live Whisper.');
+        browserAudioPreparationError={...audioSource,error,retry:config.browserWhisperRetry};setBrowserSignal(error,false);return;
+      }
+      if(recovered?.loaded){
+        setBrowserSignal(interfaceChoice('Bu ses sürümünün kayıtlı metni yüklendi.','Saved transcript loaded for this audio version.'),true);
+        if(config.translateOverride&&!config.savedOnly){
+          const translation=await startPlayerSubtitleTranslation({translationConfig:config.translationConfig,forSpeech:config.translateForSpeech,
+            targetLanguage:config.targetLanguage,range:config.clipRange,isCancelled:config.isCancelled});
+          return translation||{ok:true,reused:true,path:recovered.path};
+        }
+        return {ok:true,reused:true,path:recovered.path};
+      }
+      if(config.savedOnly){
+        const message=recovered?.reason||interfaceChoice('Bu ses sürümü ve kapsam için açılabilir kayıtlı metin bulunamadı.',
+          'No available saved transcript matches this audio version and scope.');
+        setBrowserSignal(message,false);
+        return {ok:false,message};
+      }
+      if(state.running||state.queueRunning)return;
+      opts.input=prepared.path;delete opts.youtube;config={...config,browserMediaToken:audioSource.mediaToken};
+    }else{opts.youtube = url;delete opts.input;}
     opts.youtubeAudioLang = '';
   } else if (key.startsWith('youtube:')) {
     const url = (player.ytInfo && player.ytInfo.sourceUrl) || $('playerYtUrl').value.trim();
@@ -26826,13 +27001,15 @@ async function startProgressivePlayerTranscription(config = {}) {
   }
 
   const video = $('playerVideo');
-  const ranges = browserYoutube && config.clipRange ? [config.clipRange] : progressiveRanges(
+  const ranges = verifiedAudioRange?[verifiedAudioRange]:browserYoutube && config.clipRange ? [config.clipRange] : progressiveRanges(
     browserYoutube ? Number(player.browserDuration) : Number(video && video.duration),
     browserYoutube ? Number(player.browserTime) : Number(video && video.currentTime));
   // Her aşamalı çalışma kendi dosyasına yazar. Aynı başlıklı hazır bir .srt
   // artık ara bölüm veya son birkaç saniyelik iş tarafından ezilemez.
   opts.outputNameSuffix = `-whisper-${Date.now().toString(36)}`;
   player.job = { running: true, mediaKey: player.mediaKey, kind: 'progressive',
+    generation:player.generation,browserMediaToken:config.browserMediaToken||'',
+    browserWhisperRetry:config.browserWhisperRetry,
     clipRange: browserYoutube ? config.clipRange || null : null,
     startedAt: Date.now(), percent: 0,
     ranges, rangeIndex: 0, baseOpts: opts, liveSource: [], liveTranslation: new Map(),
@@ -26864,7 +27041,7 @@ async function startProgressivePlayerTranscription(config = {}) {
     : config.clipRange ? `${actionLabel} · ${config.clipRange.start}–${config.clipRange.end} sn`
       : `${actionLabel} başlatıldı · tüm video tek geçişte`, 'info');
   if (browserYoutube) {
-    setBrowserSignal(`${actionLabel} başlatıldı; çıktı bu YouTube sekmesine otomatik yüklenecek.`, true,
+    setBrowserSignal(`${actionLabel} `+interfaceChoice('başlatıldı; çıktı kaynak sekmeye yüklenecek.','started; output will be loaded into the source tab.'), true,
       { priority: 70, holdMs: 4000 });
   }
   await startProgressiveChunk(player.job);
@@ -26928,7 +27105,7 @@ function syncSubtitlePrimaryAction() {
   const roles = browserSubtitleRoleCues();
   const busy = !!(state.running || state.queueRunning);
   const canCreate = player.workspaceMode === 'browser'
-    ? !!currentBrowserYoutubeUrl()
+    ? !!(currentBrowserYoutubeUrl()||currentBrowserWhisperAudio())
     : !!(player.localPath || player.originalUrl || player.mediaKey);
   let primary = null;
   if (!busy && roles.translation.length && !exportButton.disabled) primary = exportButton;
@@ -27044,7 +27221,7 @@ function clearPendingRetranslateIntent({ dropSnapshot = false } = {}) {
 
 async function startPlayerSubtitleTranslation(config = {}) {
     if(config.isCancelled?.())return {ok:false,cancelled:true};
-    if (state.running || state.queueRunning) {
+    if (state.running || state.queueRunning || (typeof browserAudioPreparation!=='undefined'&&browserAudioPreparation)) {
       // Çalışan işin kendi fark anlık görüntüsü korunur; yalnız bu tıklamanın
       // taşıdığı niyet düşürülür.
       clearPendingRetranslateIntent();
@@ -34171,7 +34348,19 @@ setupRovingTablists();
 // Range choices belong to a video and session, never to all subsequent videos.
 function currentBrowserWhisperRange() {
   const saved = player.browserWhisperRange;
-  return saved?.url === currentBrowserYoutubeUrl() ? saved.range : null;
+  const youtube=currentBrowserYoutubeUrl(),audio=!youtube?currentBrowserWhisperAudio():null;
+  const url=youtube||(audio?player.browserPageUrl:'');
+  return url && saved?.url===url && (!saved.tabId||saved.tabId===player.browserActiveTabId)
+    && (!audio||(saved.mediaToken===audio.mediaToken&&saved.mediaKey===audio.mediaKey)) ? saved.range : null;
+}
+function browserWhisperScopeLabel(range=currentBrowserWhisperRange(), audio=!currentBrowserYoutubeUrl()&&!!currentBrowserWhisperAudio()) {
+  if(range){
+    const stamp=PodcastTaskScope.stamp;
+    return stamp(range.start)+' → '+stamp(range.end)+' · '+interfaceChoice('İşlenecek süre ','Duration ')+stamp(range.end-range.start);
+  }
+  const duration=player.browserAdPlaying?0:Number(player.browserDuration);
+  const full=audio?interfaceChoice('Bölümün tamamı','Full episode'):interfaceChoice('Videonun tamamı','Full video');
+  return full+' · '+(Number.isFinite(duration)&&duration>0?pSecToTime(duration):interfaceChoice('Süre henüz bilinmiyor','Duration not yet known'));
 }
 function validateBrowserWhisperRange(enabled, startText, endText, duration) {
   if (!enabled) return { range: null };
@@ -34180,46 +34369,64 @@ function validateBrowserWhisperRange(enabled, startText, endText, duration) {
     return { error: uiText('Geçerli bir başlangıç ve bitiş girin. Bitiş başlangıçtan büyük olmalı.') };
   }
   if (Number.isFinite(duration) && duration > 0 && (start >= duration || end > duration + 0.5)) {
-    return { error: uiText('Seçilen aralık video süresini aşıyor.') };
+    return { error: interfaceChoice('Seçilen aralık medya süresini aşıyor.','The selected range exceeds the media duration.') };
   }
   return { range: { start, end } };
 }
-function openBrowserWhisperRangeSettings() {
+function openBrowserWhisperRangeSettings(opener) {
   closeBrowserToolbarMenus();
   const modal = $('browserWhisperRangeDialog');
-  modal.dataset.videoUrl = currentBrowserYoutubeUrl();
+  const youtube=currentBrowserYoutubeUrl(),audio=!youtube?currentBrowserWhisperAudio():null;
+  modal.dataset.videoUrl = youtube||(audio?player.browserPageUrl:'');
+  modal.dataset.mediaToken=audio?.mediaToken||'';
+  modal.dataset.tabId=player.browserActiveTabId||'';
+  modal.dataset.mediaKey=player.mediaKey||'';
+  modal.dataset.generation=String(player.generation??'');
+  $('browserWhisperRangeDescription').textContent=interfaceChoice(
+    'Yazıya dökme için bölümün tamamını veya bir aralık seçin. Metin, kaynağın zaman çizelgesinde kalır.',
+    'Transcribe the entire source or choose an interval. The text stays aligned to the original timeline.');
   $('browserWhisperForSpeech').checked = !!$('translateForSpeech')?.checked;
   const range = currentBrowserWhisperRange();
   $('browserWhisperRangeEnabled').checked = !!range;
-  $('browserWhisperRangeStart').value = range ? pSecToTime(range.start) : '0:00';
-  $('browserWhisperRangeEnd').value = range ? pSecToTime(range.end) : pSecToTime(Math.min(600, (!player.browserAdPlaying && Number(player.browserDuration)) || 600));
+  $('browserWhisperRangeStart').value = range ? PodcastTaskScope.stamp(range.start) : '0:00';
+  $('browserWhisperRangeEnd').value = range ? PodcastTaskScope.stamp(range.end) : pSecToTime(Math.min(600, (!player.browserAdPlaying && Number(player.browserDuration)) || 600));
   $('browserWhisperRangeError').textContent = '';
   syncBrowserWhisperRangeFields();
-  openManagedModal(modal, $('browserWhisperRangeEnabled'), $('browserWhisperRangeSettings'));
+  openManagedModal(modal, $('browserWhisperRangeEnabled'), opener||$('browserWhisperRangeSettings'));
 }
 function syncBrowserWhisperRangeFields() {
   const disabled = !$('browserWhisperRangeEnabled').checked;
   $('browserWhisperRangeStart').disabled = disabled;
   $('browserWhisperRangeEnd').disabled = disabled;
+  const preview=$('browserWhisperRangePreview');
+  const result=validateBrowserWhisperRange(!disabled,$('browserWhisperRangeStart').value,$('browserWhisperRangeEnd').value,
+    player.browserAdPlaying?0:Number(player.browserDuration));
+  preview.textContent=result.error||browserWhisperScopeLabel(result.range);
 }
 function applyBrowserWhisperRangeSettings() {
-  const url = currentBrowserYoutubeUrl();
-  if (!url || url !== $('browserWhisperRangeDialog').dataset.videoUrl) {
-    $('browserWhisperRangeError').textContent = uiText('Önce bir YouTube videosu açın ve ayarları tekrar açın.');
+  const youtube=currentBrowserYoutubeUrl(),audio=!youtube?currentBrowserWhisperAudio():null;
+  const url = youtube||(audio?player.browserPageUrl:'');
+  const owner=$('browserWhisperRangeDialog').dataset;
+  if (!url || url!==owner.videoUrl || (audio?.mediaToken||'')!==owner.mediaToken
+      || (player.browserActiveTabId||'')!==owner.tabId || (player.mediaKey||'')!==owner.mediaKey
+      || String(player.generation??'')!==owner.generation) {
+    $('browserWhisperRangeError').textContent = interfaceChoice('Medya değişti. Bölümü oynatıp aralık ayarlarını tekrar açın.','The media changed. Play the episode and reopen the range settings.');
     return;
   }
   const result = validateBrowserWhisperRange($('browserWhisperRangeEnabled').checked,
     $('browserWhisperRangeStart').value, $('browserWhisperRangeEnd').value, player.browserAdPlaying ? 0 : Number(player.browserDuration));
   if (result.error) { $('browserWhisperRangeError').textContent = result.error; return; }
-  player.browserWhisperRange = { url, range: result.range };
+  player.browserWhisperRange = { url, tabId:player.browserActiveTabId, mediaKey:player.mediaKey, mediaToken:audio?.mediaToken||'', range: result.range };
   $('translateForSpeech').checked = $('browserWhisperForSpeech').checked;
   scheduleSave();
   closeManagedModal($('browserWhisperRangeDialog'));
-  setBrowserSignal(uiText(result.range ? 'Whisper ve çeviri seçilen zaman aralığını işleyecek.' : 'Whisper ve çeviri videonun tamamını işleyecek.'), true);
+  setBrowserSignal(browserWhisperScopeLabel(result.range,!!audio), true);
 }
 $('browserWhisperRangeSettings')?.addEventListener('click', () => openBrowserWhisperRangeSettings());
 $('browserWhisperRangeEnabled')?.addEventListener('change', syncBrowserWhisperRangeFields);
+for(const id of ['browserWhisperRangeStart','browserWhisperRangeEnd'])$(id)?.addEventListener('input',syncBrowserWhisperRangeFields);
 $('browserWhisperRangeApply')?.addEventListener('click', applyBrowserWhisperRangeSettings);
+$('browserWhisperRangeDialog')?.addEventListener('cancel',event=>{event.preventDefault();closeManagedModal(event.currentTarget);});
 $$('[data-whisper-range-close]').forEach(button => button.addEventListener('click', () => closeManagedModal($('browserWhisperRangeDialog'))));
 // PLAYER_END
 

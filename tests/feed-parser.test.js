@@ -11,6 +11,10 @@ test('RSS, Atom and JSON Feed normalize safe text, native identity and enclosure
 test('malformed XML, DOCTYPE, deep trees and oversized bodies are rejected',()=>{
  for(const text of ['<rss><channel></rss>','<!DOCTYPE rss [<!ENTITY x SYSTEM "file:///secret">]><rss/>','<rss>'+ '<x>'.repeat(50)+'</x>'.repeat(50)+'</rss>','x'.repeat(2000001)])assert.throws(()=>P.parseFeed(text,'https://feed.example/rss'));
 });
+test('ordinary publisher HTML is identified without calling it unsafe or oversized XML',()=>{
+ for(const html of ['<!DOCTYPE html><html><head><title>Episode</title></head></html>','<html lang="tr"><body>Episode</body></html>'])assert.throws(()=>P.parseFeed(html,'https://publisher.example/episode'),/HTML page, not an RSS/);
+ assert.throws(()=>P.parseFeed('<!DOCTYPE rss [<!ENTITY x SYSTEM "file:///secret">]><rss/>','https://publisher.example/rss'),/Unsafe/);
+});
 test('autodiscovery and OPML are bounded previews, never scripts or private/signed URLs',()=>{
  const candidates=P.discoverFeeds('<link rel="alternate" type="application/rss+xml" title="Cinema" href="/rss"><link rel="alternate" type="application/atom+xml" href="http://127.0.0.1/private">','https://news.example/');assert.equal(candidates.length,1);assert.equal(candidates[0].url,'https://news.example/rss');
  const imported=P.parseOpml('<opml><body><outline text="Cinema"><outline text="Reviews" xmlUrl="https://news.example/rss"/><outline xmlUrl="file:///secret"/></outline></body></opml>');assert.equal(imported.rows[0].folder,'Cinema');assert.equal(imported.rejected,1);assert.equal(P.parseOpml(P.exportOpml(imported.rows)).rows.length,1);

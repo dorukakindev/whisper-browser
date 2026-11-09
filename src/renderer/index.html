@@ -3650,11 +3650,11 @@
     </div>
 
     <!-- UYGULAMA DIALOG'U — onay ve kısa metin girişi için ortak sahip -->
-    <div class="modal hidden" id="browserWhisperRangeDialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="browserWhisperRangeTitle">
+    <dialog class="modal hidden" id="browserWhisperRangeDialog" aria-modal="true" aria-hidden="true" aria-labelledby="browserWhisperRangeTitle">
       <div class="modal-backdrop" data-whisper-range-close></div>
       <div class="modal-content app-dialog-content" tabindex="-1">
         <h3 id="browserWhisperRangeTitle">Whisper ve çeviri zaman aralığı</h3>
-        <p>Whisper ve çeviri yalnız seçilen aralıkta çalışır. Altyazı zamanları videoya hizalı kalır.</p>
+        <p id="browserWhisperRangeDescription" data-ui-untranslated></p>
         <label class="dub-generator-row"><input type="checkbox" id="browserWhisperForSpeech" />Seslendirmeye uygun çeviri</label>
         <p id="browserWhisperSpeechHint" class="muted">Cümleler bağlam içinde çevrilir, ardından kaynakla karşılaştırılarak doğal okunuş için gözden geçirilir. Bloklar ve zamanlar korunur. Ek kontrol süre ve token tüketimini artırır.</p>
         <label class="dub-generator-row"><input type="checkbox" id="browserWhisperRangeEnabled" />Yalnız seçilen zaman aralığını işle</label>
@@ -3662,11 +3662,11 @@
           <label for="browserWhisperRangeStart">Başlangıç (dk:sn)</label><input id="browserWhisperRangeStart" type="text" value="0:00" maxlength="16" data-ui-untranslated />
           <label for="browserWhisperRangeEnd">Bitiş (dk:sn)</label><input id="browserWhisperRangeEnd" type="text" value="10:00" maxlength="16" data-ui-untranslated />
         </div>
-        <p class="muted">Örnek: 0:00 → 10:00 ilk on dakikayı işler. Kapalıysa videonun tamamı işlenir.</p>
+        <p id="browserWhisperRangePreview" class="muted" aria-live="polite" data-ui-untranslated></p>
         <p id="browserWhisperRangeError" role="alert" data-ui-untranslated></p>
         <div class="modal-actions"><button type="button" class="btn btn-ghost" data-whisper-range-close>Vazgeç</button><button type="button" class="btn btn-primary" id="browserWhisperRangeApply">Uygula</button></div>
       </div>
-    </div>
+    </dialog>
     <div class="modal app-dialog hidden" id="appDialog" role="alertdialog" aria-modal="true"
       aria-labelledby="appDialogTitle" aria-describedby="appDialogDescription">
       <div class="modal-backdrop" data-dialog-cancel></div>

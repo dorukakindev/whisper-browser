@@ -91,7 +91,7 @@
     close();stream.title=entry.title;await window.MediaHubUI.playStream(stream,0,{isCancelled,autoplay});
     if(isCancelled()||player.mediaKey!==stream.key)return;
     const owner={mediaKey:player.mediaKey,generation:player.generation};
-    player.workspaceAudio={...owner,title:entry.title,publisher:entry.sourceFeed?.title||'',image:entry.imageUrl||'',entryId:entry.id,revision:entry.revision,sourceVersion:saved.sourceVersion,sourceBinding:exact?.sourceBinding||saved.sourceBinding,episodeIdentity:saved.episodeIdentity||saved.sourceBinding?.episodeIdentity||entry.id,transcriptState:'none',...(exact?{exactAudio:true}:{})};
+    player.workspaceAudio={...owner,title:entry.title,publisher:entry.sourceFeed?.title||'',publisherKind:entry.sourceFeed?.kind||'',image:entry.imageUrl||'',entryId:entry.id,revision:entry.revision,sourceVersion:saved.sourceVersion,sourceBinding:exact?.sourceBinding||saved.sourceBinding,episodeIdentity:saved.episodeIdentity||saved.sourceBinding?.episodeIdentity||entry.id,transcriptState:'none',...(exact?{exactAudio:true}:{})};
     const valid=()=>!isCancelled()&&player.mediaKey===owner.mediaKey&&player.generation===owner.generation;
     if(entry.chapterUrl){
       const audio=player.workspaceAudio;

@@ -367,3 +367,133 @@ test('Sahne shelf dub button: a Whisper episode opens its verified audio copy fi
   assert.equal(result.code,'needs-player');assert.match(result.message,/oynatıcıda/);assert.deepEqual(noEntry.state.opened,[]);assert.equal(noEntry.dialog.open,false);
  }finally{noEntry.close();}
 });
+
+for(const change of ['close','reopen','generation']){
+ test('late grouping comparison cannot reopen or update a '+change+' context',async()=>{
+  let generation=1;const h=fixture('browser',()=>({generation}));
+  try{
+   h.w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};
+   const result={ok:true,groups:[{key:'g',seconds:1,text:'Hello',start:0,end:1000}],sourceHash:'same-hash',skipped:0};h.w.api.planDub=async()=>result;
+   await h.open();h.el('dubPlanPrepare').click();for(let i=0;i<5;i++)await tick();assert(h.w.DubGeneratorUI.experience().plan);
+   h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');h.w.eval(fs.readFileSync(require.resolve('../src/renderer/dub-experience-ui'),'utf8'));
+   let finish;h.w.api.planDub=()=>new Promise(resolve=>finish=resolve);h.w.document.querySelector('.dub-group-compare').click();await tick();assert.equal(typeof finish,'function');
+   if(change==='generation')generation++;else{h.el('dubGeneratorDialog').close();if(change==='reopen')await h.open();}
+   const before=h.w.document.querySelector('.dub-experience-status').textContent;finish({...result,groups:[{...result.groups[0],text:'Obsolete comparison'}]});for(let i=0;i<5;i++)await tick();
+   assert.equal(h.w.document.querySelector('.dub-grouping-dialog'),null,'late comparison must not open a dialog');assert.equal(h.w.document.querySelector('.dub-experience-status').textContent,before,'late result must not overwrite current panel status');assert.equal(h.started,0);
+  }finally{h.close();}
+ });
+}
+
+test('grouping comparison returns focus and closes with its parent or source',async()=>{
+ let generation=1;const h=fixture('browser',()=>({generation}));
+ try{
+  h.w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};
+  const result={ok:true,groups:[{key:'g',seconds:1,text:'Hello',start:0,end:1000}],sourceHash:'hash',skipped:0};h.w.api.planDub=async()=>result;await h.open();h.el('dubPlanPrepare').click();for(let i=0;i<5;i++)await tick();
+  h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');h.w.eval(fs.readFileSync(require.resolve('../src/renderer/dub-experience-ui'),'utf8'));const button=h.w.document.querySelector('.dub-group-compare');
+  button.focus();button.click();for(let i=0;i<5;i++)await tick();let child=h.w.document.querySelector('.dub-grouping-dialog');assert(child?.open);assert.match(child.querySelector('h3').textContent,/Flowing blocks|Sentence flow|Sentence groups|Subtitle rows/);assert.doesNotMatch(child.querySelector('h3').textContent,/ · (akici|anlatim|cumle|satir) · /);child.close();assert.equal(h.w.document.activeElement,button);
+  button.click();for(let i=0;i<5;i++)await tick();assert(h.w.document.querySelector('.dub-grouping-dialog')?.open);generation++;h.w.document.dispatchEvent(new h.w.Event('media-context-changed'));assert.equal(h.w.document.querySelector('.dub-grouping-dialog'),null);
+  button.click();for(let i=0;i<5;i++)await tick();assert(h.w.document.querySelector('.dub-grouping-dialog')?.open);h.el('dubGeneratorDialog').close();assert.equal(h.w.document.querySelector('.dub-grouping-dialog'),null);assert.equal(button.disabled,false);assert.equal(h.started,0);
+ }finally{h.close();}
+});
+test('late comparison error never overwrites a reopened panel',async()=>{
+ const h=fixture();try{
+  h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};const result={ok:true,groups:[{key:'g',seconds:1,text:'Hello',start:0,end:1000}],sourceHash:'hash',skipped:0};h.w.api.planDub=async()=>result;await h.open();h.el('dubPlanPrepare').click();for(let i=0;i<5;i++)await tick();
+  h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');h.w.eval(fs.readFileSync(require.resolve('../src/renderer/dub-experience-ui'),'utf8'));let fail;h.w.api.planDub=()=>new Promise((_,reject)=>fail=reject);h.w.document.querySelector('.dub-group-compare').click();await tick();h.el('dubGeneratorDialog').close();await h.open();const status=h.w.document.querySelector('.dub-experience-status');status.textContent='Current panel';fail(Error('Obsolete error'));for(let i=0;i<5;i++)await tick();assert.equal(status.textContent,'Current panel');
+ }finally{h.close();}
+});
+
+for(const change of ['close','reopen','media']){
+ test('pending saved-output attachment is cancelled by '+change,async()=>{
+  const h=fixture();try{
+   h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};
+   const output={id:'saved',name:'Saved voice',url:'file:///saved.wav'};h.w.api.latestDub=async()=>({ok:true,output});let attached=0;h.w.BrowserDubAudioUI.attachGenerated=async()=>{attached++;return true;};await h.open();
+   let finish;h.w.api.latestDub=()=>new Promise(resolve=>finish=resolve);h.el('dubGeneratorUse').click();await tick();assert.equal(typeof finish,'function');
+   if(change==='media')h.changeMedia();else{h.el('dubGeneratorDialog').close();if(change==='reopen')await h.open();}
+   finish({ok:true,output});for(let i=0;i<5;i++)await tick();assert.equal(attached,0,'abandoned verification cannot attach audio');assert.equal(h.started,0);
+  }finally{h.close();}
+ });
+}
+test('saved-output attachment stays busy through control refresh and duplicate clicks',async()=>{
+ const h=fixture();try{h.w.UiLocale={get:()=> 'en',t:text=>text};h.w.document.documentElement.lang='en';
+  const output={id:'saved',name:'Saved voice',url:'file:///saved.wav'};h.w.api.latestDub=async()=>({ok:true,output});let attached=0;h.w.BrowserDubAudioUI.attachGenerated=async()=>{attached++;return true;};await h.open();
+  const replies=[];h.w.api.latestDub=()=>new Promise(resolve=>replies.push(resolve));const button=h.el('dubGeneratorUse');button.click();await tick();assert.equal(button.disabled,true);
+  h.w.document.dispatchEvent(new h.w.Event('ui-locale-change'));assert.equal(button.disabled,true,'unrelated controls refresh must retain attachment lock');assert.equal(button.getAttribute('aria-busy'),'true');assert.match(button.textContent,/Attaching audio/);
+  button.dispatchEvent(new h.w.Event('click'));await tick();assert.equal(replies.length,1,'only one output verification');assert.equal(h.el('dubGeneratorStart').disabled,true);h.el('dubGeneratorStart').dispatchEvent(new h.w.Event('click'));await tick();assert.equal(h.started,0,'generation cannot race a pending attachment');assert.equal(h.w.DubGeneratorUI.assistant.state().busy,true);replies[0]({ok:true,output});for(let i=0;i<5;i++)await tick();assert.equal(attached,1);assert.equal(button.disabled,false);
+ }finally{h.close();}
+});
+
+test('a reopened panel keeps its own attachment lock when the previous proof finishes',async()=>{
+ const h=fixture();try{
+  h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};const output={id:'saved',name:'Saved voice',url:'file:///saved.wav'};h.w.api.latestDub=async()=>({ok:true,output});let attached=0;h.w.BrowserDubAudioUI.attachGenerated=async()=>{attached++;return true;};await h.open();const replies=[];h.w.api.latestDub=()=>new Promise(resolve=>replies.push(resolve));
+  h.el('dubGeneratorUse').click();await tick();h.el('dubGeneratorDialog').close();await h.open();h.el('dubGeneratorUse').click();await tick();assert.equal(replies.length,2);
+  replies[0]({ok:true,output});for(let i=0;i<4;i++)await tick();assert.equal(attached,0);assert.equal(h.el('dubGeneratorUse').disabled,true);
+  replies[1]({ok:true,output});for(let i=0;i<4;i++)await tick();assert.equal(attached,1);assert.equal(h.el('dubGeneratorUse').disabled,false);
+ }finally{h.close();}
+});
+test('a rejected output proof releases the action for a deliberate retry and never claims success',async()=>{
+ const h=fixture();try{
+  const output={id:'saved',name:'Saved voice',url:'file:///saved.wav'};h.w.api.latestDub=async()=>({ok:true,output});let attached=0;h.w.BrowserDubAudioUI.attachGenerated=async()=>{attached++;return true;};await h.open();h.w.api.latestDub=async()=>{throw Error('read failed');};h.el('dubGeneratorUse').click();for(let i=0;i<4;i++)await tick();assert.equal(attached,0);assert.equal(h.el('dubGeneratorUse').disabled,false);assert.equal(h.el('dubGeneratorUse').hasAttribute('aria-busy'),false);assert.match(h.el('dubGeneratorStatus').textContent,/Ses bağlanamadı|Audio could not/);
+  h.w.api.latestDub=async()=>({ok:true,output});h.el('dubGeneratorUse').click();for(let i=0;i<4;i++)await tick();assert.equal(attached,1);assert.equal(h.started,0);
+ }finally{h.close();}
+});
+
+test('grouping comparison cannot start planning while saved audio attachment is pending',async()=>{
+ const h=fixture();try{
+  const output={id:'saved',name:'Saved voice',url:'file:///saved.wav'};h.w.api.latestDub=async()=>({ok:true,output});h.w.BrowserDubAudioUI.attachGenerated=async()=>true;const plan={ok:true,groups:[{key:'g',seconds:1,text:'Hello',start:0,end:1000}],sourceHash:'hash',skipped:0};let plans=0;h.w.api.planDub=async()=>{plans++;return plan;};await h.open();h.el('dubPlanPrepare').click();for(let i=0;i<5;i++)await tick();
+  h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');h.w.eval(fs.readFileSync(require.resolve('../src/renderer/dub-experience-ui'),'utf8'));let finish;h.w.api.latestDub=()=>new Promise(resolve=>finish=resolve);h.el('dubGeneratorUse').click();await tick();const before=plans;
+  assert.equal(await h.w.DubGeneratorUI.compareGrouping(),null,'direct comparison must obey the same attachment lock');assert.equal(plans,before);assert.equal(h.w.document.querySelector('.dub-group-compare').disabled,true);
+  finish({ok:true,output});for(let i=0;i<5;i++)await tick();assert.equal(h.w.document.querySelector('.dub-group-compare').disabled,false);assert.equal(h.started,0);
+ }finally{h.close();}
+});
+
+for(const change of ['close','source','media-load','browser-layout']){
+ test('translation comparison belongs to its parent panel across '+change,async()=>{
+  const h=fixture();try{
+   h.w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};await h.open();h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');h.w.parseSubtitles=()=>[{start:0,end:1,text:'Controlled passage'}];h.w.eval(fs.readFileSync(require.resolve('../src/renderer/dub-experience-ui'),'utf8'));let finish;h.w.api.readSubtitle=()=>new Promise(resolve=>finish=resolve);const pending=h.w.DubExperienceUI.comparison();await tick();assert(h.w.document.querySelector('.speech-compare-dialog')?.open);
+   if(change==='close')h.el('dubGeneratorDialog').close();else{h.changeMedia();if(change==='media-load')h.el('playerVideo').dispatchEvent(new h.w.Event('loadstart'));else if(change==='browser-layout')h.w.dispatchEvent(new h.w.Event('browser-panel-layout'));else h.w.document.dispatchEvent(new h.w.Event('media-context-changed'));}
+   assert.equal(h.w.document.querySelector('.speech-compare-dialog'),null,'parent/source change closes owned comparison');finish({ok:true,text:'Controlled data'});await pending;assert.equal(h.w.document.querySelector('.speech-compare-dialog'),null);assert.equal(h.started,0);
+  }finally{h.close();}
+ });
+}
+test('translation comparison is single-instance and returns focus only to its current opener',async()=>{
+ const h=fixture();try{
+  h.w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};await h.open();h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');h.w.api.readSubtitle=async()=>({ok:false,error:'Not loaded'});h.w.eval(fs.readFileSync(require.resolve('../src/renderer/dub-experience-ui'),'utf8'));const opener=h.w.document.querySelector('.dub-experience-tools').children[1];opener.focus();await h.w.DubExperienceUI.comparison();await h.w.DubExperienceUI.comparison();assert.equal(h.w.document.querySelectorAll('.speech-compare-dialog').length,1);h.w.document.querySelector('.speech-compare-dialog').close();assert.equal(h.w.document.activeElement,opener);
+  h.el('dubGeneratorDialog').close();await h.w.DubExperienceUI.comparison();assert.equal(h.w.document.querySelector('.speech-compare-dialog'),null,'a closed parent cannot open an orphan comparison');
+ }finally{h.close();}
+});
+test('dub repair shortcut respects another modal and a prevented key event',async()=>{
+ const h=fixture();try{
+  await h.open();let calls=0;h.w.DubGeneratorUI={experience:()=>({owner:'A',srt:'',groups:[],output:null,busy:false}),editAtCurrent:async()=>{calls++;return true;}};h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');h.w.eval(fs.readFileSync(require.resolve('../src/renderer/dub-experience-ui'),'utf8'));
+  const other=h.w.document.createElement('dialog');other.open=true;const button=h.w.document.createElement('button');other.append(button);h.w.document.body.append(other);button.dispatchEvent(new h.w.KeyboardEvent('keydown',{ctrlKey:true,altKey:true,code:'KeyR',bubbles:true,cancelable:true}));await tick();assert.equal(calls,0,'another modal owns its shortcut');
+  other.remove();const event=new h.w.KeyboardEvent('keydown',{ctrlKey:true,altKey:true,code:'KeyR',bubbles:true,cancelable:true});event.preventDefault();h.el('dubGeneratorDialog').dispatchEvent(event);await tick();assert.equal(calls,0);
+ }finally{h.close();}
+});
+
+
+test('translation comparison separates matching totals from the visible page range',async()=>{
+ const h=fixture();try{
+  h.w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};await h.open();h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');h.w.parseSubtitles=()=>Array.from({length:20},(_,i)=>({start:i,end:i+1,text:'Passage '+i}));h.w.api.readSubtitle=async()=>({ok:true,text:'Controlled subtitles'});h.w.eval(fs.readFileSync(require.resolve('../src/renderer/dub-experience-ui'),'utf8'));await h.w.DubExperienceUI.comparison();
+  const d=h.w.document.querySelector('.speech-compare-dialog'),feedback=d.querySelector('[role=status]');assert.equal(d.querySelectorAll('.speech-compare-row').length,12);assert.match(feedback.textContent,/Showing 1–12|Gösterilen: 1–12/);
+  d.querySelector('.speech-compare-pager').lastElementChild.click();assert.equal(d.querySelectorAll('.speech-compare-row').length,8);assert.match(feedback.textContent,/Showing 13–20|Gösterilen: 13–20/);assert.match(feedback.textContent,/20 of 20|20 metinden 20/);assert.equal(h.started,0);
+ }finally{h.close();}
+});
+
+
+for(const change of ['close','reopen'])test('late panel preparation never adopts saved output after '+change,async()=>{
+ const h=fixture();try{
+  h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};
+  const replies=[];h.w.api.latestDub=()=>new Promise(resolve=>replies.push(resolve));await h.open();assert.equal(replies.length,1);
+  h.el('dubGeneratorDialog').close();if(change==='reopen'){await h.open();assert.equal(replies.length,2);}
+  replies[0]({ok:true,output:{name:'Obsolete saved voice',url:'file:///obsolete.wav',syncInvalid:true}});for(let i=0;i<5;i++)await tick();
+  assert.equal(h.el('dubGeneratedPreview').getAttribute('src'),null,'abandoned opening cannot attach its preview');
+  if(change==='reopen'){replies[1]({ok:true,output:{name:'Current saved voice',url:'file:///current.wav',syncInvalid:true}});for(let i=0;i<5;i++)await tick();assert.equal(h.el('dubGeneratedPreview').getAttribute('src'),'file:///current.wav');}
+  assert.equal(h.started,0);
+ }finally{h.close();}
+});
+
+test('closed preparation does not continue after its configuration arrives',async()=>{
+ const h=fixture();try{
+  h.w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new h.w.Event('close'));};let release;h.w.api.dubConfig=()=>new Promise(resolve=>release=resolve);let lookups=0;h.w.api.latestDub=async()=>{lookups++;return {ok:true,output:null};};
+  await h.open();assert.equal(typeof release,'function');h.el('dubGeneratorDialog').close();release({ok:true,ready:true,profile:'fast'});for(let i=0;i<8;i++)await tick();assert.equal(lookups,0);assert.equal(h.el('dubSrtName').textContent,'—');assert.equal(h.started,0);
+ }finally{h.close();}
+});

@@ -10,6 +10,7 @@ function rankBrowserMediaCandidates(entries) {
     .filter((entry) => entry && entry.media && typeof entry.media === 'object')
     .map((entry, index) => ({ ...entry, _index: index }))
     .sort((a, b) => {
+      if (!!a.media.userSelected !== !!b.media.userSelected) return a.media.userSelected ? -1 : 1;
       // Kareler arasi secim, sayfa icindeki kalici controller ile ayni kurali
       // kullanmali. Yoksa dev bir duraklatilmis reklam/preview, oynamakta olan
       // asil videonun komutlarini calar.

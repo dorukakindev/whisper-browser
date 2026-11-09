@@ -1,5 +1,103 @@
 # Changelog
 
+- Browser Podcast, kayıtlı zamanlı metni bölüm kimliği, ses özeti ve aralık eşleştiğinde yeni Whisper işi olmadan açar. Geç biten çıktı kendi iş kaydında kalır. İndirme veya iş hatasında aynı kapsamla yeniden deneme yalnız ilgili bölümde görünür. [Devir](docs/devir/2026-11-09-0949.md)
+
+- Browser Sahne’de Whisper hazırlığı iptal edilebilir. Yalnız yazıya dökme, yazıya dökme ve çeviri ile mevcut metni çevirme ayrı eylemler olarak görünür. Bölümün tamamı veya seçili aralığın süresi başlatmadan önce gösterilir. [Devir](docs/devir/2026-11-09-0938.md)
+
+- Browser Sahne birden fazla ses olduğunda kısa klip yerine bölüm sesine öncelik verir ve elle seçim sunar. Aynı sayfada ses değişirse eski altyazı ve hazırlık durumu temizlenir. Whisper kaynak kontrolünü, indirmeyi ve doğrulamayı ayrı gösterir. [Devir](docs/devir/2026-11-09-0930.md)
+
+- Yayıncı bölüm bağlantısı doğrulanmış sesle doğrudan açılabilir. Çalan bölüm Browser’dan Podcast kütüphanesine tek kayıt olarak eklenebilir. Sahne web sesini, videoyu ve canlı yayını ayırır. [Devir](docs/devir/2026-11-09-0921.md)
+
+- Browser Podcast kapağı sayfanın bölüm görselini veya video poster’ını kullanır. Kaynak değişiminde eski kapak taşınmaz; YouTube ve görsel yüklenemediğinde baş harfli yedek korunur. Apaçık Radyo gerçek görseli LG’de iki Sahne görünümünde doğrulandı. [Devir](docs/devir/2026-11-09-0858.md)
+
+- Browser’daki erişilebilir podcast sesi mevcut Whisper/çeviri ve aralık yolunu kullanabilir. Ana süreç ses kaynağını doğrular; sekme veya ses değişirse eski sonuç yüklenmez. Gerçek Apaçık Radyo bölümünün 12 saniyesinden zamanlı SRT üretilip Sahne’ye yüklendi. [Devir](docs/devir/2026-11-09-0854.md)
+
+- Podcast linkinde RSS yoksa sayfa mevcut Browser’da açılabilir. Özel düğmelerle kullanılan gizli audio algılanır; Podcast/Çift dilli aynı sesi ve doğru kapak düzenini kullanır. Apaçık Radyo gerçek bölümünde LG 1920×1080 geçiş, duraklat/devam et ve seek doğrulandı. [Devir](docs/devir/2026-11-09-0838.md)
+
+- Podcast bağlantısı yayıncı sayfalarında mevcut RSS keşfini kullanır; RSS bildirilmiyorsa anlaşılır EN/TR açıklama verir. Normal HTML artık tehlikeli/büyük XML diye bildirilmez. 28 hedefli test ve gerçek Apaçık Radyo yanıtı kontrol edildi. [Devir](docs/devir/2026-11-09-0824.md)
+
+- Kayıtlı çeviri pasajına dönüş doğru çeviri satırını görünür kılar. Kaynak konuşmanın olmadığı aradaki satır da açılır. Hedefli testler ve LG gerçek Sahne görünürlük denemesi geçti. [Devir](docs/devir/2026-11-09-0817.md)
+
+- Bozuk ve sonlu olmayan altyazı aralığı zaman düğmesini açamaz veya Sahne'den atlama gönderemez. Son çeviri değişikliğiyle birlikte 277/277 kontrol geçti. LG gerçek çeviri/vurgu/tekrar zinciri doğrulandı. [Devir](docs/devir/2026-11-09-0814.md)
+
+- Çeviri zaman düğmeleri bağımsız kaymayla hesaplanan ve video içinde kalan aralığa atlar. Video dışındaki parçaların zaman düğmesi devre dışı kalır. 70 entegrasyon testi, 48 hedefli kontrol ve LG gerçek düğme denemesi geçti. [Devir](docs/devir/2026-11-09-0810.md)
+
+- Sahne yakın altyazı başlangıçlarını atlamaz ve Browser'da kaynak satırını geçerli video aralığında açar. Duraklatılmış video saati, onaylanan küçük konum değişimlerini de yansıtır. 79 hedefli test ve LG gerçek düğme denemesi geçti. [Devir](docs/devir/2026-11-09-0805.md)
+
+- Yeni Sahne konum veya oynatma komutu, bekleyen cümle tekrarının otomatik oynatma adımını iptal eder. 68 test ve LG'de üç düğme senaryosu geçti. [Devir](docs/devir/2026-11-09-0759.md)
+
+- Ortak Sahne, gecikmiş cümle tekrarında iz sürümünü yeniden doğrular. Eski istek oynatmayı başlatamaz. 68 test ve LG'de dört gerçek düğme senaryosu geçti. [Devir](docs/devir/2026-11-09-0756.md)
+
+- **Yerel:** Browser Podcast tekrarında bekleyen seek sonrası iz/senkron değişimi veya gerçek Sahne kapanışı eski play'i engeller; aynı video/izde Çift dilli devri korunur. 68/68 ve LG gerçek gömülü Browser/VTT/medya kabulü. [Devir](docs/devir/2026-11-08-2233.md). Commit yapılmadı.
+
+- **Yerel birleşik kabul:** birikmiş oynatıcı/Podcast/dublaj kapsamı10dosyada405/405geçti. LG gerçek arama/pasaj/not/görünüm/replay-takip zinciri tek doğru kayıtla doğrulandı; bu tur ürün kodu değişmedi, model0. [Devir](docs/devir/2026-11-08-2228.md). Commit yapılmadı.
+
+- **Yerel:** başlık panelinden açık pasaja dönüşte eski okuma konumu hedefi geri çekmez. Tam cümle/takip/klavye davranışları korundu. 10/10 ve LG gerçek pasaj/replay/takip/odak kabulü. [Devir](docs/devir/2026-11-08-2225.md). Commit yapılmadı.
+
+- **Yerel:** sürgüyü hızla sıfıra çekip sesi geri açmak eski tick değeri yerine son duyulur kullanıcı seçimini kullanır; görünüm devri korunur. 11/11 ve LG gerçek medya ses/hız kabulü. [Devir](docs/devir/2026-11-08-2223.md). Commit yapılmadı.
+
+- **Yerel:** bölüm başlıkları açıkken görünüm/yazı boyutu değişse de transkripte aynı okuma cümlesinde dönülür; gizli panel0konumu devralınmaz. 17/17 ve LG gerçek panel/boyut/görünüm/dönüş kabulü. [Devir](docs/devir/2026-11-08-2220.md). Commit yapılmadı.
+
+- **Yerel:** yazı boyutu değişince manuel okuma cümlesi korunur; dil/başlık paneli yeni seçimi eski konum işlemlerinden korur. 10/10 ve LG normal/büyük/küçük konum+odak kabulü. [Devir](docs/devir/2026-11-08-2217.md). Commit yapılmadı.
+
+- **Yerel:** yeni arama eşleşmesi eski okuma konumu karelerini iptal eder; tick öncesi kaynak değişimi eski düzeltmeyi engeller. 7/7 ve LG hızlı iki yönlü geçiş/gezinme kabulü. [Devir](docs/devir/2026-11-08-2215.md). Commit yapılmadı.
+
+- **Yerel:** Podcast/Çift dilli geçişi farklı kart yüksekliğinde aynı okuma cümlesini korur; arama temizliğinde önceki satıra döner. Chromium tahmini kart geometrisi, manuel kaydırma ve iz revizyonu korunur. LG iki yönlü/derin arama kabulü; model0. [Devir](docs/devir/2026-11-08-2211.md). Commit yapılmadı.
+
+- **Yerel doğrulama:** birikmiş oynatıcı/dublaj değişiklikleri 389/389; LG gerçek izole uygulamada arama → asistan pasajı → bekleyen not kaydı → görünüm devri → pasajı kaldırma → konuşmaya dönüş birlikte geçti. Bu tur ürün kodu değişmedi; model0. [Devir](docs/devir/2026-11-08-2155.md). Commit yapılmadı.
+
+- **Yerel:** DOM seçimi kaybolduğunda tekrar Asistana sor geçerli bağlı pasajı korur; Kaldır sonrası geri getirmez. Kaynak/revizyon sınırları sürer. 256/256 ve LG gerçek seçim/4açılış/görünüm/kaldırma kabulü; model0. [Devir](docs/devir/2026-11-08-2150.md). Commit yapılmadı.
+
+- **Yerel:** Sahne mevcut asistan pasajını kompakt EN/TR özetle gösterir; Kaldır yalnız asistan seçimini temizler, notu/oynatmayı değiştirmez. Görünüm devri/revizyon ve kaynak sınırları korunur. 254/254 ve LG gerçek Selection/native Enter/odak kabulü; model0. [Devir](docs/devir/2026-11-08-2147.md). Commit yapılmadı.
+
+- **Yerel:** 4000karakteri aşan açık kaynak seçimi sessizce genel asistan bağlamına düşmez; EN/TR kısaltma uyarısı verir ve kısa seçimle tekrar açılır. Arama etiketi not/asistan kanıtına girmez. 251/251 ve son adaptör66/66; LG gerçek seçim/show sinyali kabulü, model isteği0. [Devir](docs/devir/2026-11-08-2141.md). Commit yapılmadı.
+
+- **Yerel:** seçili arama kartı EN/TR sıra/toplam etiketiyle gerçek konuşma satırından ayrılır. Etiket alıntıya/kopyaya girmez; gizlenen eşleşmede kaldırılır. 249/249 ve LG uzun transkript/iki görünüm/dil geçişi kabulü. [Devir](docs/devir/2026-11-08-2138.md). Commit yapılmadı.
+
+- **Yerel:** not/sözcük kartı kapanınca filtreyle gizlenen eski düğmeye odak dönmez; görünür, etkin kontrol seçilir. Sorgu/oynatma konumu korunur. 248/248 ve LG iki görünüm/iki kart/native Escape kabulü. [Devir](docs/devir/2026-11-08-2134.md). Commit yapılmadı.
+
+- **Yerel:** aynı satırdaki açık yeni alıntı boş taslakta güncellenir; yazılmış/pending/bayat taslak sessizce değiştirilmez. Masaüstü bildirim not/sözcük kartının eylemlerini örtmez. 244/244 ve LG gerçek metin seçimi/izole kayıt/geometri kabulü. [Devir](docs/devir/2026-11-08-2131.md). Commit yapılmadı.
+
+- **Yerel:** pencere kapalıyken tamamlanan not kaydı taslağı temizler; sonraki satırda not açılmasını engellemez. Hata taslakta korunur, pencere kendiliğinden açılmaz ve odak çekilmez. 241/241 ve LG gerçek izole depo/görünüm devri/yeniden deneme kabulü. [Devir](docs/devir/2026-11-08-2127.md). Commit yapılmadı.
+
+- **Yerel:** art arda satır kopyalamada eski yanıt son isteğin başarı/hata bildirimini ezmez; kaynak değişiminde eski başarı taşınmaz. Pano yazma yolu değişmedi. 238/238 ve LG gerçek düğme/preload/kontrollü pano yanıtı kabulü. [Devir](docs/devir/2026-11-08-2123.md). Commit yapılmadı.
+
+- **Yerel:** Uyku kontrolü kalan süre/duraklatma saatini, iptal ve bekleyen pause açıklamasını EN/TR title/erişilebilir etikette gösterir. 236/236; LG gerçek iptal/görünüm devri/yeni bölüm koruması ve hızlandırılmış dolum kabulü. Mevcut zamanlayıcı mantığı değişmedi. [Devir](docs/devir/2026-11-08-2119.md). Commit yapılmadı.
+
+- **Yerel:** bekleyen döngü kontrolünün klavye odağı aynı satır/oynatma kontrolünde tutulur; sonuç yeni okuma odağını çekmez. Birikmiş Sahne/Podcast/dublaj kapsamı368/368 ve LG birleşik gerçek komut/arama/takip kabulünden geçti. [Devir](docs/devir/2026-11-08-2113.md). Commit yapılmadı.
+
+- **Yerel:** bekleyen cümle döngüsü aynı kaynakta görünüm devrinde tek istek kalır; transport/satır kontrolleri EN/TR bekleme ve busy durumunu gösterir. Başka kaynak kilidi devralmaz. 233/233 ve LG iki yönlü gerçek A–B/arama/replay/follow kabulü. [Devir](docs/devir/2026-11-08-2101.md). Commit yapılmadı.
+
+- **Yerel:** bekleyen zaman atlamasının kilidi aynı kaynakta Sahne görünüm devrini izler; ikinci gönderim engellenir, EN/TR bekleme görünür, yeni taslak korunur. Başka kaynağa kilit taşınmaz. 231/231 ve LG gerçek seek/gecikmiş cevap/devret/yeniden gönder kabulü. [Devir](docs/devir/2026-11-08-2056.md). Commit yapılmadı.
+
+- **Yerel:** zaman atlaması beklerken yazılan yeni taslak eski yanıtla kapanmaz; düzeltilen girişin eski hata işareti temizlenir. Çift gönderim/kaynak korumaları sürer. 229/229 ve LG iki modda gerçek12s→taslak18s→uygulama kabulü. [Devir](docs/devir/2026-11-08-2053.md). Commit yapılmadı.
+
+- **Yerel:** uygulanmış döngüye ret/istisna gelirse kendi aralığı sahipsiz bırakılmaz; önceki döngü yalnız gerçekten etkinse korunur, farklı aralık/yeni kaynak silinmez. 226/226 ve LG gerçek A–B/kontrollü ret kabulü. [Devir](docs/devir/2026-11-08-2049.md). Commit yapılmadı.
+
+- **Yerel:** dil görünümü değişince hâlâ eşleşen arama sonucu/sayaç ve okuma bağlamı korunur; sorgu değişimi veya gizlenen sonuç mevcut sıfırlama yolunu kullanır. 222/222; LG60satır/iki Sahne/iki dil ve konuşmaya dönüş kabulü. [Devir](docs/devir/2026-11-08-2044.md). Commit yapılmadı.
+
+- **Yerel:** uygulanmış cümle döngüsü onay cevabı beklerken aynı kaynakta Podcast/Çift dilli geçişinde korunur; aralık yeniden kurulmaz. Ret yalnız kendi aralığını kaldırır, hata yeni görünümde bir kez bildirilir. 250/250 ve LG gerçek A–B/arama/tekrar/takip zinciri. [Devir](docs/devir/2026-11-08-2024.md). Commit yapılmadı.
+
+- **Yerel:** kaldırılan başlık aramasının odağı transkripte döner; yenilenen Sıradaki kart odağı korur, boş kuyrukta transporta döner. Dış odak alınmaz ve oynatma başlatılmaz. 245/245; LG iki Sahne görünümü ve gerçek medya saati/aktif satır kabulü. [Devir](docs/devir/2026-11-08-2016.md). Commit yapılmadı.
+
+- **Yerel:** kapatılmış veya yeniden açılmış dublaj paneline eski hazırlığın ayar/altyazı/kayıtlı sonuç devamı uygulanmaz; her açılış kendi oturumuna ve kaynağına bağlıdır. 87/87 ve LG gerçek Electron/gecikmiş yanıt/Escape kabulü. [Devir](docs/devir/2026-11-08-2012.md). Commit yapılmadı.
+
+- **Yerel:** çeviri karşılaştırması tek pencere olarak ana panel/kaynakla kapanır; geç okumalar ve kısayollar başka pencereye karışmaz, Escape odağı geri verir. Sayfalama toplam eşleşme ve görünür aralığı ayrı gösterir. 84/84 ve LG gerçek Electron/klavye kabulü. [Devir](docs/devir/2026-11-08-2008.md). Commit yapılmadı.
+
+- **Yerel:** ses bağlama doğrulaması beklerken gruplama karşılaştırması yeni plan başlatamaz; düğme ve doğrudan çağrı aynı kilidi kullanır. Birikmiş yerel paket334/334 ve LG birleşik not/uyku/görünüm/dublaj kontrolünden geçti. [Devir](docs/devir/2026-11-08-1958.md). Commit yapılmadı.
+
+- **Yerel:** Sahne not taslağı yenileme/görünüm devri ve hatadan dönüşte düzenleme konumunu, seçim yönünü ve alıntı okuma odağını korur; dış odak çekilmez, başka bölüme taslak taşınmaz.211/211 ve LG gerçek textarea/kontrollü revizyon kabulü. [Devir](docs/devir/2026-11-08-1953.md). Commit yapılmadı.
+
+- **Yerel:** seek başarısızlığı aynı kaynakta Sahne görünüm devrinde korunur; yalnız son isteğin hatası bir kez gösterilir. Yeni kaynak/isteğe eski hata taşınmaz, odak ve tek komut sahibi korunur.206/206 ve LG kontrollü yanıt/gerçek pointer seek kabulü. [Devir](docs/devir/2026-11-08-1948.md). Commit yapılmadı.
+
+- **Yerel:** Sesi kullan doğrulaması panel oturumuna/tek isteğe bağlıdır; kapanışta eski sonuç bağlanmaz, arayüz yenilemesi kilidi kaldırmaz. Bekleme EN/TR görünür, üretim yarışı engellenir; başarı yalnız bağlama sonucunu bildirir.68/68 ve LG gerçek denetleyici/kontrollü ses kabulü. [Devir](docs/devir/2026-11-08-1940.md). Commit yapılmadı.
+
+- **Yerel:** dublaj gruplama karşılaştırması panel oturumu ve medya nesline bağlıdır; geç sonuç/hata kapatılan veya yeni paneli açıp değiştiremez. Alt pencere parent ile kapanır, odak döner; başlıklar okunur EN/TR adlarla gösterilir.70/70 ve LG gerçek panel/SRT planı kabulü. [Devir](docs/devir/2026-11-08-1931.md). Commit yapılmadı.
+
+- **Yerel:** kuyruk yenilemesi odağı/filtreyi/konumu korur; bölüm değişince kapanış güncel Sahne’ye döner. Native ağ medyasında autoplay isteği başarılı hazırlıktan sonra mevcut motorla devam eder; eski veya iptal edilmiş açılış yeni kaynağı çaldırmaz.103/103 ve LG gerçek native/kontrollü medya kabulü; [devir](docs/devir/2026-11-08-1914.md). Commit yapılmadı.
+
+- **Yerel:** uyku zamanlayıcısının bekleyen duraklatma sonucu Podcast↔Çift dilli geçişinde korunur; bekleme anlaşılır, ret başarı sayılmaz, geç cevap yeni zamanlayıcı/kaynağı etkilemez.201/201 ve LG gerçek oynatıcı/kontrollü yanıt kabulü. [Devir](docs/devir/2026-11-08-1851.md). Commit yapılmadı.
+
 - Browser Podcast cümlegezinmesi konuşma boşluğunda kronolojik önceki/sonraki satıra gider; ilk satıra yanlış dönmez. Sonraki yoksa tekrar seek yapmaz; kısa/çakışan/geçersiz zamanlar güvenli işlenir.196/196 test, LG gerçek Browser/Sahne kabulü; [devir](docs/devir/2026-11-08-1841.md).
 
 - Asistanın takılan JSON/SSE yanıtı iptal edilebilir; tamamlanan yanıt bağlantı temizliğini bekleyerek kilitlenmez. Kısmi metin korunur, iptal yeni araç/istek başlatmaz.116/116 hedefli test ve gerçek DeepInfra→onay→Podcast1.00s kabulü; [kanıt ve sınırlar](docs/devir/2026-11-08-1829.md).

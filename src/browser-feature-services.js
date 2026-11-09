@@ -18,6 +18,19 @@ function registerBrowserFeatureServices(deps) {
   const fsx = deps.fsImpl || fs;
   const jobs = new Map(), captures = new Map();
   const references = new Map();
+  const preparedAudio = new Map();
+  const audioStat = file => {
+    try {
+      const stat=fs.statSync(file);
+      return stat.isFile()?{size:stat.size,mtimeMs:stat.mtimeMs,ino:stat.ino}:null;
+    } catch { return null; }
+  };
+  const validPreparedAudio = item => {
+    const stat=item&&audioStat(item.path);
+    return !!stat&&stat.size===item.stat.size&&stat.mtimeMs===item.stat.mtimeMs&&stat.ino===item.stat.ino;
+  };
+  const dl=(tr,en)=>deps.dialogText?.(tr,en)||tr;
+  app.once?.('will-quit',()=>{for(const item of preparedAudio.values())try{fs.rmSync(item.path,{force:true});}catch{}preparedAudio.clear();});
   const encodingPreviews = new Map();
   let seriesStore = null;
   const series = () => seriesStore ||= require('./browser-series-context').createBrowserSeriesContext({
@@ -180,6 +193,14 @@ function registerBrowserFeatureServices(deps) {
     const valid = () => tab && tab === activeTab() && !tab.closing && tab.view && !tab.view.webContents.isDestroyed()
       && context(tab).generation === payload.generation && (context(tab).mediaId || '') === (payload.mediaId || '');
     if (!valid()) return { ok: false, stale: true, error: 'Video veya sekme değişti.' };
+    if (payload.action === 'cancel-whisper-audio') {
+      const job = jobs.get(`${tab.id}:whisper-audio`);
+      if (!job?.requestId || job.requestId !== payload.requestId || job.mediaToken !== payload.mediaToken) {
+        return { ok: false, stale: true };
+      }
+      job.abort();
+      return { ok: true };
+    }
     const key = `${tab.id}:${payload.action}`;
     jobs.get(key)?.abort();
     const controller = new AbortController(); jobs.set(key, controller);
@@ -197,6 +218,56 @@ function registerBrowserFeatureServices(deps) {
     let result = {};
     try {
       switch (payload.action) {
+        case 'whisper-audio': {
+          const requestId=typeof payload.requestId==='string'?payload.requestId.slice(0,80):'';
+          controller.requestId=requestId;
+          controller.mediaToken=payload.mediaToken;
+          const publish=(phase,progress)=>{if(requestId&&current())deps.sendEvent?.(tab,{type:'whisper-audio-progress',requestId,mediaToken:payload.mediaToken,phase,progress});};
+          publish('checking');
+          const best=await bestFrame(tab);assertCurrent();
+          const media=best.media,expected=String(payload.mediaToken||'');
+          if(!expected||media?.docToken!==expected||media.tagName!=='audio')throw Error(dl('Ses kaynağı değişti. Bölümü oynatıp yeniden deneyin.','The audio source changed. Play the episode and try again.'));
+          const url=String(media.sourceUrl||'');
+          if(!/^https?:\/\//i.test(url))throw Error(dl('Bu ses indirilebilir bir bağlantı sunmuyor. Canlı Whisper kullanabilirsiniz.','This audio has no downloadable URL. You can use Live Whisper.'));
+          const identity=require('./browser-media-identity').observedDirectMediaIdentity(tab.view.webContents.getURL(),url,'audio');
+          const lookup = saved => {
+            const outputs=payload.findSaved===true&&saved.binding
+              ? deps.findWhisperOutputs?.(saved.binding,payload.range) : null;
+            return {path:saved.path,mediaToken:expected,...(outputs?.length?{outputs}:{})};
+          };
+          const cacheKey=tab.id+':'+expected,cached=preparedAudio.get(cacheKey);
+          if(validPreparedAudio(cached)){publish('verified');result=lookup(cached);break;}
+          if(cached){
+            preparedAudio.delete(cacheKey);
+            await fs.promises.rm(cached.path,{force:true}).catch(()=>{});
+            assertCurrent();
+          }
+          if(preparedAudio.size>=4)throw Error(dl('Hazırlanmış ses sınırına ulaşıldı. Uygulamayı yeniden açıp deneyin.','The prepared audio limit was reached. Reopen the app and try again.'));
+          const dir=path.join(app.getPath('userData'),'browser-whisper-audio');await fs.promises.mkdir(dir,{recursive:true});
+          let file=path.join(dir,randomUUID()+'.partial');
+          try{
+            const audio=require('./podcast-audio');
+            publish('downloading');
+            const proof=await (deps.acquireAudio||audio.acquireAudio)(url,file,{
+              signal:controller.signal,publicPin:require('./feed-service').publicPin,
+              onProgress:({bytes,totalBytes})=>publish('downloading',totalBytes>0?Math.min(1,bytes/totalBytes):null),
+            });assertCurrent();
+            publish('verifying');
+            const checked=await bestFrame(tab);assertCurrent();
+            if(checked.media?.docToken!==expected||checked.media?.sourceUrl!==url)throw Error(dl('İndirme sırasında ses değişti; eski ses işlenmedi.','The audio changed during download; the old audio was not processed.'));
+            const target=file.replace(/\.partial$/,audio.managedAudioExtension(proof.mime,url));await fs.promises.rename(file,target);file=target;assertCurrent();
+            if(typeof deps.grantMedia!=='function')throw Error(dl('Ses dosyası yetkilendirilemedi.','Could not authorize the audio file.'));
+            const granted=deps.grantMedia(file);
+            const saved={path:typeof granted==='string'?granted:file,binding:identity&&proof.sha256?{
+              identity,sha256:proof.sha256,title:String(media.audioTitle||tab.view.webContents.getTitle?.()||tab.title||'').trim().slice(0,300),
+            }:null,stat:audioStat(file)};
+            if(!saved.stat)throw Error(dl('Hazırlanan ses dosyası bulunamadı.','The prepared audio file is missing.'));
+            preparedAudio.set(cacheKey,saved);
+            result=lookup(saved);
+            publish('verified');
+          }catch(error){await fs.promises.rm(file,{force:true}).catch(()=>{});throw error;}
+          break;
+        }
         case 'encoding-preview': {
           const file = await choose('Karakter kodlaması düzeltilecek altyazıyı seç', ['srt', 'vtt', 'ass', 'ssa']); assertCurrent();
           if (fs.statSync(file).size > 8e6) throw new Error('Altyazı en fazla 8 MB olabilir.');
@@ -426,7 +497,9 @@ function registerBrowserFeatureServices(deps) {
       return { ok: false, stale: !current(), error: String(error.message || 'Video aracı çalıştırılamadı.').slice(0, 600) };
     } finally { if (jobs.get(key) === controller) jobs.delete(key); }
   });
-  return { mini, cancel, hasJobs: () => jobs.size > 0, translationContext: (tab, targetLanguage) => {
+  return { mini, cancel, hasJobs: () => jobs.size > 0,
+    whisperInputBinding: file => [...preparedAudio.values()].find(item=>item.path===file&&validPreparedAudio(item))?.binding || null,
+    translationContext: (tab, targetLanguage) => {
     const language = require('./browser-series-context').targetLanguageOf(targetLanguage);
     return language ? series().translationContext(mediaKey(tab).key, language) : null;
   } };

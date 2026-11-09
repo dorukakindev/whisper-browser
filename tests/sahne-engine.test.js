@@ -12,6 +12,18 @@ function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false,prefs});
  t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setCanSeek:value=>canSeek=value,setRevision:value=>revision=value};
 }
+test('the next sentence button stays available for a cue starting less than ten milliseconds later', t => {
+ const f = mount(t, {study:true});
+ Object.assign(f.rows[0], {start:2, end:2.004});
+ Object.assign(f.rows[1], {start:2.004, end:2.008});
+ f.setTime(2.001);
+ f.setRevision('short-cues');
+ f.sh.tick();
+ const next = f.sh.q('[data-a=next]');
+ assert.equal(next.disabled, false);
+ next.click();
+ assert.equal(f.commands[0][0], 'nextCue');
+});
 for (const study of [false, true]) {
  test(`${study ? 'Bilingual' : 'Podcast'} scrub previews without changing the active cue until playback moves`, t => {
   const f = mount(t, {study, prefs:{disp:'tr'}}), wave = f.sh.q('[data-r=wave]');
@@ -324,7 +336,7 @@ test('a translation spanning two originals follows the currently spoken original
 test('paired translation sentences have independent controls and active markers', t => {
  for (const study of [false, true]) {
   const f = mount(t, { study, prefs: { disp: 'both' } }), state = f.sh.a.state;
-  Object.assign(f.rows[0], { translationCueIds: ['t1', 't2'], translationStarts: [2, 5] });
+  Object.assign(f.rows[0], { translationCueIds: ['t1', 't2'], translationRanges: [{start:2,end:5}, {start:5,end:8}] });
   f.sh.a.state = () => ({ ...state(), captionTracks: [null, { offsetSeconds: 2, cues: [
    { id: 't1', start: 0, end: 3, text: 'Birinci çeviri' },
    { id: 't2', start: 3, end: 6, text: 'İkinci çeviri' }
@@ -348,13 +360,20 @@ test('paired translation sentences have independent controls and active markers'
   f.setCanSeek(false);
   f.sh.tick();
   assert.equal(parts[1].querySelector('button').disabled, true);
+  f.setCanSeek(true);
+  f.rows[0].translationRanges[0] = {start:-2,end:-1};
+  f.setRevision('translation-before-video');
+  f.sh.tick();
+  const buttons = f.sh.lines[0].querySelectorAll('[data-a=translationSeek]');
+  assert.equal(buttons[0].disabled, true);
+  assert.equal(buttons[1].disabled, false);
  }
 });
 test('independent translation follows its own clock in both shared modes', t => {
  for (const study of [false, true]) {
   const f = mount(t, { study, prefs: { disp: 'tr' } }), state = f.sh.a.state;
   f.rows.push({ id: 'gap', start: 22, end: 26, timed: true, src: '', trs: ['Ayrı çeviri'], unc: [],
-   standaloneTranslation: true, translationCueIds: ['gap'], translationStart: 22 });
+   standaloneTranslation: true, translationCueIds: ['gap'], translationRange: {start:22,end:26} });
   f.sh.a.state = () => ({ ...state(), captionTracks: [null,
    { offsetSeconds: 2, cues: [{ id: 'gap', start: 20, end: 24, text: 'Ayrı çeviri' }] }] });
   f.setTime(23);
@@ -375,14 +394,14 @@ test('independent translation follows its own clock in both shared modes', t => 
 test('translation-only timestamps use the verified translation target in both shared modes',t=>{
  for(const study of [false,true]){
   const f=mount(t,{study});
-  f.rows[0].translationStart=4;
+  f.rows[0].translationRange={start:4,end:6};
   f.setRevision('translated');f.sh.tick();
   const button=()=>f.sh.lines[0].querySelector('[data-a=cueSeek]');
   f.sh.q('[data-d=tr]').click();
   assert.match(button().textContent,/0:04/);
   button().click();
   assert.deepEqual(f.commands.at(-1).slice(0,2),['seekTranslation',0]);
-  f.rows[0].translationStart=null;
+  f.rows[0].translationRange=null;
   f.setRevision('unverified');f.sh.tick();
   assert.equal(button().disabled,true);
   f.sh.q('[data-d=both]').click();
@@ -479,6 +498,18 @@ test('untimed content is readable without a timestamp, active line, or seek comm
 test('saved passage focus identifies a real timed line without changing playback or inventing an active line',t=>{
  const f=mount(t);f.sh.focusPassage(12);assert(f.sh.lines[1].classList.contains('sh-search-match'));assert.equal(f.sh.cur,0);assert.equal(f.commands.length,0);
  const plain=mount(t,{untimed:true});plain.sh.focusPassage(0);assert(!plain.sh.root.querySelector('.sh-search-match'));assert.equal(plain.sh.cur,-1);assert.equal(plain.commands.length,0);
+});
+test('a saved translation passage reveals its independent row while the source is silent', t => {
+ const f=mount(t,{study:true,prefs:{disp:'src'}}),state=f.sh.a.state;
+ f.rows.push({id:'independent',start:22,end:26,timed:true,src:'',trs:['Saved translated passage'],unc:[],
+   standaloneTranslation:true,translationCueIds:['translated-gap'],translationRange:{start:22,end:26}});
+ f.sh.a.state=()=>({...state(),captionTracks:[null,{offsetSeconds:2,cues:[{id:'translated-gap',start:20,end:24,text:'Saved translated passage'}]}]});
+ f.setRevision('saved-translation');f.sh.tick();
+ f.sh.focusPassage(23,{role:'translation'});
+ assert.equal(f.sh.lines[2].hidden,false);
+ assert.equal(f.sh.lines[2].classList.contains('sh-search-match'),true);
+ assert.equal(f.sh.s.follow,false);
+ assert.equal(f.commands.some(command=>/seek|replay/.test(command[0])),false);
 });
 test('destroying an old Stage cannot clear the next source or next track loop',t=>{
  for(const change of ['source','track','none']){
@@ -1051,7 +1082,7 @@ test('Full sentence brings the active translation into view inside a tall transc
 test('track rebuild preserves focus on the same independent translation when cue ids overlap', t => {
  const f=mount(t,{study:true,prefs:{disp:'tr'}});
  f.rows[1]={...f.rows[1],id:f.rows[0].id,src:'',trs:['Independent translation'],
-  standaloneTranslation:true,translationCueIds:['independent'],translationStart:12};
+  standaloneTranslation:true,translationCueIds:['independent'],translationRange:{start:12,end:16}};
  f.setRevision('independent-added');f.sh.tick();
  f.sh.lines[1].querySelector('[data-a=cueSeek]').focus();
  f.setRevision('new-revision');f.sh.tick();
@@ -1059,11 +1090,11 @@ test('track rebuild preserves focus on the same independent translation when cue
 });
 test('track rebuild preserves a translation sentence button through a part reorder', t => {
  const f=mount(t,{study:true,prefs:{disp:'tr'}});
- Object.assign(f.rows[0],{translationCueIds:['one','two'],translationStarts:[1,3]});
+ Object.assign(f.rows[0],{translationCueIds:['one','two'],translationRanges:[{start:1,end:3},{start:3,end:6}]});
  f.setRevision('parts');f.sh.tick();
  f.sh.lines[0].querySelector('[data-a=translationSeek][data-part="1"]').focus();
  const state=f.sh.a.state;
- const rows=[{...f.rows[0],translationCueIds:['two','one'],translationStarts:[3,1],trs:['Second','First']},...f.rows.slice(1)];
+ const rows=[{...f.rows[0],translationCueIds:['two','one'],translationRanges:[{start:3,end:6},{start:1,end:3}],trs:['Second','First']},...f.rows.slice(1)];
  f.sh.a.state=()=>({...state(),rows});
  f.setRevision('reordered');f.sh.tick();
  assert.equal(f.w.document.activeElement.dataset.a,'translationSeek');
@@ -1573,4 +1604,254 @@ test('playback recovery shows its pending action and explains an unsuccessful em
  assert.equal(button.disabled,true);assert.equal(f.sh.q('[data-r=recovery]').getAttribute('aria-busy'),'true');assert.match(button.textContent,/Bekleyin/);
  button.click();assert.equal(calls,1);finish({ok:false});await new Promise(setImmediate);
  assert.equal(button.disabled,false);assert.equal(f.sh.q('[data-r=recovery]').getAttribute('aria-busy'),'false');assert.match(f.sh.q('[data-r=toast]').textContent,/uygulanamadı/);
+});
+
+for(const study of [false,true]){
+ test(`${study?'Bilingual':'Podcast'} pending sleep pause and its outcome survive a same-source view handoff`,async t=>{
+  for(const ok of [true,false]){
+   const first=mount(t,{study});let finish,calls=0;first.sh.a.cmd=()=>{calls++;return new Promise(resolve=>finish=resolve);};
+   first.sh.setSleep(15);first.sh.s.sleepAt=Date.now()-1;first.sh.tick();
+   const prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:!study,prefs}),notices=[];next.sh.toast=message=>notices.push(message);
+   const timer=next.sh.q('[data-r=sleep]');timer.focus();assert.equal(timer.getAttribute('aria-busy'),'true');assert.match(timer.selectedOptions[0].textContent,/Duraklatılıyor/);
+   next.sh.tick();assert.equal(calls,1);finish(ok?{ok:true}:{ok:false,message:'Pause refused'});await new Promise(setImmediate);next.sh.tick();
+   assert.equal(timer.hasAttribute('aria-busy'),false);assert.equal(next.w.document.activeElement,timer);assert.deepEqual(notices,ok?['Uyku süresi doldu; oynatma duraklatıldı.']:['Pause refused']);next.sh.tick();assert.equal(notices.length,1);
+  }
+ });
+}
+test('sleep pause completion cannot report into a new timer, another source or a closed view',async t=>{
+ for(const change of ['timer','source','closed']){
+  const first=mount(t);let finish;first.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);first.sh.setSleep(15);first.sh.s.sleepAt=Date.now()-1;first.sh.tick();
+  const prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs,identity:change==='source'?'another-source':'same-source'}),notices=[];next.sh.toast=message=>notices.push(message);
+  if(change==='timer')next.sh.setSleep(30);if(change==='closed')next.sh.destroy();
+  finish({ok:true});await new Promise(setImmediate);next.sh.tick();assert.deepEqual(notices,[]);if(change==='timer')assert.equal(next.sh.s.sleep,30);
+ }
+});
+test('a retained sleep control cannot change the live handoff timer', t=>{
+ const first=mount(t);first.sh.setSleep(15);const prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs});next.sh.setSleep(30);
+ const revision=next.sh.sleepWork?.revision;first.sh.setSleep(0);assert.equal(next.sh.s.sleep,30);assert.equal(next.sh.sleepWork?.revision,revision);
+});
+
+test('sleep pause result is delivered once to the current same-source view',async t=>{
+ const first=mount(t);let finish;first.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);first.sh.setSleep(15);first.sh.s.sleepAt=Date.now()-1;first.sh.tick();
+ const prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs}),notices=[];next.sh.toast=message=>notices.push(message);
+ finish({ok:true});await new Promise(setImmediate);next.sh.tick();assert.deepEqual(notices,['Uyku süresi doldu; oynatma duraklatıldı.']);next.sh.tick();assert.equal(notices.length,1);
+});
+
+test('sleep pause failures and unconfirmed results are visible, with EN pending copy and no false success',async t=>{
+ for(const outcome of ['throw','reject','unconfirmed']){
+  const f=mount(t);f.w.UiLocale.get=()=> 'en';const notices=[];f.sh.toast=message=>notices.push(message);
+  f.sh.a.cmd=()=>{if(outcome==='throw')throw Error('Pause denied');if(outcome==='reject')return Promise.reject(Error('Pause denied'));return Promise.resolve(undefined);};
+  f.sh.setSleep(15);f.sh.s.sleepAt=Date.now()-1;f.sh.tick();
+  if(outcome!=='throw')assert.match(f.sh.q('[data-r=sleep]').selectedOptions[0].textContent,/Pausing/);
+  await new Promise(setImmediate);f.sh.tick();assert.equal(notices.length,1);assert.doesNotMatch(notices[0],/playback paused/);assert.match(notices[0],outcome==='unconfirmed'?/pause was not confirmed/:/Pause denied/);assert.equal(f.sh.q('[data-r=sleep]').hasAttribute('aria-busy'),false);
+ }
+});
+
+for(const study of [false,true]){
+ test(`${study?'Bilingual':'Podcast'} seek failure survives same-source view handoff exactly once`,async t=>{
+  for(const type of ['seek','seekBy','seekCue']){
+   const first=mount(t,{study});let finish;first.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);const pending=first.sh.run(type,5),prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:!study,prefs}),notices=[];next.sh.toast=message=>notices.push(message);
+   finish({ok:false,message:'Seek refused'});await pending;next.sh.tick();assert.deepEqual(notices,['Seek refused']);next.sh.tick();assert.equal(notices.length,1);
+  }
+ });
+}
+test('an older seek cannot replace the outcome of a newer seek, including a view handoff',async t=>{
+ const first=mount(t),replies=[];first.sh.a.cmd=()=>new Promise(resolve=>replies.push(resolve));const old=first.sh.run('seekBy',10),prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs}),notices=[];next.sh.toast=message=>notices.push(message);next.sh.a.cmd=()=>new Promise(resolve=>replies.push(resolve));const latest=next.sh.run('seek',20);
+ replies[0]({ok:false,message:'Obsolete seek failure'});await old;next.sh.tick();assert.deepEqual(notices,[]);replies[1]({ok:false,message:'Current seek failure'});await latest;next.sh.tick();assert.deepEqual(notices,['Current seek failure']);
+});
+
+test('a late seek rejection reaches only the same live source, never a new source or newer successful seek',async t=>{
+ for(const change of ['same','source','success']){
+  const first=mount(t);let reject;first.sh.a.cmd=()=>new Promise((_,fail)=>reject=fail);const pending=first.sh.run('seek',12),prefs=first.sh.prefs(true);first.sh.destroy();first.sh.a.identity=()=>undefined;
+  const next=mount(t,{study:true,prefs,identity:change==='source'?'new-source':'same-source'}),notices=[];next.sh.toast=message=>notices.push(message);
+  if(change==='success')await next.sh.run('seek',20);reject(Error('Delayed seek rejected'));await pending;next.sh.tick();assert.deepEqual(notices,change==='same'?['Delayed seek rejected']:[]);
+ }
+});
+test('failed seek handoff does not move keyboard focus or retry the command',async t=>{
+ const first=mount(t);let finish,calls=0;first.sh.a.cmd=()=>{calls++;return new Promise(resolve=>finish=resolve);};const pending=first.sh.run('seekBy',10),prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs}),input=next.sh.q('[data-r=q]');input.focus();finish({ok:false,message:'Seek refused'});await pending;next.sh.tick();assert.equal(next.w.document.activeElement,input);assert.equal(calls,1);assert.equal(next.commands.length,0);
+});
+
+for(const study of [false,true]){
+ test(`${study?'Bilingual':'Podcast'} transcript refresh preserves note editor scroll and selection direction`,t=>{
+  const f=mount(t,{study,save:true});f.sh.openNote(0);const input=f.sh.q('[data-note-text]');input.value='A long note line.\n'.repeat(70);input.dispatchEvent(new f.w.Event('input'));input.focus();input.setSelectionRange(80,120,'backward');input.scrollTop=240;input.scrollLeft=12;f.sh.q('.sh-note-card').scrollTop=90;
+  f.setRevision('changed-note-source');f.sh.tick();const next=f.sh.q('[data-note-text]');assert.equal(next.value,input.value);assert.equal(next.scrollTop,240);assert.equal(next.scrollLeft,12);assert.equal(next.selectionStart,80);assert.equal(next.selectionEnd,120);assert.equal(next.selectionDirection,'backward');assert.equal(f.w.document.activeElement,next);assert.equal(f.sh.q('[data-a=noteSave]').disabled,true);
+ });
+}
+test('note excerpt refresh retains reading focus and scroll instead of jumping into editing',t=>{
+ const f=mount(t,{save:true});f.rows[0].src='Source passage '.repeat(100);f.setRevision('long-source');f.sh.tick();f.sh.openNote(0);const excerpt=f.sh.q('.sh-note-excerpt');excerpt.focus();excerpt.scrollTop=130;f.setRevision('source-updated');f.sh.tick();assert.equal(f.w.document.activeElement,f.sh.q('.sh-note-excerpt'));assert.equal(f.sh.q('.sh-note-excerpt').scrollTop,130);assert.equal(f.commands.length,0);
+});
+test('same-source note view handoff retains editing location and another source gets none of it',t=>{
+ const first=mount(t,{save:true});first.sh.openNote(0);const input=first.sh.q('[data-note-text]');input.value='My long note.\n'.repeat(60);input.dispatchEvent(new first.w.Event('input'));input.setSelectionRange(55,95,'backward');input.scrollTop=170;const prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,save:true,prefs}),current=next.sh.q('[data-note-text]');assert.equal(current.scrollTop,170);assert.equal(current.selectionStart,55);assert.equal(current.selectionEnd,95);assert.equal(current.selectionDirection,'backward');const other=mount(t,{save:true,identity:'another',prefs});assert.equal(other.sh.s.note,undefined);
+});
+
+test('failed note save and close-reopen retain editing location without pulling external focus',async t=>{
+ const f=mount(t,{save:true});f.sh.openNote(0);let input=f.sh.q('[data-note-text]');input.value='Retained note.\n'.repeat(60);input.dispatchEvent(new f.w.Event('input'));input.setSelectionRange(44,92,'backward');input.scrollTop=150;let finish;f.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);const pending=f.sh.saveNote();const search=f.sh.q('[data-r=q]');search.focus();finish({ok:false,message:'Retry later'});await pending;input=f.sh.q('[data-note-text]');assert.equal(f.w.document.activeElement,search);assert.equal(input.scrollTop,150);assert.equal(input.selectionStart,44);assert.equal(input.selectionEnd,92);assert.equal(input.selectionDirection,'backward');
+ f.sh.closeNote();f.sh.openNote(0);input=f.sh.q('[data-note-text]');assert.equal(input.scrollTop,150);assert.equal(input.selectionStart,44);assert.equal(input.selectionEnd,92);assert.equal(input.selectionDirection,'backward');assert.equal(input.value,'Retained note.\n'.repeat(60));
+});
+
+
+for(const study of [false,true])test(`${study?'Bilingual':'Podcast'} removed chapter metadata returns hidden search focus to transcript`,t=>{
+ const f=mount(t,{study});f.sh.showReading(true);const query=f.sh.q('[data-r=chapterSearch]');query.value='old chapter';query.focus();f.sh.drawChapters([]);assert.equal(f.w.document.activeElement,f.sh.q('[data-r=q]'));assert.equal(f.sh.q('[data-r=chaps]').hidden,true);assert.equal(f.commands.length,0);
+});
+
+test('up-next metadata refresh preserves its control focus and falls back when the queue empties',t=>{
+ const f=mount(t),info=f.sh.a.info;let queue=[{index:1,title:'Next episode',queueKey:'next'}];f.sh.a.info=()=>({...info(),queue});f.sh.tick();f.sh.q('[data-a=queue]').focus();queue=[{index:1,title:'Next episode updated',queueKey:'next'}];f.sh.tick();assert.equal(f.w.document.activeElement,f.sh.q('[data-a=queue]'));assert.match(f.w.document.activeElement.textContent,/updated/);
+ queue=[];f.sh.tick();assert.equal(f.w.document.activeElement,f.sh.q('[data-a=toggle]'));assert.equal(f.sh.q('[data-r=upnext]').hidden,true);assert.equal(f.commands.length,0);
+});
+
+test('chapter and queue metadata refresh never pulls focus from transcript search',t=>{
+ const f=mount(t),query=f.sh.q('[data-r=q]'),info=f.sh.a.info;query.focus();f.sh.drawChapters([]);f.sh.a.info=()=>({...info(),queue:[]});f.sh.tick();assert.equal(f.w.document.activeElement,query);assert.equal(f.commands.length,0);
+});
+
+
+test('failed loop reply follows its same-source view handoff once without retrying',async t=>{
+ const first=mount(t);let finish;first.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);const pending=first.sh.run('loop',{on:true,row:0}),prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs}),query=next.sh.q('[data-r=q]');query.focus();finish({ok:false,message:'Loop could not be confirmed'});await pending;next.sh.tick();assert.match(next.sh.q('[data-r=toast]').textContent,/Loop could not be confirmed/);assert.equal(next.w.document.activeElement,query);assert.equal(next.commands.length,0);next.sh.q('[data-r=toast]').textContent='';next.sh.tick();assert.equal(next.sh.q('[data-r=toast]').textContent,'');
+});
+
+
+for(const study of [false,true])test(`${study?'Bilingual':'Podcast'} language filter keeps a still-matching search selection and reading position`,t=>{
+ const f=mount(t,{study});f.rows.splice(0,f.rows.length,...Array.from({length:40},(_,i)=>({id:'row-'+i,start:i*.5,end:(i+1)*.5,timed:true,src:'needle source '+i,trs:['needle translation '+i],unc:[],words:null})));f.setRevision('long-search');f.sh.tick();const query=f.sh.q('[data-r=q]');query.value='needle';query.dispatchEvent(new f.w.Event('input'));for(let i=0;i<29;i++)f.sh.moveMatch(1);const selected=f.sh.matchLine,scroll=f.sh.q('[data-r=scroll]');scroll.scrollTop=320;const filter=f.sh.q('[data-d=tr]');filter.focus();filter.click();assert.equal(f.sh.matchLine,selected);assert.equal(f.sh.q('[data-r=searchCount]').textContent,'29 / 40');assert.equal(scroll.scrollTop,320);assert.equal(f.w.document.activeElement,filter);assert.equal(query.value,'needle');assert.equal(f.commands.filter(c=>/seek|Cue|replay/.test(c[0])).length,0);
+ query.value='different';query.dispatchEvent(new f.w.Event('input'));assert.equal(f.sh.matchLine,null);assert.equal(scroll.scrollTop,0);
+});
+
+
+for(const study of [false,true])test(`${study?'Bilingual':'Podcast'} exact seek preserves a new time draft written while the previous seek is pending`,async t=>{
+ const f=mount(t,{study});let finish;f.sh.a.cmd=(...args)=>{f.commands.push(args);return new Promise(resolve=>finish=resolve);};const input=f.sh.q('[data-r=jumpTime]'),form=f.sh.q('[data-r=jumpForm]');f.sh.toggleJump();input.value='0:12';const pending=f.sh.seekTypedTime();input.value='0:18';input.dispatchEvent(new f.w.Event('input',{bubbles:true}));finish({ok:true});await pending;assert.equal(form.hidden,false);assert.equal(input.value,'0:18');assert.equal(f.w.document.activeElement,input);assert.equal(form.hasAttribute('aria-busy'),false);assert.equal(f.commands.length,1);
+});
+
+test('correcting an invalid exact time clears the old validation state before retry',async t=>{
+ const f=mount(t),input=f.sh.q('[data-r=jumpTime]'),error=f.sh.q('[data-r=jumpError]');f.sh.toggleJump();input.value='wrong';await f.sh.seekTypedTime();assert.equal(input.getAttribute('aria-invalid'),'true');let finish;f.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);input.value='0:12';input.dispatchEvent(new f.w.Event('input',{bubbles:true}));const pending=f.sh.seekTypedTime();assert.equal(input.hasAttribute('aria-invalid'),false);assert.equal(error.hidden,true);finish({ok:false,message:'Controlled refusal'});await pending;assert.equal(f.sh.q('[data-r=jumpForm]').hidden,false);assert.equal(input.value,'0:12');
+});
+
+
+test('exact seek pending lock follows the same source view and releases for an explicit retry',async t=>{
+ const first=mount(t);let finish;first.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);first.sh.toggleJump();first.sh.q('[data-r=jumpTime]').value='0:12';const pending=first.sh.seekTypedTime(),prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs});next.sh.toggleJump();next.sh.q('[data-r=jumpTime]').value='0:18';await next.sh.seekTypedTime();assert.equal(next.commands.length,0);assert.equal(next.sh.q('[data-r=jumpForm]').getAttribute('aria-busy'),'true');assert.equal(next.sh.q('[data-r=jumpForm] [type=submit]').disabled,true);finish({ok:true});await pending;next.sh.tick();assert.equal(next.sh.q('[data-r=jumpForm] [type=submit]').disabled,false);await next.sh.seekTypedTime();assert.deepEqual(next.commands.map(c=>c.slice(0,2)),[['seek',18]]);
+});
+
+test('another source does not inherit an exact seek pending lock or lose its newer form state',async t=>{
+ const first=mount(t);let finish;first.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);first.sh.toggleJump();first.sh.q('[data-r=jumpTime]').value='0:12';const pending=first.sh.seekTypedTime(),prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs,identity:'different'});next.sh.toggleJump();next.sh.q('[data-r=jumpTime]').value='0:18';await next.sh.seekTypedTime();assert.equal(next.commands.length,1);finish({ok:false,message:'Old source error'});await pending;next.sh.tick();assert.doesNotMatch(next.sh.q('[data-r=toast]').textContent,/Old source error/);
+});
+
+
+test('pending sentence-loop action stays single-flight and visible across same-source view changes',async t=>{
+ const first=mount(t);let finish,calls=0;first.sh.a.cmd=()=>{calls++;return new Promise(resolve=>finish=resolve);};const pending=first.sh.setSentenceLoop(true,0),prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{study:true,prefs});await next.sh.setSentenceLoop(true,1);assert.equal(next.commands.length,0);assert.equal(next.sh.q('[data-a=loop]').disabled,true);assert.equal(next.sh.lines[1].querySelector('[data-act=loop]').disabled,true);assert.match(next.sh.q('[data-a=loop]').textContent,/Döngü ayarlanıyor|Updating loop/);finish({ok:true});await pending;next.sh.tick();assert.equal(next.sh.q('[data-a=loop]').disabled,false);assert.equal(next.sh.q('[data-a=loop]').hasAttribute('aria-busy'),false);assert.equal(calls,1);
+});
+
+test('another source has independent loop controls while an old loop reply is pending',async t=>{
+ const first=mount(t);let finish;first.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);const pending=first.sh.setSentenceLoop(true,0),prefs=first.sh.prefs(true);first.sh.destroy();const next=mount(t,{identity:'replacement',prefs});assert.equal(next.sh.q('[data-a=loop]').disabled,false);await next.sh.setSentenceLoop(true,1);assert.equal(next.commands.length,1);finish({ok:false,message:'Obsolete loop error'});await pending;next.sh.tick();assert.doesNotMatch(next.sh.q('[data-r=toast]').textContent,/Obsolete loop error/);
+});
+
+
+for(const location of ['row','transport'])test('pending loop retains keyboard ownership from '+location+' without stealing later reading focus',async t=>{
+ const f=mount(t);let finish;f.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);const button=location==='row'?f.sh.lines[0].querySelector('[data-act=loop]'):f.sh.q('[data-a=loop]');button.focus();const pending=f.sh.setSentenceLoop(true,0);const target=location==='row'?f.sh.lines[0]:f.sh.q('[data-a=toggle]');assert.equal(f.w.document.activeElement,target);assert.equal(button.disabled,true);const search=f.sh.q('[data-r=q]');search.focus();finish({ok:false,message:'Controlled loop refusal'});await pending;assert.equal(f.w.document.activeElement,search);assert.equal(button.disabled,false);assert.equal(f.sh.loopPending,false);
+});
+
+
+test('sleep control explains pause deadline, cancellation and pending outcome in both interface languages',async t=>{
+ for(const locale of ['tr','en']){
+  const f=mount(t);f.w.UiLocale.get=()=>locale;const control=f.sh.q('[data-r=sleep]');f.sh.setSleep(15);const deadline=new Date(f.sh.s.sleepAt).toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});assert(control.title.includes(deadline));assert.match(control.getAttribute('aria-label'),locale==='tr'?/15 dk.*duraklat/:/15 min.*pause/i);f.sh.setSleep(0);assert.doesNotMatch(control.title,/\d{2}:\d{2}/);assert.match(control.title,locale==='tr'?/süre sonunda/:/after the selected duration/i);
+  let finish;f.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);f.sh.setSleep(15);f.sh.s.sleepAt=Date.now()-1;f.sh.tick();assert.match(control.title,locale==='tr'?/doğrulanıyor/:/confirming/i);finish({ok:true});await new Promise(setImmediate);assert.match(control.title,locale==='tr'?/süre sonunda/:/after the selected duration/i);assert.equal(control.hasAttribute('aria-busy'),false);
+ }
+});
+
+
+for(const olderFails of [false,true])test('latest copy result owns feedback even when older reply arrives last, olderFails='+olderFails,async t=>{
+ const f=mount(t),replies=[],messages=[];f.sh.toast=message=>messages.push(message);f.sh.a.cmd=(...args)=>{f.commands.push(args);return new Promise(resolve=>replies.push(resolve));};f.sh.act('copy',0);f.sh.act('copy',1);assert.equal(replies.length,2);replies[1](olderFails?{ok:true}:{ok:false,message:'Latest copy failed'});await new Promise(setImmediate);const latest=[...messages];assert.equal(latest.length,1);assert.match(latest[0],olderFails?/kopyalandı/:/Latest copy failed/);replies[0](olderFails?{ok:false,message:'Obsolete copy failed'}:{ok:true});await new Promise(setImmediate);assert.deepEqual(messages,latest);assert.equal(f.commands.length,2);
+});
+
+
+for(const handoff of [false,true])test('a note saved after its window closes clears the completed draft, handoff='+handoff,async t=>{
+ const first=mount(t,{save:true});let finish,calls=0;first.sh.a.cmd=()=>{calls++;return new Promise(resolve=>finish=resolve);};first.sh.openNote(0);first.sh.q('[data-note-text]').value='Saved while reading';const pending=first.sh.saveNote();first.sh.closeNote();let live=first;if(handoff){const prefs=first.sh.prefs(true);first.sh.destroy();live=mount(t,{save:true,study:true,prefs});}const query=live.sh.q('[data-r=q]');query.focus();finish({ok:true});await pending;live.sh.tick();assert.equal(live.sh.noteDraft,null);assert.equal(live.sh.q('.sh-note-card').hidden,true);assert.equal(live.w.document.activeElement,query);assert.match(live.sh.q('[data-r=toast]').textContent,/Araştırma defterine kaydedildi/);live.sh.openNote(1);assert.equal(live.sh.s.note.rowId,'b');assert.equal(calls,1);
+});
+
+test('a failed save after closing the note retains its error without reopening or stealing focus',async t=>{
+ const f=mount(t,{save:true});let finish;f.sh.a.cmd=()=>new Promise(resolve=>finish=resolve);f.sh.openNote(0);f.sh.q('[data-note-text]').value='Retained closed note';const pending=f.sh.saveNote();f.sh.closeNote();const query=f.sh.q('[data-r=q]');query.focus();finish({ok:false,message:'Closed note write failed'});await pending;f.sh.tick();assert.equal(f.sh.q('.sh-note-card').hidden,true);assert.equal(f.w.document.activeElement,query);assert.equal(f.sh.noteDraft.error,'Closed note write failed');assert.equal(f.sh.noteDraft.text,'Retained closed note');f.sh.openNote(0);assert.match(f.sh.q('.sh-note-state').textContent,/Closed note write failed/);assert.match(f.sh.q('[data-a=noteSave]').textContent,/yeniden dene/);
+});
+
+
+for(const protectedDraft of [false,true])test('a new explicit excerpt on the same sentence respects an existing typed draft='+protectedDraft,async t=>{
+ const f=mount(t,{save:true});const select=(start,end)=>{const text=f.sh.lines[0].querySelector('.src').firstChild,range=f.w.document.createRange();range.setStart(text,start);range.setEnd(text,end);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);};select(2,8);f.sh.openNote(0);assert.equal(f.sh.s.note.excerpt,'source');if(protectedDraft){const input=f.sh.q('[data-note-text]');input.value='Keep my evidence';input.dispatchEvent(new f.w.Event('input'));}f.sh.closeNote();select(9,17);f.sh.openNote(0);
+ if(protectedDraft){assert.equal(f.sh.s.note.excerpt,'source');assert.equal(f.sh.q('[data-note-text]').value,'Keep my evidence');assert.match(f.sh.q('[data-r=toast]').textContent,/Önce açık taslağı/);}else{assert.equal(f.sh.s.note.excerpt,'sentence');assert.equal(f.sh.q('.sh-word-context').textContent,'sentence');await f.sh.saveNote();assert.equal(f.commands[0][1].excerpt,'sentence');}assert.equal(f.commands.length,protectedDraft?0:1);
+});
+
+test('reopening a selected excerpt without a new source selection keeps it unchanged',t=>{
+ const f=mount(t,{save:true}),source=f.sh.lines[0].querySelector('.src').firstChild,range=f.w.document.createRange();range.setStart(source,2);range.setEnd(source,8);f.w.getSelection().addRange(range);f.sh.openNote(0);f.sh.closeNote();f.w.getSelection().removeAllRanges();f.sh.openNote(0);assert.equal(f.sh.s.note.excerpt,'source');assert.equal(f.sh.q('.sh-word-context').textContent,'source');assert.equal(f.commands.length,0);
+});
+
+
+for(const kind of ['note','word'])for(const study of [false,true])test(`${study?'Bilingual':'Podcast'} ${kind} card closes to a visible control after its opening row is filtered out`,async t=>{
+ const f=mount(t,{study,save:true}),opener=f.sh.lines[0].querySelector(kind==='note'?'[data-act=save]':'[data-a=cueSeek]');opener.focus();if(kind==='note')f.sh.openNote(0,opener);else await f.sh.openWord(0,'source');const close=f.sh.q(kind==='note'?'[data-a=noteClose]':'[data-a=wordClose]');close.focus();const query=f.sh.q('[data-r=q]');query.value='next';f.sh.filterRows();assert.equal(f.sh.lines[0].hidden,true);if(kind==='note')f.sh.closeNote();else f.sh.closeWord();assert.equal(f.w.document.activeElement,query);assert.equal(query.value,'next');assert.equal(f.commands.filter(c=>/seek|replay|Cue/.test(c[0])).length,0);
+});
+
+
+test('selected search result is explicitly labelled without changing the playback current row or copying the label',async t=>{
+ for(const locale of ['tr','en']){
+  const f=mount(t);f.w.UiLocale.get=()=>locale;const query=f.sh.q('[data-r=q]');query.value='sentence';query.dispatchEvent(new f.w.Event('input'));f.sh.moveMatch(1);f.sh.moveMatch(1);assert.equal(f.sh.root.querySelectorAll('.sh-query-position').length,1);assert.equal(f.sh.lines[1].querySelector('.sh-query-position').textContent,(locale==='tr'?'Aramada seçili':'Selected search result')+' · 2 / 2');assert.equal(f.sh.lines[0].getAttribute('aria-current'),'true');assert.equal(f.sh.lines[1].hasAttribute('aria-current'),false);f.sh.act('copy',1);await new Promise(setImmediate);assert.equal(f.commands[0][1],'The next sentence');query.value='unmatched';query.dispatchEvent(new f.w.Event('input'));assert.equal(f.sh.root.querySelector('.sh-query-position'),null);assert.equal(f.commands.filter(c=>/seek|Cue|replay/.test(c[0])).length,0);
+ }
+});
+
+
+test('an oversized explicit source selection cannot silently fall back to general assistant context',t=>{
+ const f=mount(t);f.rows[0].src='Long source evidence '.repeat(250);f.setRevision('long-evidence');f.sh.tick();const range=f.w.document.createRange();range.selectNodeContents(f.sh.lines[0].querySelector('.src'));const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);f.sh.q('[data-a=assistant]').click();assert.equal(f.commands.length,0);assert.equal(f.sh.assistantPassage(),null);assert.match(f.sh.q('[data-r=toast]').textContent,/4000/);
+ const source=f.sh.lines[0].querySelector('.src').firstChild;range.setStart(source,0);range.setEnd(source,20);selection.removeAllRanges();selection.addRange(range);f.sh.q('[data-a=assistant]').click();assert.equal(f.commands.length,1);assert.equal(f.commands[0][0],'assistant');assert.equal(f.sh.assistantPassage().text,'Long source evidence');
+});
+
+test('search labels never become explicit assistant evidence or note excerpts',t=>{
+ const f=mount(t,{save:true}),query=f.sh.q('[data-r=q]');query.value='sentence';query.dispatchEvent(new f.w.Event('input'));f.sh.moveMatch(1);const source=f.sh.lines[0].querySelector('.src'),range=f.w.document.createRange();range.selectNodeContents(source);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);assert.equal(f.sh.captureAssistantPassage().text,'A source sentence');f.sh.openNote(0);assert.equal(f.sh.s.note.excerpt,'A source sentence');assert.doesNotMatch(f.sh.assistantContext({workspace:'podcast'}).selectedText,/Aramada seçili/);assert.equal(f.commands.length,0);
+});
+
+
+test('explicit assistant evidence is inspectable, clearable and source-bound across views',t=>{
+ const f=mount(t,{save:true}),source=f.sh.lines[0].querySelector('.src'),range=f.w.document.createRange();range.selectNodeContents(source);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);f.sh.captureAssistantPassage();assert.equal(f.sh.q('[data-r=assistantSelection]').hidden,false);assert.equal(f.sh.q('[data-r=assistantExcerpt]').textContent,'A source sentence');f.sh.openNote(0);f.sh.q('[data-note-text]').value='Preserved note';f.sh.q('[data-note-text]').dispatchEvent(new f.w.Event('input'));f.sh.closeNote();const prefs=f.sh.prefs(true);f.sh.destroy();const next=mount(t,{study:true,save:true,prefs});assert.equal(next.sh.q('[data-r=assistantSelection]').hidden,false);const clear=next.sh.q('[data-a=clearAssistantSelection]');clear.focus();clear.click();assert.equal(next.sh.assistantPassage(),null);assert.equal(next.sh.q('[data-r=assistantSelection]').hidden,true);assert.equal(next.w.document.activeElement,next.sh.q('[data-a=assistant]'));assert.equal(next.sh.noteDraft.text,'Preserved note');assert.equal(next.commands.length,0);const other=mount(t,{prefs,identity:'other-source'});assert.equal(other.sh.q('[data-r=assistantSelection]').hidden,true);
+});
+
+test('clear assistant selection removes the local DOM selection and revision changes hide the attached excerpt',t=>{
+ const f=mount(t),source=f.sh.lines[0].querySelector('.src'),range=f.w.document.createRange();range.selectNodeContents(source);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);f.sh.captureAssistantPassage();f.sh.clearAssistantSelection();assert.equal(selection.rangeCount,0);assert.equal(f.sh.captureAssistantPassage(),null);selection.addRange(range);f.sh.captureAssistantPassage();f.setRevision('edited-source');f.sh.tick();assert.equal(f.sh.q('[data-r=assistantSelection]').hidden,true);assert.equal(f.sh.q('[data-r=assistantExcerpt]').textContent,'');assert.equal(f.commands.length,0);
+});
+
+
+test('a visible attached assistant passage survives reopening after DOM selection is gone',t=>{
+ const f=mount(t),source=f.sh.lines[0].querySelector('.src'),range=f.w.document.createRange();range.selectNodeContents(source);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);f.sh.captureAssistantPassage();selection.removeAllRanges();f.sh.q('[data-a=assistant]').click();assert.equal(f.sh.assistantPassage()?.text,'A source sentence');assert.equal(f.sh.q('[data-r=assistantSelection]').hidden,false);assert.equal(f.commands.length,1);const prefs=f.sh.prefs(true);f.sh.destroy();const next=mount(t,{study:true,prefs});next.sh.q('[data-a=assistant]').click();assert.equal(next.sh.assistantPassage()?.text,'A source sentence');assert.equal(next.commands.length,1);next.sh.clearAssistantSelection();next.sh.q('[data-a=assistant]').click();assert.equal(next.sh.assistantPassage(),null);assert.equal(next.sh.q('[data-r=assistantSelection]').hidden,true);assert.equal(next.commands.length,2);
+});
+
+test('a retained assistant passage cannot survive a transcript revision or acquire another source identity',t=>{
+ const f=mount(t),source=f.sh.lines[0].querySelector('.src'),range=f.w.document.createRange();range.selectNodeContents(source);const selection=f.w.getSelection();selection.removeAllRanges();selection.addRange(range);f.sh.captureAssistantPassage();selection.removeAllRanges();f.setRevision('changed');assert.equal(f.sh.captureAssistantPassage(),null);assert.equal(f.sh.q('[data-r=assistantSelection]').hidden,true);
+});
+
+for(const reverse of [false,true])test('view handoff keeps the visible reading row across different row heights, reverse='+reverse,t=>{
+ const f=mount(t,{study:reverse});f.sh.s.follow=false;const sc=f.sh.q('[data-r=scroll]');Object.defineProperty(sc,'clientHeight',{value:200});sc.scrollTop=180;sc.getBoundingClientRect=()=>({top:100,bottom:300});f.sh.lines[0].getBoundingClientRect=()=>({top:-100,bottom:90});f.sh.lines[1].getBoundingClientRect=()=>({top:90,bottom:350});const prefs=f.sh.prefs(true);f.sh.destroy();const next=mount(t,{study:!reverse,prefs}),dest=next.sh.q('[data-r=scroll]');Object.defineProperty(dest,'clientHeight',{value:200});dest.getBoundingClientRect=()=>({top:100,bottom:300});next.sh.lines[1].getBoundingClientRect=()=>({top:410-dest.scrollTop,bottom:600-dest.scrollTop});next.sh.q('[data-r=q]').focus();next.sh.restoreReadingPosition();assert.equal(dest.scrollTop,320);assert.equal(next.w.document.activeElement,next.sh.q('[data-r=q]'));assert.equal(next.commands.length,0);
+});
+test('reading row anchor never applies to a different transcript revision',t=>{
+ const f=mount(t);f.sh.s.follow=false;const sc=f.sh.q('[data-r=scroll]');Object.defineProperty(sc,'clientHeight',{value:200});sc.getBoundingClientRect=()=>({top:100,bottom:300});f.sh.lines[0].getBoundingClientRect=()=>({top:90,bottom:200});sc.scrollTop=80;const prefs=f.sh.prefs(true),next=mount(t,{study:true,prefs});next.setRevision('replacement-track');next.sh.tick();const dest=next.sh.q('[data-r=scroll]');Object.defineProperty(dest,'clientHeight',{value:200});dest.getBoundingClientRect=()=>({top:100,bottom:300});next.sh.lines[0].getBoundingClientRect=()=>({top:900,bottom:1000});next.sh.restoreReadingPosition();assert.equal(dest.scrollTop,80);assert.equal(next.commands.length,0);
+});
+
+test('clearing search after a view handoff restores the original reading row in the new layout',t=>{
+ const f=mount(t);f.sh.s.follow=false;const sc=f.sh.q('[data-r=scroll]');Object.defineProperty(sc,'clientHeight',{value:200});sc.scrollTop=180;sc.getBoundingClientRect=()=>({top:100,bottom:300});f.sh.lines[0].getBoundingClientRect=()=>({top:-100,bottom:90});f.sh.lines[1].getBoundingClientRect=()=>({top:90,bottom:350});const query=f.sh.q('[data-r=q]');query.value='missing';query.dispatchEvent(new f.w.Event('input'));const prefs=f.sh.prefs(true);f.sh.destroy();const next=mount(t,{study:true,prefs}),dest=next.sh.q('[data-r=scroll]');Object.defineProperty(dest,'clientHeight',{value:200});dest.getBoundingClientRect=()=>({top:100,bottom:300});next.sh.lines[1].getBoundingClientRect=()=>({top:410-dest.scrollTop,bottom:600-dest.scrollTop});next.sh.q('[data-a=clearSearch]').click();assert.equal(dest.scrollTop,320);assert.equal(next.w.document.activeElement,next.sh.q('[data-r=q]'));assert.equal(next.commands.length,0);
+});
+
+test('reading layout settlement follows resolved geometry and yields to manual scrolling',t=>{
+ const f=mount(t);f.sh.s.follow=false;const sc=f.sh.q('[data-r=scroll]');Object.defineProperty(sc,'clientHeight',{value:200});sc.getBoundingClientRect=()=>({top:100,bottom:300});let top=410,settle,cancelled;f.sh.lines[1].getBoundingClientRect=()=>({top:top-sc.scrollTop,bottom:top-sc.scrollTop+190,height:190});f.w.requestAnimationFrame=fn=>{settle=fn;return 123;};f.w.cancelAnimationFrame=id=>{if(id===123)cancelled=true;};const reading={scrollTop:180,viewportAnchor:{rev:'r1',id:'b',standaloneTranslation:false,offset:-10}};f.sh.applyReadingPosition(reading);assert.equal(sc.scrollTop,320);top=490;settle();assert.equal(sc.scrollTop,400);assert.equal(f.sh.lines[1].style.contentVisibility,'visible');f.sh.applyReadingPosition(reading);cancelled=false;sc.dispatchEvent(new f.w.WheelEvent('wheel'));assert.equal(cancelled,true);assert.equal(f.commands.length,0);f.sh.destroy();assert.equal(f.sh.lines[1].style.contentVisibility,'');
+});
+
+for(const action of ['next-match','changed-source'])test('pending reading settlement yields to '+action,t=>{
+ const f=mount(t);f.sh.s.follow=false;const sc=f.sh.q('[data-r=scroll]');Object.defineProperty(sc,'clientHeight',{value:200});sc.getBoundingClientRect=()=>({top:100,bottom:300});f.sh.lines[0].getBoundingClientRect=()=>({top:410-sc.scrollTop,bottom:600-sc.scrollTop,height:190});let callback,cancelled=false;f.w.requestAnimationFrame=fn=>{callback=fn;return 987;};f.w.cancelAnimationFrame=id=>{if(id===987)cancelled=true;};const q=f.sh.q('[data-r=q]');q.value='sentence';q.dispatchEvent(new f.w.Event('input'));f.sh.applyReadingPosition({scrollTop:180,viewportAnchor:{rev:'r1',id:'a',standaloneTranslation:false,offset:-10}});if(action==='next-match'){f.sh.moveMatch(1);assert.equal(cancelled,true,'explicit match navigation cancels pending restoration');}else{f.sh.a.identity=()=> 'different-source';sc.scrollTop=50;callback();assert.equal(sc.scrollTop,50,'source change before the next tick must block layout work');}assert.equal(f.commands.length,0);
+});
+
+test('manual reading keeps its visible sentence when font size changes',t=>{
+ const f=mount(t);f.sh.s.follow=false;const sc=f.sh.q('[data-r=scroll]');Object.defineProperty(sc,'clientHeight',{value:200});sc.scrollTop=180;sc.getBoundingClientRect=()=>({top:100,bottom:300});f.sh.lines[0].getBoundingClientRect=()=>({top:-100,bottom:90});f.sh.lines[1].getBoundingClientRect=()=>{const large=f.sh.readingSize==='large',top=(large?610:270)-sc.scrollTop;return {top,bottom:top+190,height:190};};const size=f.sh.q('[data-r=readingSize]');size.value='large';size.dispatchEvent(new f.w.Event('change'));assert.equal(sc.scrollTop,520);assert.equal(f.sh.root.dataset.readingSize,'large');assert.equal(f.commands.length,0);
+});
+for(const action of ['language','chapters'])test('pending reading layout yields to '+action+' controls',t=>{
+ const f=mount(t);f.sh.s.follow=false;let cancelled=false;f.sh.readingLayoutRaf=456;f.w.cancelAnimationFrame=id=>{if(id===456)cancelled=true;};if(action==='language')f.sh.q('[data-d=tr]').click();else f.sh.showReading(true);assert.equal(cancelled,true);assert.equal(f.commands.some(c=>/seek/.test(c[0])),false);
+});
+
+for(const handoff of [false,true])test('chapter return preserves the transcript row after layout change, handoff='+handoff,t=>{
+ const f=mount(t);f.sh.s.follow=false;const sc=f.sh.q('[data-r=scroll]');Object.defineProperty(sc,'clientHeight',{value:200,configurable:true});sc.scrollTop=180;sc.getBoundingClientRect=()=>({top:100,bottom:300});f.sh.lines[0].getBoundingClientRect=()=>({top:-100,bottom:90});f.sh.lines[1].getBoundingClientRect=()=>({top:90,bottom:350,height:260});f.sh.showReading(true);let current=f;if(handoff){const prefs=f.sh.prefs(true);f.sh.destroy();current=mount(t,{study:true,prefs});}const dest=current.sh.q('[data-r=scroll]');Object.defineProperty(dest,'clientHeight',{value:200,configurable:true});dest.getBoundingClientRect=()=>({top:100,bottom:300});current.sh.lines[1].getBoundingClientRect=()=>({top:610-dest.scrollTop,bottom:800-dest.scrollTop,height:190});current.sh.showReading(false);assert.equal(dest.scrollTop,520);assert.equal(current.commands.length,0);
+});
+
+for(const handoff of [false,true])test('dragging volume to zero restores the latest audible input, handoff='+handoff,async t=>{
+ const first=mount(t);let finish;const sent=[];first.sh.a.cmd=(name,value)=>{sent.push(value);return new Promise(resolve=>finish=resolve);};const slider=first.sh.q('.sh-local-volume');for(const value of ['.8','0']){slider.value=value;slider.dispatchEvent(new first.w.Event('input'));}let live=first;if(handoff){const prefs=first.sh.prefs(true);first.sh.destroy();live=mount(t,{study:true,prefs});live.sh.a.cmd=(name,value)=>{sent.push(value);return {ok:true};};}live.sh.q('[data-r=volumeIcon]').click();assert.equal(Number(live.sh.q('.sh-local-volume').value),.8);finish({ok:true});await new Promise(setImmediate);assert.deepEqual(sent,[.8,.8]);
+});
+
+for(const action of ['passage','full-sentence'])test('explicit passage reading wins over the chapter return position, action='+action,t=>{
+ const f=mount(t);f.sh.s.follow=false;f.sh.showReading(true);let cancelled=false;f.sh.applyReadingPosition=()=>{f.sh.readingLayoutRaf=678;};f.w.cancelAnimationFrame=id=>{if(id===678)cancelled=true;};if(action==='passage')f.sh.focusPassage(12);else f.sh.readCurrentSentence(f.sh.q('[data-a=readCurrent]'));assert.equal(cancelled,true);assert.equal(f.sh.root.classList.contains('sh-chapters-open'),false);assert.equal(f.commands.length,0);
 });

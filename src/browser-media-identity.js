@@ -176,10 +176,13 @@ function deriveStreamMediaIdentity(baseMediaIdentity, streamUrl, hints = {}) {
 
 // Known provider/video IDs and manifest/blob pipelines retain their existing
 // identity owners. Only a generic page's selected direct file is eligible here.
-function observedDirectMediaIdentity(pageUrl, sourceUrl) {
+function observedDirectMediaIdentity(pageUrl, sourceUrl, mediaType) {
   const page=canonicalMediaIdentity(pageUrl),stream=normalizeStreamIdentityUrl(sourceUrl);
+  if(page.service==='web'&&!page.contentId&&mediaType==='audio'&&/^blob:https?:\/\//i.test(sourceUrl||'')){
+    return deriveStreamMediaIdentity(page.key,'',{contentId:'blob-audio:'+stableUrlHash(sourceUrl)});
+  }
   if(page.service!=='web'||page.contentId||!stream)return '';
-  try { if(!/\.(?:mp4|webm|m4v|mov|mp3|m4a|wav|ogg|oga|ogv|flac|aac)$/i.test(new URL(stream).pathname))return ''; }
+  try { if(mediaType!=='audio'&&!/\.(?:mp4|webm|m4v|mov|mp3|m4a|wav|ogg|oga|ogv|flac|aac)$/i.test(new URL(stream).pathname))return ''; }
   catch { return ''; }
   return deriveStreamMediaIdentity(page.key,stream);
 }

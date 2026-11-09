@@ -65,7 +65,9 @@
     }
     const snap = () => {
       if (!player.mediaKey) return null; const [s, t] = tracks(), dur = num(player.browserDuration) || null, seen = !!player.browserMediaSeen;
-      return { mediaKey: player.mediaKey, generation: player.generation, title: player.browserPageTitle || '', time: num(player.browserTime), duration: dur, paused: !!player.browserPaused, adPlaying: !!player.browserAdPlaying, rate: num(player.browserRate) || 1, sourceVersion: sourceVersion(), projectedTracks: [s, t], sourceTrack: { id: s.id, revision: s.revision }, secondaryTrack: t.cues.length ? { id: t.id, revision: t.revision } : null, capabilities: { seek: { support: player.isLive || player.browserAdPlaying ? 'no' : (seen && dur ? 'yes' : 'unknown') } } };
+      const sample = typeof browserTabState === 'function' ? browserTabState()?.browserClockSample : null;
+      const live = sample?.live === true && sample.mediaKey === player.mediaKey && sample.generation === player.generation;
+      return { mediaKey: player.mediaKey, generation: player.generation, title: player.browserPageTitle || '', time: num(player.browserTime), duration: dur, paused: !!player.browserPaused, adPlaying: !!player.browserAdPlaying, rate: num(player.browserRate) || 1, live, sourceVersion: sourceVersion(), projectedTracks: [s, t], sourceTrack: { id: s.id, revision: s.revision }, secondaryTrack: t.cues.length ? { id: t.id, revision: t.revision } : null, capabilities: { seek: { support: live || player.isLive || player.browserAdPlaying ? 'no' : (seen && dur ? 'yes' : 'unknown') } } };
     };
     const sampleFor = state => {
       const sample = typeof browserTabState === 'function' ? browserTabState()?.browserClockSample : null;
@@ -81,7 +83,19 @@
     async function exec(c) {
       const id = tabId(), go = async (a, v) => norm(await browserCommand(a, v, id));
       switch (c.type) {
-        case 'seekCue': { const cue = role().cues.find((x) => x.id === c.cueId); return cue ? go('seek', cue.start + .01) : { ok: false, code: 'unknown-cue' }; }
+        case 'seekCue': {
+          const cues = role().cues;
+          const cue = cues.find(x => x.id === c.cueId);
+          if (!cue) return { ok: false, code: 'unknown-cue' };
+          const start = Math.max(0, cue.start);
+          let end = Math.min(cue.end, num(player.browserDuration) || Infinity);
+          // The latest overlapping cue wins the active highlight.
+          for (const next of cues) {
+            if (next.start > cue.start && next.start < end && next.end > next.start) end = next.start;
+          }
+          if (!Number.isFinite(cue.start) || !Number.isFinite(cue.end) || !(end > start)) return { ok: false, code: 'invalid-range', message: T('Altyazı satırının zamanı geçersiz veya video süresinin dışında.', 'The caption timing is invalid or outside the video duration.') };
+          return go('seek', TM().landingTime(start, end));
+        }
         case 'seek': return go('seek', c.time);
         case 'togglePlay': return go(player.browserPaused ? 'play' : 'pause');
         case 'setRate': return go('speed', c.rate);
@@ -93,7 +107,7 @@
     const bridge = MODEL().createPlayerWorkspaceBridge({ readSnapshot: snap, resolveSourceRole: role, executeExisting: exec });
     const wordsOf = (cue, track) => (cue && Array.isArray(cue.wordRanges) && cue.wordRanges.length) ? cue.wordRanges.map((r) => ({ s: r.start, e: r.end, t0: subtitleVideoTime(r.timeStart, track.secondary, track.timeTransform), t1: subtitleVideoTime(r.timeEnd, track.secondary, track.timeTransform) })) : null;
     const loadedLangs = () => { const roles = browserSubtitleRoleCues(), byId = (id) => (player.browserTracks || []).find((t) => t.id === id), t1 = byId(player.browserLoadedTrackId), t2 = byId(player.browserLoadedTrackId2); const of = (cues) => cues && cues.length ? (cues === player.cues2 ? t2 : t1) : null; const s = of(roles.source), r = of(roles.translation); return { src: roles.source.length ? langCode(s?.language || s?.lang || (roles.source === player.cues2 ? player.sub2Lang : player.subLang)) : null, tr: roles.translation.length ? langCode(r?.language || r?.lang || (roles.translation === player.cues2 ? player.sub2Lang : player.subLang)) : null }; };
-    return { kind: 'browser', tab: tabId, sourceVersion, snap, displayTime, sampleFor, tracks, dispatch: (c) => bridge.dispatch(c), dispose: () => bridge.dispose(), words: wordsOf, langs: loadedLangs, mediaTitle: () => player.browserPageTitle || $('playerTitle')?.textContent || '', sub: () => { try { return browserTabState()?.mediaPublisher || new URL(player.browserPageUrl).hostname.replace(/^www\./, ''); } catch (_) { return ''; } }, cover: () => { try { const u = typeof currentBrowserYoutubeUrl === 'function' ? currentBrowserYoutubeUrl() : ''; return u ? (window.MediaHomeModel?.thumbnail?.({ url: u }) || '') : ''; } catch (_) { return ''; } }, slot: () => adopt($('browserViewSlot')), unslot: () => $('browserViewSlot')?.classList.remove('sh-slot-fill') };
+    return { kind: 'browser', tab: tabId, sourceVersion, snap, displayTime, sampleFor, tracks, dispatch: (c) => bridge.dispatch(c), dispose: () => bridge.dispose(), words: wordsOf, langs: loadedLangs, mediaTitle: () => player.browserPageTitle || $('playerTitle')?.textContent || '', sub: () => { try { return browserTabState()?.mediaPublisher || new URL(player.browserPageUrl).hostname.replace(/^www\./, ''); } catch (_) { return ''; } }, cover: () => { try { const u = typeof currentBrowserYoutubeUrl === 'function' ? currentBrowserYoutubeUrl() : ''; if(u)return window.MediaHomeModel?.thumbnail?.({url:u})||'';const sample=browserTabState()?.browserClockSample;return sample?.mediaKey===player.mediaKey&&sample.generation===player.generation?sample.artworkUrl||'':''; } catch (_) { return ''; } }, slot: () => adopt($('browserViewSlot')), unslot: () => $('browserViewSlot')?.classList.remove('sh-slot-fill') };
   }
 
   /* ── Yerel cephe: yerel oynatıcının mevcut snapshot/iz/komut yüzeyi (mpv/native dahil, tek yol) ── */
@@ -113,7 +127,7 @@
       const home=doc.querySelector('#playerWorkspaceV3 .pw-stage')||layer.querySelector('.player-body');
       if(home)home.append(st);PW()?.refresh?.(true);bounds();
     }
-    return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => podcast()?.title || window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || '', sub: () => podcast() ? [podcast().publisher,T('Yayıncı RSS','Publisher RSS')].filter(Boolean).join(' · ') : $('playerMeta')?.textContent || '', cover: () => podcast()?.image || '', timingNotice: () => podcast()?.transcriptTimingNotice || '', eyebrow: () => podcast() ? T('Podcast · RSS','Podcast · RSS') : T('Yerel oynatıcı','Local player'), slot, unslot };
+    return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => podcast()?.title || window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || '', sub: () => podcast() ? [podcast().publisher,podcast().publisherKind==='web-episode'?T('Yayıncı sayfası','Publisher page'):T('Yayıncı RSS','Publisher RSS')].filter(Boolean).join(' · ') : $('playerMeta')?.textContent || '', cover: () => podcast()?.image || '', timingNotice: () => podcast()?.transcriptTimingNotice || '', eyebrow: () => podcast() ? (podcast().publisherKind==='web-episode'?T('Web podcasti','Web podcast'):T('Podcast · RSS','Podcast · RSS')) : T('Yerel oynatıcı','Local player'), slot, unslot };
   }
 
   function shelfFacade(){
@@ -147,7 +161,8 @@
     const first = F.snap(); const bound = first ? { mediaKey: first.mediaKey, generation: first.generation, sourceVersion: first.sourceVersion } : { mediaKey: '', generation: -1 };
     const identity = () => { if (kind === 'browser') return F.sourceVersion(); const s = F.snap(); return `${kind}|${F.tab()}|${s ? s.mediaKey : ''}|${s ? s.generation : ''}|${s?.sourceVersion || ''}`; };
     let cache = { rev: '', rows: [], meta: [], untimed: false }, ownLoop = null, disposed = false, lastAction = null;
-    const current = () => { const now = F.snap(); return !disposed && !!now && now.mediaKey === bound.mediaKey && now.generation === bound.generation && (!bound.sourceVersion || now.sourceVersion === bound.sourceVersion); };
+    let playbackIntent = 0;
+    const current = (now = F.snap()) => !disposed && !!now && now.mediaKey === bound.mediaKey && now.generation === bound.generation && (!bound.sourceVersion || now.sourceVersion === bound.sourceVersion);
     const activeLoop = (s, range) => kind === 'shelf' ? s?.loopRange?.a === range.a && s.loopRange?.b === range.b
       : player.abA === range.a && player.abB === range.b;
     function clearOwnedLoop() {
@@ -168,13 +183,13 @@
           const timed = trackTimed && Number.isFinite(r.videoStart) && Number.isFinite(r.videoEnd) && r.videoEnd > r.videoStart;
           meta.push({ cueId: r.cueId, trackId: r.trackId, trackRevision: r.trackRevision });
           const matched = (r.secondaryCueIds || []).map(id => secById.get(id)).filter(cue => cue?.text?.trim());
-          const translationStarts = matched.map(cue => sec.timed !== false && Number.isFinite(cue.start)
-            && Number.isFinite(cue.end) && cue.end > cue.start ? cue.start + num(sec.offsetSeconds) : null);
-          const translationStart = sec.timed === false ? null : matched.reduce((start, cue) =>
-            Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end > cue.start
-              ? Math.min(start ?? Infinity, cue.start + num(sec.offsetSeconds)) : start, null);
+          const offset = num(sec.offsetSeconds);
+          const translationRanges = matched.map(cue => sec.timed !== false && Number.isFinite(cue.start)
+            && Number.isFinite(cue.end) && cue.end > cue.start ? { start: cue.start + offset, end: cue.end + offset } : null);
+          const translationRange = translationRanges.reduce((first, range) =>
+            range && (!first || range.start < first.start) ? range : first, null);
           const copied = matched.some(c => String(c.text).trim() === String(r.sourceText).trim() && String(c.text).trim().length > 10);
-          return { id: r.cueId, trackId:src.id, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text), translationCueIds: matched.map(c=>c.id), translationStarts, translationStart, translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
+          return { id: r.cueId, trackId:src.id, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text), translationCueIds: matched.map(c=>c.id), translationRanges, translationRange, translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
         });
         const paired = new Set(rows.flatMap(row => row.translationCueIds));
         const standalone = mode === 'cinema' || sec.timed === false ? [] : sec.cues.filter(cue => !paired.has(cue.id)
@@ -185,7 +200,7 @@
           const start = cue.start + num(sec.offsetSeconds), end = cue.end + num(sec.offsetSeconds);
           entries.push({
             row: { id: cue.id, trackId:sec.id, start, end, timed: true, src: '', trs: [cue.text], unc: [], words: null,
-              translationCueIds: [cue.id], translationStart: start, standaloneTranslation: true },
+              translationCueIds: [cue.id], translationRange: { start, end }, standaloneTranslation: true },
             binding: { cueId: cue.id, trackId: sec.id, trackRevision: sec.revision }
           });
         }
@@ -193,7 +208,15 @@
         return { rows: entries.map(entry => entry.row), meta: entries.map(entry => entry.binding), untimed: !trackTimed };
       }
       if (sec.cues.length) { // yalnız çeviri izi yüklü: kaynak sanılmaz, yine de okunabilir
-        const timedTrack = sec.timed !== false; const rows = sec.cues.map((c) => { const timed = timedTrack && Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start; meta.push({ cueId: c.id, trackId: sec.id, trackRevision: sec.revision }); return { id: c.id, trackId:sec.id, start: timed ? c.start + num(sec.offsetSeconds) : 0, end: timed ? c.end + num(sec.offsetSeconds) : 0, timed, src: '', trs: [String(c.text || '')], unc: [], words: null }; });
+        const timedTrack = sec.timed !== false;
+        const rows = sec.cues.map(cue => {
+          const timed = timedTrack && Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end > cue.start;
+          const start = timed ? cue.start + num(sec.offsetSeconds) : 0;
+          const end = timed ? cue.end + num(sec.offsetSeconds) : 0;
+          meta.push({ cueId: cue.id, trackId: sec.id, trackRevision: sec.revision });
+          return { id: cue.id, trackId: sec.id, start, end, timed, src: '', trs: [String(cue.text || '')],
+            translationRange: timed ? { start, end } : null, unc: [], words: null };
+        });
         return { rows, meta, untimed: !timedTrack };
       }
       return { rows: [], meta, untimed: false };
@@ -213,6 +236,7 @@
       return cache;
     }
     const dispatch = (type, args = {}, rowIdx = -1) => {
+      if (type === 'seek' || type === 'seekCue' || type === 'togglePlay') playbackIntent++;
       const m = rowIdx >= 0 ? cache.meta[rowIdx] : null, range=ownLoop;
       const target=type==='seek'?args.time:type==='seekCue'?cache.rows[rowIdx]?.start:undefined;
       return Promise.resolve(F.dispatch({ type, mediaKey: bound.mediaKey, generation: bound.generation, ...(m ? { trackId: m.trackId, trackRevision: m.trackRevision } : {}), ...args })).then(norm).then(result=>{
@@ -222,9 +246,44 @@
       });
     };
     const landing = (start, end) => (window.PlayerTranscriptModel?.landingTime ? window.PlayerTranscriptModel.landingTime(start, end) : Math.max(0, num(start) + .01));
-    const seekRow = i => cache.meta[i]?.trackId===F.snap()?.sourceTrack?.id ? dispatch('seekCue',{cueId:cache.rows[i].id},i) : dispatch('seek',{time:landing(cache.rows[i].start,cache.rows[i].end)});
+    function seekTranslationRange(range, snapshot) {
+      const start = Math.max(0, range?.start);
+      const end = Math.min(snapshot?.duration, range?.end);
+      return snapshot?.capabilities?.seek?.support === 'yes'
+        && Number.isFinite(range?.start) && Number.isFinite(range?.end) && end > start
+        ? dispatch('seek', { time: landing(start, end) })
+        : Promise.resolve({ok:false,code:'untimed',message:T('Çevirinin zamanı doğrulanamadı.', 'Translation timing is unverified.')});
+    }
+    function seekRow(index) {
+      const row = cache.rows[index];
+      const snapshot = F.snap();
+      if (!row.src && row.translationRange) return seekTranslationRange(row.translationRange, snapshot);
+      return cache.meta[index]?.trackId === snapshot?.sourceTrack?.id
+        ? dispatch('seekCue', { cueId: row.id }, index)
+        : dispatch('seek', { time: landing(row.start, row.end) });
+    }
+    const staleTrack = () => ({ ok: false, code: 'stale-track', message: T('Altyazı değişti; satırı yeniden seçin.', 'The transcript changed; select the line again.') });
+    async function finishReplay(seek, wasPaused, revision) {
+      const intent = playbackIntent;
+      const result = await seek;
+      if (!result.ok) return result;
+      const now = F.snap();
+      if (!current(now)) return stale;
+      if (rowsFor(now).rev !== revision) return staleTrack();
+      return intent === playbackIntent && wasPaused && now.paused ? dispatch('togglePlay') : result;
+    }
     const idxAt = (t) => { let at = -1; cache.rows.forEach((r, i) => { if (r.timed && !r.standaloneTranslation && r.start <= t && t < r.end && (at < 0 || r.start >= cache.rows[at].start)) at = i; }); return at; };
-    const neighbor = (t, dir) => { const timed = cache.rows.map((r, i) => r.timed && !r.standaloneTranslation ? i : -1).filter((i) => i >= 0); if (!timed.length) return -1; const cur = idxAt(t); if (dir < 0) { if (cur >= 0 && t - cache.rows[cur].start > 1.5) return cur; const before = timed.filter((i) => cache.rows[i].start < (cur >= 0 ? cache.rows[cur].start : t) - .01); return before.length ? before[before.length - 1] : timed[0]; } const after = timed.filter((i) => cache.rows[i].start > (cur >= 0 ? cache.rows[cur].start : t) + .01); return after.length ? after[0] : -1; };
+    function neighbor(time, direction, duration) {
+      const timed = cache.rows.map((row, index) => row.timed && !row.standaloneTranslation
+        && row.end > 0 && row.start < duration ? index : -1).filter(index => index >= 0);
+      const active = idxAt(time);
+      const anchor = cache.rows[active]?.start ?? time;
+      if (direction < 0) {
+        if (active >= 0 && time - anchor > 1.5) return active;
+        return timed.findLast(index => cache.rows[index].start < anchor) ?? timed[0] ?? -1;
+      }
+      return timed.find(index => cache.rows[index].start > anchor) ?? -1;
+    }
     function translationNavigation(s) {
       const track = cache.captionTracks?.[1];
       if (cache.untimed || !track || track.timed === false) return {};
@@ -242,8 +301,8 @@
         if (!Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.end <= cue.start || !cue.text?.trim()) continue;
         const start = Math.max(0, cue.start + offset);
         if (!(Math.min(duration, cue.end + offset) > start)) continue;
-        if (start < anchor - .01 && (previous === undefined || start > previous)) previous = start;
-        if (start > anchor + .01 && (next === undefined || start < next)) next = start;
+        if (start < anchor && (previous === undefined || start > previous)) previous = start;
+        if (start > anchor && (next === undefined || start < next)) next = start;
       }
       return {prevCue: active !== undefined && time - active > 1.5 ? active : previous ?? first, nextCue: next, replay: active};
     }
@@ -276,6 +335,10 @@
     }
     function job() {
       const snap = F.snap(), service = kind === 'shelf' ? window.MediaShelfUI : snap?.sourceKind === 'rss' ? window.PlayerSourceCatalogIntegration : null;
+      if (kind==='browser'&&typeof browserAudioPreparationStatus==='function') {
+        const preparation=browserAudioPreparationStatus();
+        if(preparation)return preparation;
+      }
       if (service) {
         const status = service.podcastTaskState?.() || {}, task = status.job || {state:'idle'};
         const recovery=status.translationRetry,partial=!!recovery?.partial&&!status.preparing&&!['queued','running','failed','stopped'].includes(task.state);
@@ -301,15 +364,48 @@
     }
     const mirror = (resolver, label) => { const b = resolver(); if (!b) return null; const lbl = (label || b.textContent || '').trim().replace(/\s+/g, ' '); return { type: 'button', label: lbl || b.title, hint: b.disabled ? (b.title || '') : '', disabled: !!b.disabled, pressed: b.getAttribute('aria-pressed') === 'true' ? true : undefined, run: () => { if (!current()) return; const target = resolver(); if (target && !target.disabled) { lastAction = resolver; target.click(); } } }; };
     const trackLabel = (t) => (t.label || window.PlayerUiKit?.languageName?.(t.language, window.UiLocale?.get?.()) || T('Altyazı izi', 'Caption track')) + (t.role === 'translation' ? ' · ' + T('çeviri', 'translation') : '');
+    function browserWhisperActions() {
+      const hasSource=!!((player.subRole==='source'&&player.subPath&&player.cues?.length)
+        || (player.sub2Role==='source'&&player.sub2Path&&player.cues2?.length));
+      const canTranscribe=$('browserWhisperSubtitles')&&!$('browserWhisperSubtitles').disabled;
+      const canTranslate=hasSource&&$('makeTransBtn')&&!$('makeTransBtn').disabled;
+      const preparing=typeof browserAudioPreparationStatus==='function'&&browserAudioPreparationStatus()?.state==='running';
+      const primary=canTranslate&&!preparing?'translate-existing':canTranscribe?'transcribe':'live';
+      const options=[
+        ...(hasSource?[['translate-existing', 'makeTransBtn', T('Mevcut metni çevir','Translate existing transcript')]]:[]),
+        ['transcribe', 'browserWhisperSubtitles', T('Yalnız yazıya dök','Transcribe only')],
+        ['transcribe-translate', 'browserWhisperTranslate', T('Yazıya dök ve çevir','Transcribe and translate')],
+        ['live', 'browserLiveAsr', T('Canlı Whisper','Live Whisper')],
+      ];
+      const actions=options.flatMap(([id,button,label])=>{
+        const action=mirror(()=>$(button),label);
+        if(!action)return [];
+        if(preparing&&id==='translate-existing')return [{...action,id,disabled:true,hint:T('Ses hazırlanıyor…','Preparing audio…')}];
+        return [{...action,id,primary:id===primary&&!action.disabled}];
+      });
+      if(typeof currentBrowserWhisperAudio==='function'&&currentBrowserWhisperAudio()){
+        actions.unshift({id:'whisper-saved',type:'button',label:T('Kayıtlı metni aç','Open saved transcript'),
+          hint:T('Bu ses sürümü ve kapsam için iş geçmişini kontrol eder.','Checks job history for this audio version and scope.'),
+          disabled:!canTranscribe,run:()=>{if(current())return startBrowserYoutubeWhisper(false,{savedOnly:true});}});
+      }
+      return actions;
+    }
+    function browserWhisperScope() {
+      if(typeof browserWhisperScopeLabel!=='function'||!(currentBrowserYoutubeUrl()||currentBrowserWhisperAudio()))return null;
+      return {id:'whisper-scope',type:'button',label:T('Whisper kapsamı','Whisper scope'),hint:browserWhisperScopeLabel(),
+        run:()=>{if(current())openBrowserWhisperRangeSettings(doc.activeElement);}};
+    }
     function actions() {
       const snapshot = F.snap();
       const service = kind === 'shelf' ? window.MediaShelfUI : snapshot?.sourceKind === 'rss' ? window.PlayerSourceCatalogIntegration : null;
       if (!service?.runPodcastTask) {
-        const buttons = kind === 'browser' ? [
-          ['whisper', () => $('browserWhisperTranslate'), T('Whisper ve çeviri', 'Whisper and translation')],
-          ['live', () => $('browserLiveAsr'), T('Canlı Whisper', 'Live Whisper')],
-          ['translate-track', () => $('browserTrackTranslate'), T('Altyazıyı yükle ve çevir', 'Load and translate captions')]
-        ] : [
+        if(kind==='browser'){
+          const captions=mirror(()=>$('browserTrackTranslate'),T('Altyazıyı yükle ve çevir','Load and translate captions'));
+          const scope=browserWhisperScope();
+          return [...(scope?[{...scope,label:scope.hint}]:[]),...browserWhisperActions(),
+            ...(captions&&!captions.disabled?[{...captions,id:'translate-track'}]:[])];
+        }
+        const buttons = [
           ['whisper', () => $('makeSubsBtn'), T('Whisper ile yazıya dök', 'Transcribe with Whisper')],
           ['translate-track', () => $('makeTransBtn'), T('Altyazıyı çevir', 'Translate captions')]
         ];
@@ -353,7 +449,7 @@
       }, { once: true });
       doc.body.append(dialog); advancedOverlay = dialog; dialog.showModal(); bounds();
     }
-    function askAssistant(){if(!current())return Promise.resolve(stale);window.CinemaSahne?.current?.captureAssistantPassage?.();window.api.showAssistant?.();return Promise.resolve({ok:true});}
+    function askAssistant(){if(!current())return Promise.resolve(stale);const stage=window.CinemaSahne?.current;stage?.captureAssistantPassage?.();if(stage?.assistantSelectionError)return Promise.resolve({ok:false,code:'selection-too-long',message:stage.assistantSelectionError});window.api.showAssistant?.();return Promise.resolve({ok:true});}
     function openNotebook(){
       if(!current())return stale;
       const entry=$('libraryViewResearch');
@@ -423,8 +519,32 @@
           const tr = mirror(() => $('browserTrackTranslate'), T('Yükle ve çevir', 'Load and translate')); if (tr) items.push(tr);
         } else items.push({ type: 'note', text: T('Bu sayfada erişilebilir altyazı izi bulunamadı. Aşağıdaki Whisper seçenekleri kullanılabilir.', 'No accessible caption track found on this page. Use the Whisper options below.') });
         sections.push({ id: 'captions', title: T('Altyazı izleri', 'Caption tracks'), items });
-        const wh = ['browserWhisperTranslate', 'browserLiveAsr'].map((id) => mirror(() => doc.querySelector(`.browser-study-actions [data-study-action="${id}"]`))).filter(Boolean);
+        const wh=browserWhisperActions();
+        const scope=browserWhisperScope();
+        if(scope)wh.unshift(scope);
         sections.push({ title: T('Whisper ve çeviri', 'Whisper and translation'), items: wh.length ? wh : [{ type: 'note', text: T('Bu kaynak için Whisper işlemi sunulmuyor.', 'No Whisper action is offered for this source.') }] });
+        const sample=F.sampleFor?.(F.snap());
+        const sourceItems=[];
+        if(sample?.audioChoices?.length>1||sample?.pinnedAudio){
+          const options=[{value:'',label:T('Otomatik','Automatic')},...(sample.audioChoices||[]).map((choice,index)=>{
+            const seconds=Math.round(choice.duration||0);
+            const duration=seconds>0?` · ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`:'';
+            const name=choice.label||T('Ses '+(index+1),'Audio '+(index+1));
+            return {value:choice.token,label:name+duration+(choice.token===sample.mediaToken?T(' · Etkin',' · Active'):'')};
+          })];
+          sourceItems.push({type:'select',label:T('Sayfadaki ses','Page audio'),value:sample.pinnedAudio||'',options,
+            onChange:value=>{if(current())void browserCommand('select-audio',value,F.tab()).then(result=>{
+              if(!result?.ok&&current())setBrowserSignal(result?.error||T('Ses seçimi uygulanamadı.','Could not select audio.'),false);
+            });}});
+        }
+        if (typeof currentBrowserWhisperAudio === 'function' && currentBrowserWhisperAudio() && window.PodcastLinkUI?.reviewPlayingEpisode) {
+          sourceItems.push({ type:'button', label:T('Kütüphaneye kaydet…','Save to library…'), run:()=>{if(current())window.PodcastLinkUI.reviewPlayingEpisode();} });
+        }
+        if(sourceItems.length){
+          const section={title:T('Bölüm kaynağı','Episode source'),items:sourceItems};
+          if(sourceItems[0].type==='select')sections.unshift(section);
+          else sections.push(section);
+        }
       } else {
         const sourceActions=F.snap()?.sourceKind==='rss'?[...actions(),{type:'button',label:T('Podcast / Whisper ve çeviri araçları','Podcast / Whisper and translation tools'),run:()=>{if(current())window.PlayerSourceCatalogIntegration?.podcastTools?.();}}]:[mirror(()=>$('makeSubsBtn'),T('Whisper ile altyazı oluştur','Create subtitles with Whisper')),mirror(()=>$('makeTransBtn'),T('Yüklü altyazıyı çevir','Translate loaded subtitles'))];
         const loc = [...sourceActions, mirror(() => $('playerPickSub'), T('Altyazı dosyası seç', 'Choose a subtitle file')), {type:'button',label:T('Tüm oynatıcı ayarları','All player settings'),run:openAdvanced}].filter(Boolean);
@@ -448,21 +568,25 @@
       processing:kind==='shelf'||F.snap()?.sourceKind==='rss'?()=>({duration:F.snap()?.duration}):null,
       info: () => {
         const s=F.snap(),l=F.langs(),audio=kind==='local'&&player.workspaceAudio;
+        const sample=kind==='browser'&&typeof browserTabState==='function'?browserTabState()?.browserClockSample:null;
+        const browserAudio=sample?.mediaType==='audio'&&sample.mediaKey===s?.mediaKey&&sample.generation===s?.generation;
         const podcast=s?.sourceKind==='rss'&&audio?.generation===s.generation&&audio.mediaKey===s.mediaKey;
         const duration=s?.duration,published=audio?.publisherDuration;
         const chapterTiming=podcast&&audio.publisherTiming&&Number.isFinite(duration)&&Number.isFinite(published)
           &&Math.abs(duration-published)<=Math.min(3,Math.max(1,published*.01));
-        const rawTitle=F.mediaTitle()||s?.title||'';
+        const rawTitle=browserAudio?(sample.audioTitle||(sample.sourceChanged?T('Web sesi','Web audio'):F.mediaTitle())):F.mediaTitle()||s?.title||'';
         const title=kind==='browser'?rawTitle.replace(/\s*[-–|]\s*YouTube\s*$/i,''):rawTitle;
-        return { title, sub: F.sub(), eyebrow: F.eyebrow?.() || (kind === 'browser' ? (mode==='podcast'?T('Podcast','Podcast'):T('Web videosu','Web video')) : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null, webSource:kind==='browser', webVideo:kind==='browser'&&mode==='study',
+        const live = kind==='browser' && s?.live === true;
+        return { title, sub: F.sub(), live, eyebrow: F.eyebrow?.() || (kind === 'browser' ? (live?T('Canlı yayın','Live broadcast'):browserAudio?T('Podcast','Podcast'):T('Web videosu','Web video')) : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null, webSource:kind==='browser', webVideo:kind==='browser'&&mode==='study'&&!browserAudio,
           captionTrackCount: kind === 'browser' ? (player.browserTracks || []).filter(track => track.path).length : 0,
           youtubeCaptions: kind === 'browser' && /^browser:youtube:/.test(s?.mediaKey || ''),
         chapters:podcast?(audio.publisherChapters||[]).map(chapter=>({...chapter,t:chapterTiming&&chapter.t!==null&&chapter.t<duration?chapter.t:null})):kind!=='local'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
-        queue:(()=>{const next=window.MediaShelfUI?.upNext?.();return next&&next.title?[{index:next.index,title:next.title,queueKey:next.queueKey}]:null;})()||(kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[]),native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:mode==='podcast'||kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
+        queue:(()=>{const next=window.MediaShelfUI?.upNext?.();return next&&next.title?[{index:next.index,title:next.title,queueKey:next.queueKey}]:null;})()||(kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[]),native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:browserAudio||mode==='podcast'||kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
       state: () => {
         const s = F.snap();
         if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false };
         const r = rowsFor(s);
+        if (ownLoop?.failed) clearOwnedLoop();
         if (ownLoop && ownLoop.revision !== r.rev) {
           const index = r.rows.findIndex((row, i) => row.id === ownLoop.cueId && r.meta[i]?.trackId === ownLoop.trackId
             && row.timed && row.start === ownLoop.a && row.end === ownLoop.b);
@@ -477,7 +601,7 @@
       },
       slot: (m) => { const el = F.slot(m); if (el) { el.classList.add('sh-slot-fill'); bounds(); } return el; },
       transferLoopTo(target) {
-        if (ownLoop?.confirmed && current() && activeLoop(F.snap(), ownLoop)
+        if (ownLoop && !ownLoop.failed && current() && activeLoop(F.snap(), ownLoop)
             && target.acceptLoop(identity(), ownLoop)) ownLoop = null;
       },
       acceptLoop(sourceIdentity, range) {
@@ -487,7 +611,8 @@
         const index = data.rows.findIndex((row, i) => row.timed && row.id === range.cueId
           && data.meta[i]?.trackId === range.trackId && row.start === range.a && row.end === range.b);
         if (index < 0) return false;
-        ownLoop = { ...range, row: index, revision: data.rev };
+        ownLoop = range;
+        Object.assign(ownLoop, { row: index, revision: data.rev });
         return true;
       },
       releaseSlot: () => { clearOwnedLoop(); disposed = true; F.unslot(); restore(); F.dispose(); },
@@ -495,14 +620,15 @@
         if (t === 'loop' && !(v && v.on)) { clearOwnedLoop(); return Promise.resolve({ ok: true }); }   // kendi A–B döngümüzü her durumda kapat
         const s = F.snap(); if (!current()) return Promise.resolve(stale);
         rowsFor(s);
-        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save','assistant'].includes(t))return Promise.resolve({ok:false,code:'stale-track',message:T('Altyazı değişti; satırı yeniden seçin.','The transcript changed; select the line again.')});
+        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save','assistant'].includes(t))return Promise.resolve(staleTrack());
         if (v === 'translation' && ['prevCue','nextCue','replay'].includes(t)) {
           const time = translationNavigation(s)[t];
           if (s.capabilities?.seek?.support !== 'yes' || !Number.isFinite(time)) {
             return Promise.resolve({ok:false,code:'untimed',message:T('Bu konumda zamanlı çeviri yok.', 'No timed translation is available at this position.')});
           }
-          return dispatch('seek', {time}).then(result => result.ok && t === 'replay' && current()
-            && s.paused && F.snap()?.paused ? dispatch('togglePlay') : result);
+          const revision = cache.rev;
+          const seek = dispatch('seek', {time});
+          return t === 'replay' ? finishReplay(seek, s.paused, revision) : seek;
         }
         switch (t) {
           case 'retryCaptions':
@@ -566,27 +692,24 @@
               : result);
             if(kind!=='local'||!Number.isInteger(v)||v<=player.playlistIndex||v>=player.playlist.length)return Promise.resolve({ok:false,code:'invalid-range'});return Promise.resolve(playPlaylistDelta(v-player.playlistIndex)).then(()=>({ok:true}));
           case 'toggle': return dispatch('togglePlay');
-          case 'pause': return s.paused ? Promise.resolve({ ok: true }) : dispatch('togglePlay');
+          case 'pause':
+            if (!s.paused) return dispatch('togglePlay');
+            playbackIntent++;
+            return Promise.resolve({ ok: true });
           case 'seek': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, v)) });
           case 'seekBy': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, num(s.time) + v)) });
           case 'seekCue': return cache.rows[v]?.timed ? seekRow(v) : Promise.resolve({ ok: false, code: 'untimed', message: T('Zamansız satıra atlanamaz.', 'Cannot seek to an untimed line.') });
           case 'seekTranslation': {
-            const row = cache.rows[typeof v === 'object' && v ? v.row : v];
-            const time = typeof v === 'object' && v ? row?.translationStarts?.[v.part] : row?.translationStart;
-            return s.capabilities?.seek?.support === 'yes' && Number.isFinite(time) && time < s.duration
-              ? dispatch('seek', {time: Math.min(num(s.duration) || Infinity, landing(time))})
-              : Promise.resolve({ok:false,code:'untimed',message:T('Çevirinin zamanı doğrulanamadı.', 'Translation timing is unverified.')});
+            const hasPart = v && typeof v === 'object';
+            const row = cache.rows[hasPart ? v.row : v];
+            return seekTranslationRange(hasPart ? row?.translationRanges?.[v.part] : row?.translationRange, s);
           }
-          case 'prevCue': case 'nextCue': { const i = neighbor(num(s.time), t === 'prevCue' ? -1 : 1); return i >= 0 ? seekRow(i) : Promise.resolve({ ok: false, code: 'none', message: T('Zamanlı cümle yok.', 'No timed sentence.') }); }
+          case 'prevCue': case 'nextCue': { const i = neighbor(num(s.time), t === 'prevCue' ? -1 : 1, num(s.duration) || Infinity); return i >= 0 ? seekRow(i) : Promise.resolve({ ok: false, code: 'none', message: T('Zamanlı cümle yok.', 'No timed sentence.') }); }
           case 'replay': {
             const i = idxAt(num(s.time));
             if (i < 0) return Promise.resolve({ ok: false, code: 'none', message: T('Şu an çalan zamanlı cümle yok.', 'No timed sentence is playing.') });
-            return seekRow(i).then(result => {
-              if (!result.ok) return result;
-              if (!current()) return stale;
-              if (s.paused && F.snap()?.paused) return dispatch('togglePlay');
-              return result;
-            });
+            const revision = cache.rev;
+            return finishReplay(seekRow(i), s.paused, revision);
           }
           case 'rate': return dispatch('setRate', { rate: v });
           case 'volume': return dispatch('setVolume',{volume:v});
@@ -597,11 +720,17 @@
             if (hasLoop && (!ownLoop || !activeLoop(s, ownLoop))) return Promise.resolve({ ok: false, code: 'busy', message: T('Zaten bir A–B döngüsü var; önce onu kapat.', 'An A–B loop already exists; turn it off first.') });
             const previous = ownLoop;
             const range = ownLoop = { a:r.start, b:r.end, row:v.row, cueId:r.id, trackId:cache.meta[v.row]?.trackId, revision:cache.rev };
+            const refuse = () => {
+              range.failed = true;
+              if (ownLoop !== range) return;
+              if (previous && current() && activeLoop(F.snap(), previous)) ownLoop = previous;
+              else clearOwnedLoop();
+            };
             return dispatch('setAB', {a:range.a,b:range.b}).then(result => {
-              if (!result.ok && ownLoop === range) ownLoop = previous;
-              if (result.ok && ownLoop === range) range.confirmed = true;
+              if (!result.ok) refuse();
+              else range.confirmed = true;
               return result;
-            });
+            }, error => { refuse(); throw error; });
           }
           case 'copy':
             return Promise.resolve(window.api.copyText?.(v)).then(result => result === true

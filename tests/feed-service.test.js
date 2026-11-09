@@ -4,6 +4,33 @@ const {registerFeeds,fetchPublic}=require('../src/feed-service');
 const rss=(id='1')=>'<rss version="2.0"><channel><title>Cinema</title><item><guid>'+id+'</guid><title>Review '+id+'</title><link>https://news.example/'+id+'</link><description>A short source summary.</description></item></channel></rss>';
 function fixture(fetchValidated,options={}){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'feeds-service-')),app=new EventEmitter();app.getPath=()=>dir;const event={sender:{id:1}},catalog={id:'film',kind:'film',title:'Witness',year:2026,imdbId:'tt1234567'};const service=registerFeeds({app,ipcMain:{handle(){}},authorized:e=>e===event,userData:()=>dir,catalogStore:()=>({get:id=>id==='film'?catalog:null}),fetchValidated,autoStart:false,...options});return {...service,catalog,event,request:input=>service.handle(event,input),close:()=>{service.dispose();fs.rmSync(dir,{recursive:true,force:true});}};}
 
+test('publisher episode review verifies audio, opens separately from save and rechecks the playing source',async()=>{
+ const page='https://publisher.example/episode',audio='https://media.example/episode.mp3';
+ const html='<script type="application/ld+json">'+JSON.stringify({'@type':'PodcastEpisode',name:'Real episode',url:page,partOfSeries:{name:'Real show',url:'/show'},associatedMedia:{'@type':'AudioObject',contentUrl:audio}})+'</script>';
+ let observed=audio,mime='audio/mpeg';
+ const f=fixture(async(url,options)=>{
+  if(url===page)return new Response(html,{headers:{'content-type':'text/html'}});
+  assert.equal(url,audio);assert.equal(options.head,true);
+  return new Response(null,{headers:{'content-type':mime,'content-length':'4096'}});
+ },{observePodcastAudio:async()=>observed});
+ try{
+  const discover=extra=>f.request({action:'discover',url:page,podcastPage:true,...extra});
+  const review=await discover();assert.equal(review.episode?.title,'Real episode');assert.equal(f.store.snapshot().entries.length,0);
+  const confirm=(token,save)=>f.request({action:'podcast-page-confirm',token,save});
+  const opened=await confirm(review.episode.token,false);assert.equal(opened.ok,true,opened.error);
+  assert.equal(f.store.entry(opened.entryId).enclosures[0].url,audio);
+  assert.equal(f.store.entries({kind:'podcast',podcastLibrary:true}).total,0);
+  const playing=await discover({playingAudio:{tabId:'tab',generation:1,mediaToken:'audio'}});
+  observed='https://media.example/another.mp3';assert.equal((await confirm(playing.episode.token,true)).ok,false);
+  observed=audio;const saved=await confirm(playing.episode.token,true);assert.equal(saved.entryId,opened.entryId);assert.equal(saved.saved,true);
+  assert.equal((await confirm(review.episode.token,true)).entryId,saved.entryId);
+  assert.equal(f.store.entries({kind:'podcast',podcastLibrary:true}).total,1);
+  assert.equal((await f.request({action:'list'})).feeds.length,0);
+  assert.equal((await f.request({action:'list',podcastLibrary:true})).feeds[0].format,'web-podcast');
+  mime='text/html';assert.equal((await discover()).episode,undefined);
+ }finally{f.close();}
+});
+
 test('RSS state previews are read-only, revision-bound and apply only reviewed flags across matching article copies',async()=>{
  const f=fixture(async()=>new Response(rss()));try{
   for(const url of ['https://one.example/rss','https://two.example/rss']){const p=await f.request({action:'preview',url});await f.request({action:'subscribe',token:p.token});}

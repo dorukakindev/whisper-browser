@@ -32,18 +32,24 @@ function cut(startMark, endMark) {
 
 const store = cut('const HISTORY_LIMIT', '// ---- Pencere boyutu hatırlama');
 const recorder = cut('function recordJob(meta, event)', "ipcMain.handle('transcribe:start'");
+const outputLookup = cut('function historyOutputCandidates(', "ipcMain.handle('history:list'");
+const safeSelection = cut('function browserSelectionWithoutUnverifiedWhisper(', 'function restoreBrowserMediaSubtitlePreference(');
 const jsonWriter = cut('function writeJsonAtomic(', "ipcMain.handle('media:writeSubtitle'");
 
 // Geçici bir userData klasörü: gerçek ayarlara dokunma
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-hist-'));
 const fakeApp = { getPath: () => tmp };
 
-const api = new Function('fs', 'path', 'app', 'renameSyncResilient', 'require', `
+const api = new Function('fs', 'path', 'app', 'renameSyncResilient', 'fsyncDirectory', 'require', `
   ${jsonWriter}
   ${store}
   ${recorder}
-  return { loadHistory, addHistory, recordJob, historyPath };
-`)(fs, path, fakeApp, require('../src/fsync-utils').renameSyncResilient, require('node:module').createRequire(MAIN));
+  ${outputLookup}
+  ${safeSelection}
+  const subtitleFileAccess = { grant: file => file };
+  return { loadHistory, addHistory, recordJob, historyPath, findBrowserWhisperOutputs, browserSelectionWithoutUnverifiedWhisper };
+`)(fs, path, fakeApp, require('../src/fsync-utils').renameSyncResilient,
+  require('../src/fsync-utils').fsyncDirectory, require('node:module').createRequire(MAIN));
 
 // ---- minik test cercevesi ----
 let pass = 0;
@@ -66,6 +72,30 @@ const meta = (over) => ({
 });
 const done = (over) => ({
   type: 'done', files: ['D:\\Filmler\\Film.srt'], segments: 42, language: 'en', ...over,
+});
+
+test('Browser Whisper results require the same episode, audio bytes and actual range', () => {
+  reset();
+  const file=path.join(tmp,'verified.srt');
+  const binding={identity:'episode-a',sha256:'a'.repeat(64),title:'Verified episode'};
+  fs.writeFileSync(file,'subtitle');
+  try {
+    const job=meta({browserWhisper:binding,clipStart:0,clipEnd:12});
+    assert(api.recordJob(job,done({files:[file],outputs:[{path:file,role:'source',total:1}]})), 'history write failed');
+    const row=api.loadHistory()[0];
+    assert(row.title===binding.title&&row.browserWhisper.sha256===binding.sha256, 'history binding was lost');
+    const range={start:0,end:12};
+    assert(api.findBrowserWhisperOutputs(binding,range)[0]?.path===file, 'same binding did not reopen');
+    const choice={primaryFile:file,secondaryFile:path.join(tmp,'manual.srt')};
+    const safe=api.browserSelectionWithoutUnverifiedWhisper(choice);
+    assert(!safe.primaryFile&&safe.secondaryFile===choice.secondaryFile&&choice.primaryFile===file,
+      'generated file must not restore before verification; manual files stay selected');
+    assert(!api.findBrowserWhisperOutputs({...binding,identity:'episode-b'},range).length, 'another episode reopened');
+    assert(!api.findBrowserWhisperOutputs({...binding,sha256:'b'.repeat(64)},range).length, 'another audio version reopened');
+    assert(!api.findBrowserWhisperOutputs(binding,{start:0,end:13}).length, 'another range reopened');
+    fs.unlinkSync(file);
+    assert(!api.findBrowserWhisperOutputs(binding,range).length, 'missing file reopened');
+  } finally { reset(); }
 });
 
 test('boş depo boş dizi döner (dosya yokken patlamaz)', () => {

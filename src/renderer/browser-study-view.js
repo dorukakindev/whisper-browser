@@ -63,6 +63,7 @@
               <button type="button" data-a="matchPrev" aria-label="${T('Önceki eşleşme','Previous match')}" title="${T('Önceki eşleşme','Previous match')}">↑</button>
               <button type="button" data-a="matchNext" aria-label="${T('Sonraki eşleşme','Next match')}" title="${T('Sonraki eşleşme','Next match')}">↓</button>
             </div>
+            <section class="sh-assistant-selection" data-r="assistantSelection" hidden aria-label="${T('Asistan için seçili pasaj','Selected passage for assistant')}"><div><small>${T('Asistan için seçili pasaj','Selected passage for assistant')}</small><p data-r="assistantExcerpt" dir="auto"></p></div><button class="sh-btn" type="button" data-a="clearAssistantSelection" aria-label="${T('Asistan pasaj seçimini kaldır','Remove assistant passage selection')}">${T('Kaldır','Remove')}</button></section>
           </div>
           <div class="sh-cards-wrap"><p class="sh-search-empty" data-r="searchEmpty" hidden><strong></strong><span></span></p><div class="sh-cards bp-cue-list" data-r="scroll" tabindex="0" aria-label="${T('Bölüm transkripti', 'Episode transcript')}"></div></div>
           <div class="sh-chapter-tools" data-r="chapterTools" hidden>

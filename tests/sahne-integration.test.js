@@ -7,7 +7,7 @@ const { JSDOM } = require('jsdom');
 const WorkspaceModel = require('../src/renderer/player-workspace-model');
 const TranscriptModel = require('../src/renderer/player-transcript-model');
 
-function fixture(t) {
+function fixture(t, {deferLoop=false} = {}) {
   const dom = new JSDOM('<div id="playerLayer"><header class="player-head"><div class="player-head-actions"></div></header><div class="pw-stage"><div id="playerStage"><video id="playerVideo"></video></div></div><h1 id="playerTitle">Episode</h1><div id="playerMeta"></div><button id="startBtn">Whisper</button><button id="playerPickSub">Subtitle</button><button id="abLoopBtn"></button></div>', { url: 'https://fixture.invalid/' });
   const { window } = dom, { document } = window;
   const player = { workspaceMode: 'player', mediaKey: 'local:episode', generation: 1, abA: null, abB: null, subLang: 'en', sub2Lang: 'tr', cues: [], cues2: [] };
@@ -15,12 +15,12 @@ function fixture(t) {
   const secondary = { id: 'secondary:episode', revision: 't1', role: 'translation', offsetSeconds: 1, cues: [{ id: 't1', start: 1, end: 4, text: 'Birinci' }, { id: 't2', start: 4, end: 9, text: 'İkinci' }] };
   const workspace = document.createElement('div'); workspace.id = 'playerWorkspaceV3'; document.getElementById('playerLayer').append(workspace);
   let time = 3, paused = true, rate = 1, podcastMode = false;
-  const commands = [];
+  const commands = [], loopReplies = [];
   const snapshot = () => ({ mediaKey: player.mediaKey, generation: player.generation, time, paused, rate, duration: 60, sourceTrack: { id: source.id, revision: source.revision }, secondaryTrack: { id: secondary.id, revision: secondary.revision }, capabilities: { seek: { support: 'yes' } } });
   const role = () => ({ trackId: source.id, trackRevision: source.revision, cues: source.cues, offsetSeconds: source.offsetSeconds });
   const bridge = WorkspaceModel.createPlayerWorkspaceBridge({ readSnapshot: snapshot, resolveSourceRole: role, executeExisting: async command => {
     commands.push(command);
-    if (command.type === 'setAB') { player.abA = command.a; player.abB = command.b; }
+    if (command.type === 'setAB') { player.abA = command.a; player.abB = command.b; if(deferLoop)return new Promise(resolve=>loopReplies.push(resolve)); }
     if (command.type === 'togglePlay') paused = !paused;
     if (command.type === 'setRate') rate = command.rate;
     if (command.type === 'seek') time = command.time;
@@ -50,7 +50,7 @@ function fixture(t) {
   });
   vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/cinema-sahne'), 'utf8'), context);
   t.after(() => { window.CinemaSahne?.close(); bridge.dispose(); dom.window.close(); });
-  return { window, document, player, source, secondary, commands, context, setParser(parser) { context.parseSubtitles=parser; }, open(mode = 'podcast') { window.CinemaSahne.open({ mode }); return window.CinemaSahne.current.a; } };
+  return { window, document, player, source, secondary, commands, loopReplies, context, setParser(parser) { context.parseSubtitles=parser; }, open(mode = 'podcast') { window.CinemaSahne.open({ mode }); return window.CinemaSahne.current.a; } };
 }
 
 test('locale rebuild restores owned search focus and selection but never steals external focus',t=>{
@@ -276,6 +276,23 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   assert.equal(stage.current.a.info().title, 'Episode 329');
   assert.equal(stage.current.a.info().sub, 'Real channel');
   assert.equal(stage.current.a.info().webVideo, true);
+  const originalTabState=f.context.browserTabState;
+  const audioSample={mediaKey:f.player.mediaKey,generation:f.player.generation,mediaType:'audio'};
+  f.context.browserTabState=()=>({...originalTabState(),browserClockSample:audioSample});
+  assert.equal(stage.current.a.info().audio,true,'an observed audio-only page uses the cover composition in study mode');
+  assert.equal(stage.current.a.info().webVideo,false);
+  const originalYoutube=f.context.currentBrowserYoutubeUrl;f.context.currentBrowserYoutubeUrl=()=>'';
+  audioSample.artworkUrl='https://publisher.example/episode.jpg';
+  assert.equal(stage.current.a.info().cover,audioSample.artworkUrl);
+  audioSample.live=true;
+  assert.equal(stage.current.a.info().eyebrow,'Live broadcast');
+  assert.equal(stage.current.a.state().canSeek,false,'a live source cannot inherit the previous duration controls');
+  audioSample.generation++;
+  assert.equal(stage.current.a.info().live,false);
+  assert.equal(stage.current.a.info().audio,false,'stale audio metadata cannot hide the next video');
+  assert.equal(stage.current.a.info().cover,'','stale artwork cannot move to another media generation');
+  f.context.currentBrowserYoutubeUrl=originalYoutube;
+  f.context.browserTabState=originalTabState;
   assert.equal(stage.current.a.state().rows[0].start, 11);
   assert.deepEqual(Array.from(stage.current.a.state().rows[0].trs), ['Çeviri satırı']);
   stage.current.o.onMode('podcast', {});
@@ -324,6 +341,70 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   f.window.dispatchEvent(new f.window.Event('browser-panel-layout'));
   await Promise.resolve();
   assert.equal(stage.current.o.mode, 'study');
+  f.player.browserTime = 14;
+  for (const [role, cues] of [[undefined, f.player.cues], ['translation', f.player.cues2]]) {
+    const adapter = stage.current.a;
+    const start = calls.length;
+    settleReplaySeek = null;
+    const pending = adapter.cmd('replay', role, adapter.state().rev);
+    assert.equal(typeof settleReplaySeek, 'function');
+    cues[0].text += ' (edited)';
+    settleReplaySeek({ ok: true });
+    assert.equal((await pending).code, 'stale-track');
+    assert.deepEqual(calls.slice(start).map(call => call.type), ['seek']);
+  }
+  for (const role of [undefined, 'translation']) {
+    const adapter = stage.current.a;
+    const start = calls.length;
+    const pendingReplay = adapter.cmd('replay', role, adapter.state().rev);
+    const releaseReplay = settleReplaySeek;
+    const jump = adapter.cmd('seek', 40);
+    settleReplaySeek({ ok: true });
+    assert.equal((await jump).ok, true);
+    releaseReplay({ ok: true });
+    assert.equal((await pendingReplay).ok, true);
+    assert.deepEqual(calls.slice(start).map(call => call.type), ['seek', 'seek']);
+  }
+  {
+    const adapter = stage.current.a;
+    const start = calls.length;
+    const pending = adapter.cmd('replay');
+    await adapter.cmd('pause');
+    settleReplaySeek({ ok: true });
+    await pending;
+    assert.deepEqual(calls.slice(start).map(call => call.type), ['seek']);
+  }
+  delaySeek = false;
+  f.player.browserTime = 11.001;
+  f.player.cues = [
+    { id: 'short-a', start: 10, end: 10.004, text: 'Short first' },
+    { id: 'short-b', start: 10.004, end: 10.008, text: 'Short second' },
+    { id: 'end', start: 88.996, end: 90.5, text: 'Clipped by media end' },
+    { id: 'outside', start: 90, end: 91, text: 'Outside media' }
+  ];
+  f.player.cues2 = [
+    { id: 'short-tr-a', start: 7, end: 7.004, text: 'Birinci' },
+    { id: 'short-tr-b', start: 7.004, end: 7.008, text: 'İkinci' }
+  ];
+  const short = stage.current.a;
+  const state = short.state();
+  const indexOf = id => state.rows.findIndex(row => row.id === id);
+  assert.equal((await short.cmd('seekCue', indexOf('short-a'))).ok, true);
+  assert(calls.at(-1).value > 11 && calls.at(-1).value < 11.004);
+  assert.equal((await short.cmd('nextCue')).ok, true);
+  assert(calls.at(-1).value > 11.004 && calls.at(-1).value < 11.008);
+  assert.equal((await short.cmd('nextCue', 'translation')).ok, true);
+  assert.equal(calls.at(-1).value, 11.004);
+  f.player.browserTime = 11.006;
+  f.player.cues[0].end = 10.08;
+  assert.equal((await short.cmd('prevCue')).ok, true);
+  assert(calls.at(-1).value > 11 && calls.at(-1).value < 11.004,
+    'an overlapping cue must land before the later cue takes over');
+  assert.equal((await short.cmd('seekCue', indexOf('end'))).ok, true);
+  assert(calls.at(-1).value > 89.996 && calls.at(-1).value < 90);
+  const beforeOutside = calls.length;
+  assert.equal((await short.cmd('seekCue', indexOf('outside'))).ok, false);
+  assert.equal(calls.length, beforeOutside);
   stage.current.o.onClose();
   assert.equal(f.player.viewMode, 'theater');
   assert.equal(f.document.activeElement, entry);
@@ -453,16 +534,42 @@ test('closing during loop activation clears only its own current-source A/B loop
 test('translation seek uses the paired track offset and rejects the previous revision after an edit', async t => {
   const f=fixture(t), adapter=f.open('study');
   const before=adapter.state();
-  assert.equal(before.rows[0].translationStart,2);
+  assert.equal(before.rows[0].translationRange.start,2);
   assert.equal((await adapter.cmd('seekTranslation',{row:0,part:1},before.rev)).ok,true);
   assert.equal(f.commands.pop().time,5.01,'paired offset applied, plus the shared landing margin');
   f.secondary.offsetSeconds=2;
   const after=adapter.state();
-  assert.equal(after.rows[0].translationStart,3);
+  assert.equal(after.rows[0].translationRange.start,3);
   assert.equal((await adapter.cmd('seekTranslation',0,before.rev)).code,'stale-track');
   assert.equal(f.commands.length,0);
   assert.equal((await adapter.cmd('seekTranslation',0,after.rev)).ok,true);
   assert.equal(f.commands.at(-1).time,3.01,'edited paired track: new offset plus the shared landing margin');
+});
+test('translation row seek rejects cues outside playback and lands inside the remaining interval', async t => {
+  const f = fixture(t);
+  f.secondary.offsetSeconds = -2;
+  f.secondary.cues = [
+    { id: 'before', start: 0, end: 1, text: 'Before the video' },
+    { id: 'crossing', start: 1.999, end: 2.004, text: 'Crosses the start' },
+    { id: 'ending', start: 61.996, end: 62.1, text: 'Crosses the end' }
+  ];
+  f.secondary.sourceLinks = f.secondary.cues.map(cue => ({
+    cueId: cue.id, sourceTrackId: f.source.id, sourceRevision: f.source.revision, sourceCueIds: ['s']
+  }));
+  const adapter = f.open('study');
+  const { rev } = adapter.state();
+  assert.equal((await adapter.cmd('seekTranslation', {row:0, part:0}, rev)).ok, false);
+  assert.equal(f.commands.length, 0);
+  assert.equal((await adapter.cmd('seekTranslation', {row:0, part:1}, rev)).ok, true);
+  assert(f.commands.at(-1).time > 0 && f.commands.at(-1).time < .004);
+  assert.equal((await adapter.cmd('seekTranslation', {row:0, part:2}, rev)).ok, true);
+  assert(f.commands.at(-1).time > 59.996 && f.commands.at(-1).time < 60);
+
+  f.source.cues = [];
+  f.source.revision = 'empty';
+  const translationOnly = adapter.state();
+  assert.equal((await adapter.cmd('seekCue', 2, translationOnly.rev)).ok, true);
+  assert(f.commands.at(-1).time > 59.996 && f.commands.at(-1).time < 60);
 });
 test('translation without a source match stays searchable and seekable without changing original navigation', async t => {
   const f = fixture(t);
@@ -473,7 +580,7 @@ test('translation without a source match stays searchable and seekable without c
   assert.equal(row.src, '');
   assert.equal(row.trs[0], 'Ayrı çeviri');
   assert.equal(row.translationCueIds[0], 'gap');
-  assert.equal(row.translationStart, 20);
+  assert.equal(row.translationRange.start, 20);
   assert.equal((await a.cmd('nextCue')).ok, false);
   assert.equal((await a.cmd('seekTranslation', index, state.rev)).ok, true);
   assert.equal(f.commands.at(-1).time, 20.01, 'translation-only row: own clock plus the shared landing margin');
@@ -938,4 +1045,69 @@ test('Browser seek intent follows only its tab and stale or failed replies canno
  context.window.api.browserCommand=async()=>({ok:false});await context.browserCommand('seek',50);assert.equal(player._ownSeek,null);assert.equal(player._ownSeekAt,0);
   context.window.api.browserCommand=async()=>({ok:true,media:{currentTime:17.5}});await context.browserCommand('seek-relative',1);assert.equal(player._ownSeek.target,17.5,'relative/frame targets use the playback owner response');
   context.window.api.browserCommand=async()=>{throw Error('Bridge failed');};await assert.rejects(context.browserCommand('frame-step',1),/Bridge failed/);assert.equal(player._ownSeek,null);
+});
+
+test('a paused Browser seek receipt refreshes a sub-frame position without replacing newer observations', async () => {
+  const renderer = fs.readFileSync(require.resolve('../src/renderer/renderer.js'), 'utf8');
+  const start = renderer.indexOf('function browserCommand(command');
+  const end = renderer.indexOf('async function maybeAutoSkipBrowserAd', start);
+  const player = { browserActiveTabId: 'a', mediaKey: 'video:a', generation: 2, browserTime: 10.002, browserPaused: true };
+  const tab = { browserTime: player.browserTime };
+  let release;
+  const context = { player, clearTimeout() {}, browserTabState: () => tab,
+    window: { api: { browserCommand: () => new Promise(resolve => { release = resolve; }) } } };
+  vm.runInNewContext(renderer.slice(start, end), context);
+
+  const short = context.browserCommand('seek', 10.006);
+  release({ ok: true, media: { currentTime: 10.006, paused: true } });
+  await short;
+  assert.equal(player.browserTime, 10.006);
+  assert.equal(tab.browserTime, 10.006);
+
+  const old = context.browserCommand('seek', 10.002);
+  player.browserTime = tab.browserTime = 12;
+  release({ ok: true, media: { currentTime: 10.002, paused: true } });
+  await old;
+  assert.equal(player.browserTime, 12);
+  assert.equal(tab.browserTime, 12);
+});
+
+
+for(const mode of ['study','podcast'])test('applied loop with a pending reply transfers to '+mode+' without clearing or reinstalling it',async t=>{
+ const f=fixture(t,{deferLoop:true}),first=f.open(mode==='study'?'podcast':'study');first.state();const pending=first.cmd('loop',{on:true,row:0});assert.deepEqual([f.player.abA,f.player.abB],[2,10]);assert.equal(f.loopReplies.length,1);const calls=f.commands.length;
+ f.window.CinemaSahne.current.o.onMode(mode,{reading:{identity:first.identity()}});const next=f.window.CinemaSahne.current.a;assert.equal(next.state().loopRow,0);assert.deepEqual([f.player.abA,f.player.abB],[2,10]);assert.equal(f.commands.length,calls);
+ f.loopReplies[0]({ok:true});await pending;assert.equal(next.state().loopRow,0);await next.cmd('loop',{on:false});assert.deepEqual([f.player.abA,f.player.abB],[null,null]);
+});
+
+test('a failed applied loop reply after handoff releases only its own range',async t=>{
+ const f=fixture(t,{deferLoop:true}),first=f.open();const pending=first.cmd('loop',{on:true,row:0});f.window.CinemaSahne.current.o.onMode('study',{reading:{identity:first.identity()}});const next=f.window.CinemaSahne.current.a;
+ f.loopReplies[0]({ok:false,code:'refused'});await pending;assert.equal(next.state().loopRow,-1);assert.deepEqual([f.player.abA,f.player.abB],[null,null]);
+});
+
+
+test('a rejected loop reply after handoff cannot clear a replacement external range',async t=>{
+ const f=fixture(t,{deferLoop:true}),first=f.open();const pending=first.cmd('loop',{on:true,row:0});f.window.CinemaSahne.current.o.onMode('study',{reading:{identity:first.identity()}});const next=f.window.CinemaSahne.current.a;f.player.abA=20;f.player.abB=30;f.loopReplies[0]({ok:false});await pending;assert.equal(next.state().loopRow,-1);assert.deepEqual([f.player.abA,f.player.abB],[20,30]);
+});
+
+
+for(const previous of [false,true])test('a refused applied loop in the same view leaves no unowned range, previous='+previous,async t=>{
+ const f=fixture(t,{deferLoop:true}),a=f.open();
+ if(previous){const first=a.cmd('loop',{on:true,row:0});f.loopReplies[0]({ok:true});await first;f.source.cues.push({id:'second-source',start:20,end:28,text:'Second source sentence'});f.source.revision='s2';a.state();}
+ const pending=a.cmd('loop',{on:true,row:previous?1:0});assert.notEqual(f.player.abA,null);f.loopReplies.at(-1)({ok:false,code:'refused'});assert.equal((await pending).ok,false);assert.equal(a.state().loopRow,-1);assert.deepEqual([f.player.abA,f.player.abB],[null,null]);
+});
+
+
+test('a rejected replacement loop preserves a previous range that is still active',async t=>{
+ const f=fixture(t,{deferLoop:true}),a=f.open();const first=a.cmd('loop',{on:true,row:0});f.loopReplies[0]({ok:true});await first;f.source.cues.push({id:'second-source',start:20,end:28,text:'Second source sentence'});f.source.revision='s2';a.state();const pending=a.cmd('loop',{on:true,row:1});f.player.abA=2;f.player.abB=10;f.loopReplies[1]({ok:false});await pending;assert.equal(a.state().loopRow,0);assert.deepEqual([f.player.abA,f.player.abB],[2,10]);assert.equal(f.commands.filter(c=>c.type==='setAB').length,2);
+});
+
+test('a thrown applied loop failure clears its own range but never a replacement source range',async t=>{
+ for(const replace of [false,true]){
+  const f=fixture(t,{deferLoop:true}),a=f.open();const pending=a.cmd('loop',{on:true,row:0});if(replace){f.player.generation++;f.player.abA=20;f.player.abB=30;}f.loopReplies[0](Promise.reject(Error('Controlled loop failure')));const result=await pending;assert.equal(result.ok,false);assert.match(result.message,/Controlled loop failure/);assert.deepEqual([f.player.abA,f.player.abB],replace?[20,30]:[null,null]);
+ }
+});
+
+
+test('assistant adapter respects an invalid explicit selection instead of opening general context',async t=>{
+ const f=fixture(t),a=f.open();let opens=0;f.window.api.showAssistant=()=>opens++;f.window.CinemaSahne.current.captureAssistantPassage=()=>{f.window.CinemaSahne.current.assistantSelectionError='Select a shorter source passage';return null;};const refused=await a.cmd('assistant');assert.equal(refused.ok,false);assert.equal(refused.code,'selection-too-long');assert.equal(opens,0);f.window.CinemaSahne.current.captureAssistantPassage=()=>{f.window.CinemaSahne.current.assistantSelectionError='';return {text:'Source'};};assert.equal((await a.cmd('assistant')).ok,true);assert.equal(opens,1);
 });
