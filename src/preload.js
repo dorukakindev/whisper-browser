@@ -217,7 +217,7 @@ contextBridge.exposeInMainWorld('api', {
   snapshotBrowserPage: () => ipcRenderer.invoke('browser:snapshotActive'),
   setBrowserBounds: (tabId, bounds) => ipcRenderer.invoke('browser:setBounds', { tabId, bounds }),
   navigateBrowser: (tabId, url, options = {}) => ipcRenderer.invoke('browser:navigate', { tabId, url, pauseOnOpen:options.pauseOnOpen===true }),
-  browserCommand: (tabId, command, value) => ipcRenderer.invoke('browser:command', { tabId, command, value }),
+  browserCommand: (tabId, command, value, expectedAudioToken) => ipcRenderer.invoke('browser:command', { tabId, command, value, expectedAudioToken }),
   browserExtras: (payload) => ipcRenderer.invoke('browser:extras', payload),
   getBrowserSponsorSegments: (tabId, url, categories, duration) => ipcRenderer.invoke('browser:sponsorBlock:get', { tabId, url, categories, duration }),
   getBrowserVideoExtras: (url, options) => ipcRenderer.invoke('browser:videoExtras:get', { url, options }),

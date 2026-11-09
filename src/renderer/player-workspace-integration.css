@@ -35,3 +35,13 @@
 #playerWorkspaceV3 .pw-podcast-cover{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;gap:16px;background:var(--bg-1);padding:24px;z-index:2}#playerWorkspaceV3 .pw-podcast-cover>.pw-cover{width:min(220px,45%);height:auto;aspect-ratio:1;font-size:54px;border-radius:12px}#playerWorkspaceV3 .pw-podcast-cover>strong{font-size:18px;text-align:center}#playerWorkspaceV3 .pw-runtime-untimed{white-space:pre-wrap;overflow-wrap:anywhere;padding:0 16px;font-size:15px;line-height:1.7}
 /* Podcast tools keep the episode context; source navigation remains in the normal player. */
 .pw-existing-tools[data-source-kind="rss"] .side-source-quick { display: none; }
+
+/* Full tools keep their horizontal navigation when opened from the shared Stage. */
+#playerWorkspaceV3 .pw-existing-tools[open]{inset:0;margin:auto;max-height:calc(100vh - 80px);height:min(760px,calc(100vh - 80px));border-radius:14px}
+#playerWorkspaceV3 .pw-existing-tools>#playerSide{height:calc(100% - 48px);overflow:auto;flex-direction:column}
+#playerWorkspaceV3 .pw-existing-tools>#playerSide .side-tabs{flex-direction:row;justify-content:flex-start;flex-wrap:wrap;gap:8px}
+
+#playerWorkspaceV3 .pw-existing-tools #playerSide .side-tabbar{display:flex;flex-direction:row;align-items:center;gap:12px;width:100%}
+#playerWorkspaceV3 .pw-existing-tools #playerSide .side-tabs{container-type:normal;flex:1 1 auto;width:auto;min-width:0}
+#playerWorkspaceV3 .pw-existing-tools #playerSide .side-tab{flex:1 1 auto;width:auto;padding:0 12px;gap:7px}
+#playerWorkspaceV3 .pw-existing-tools #playerSide .side-tab>span:not(.side-tab-ico):not(.side-tab-icon){display:inline}

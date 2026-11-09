@@ -25,15 +25,20 @@
     const canonical=value=>String(value||'').replace(/\\/g,'/').replace(/^([a-z]):/i,(_,drive)=>drive.toLowerCase()+':');
     return saved&&selected&&canonical(saved.subtitlePath)===canonical(selected)&&canonical(saved.mediaPath)===canonical(player.localPath)?saved.range:null;
   }
-  function selectedSubtitleRange() {
-    const tracks=player.browserTracks||[];
-    // Match the same translation path that prepareCurrent selects for synthesis.
-    const translated=player.sub2Role==='translation'&&player.sub2Path
-      ? tracks.find(track=>track.role==='translation'&&track.path===player.sub2Path):null;
-    const selected=translated||tracks.find(track=>track.id===player.browserLoadedTrackId);
+  function selectedBrowserSubtitle() {
+    const secondary=player.sub2Role==='translation'&&!!player.sub2Path;
+    const path=secondary?player.sub2Path:player.subPath;
+    const id=secondary?player.browserLoadedTrackId2:player.browserLoadedTrackId;
+    const role=secondary?'translation':player.subRole;
+    if (!path || player.browserAdPlaying) return null;
+    return (player.browserTracks||[]).find(track=>track.path===path && (!id || track.id===id)
+      && (!role || track.role===role) && !track.sourceMismatch
+      && (!track.mediaToken || track.mediaToken===currentBrowserWhisperAudio()?.mediaToken)) || null;
+  }
+  function selectedSubtitleRange(selected) {
     // A loaded full-video track explicitly has no clip. A pending Whisper
     // selection must not silently narrow that already prepared subtitle.
-    return selected ? selected.clipRange || null : currentBrowserWhisperRange();
+    return selected ? selected.clipRange || null : (player.subPath||player.sub2Path ? null : currentBrowserWhisperRange());
   }
   const context = () => player.workspaceMode === 'player' ? ({
     mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
@@ -43,14 +48,14 @@
     currentTime: video.currentTime, duration:video.duration, backgroundSource: player.localPath || '',
     hasMedia: !!(video.currentSrc || video.getAttribute('src')),
     visible: !byId('playerLayer').classList.contains('hidden'),
-  }) : ({ mode: player.workspaceMode, tabId: player.browserActiveTabId,
+  }) : (()=>{const subtitleTrack=selectedBrowserSubtitle();return { mode: player.workspaceMode, tabId: player.browserActiveTabId,
     mediaKey: player.mediaKey, source: player.browserPageUrl || player.mediaKey || '', generation: browserTabState()?.generation,
     mediaId: browserTabState()?.mediaId || '',
-    subtitleRange: selectedSubtitleRange(),
+    subtitleRange: selectedSubtitleRange(subtitleTrack), subtitleTrack,
     priorMuted: !!browserTabState()?.tabMuted,
     hasMedia: !!player.browserMediaSeen,
     playbackRate: player.browserRate || 1, currentTime: player.browserTime, duration:player.browserDuration,
-    visible: !byId('playerLayer').classList.contains('hidden') });
+    visible: !byId('playerLayer').classList.contains('hidden') };})();
   const notify = message => player.workspaceMode === 'player'
     ? osd(message) : setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
   const controller = new window.BrowserDubAudio({ audio, context,

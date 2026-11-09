@@ -221,3 +221,11 @@ test('Exact voice approval accepts current settings including a previously disab
   assert.equal(h.el('dubRangeEnabled').checked,true);assert.equal(h.el('dubRangeStart').value,'5');assert.equal(h.el('dubRangeEnd').value,'25');
  }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
+
+test('active shelf podcast cannot expose or generate from a hidden player voice context',async()=>{
+ const h=setup();try{
+  h.w.MediaShelfUI={isPodcastMode:()=>true,readSnapshot:()=>({entryId:'podcast-B',mediaKey:'podcast:B'})};
+  const result=await h.run('get_voice_status');assert.equal(result.voice.hasMedia,true);assert.equal(result.voice.needsPreparation,true);assert.equal(result.voice.output,null);assert.equal(result.voice.subtitleReady,false);
+  await assert.rejects(h.run('start_voice_generation'),/open_voice_preparation/);assert.equal(h.read().request,undefined);assert.equal(h.read().applied,0);
+ }finally{h.dom.window.close();}
+});

@@ -1380,6 +1380,9 @@ test('an in-flight note save shared across a mode change cannot be sent twice',a
 test('stopped or partially recoverable jobs keep a truthful visible result state',t=>{
  const f=mount(t);let job={state:'stopped',text:'',progress:null};f.sh.a.panel=()=>({sections:[],job});f.sh.tick();assert.equal(f.sh.q('[data-r=job]').hidden,false);assert.match(f.sh.q('[data-r=job]').textContent,/Durduruldu/);assert.equal(f.sh.q('[data-r=jobbar]').hidden,true);
  job={state:'partial',text:'3 / 5 ready; stored lines remain available',progress:null};f.sh.tick();assert.match(f.sh.q('[data-r=job]').textContent,/3 \/ 5 ready/);assert.equal(f.sh.q('[data-a=jobcancel]').hidden,true);
+ job={state:'done',text:'Subtitle loaded',progress:1,cancel:()=>assert.fail('completed job is not cancellable')};f.sh.tick();
+ assert.equal(f.sh.q('[data-r=job]').dataset.state,'done');assert.match(f.sh.q('[data-r=job]').textContent,/Tamamlandı/);
+ assert.equal(f.sh.q('[data-r=jobbar]').hidden,true);assert.equal(f.sh.q('[data-a=jobcancel]').hidden,true);
 });
 
 
@@ -1474,8 +1477,9 @@ test('a note cannot rebind to the same cue id belonging to a different subtitle 
 });
 
 test('a failed cover falls back to the current title and a late old image error cannot replace a newer cover',t=>{
- const f=mount(t),info=f.sh.a.info;let cover='https://images.invalid/old.png';f.sh.a.info=()=>({...info(),cover});f.sh.tick();const old=f.sh.q('[data-r=cover] img');
+ const f=mount(t),info=f.sh.a.info;let cover='https://images.invalid/old.png';const fallbackCover='https://images.invalid/show.png';f.sh.a.info=()=>({...info(),cover,fallbackCover});f.sh.tick();const old=f.sh.q('[data-r=cover] img');
  cover='https://images.invalid/new.png';f.sh.tick();const current=f.sh.q('[data-r=cover] img');old.dispatchEvent(new f.w.Event('error'));assert.equal(f.sh.q('[data-r=cover] img'),current);
+ current.dispatchEvent(new f.w.Event('error'));assert.equal(current.getAttribute('src'),fallbackCover);
  current.dispatchEvent(new f.w.Event('error'));assert.equal(f.sh.q('[data-r=cover] img'),null);assert(f.sh.q('[data-r=cover]').textContent.trim());
 });
 
@@ -1569,8 +1573,27 @@ test('filtered match navigation never seeks until selected and keeps real row id
  const q=f.sh.q('[data-r=q]');q.value='needle';q.dispatchEvent(new f.w.Event('input'));
  f.sh.moveMatch(1,true);f.sh.moveMatch(1,true);assert.equal(f.sh.matchLine,f.sh.lines[2]);assert.equal(f.commands.length,0);
  f.sh.lines[2].querySelector('[data-a=cueSeek]').click();assert.equal(f.commands.at(-1)[0],'seekCue');assert.equal(f.commands.at(-1)[1],2);
+ const target=f.sh.lines[2].querySelector('[data-a=cueSeek]');
+ target.focus();
+ const scroll=f.sh.q('[data-r=scroll]');scroll.scrollTop=42;
+ target.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ assert.equal(f.w.document.activeElement,q);
+ assert.equal(q.value,'needle');
+ assert.equal(scroll.scrollTop,42);
+ assert.equal(f.sh.matchLine,f.sh.lines[2]);
+ assert.equal(f.commands.length,1);
  f.sh.moveMatch(-1,true);assert.equal(f.sh.matchLine,f.sh.lines[0]);assert.equal(q.value,'needle');
  f.sh.navigateSentence('replay');assert.equal(f.commands.at(-1)[0],'replay');assert.equal(f.sh.lines[1].hidden,true);
+});
+
+test('starting text selection stops follow without cancelling the native selection',t=>{
+ const f=mount(t),source=f.sh.lines[0].querySelector('.src');
+ assert.equal(f.sh.s.follow,true);
+ assert(source.dispatchEvent(new f.w.Event('selectstart',{bubbles:true,cancelable:true})));
+ assert.equal(f.sh.s.follow,false);
+ f.sh.q('[data-a=follow]').click();
+ assert.equal(f.sh.s.follow,true);
+ assert.equal(f.commands.length,0);
 });
 
 test('pending recovery and job controls survive same-source views with one failure notice',async t=>{

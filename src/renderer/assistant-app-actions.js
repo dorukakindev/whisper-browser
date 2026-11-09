@@ -2,17 +2,21 @@
  'use strict';
  const contract=window.AssistantContextManifest,registry=window.AssistantCapabilities;
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
- function subtitleIdentity(){let hash=2166136261;for(const value of [player.subPath,player.sub2Path,JSON.stringify(player.cues||[]),JSON.stringify(player.cues2||[])])for(const char of String(value||'')){hash=Math.imul(hash^char.charCodeAt(0),16777619);}return String(hash>>>0);}
+ function subtitleIdentity(values){let hash=2166136261;for(const value of values||[player.subPath,player.sub2Path,JSON.stringify(player.cues||[]),JSON.stringify(player.cues2||[])])for(const char of String(value||'')){hash=Math.imul(hash^char.charCodeAt(0),16777619);}return String(hash>>>0);}
  function snapshot(){
   const selection=globalAssistantContext(),tab=player.workspaceMode==='browser'?browserTabState():null;
   const url=player.browserPageUrl||'';
+  const shelfCandidate=selection?.workspace==='podcast'&&window.MediaShelfUI?.isPodcastMode?.()?window.MediaShelfUI.readSnapshot():null;
+  const shelf=shelfCandidate&&shelfCandidate.episodeIdentity===selection.episodeIdentity&&shelfCandidate.sourceVersion===selection.sourceVersion?shelfCandidate:null;
+  const shelfTracks=shelf?window.MediaShelfUI.getTranscriptTracks?.()||[]:[];
+  const browserAudio=tab&&!selection&&typeof currentBrowserWhisperAudio==='function'?currentBrowserWhisperAudio():null;
   const kind=selection?String(selection.type||'').startsWith('book')?'book':selection.workspace==='media-library'||['library-title','discovery-title','taste-profile','collection-plan'].includes(selection.type)?'library':'studio':currentBrowserYoutubeUrl()?'video':tab&&/^https?:/i.test(url)?'page':'studio';
   return contract.clean({kind,owner:aiSourceScope(),thread:window.AssistantWorkspace?.activeId()||'',tabId:tab?.id||'',generation:tab?.generation||0,
    pageKey:tab?window.AssistantSourceContext.pageKey(url):'',title:selection?.title||player.browserPageTitle||document.getElementById('playerTitle')?.textContent||'',
-   time:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),
-   hasMedia:!selection&&!!window.BrowserDubAudioUI?.context()?.hasMedia&&!!window.BrowserDubAudioUI?.context()?.visible,voiceStudio:!!document.getElementById('dubGeneratorDialog')?.open,
-   hasFeedSources:['feed-sources','recall-sources'].includes(selection?.type),hasFeedEntries:selection?.type==='feed-sources',subtitleKey:subtitleIdentity(),hasSubtitles:!selection&&!!(player.cues?.length||player.cues2?.length),
-   range:kind==='video'?currentBrowserWhisperRange():null,
+   time:shelf?Number(shelf.time)||0:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),
+   hasMedia:!!shelf||!selection&&!!window.BrowserDubAudioUI?.context()?.hasMedia&&!!window.BrowserDubAudioUI?.context()?.visible,voiceStudio:!!document.getElementById('dubGeneratorDialog')?.open,
+   hasFeedSources:['feed-sources','recall-sources'].includes(selection?.type),hasFeedEntries:selection?.type==='feed-sources',subtitleKey:shelf?subtitleIdentity([JSON.stringify(shelfTracks.map(track=>[track.id,track.revision,track.timed]))]):subtitleIdentity(),hasSubtitles:shelf?shelfTracks.some(track=>track.timed&&track.cues?.length):!selection&&!!(player.cues?.length||player.cues2?.length),
+   hasBrowserAudio:!!browserAudio,audioKey:browserAudio?.mediaToken,range:kind==='video'||browserAudio?currentBrowserWhisperRange():null,
    tracks:kind==='video'?(player.browserTracks||[]).map(row=>({id:row.id,role:row.role,language:row.language,partial:row.captureComplete===false})):[]});
  }
  function current(owner){return contract.same(owner,snapshot());}
@@ -88,6 +92,7 @@
    return {status:'completed',track:{id:track.id,role:track.role,language:track.language,partial:track.status==='partial'||track.failed>0},note:t('The exact job subtitle was loaded. No new production started.','İlgili işin altyazısı yüklendi. Yeni üretim başlamadı.')};
   }
   if(name==='start_whisper'){
+   if(owner.kind!=='video'&&!currentBrowserWhisperAudio())throw Error(t('Play the episode so its audio can be verified first.','Önce bölümü oynatıp ses kaynağını doğrulayın.'));
    if(state.running||state.queueRunning)throw Error(t('Another media job is running.','Başka bir medya işi çalışıyor.'));
    let clipRange=currentBrowserWhisperRange();
    if(Object.hasOwn(args,'start')){
@@ -98,8 +103,9 @@
    if(stale())throw Error(t('The source changed.','Kaynak değişti.'));
    const executionOwner=snapshot();
    const result=await startBrowserYoutubeWhisper(args.translate,{forSpeech:args.forSpeech,targetLanguage:args.target_language,translationConfig,clipRange,isCancelled:()=>isCancelled()||Date.now()>=deadline||!current(executionOwner)});
-   if(!result?.ok)throw Error(t('Whisper was not confirmed as started.','Whisper başlangıcı doğrulanamadı.'));
-   return {status:result.reused?'completed':'accepted',jobId:result.jobId||result.job?.backendJobId,reused:!!result.reused,kind:result.job?.kind||'subtitles',note:result.reused?t('Existing subtitles were loaded.','Hazır altyazı yüklendi.'):t('The media job was accepted. Follow progress in the video job panel.','Medya işi kabul edildi. İlerlemeyi video işlem panelinden izle.')};
+   if(stale()||result?.cancelled)throw Error(t('Whisper could not be confirmed for the source you approved.','Whisper, onayladığınız kaynak için doğrulanamadı.'));
+   if(!result?.ok)throw Error(result?.message||t('Whisper was not confirmed as started. Check the Tasks panel.','Whisper başlangıcı doğrulanamadı. İşlemler panelini kontrol edin.'));
+   return {status:result.reused?'completed':'accepted',jobId:result.jobId||result.job?.backendJobId,reused:!!result.reused,kind:result.job?.kind||'subtitles',note:result.reused?t('Existing subtitles were loaded.','Hazır altyazı yüklendi.'):t('The media job was accepted. Follow progress in the Tasks panel.','Medya işi kabul edildi. İlerlemeyi İşlemler panelinden izle.')};
   }
   if(['translate_captions','translate_video_captions'].includes(name))return window.AssistantCaptionActions.translate(args,owner,{deadline,isCancelled});
   if(name==='load_caption_track'){const result=await useBrowserTrack(false,args.track_id,{isCancelled:stale});if(!result?.ok||stale())throw Error(t('Subtitle load was not confirmed.','Altyazı yüklenmesi doğrulanamadı.'));return {status:'completed',note:t('Subtitles loaded; no translation started.','Altyazı yüklendi; çeviri başlamadı.')};}
@@ -121,8 +127,11 @@
    throw Error(t('Page translation acceptance could not be verified. Open the page toolbar.','Sayfa çevirisinin kabulü doğrulanamadı. Sayfa araç çubuğunu açın.'));
   }
   if(name==='open_voice_preparation'){
-   const opened=await window.MediaExperience.openVoice();
-   if(stale())throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
+   const shelf=window.MediaShelfUI?.isPodcastMode?.()?window.MediaShelfUI.readSnapshot():null;
+   const opened=await window.MediaExperience.openVoice({receipt:true});
+   const handoff=opened?.handoff,audio=player.workspaceAudio;
+   const confirmedHandoff=shelf&&opened.from?.mediaKey===shelf.mediaKey&&opened.from?.generation===shelf.generation&&handoff&&audio?.entryId===handoff.entryId&&audio.mediaKey===handoff.mediaKey&&audio.generation===handoff.generation&&player.mediaKey===handoff.mediaKey&&player.generation===handoff.generation&&owner.thread===(window.AssistantWorkspace?.activeId()||'');
+   if(isCancelled()||Date.now()>=deadline||stale()&&!confirmedHandoff)throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
    if(opened===false||!document.getElementById('dubGeneratorDialog')?.open)throw Error(t('Voice preparation could not open.','Ses hazırlığı açılamadı.'));
    return {status:'completed',note:t('Voice preparation is open. No audio was generated.','Ses hazırlığı açıldı. Ses üretilmedi.')};
   }
@@ -140,7 +149,7 @@
    return {status:'completed',note:t('Subtitle editor opened. Nothing was saved.','Altyazı düzenleyicisi açıldı. Dosya kaydedilmedi.')};
   }
   if(name==='seek_to_time'){
-   if(player.workspaceMode==='browser'){const result=await browserCommand('seek',source.start);if(!result?.ok)throw Error(result?.error||t('Playback jump failed.','Zamana gidilemedi.'));}
+   if(player.workspaceMode==='browser'){const result=await browserCommand('seek',source.start,owner.tabId);if(stale()||!result?.ok)throw Error(result?.error||t('Playback jump could not be confirmed on this source.','Bu kaynakta zamana gidildiği doğrulanamadı.'));}
    else document.getElementById('playerVideo').currentTime=subtitleVideoTime(source.start,false);
    return {status:'completed',note:t('Moved to the source subtitle.','Kaynak altyazının zamanına gidildi.')};
   }

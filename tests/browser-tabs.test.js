@@ -192,7 +192,7 @@ test('R51-15: medya komutu mutasyondan önce sekme bağlamını yeniden doğrula
   const start = main.indexOf("ipcMain.handle('browser:command'");
   const end = main.indexOf("ipcMain.handle(", start + 20);
   const body = main.slice(start, end);
-  const loopStart = body.indexOf('for (const candidate of rankBrowserMediaCandidates(candidates))');
+  const loopStart = body.indexOf('for (const candidate of tab.activeAudioToken?ranked.slice(0,1):ranked)');
   assert.ok(loopStart > 0, 'medya komut döngüsü bulunamadı');
   const guardIdx = body.indexOf('isCurrentBrowserContext(context)', loopStart);
   const mutateIdx = body.indexOf('.executeJavaScript(command ===', loopStart);

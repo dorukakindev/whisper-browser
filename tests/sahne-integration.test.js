@@ -283,7 +283,15 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   assert.equal(stage.current.a.info().webVideo,false);
   const originalYoutube=f.context.currentBrowserYoutubeUrl;f.context.currentBrowserYoutubeUrl=()=>'';
   audioSample.artworkUrl='https://publisher.example/episode.jpg';
+  audioSample.fallbackArtworkUrl='https://publisher.example/show.jpg';
+  audioSample.audioTitle='Doğadan Kopuşun Tarihi - Bölüm 1 | Apaçık Radyo';
+  audioSample.showTitle='Antroposen Sohbetler';
+  audioSample.siteName='Apaçık Radyo';
   assert.equal(stage.current.a.info().cover,audioSample.artworkUrl);
+  assert.equal(stage.current.a.info().fallbackCover,audioSample.fallbackArtworkUrl);
+  assert.equal(stage.current.a.info().title,'Doğadan Kopuşun Tarihi - Bölüm 1');
+  assert.equal(stage.current.a.info().program,'Antroposen Sohbetler');
+  assert.equal(stage.current.a.info().sub,'Apaçık Radyo');
   audioSample.live=true;
   assert.equal(stage.current.a.info().eyebrow,'Live broadcast');
   assert.equal(stage.current.a.state().canSeek,false,'a live source cannot inherit the previous duration controls');
@@ -291,11 +299,17 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
   assert.equal(stage.current.a.info().live,false);
   assert.equal(stage.current.a.info().audio,false,'stale audio metadata cannot hide the next video');
   assert.equal(stage.current.a.info().cover,'','stale artwork cannot move to another media generation');
+  assert.equal(stage.current.a.info().program,'','stale program cannot move to another media generation');
   f.context.currentBrowserYoutubeUrl=originalYoutube;
   f.context.browserTabState=originalTabState;
   assert.equal(stage.current.a.state().rows[0].start, 11);
   assert.deepEqual(Array.from(stage.current.a.state().rows[0].trs), ['Çeviri satırı']);
+  const previousStudy=stage.current;
   stage.current.o.onMode('podcast', {});
+  const mountedPodcast=stage.current;
+  previousStudy.o.onMode('study', {});
+  previousStudy.o.onClose();
+  assert.equal(stage.current,mountedPodcast,'late callbacks must not change or close the current scene');
   assert.equal(stage.current.o.mode, 'podcast');
   assert.equal(stage.current.a.info().audio, true);
   assert.equal(stage.current.a.info().webVideo, false);
@@ -383,19 +397,21 @@ test('YouTube study entry and Podcast tab keep the browser owner, tracks and com
     { id: 'outside', start: 90, end: 91, text: 'Outside media' }
   ];
   f.player.cues2 = [
-    { id: 'short-tr-a', start: 7, end: 7.004, text: 'Birinci' },
+    { id: 'short-tr-a', start: 7, end: 7.020, text: 'Birinci' },
     { id: 'short-tr-b', start: 7.004, end: 7.008, text: 'İkinci' }
   ];
   const short = stage.current.a;
-  const state = short.state();
-  const indexOf = id => state.rows.findIndex(row => row.id === id);
+  const indexOf = id => short.state().rows.findIndex(row => row.id === id);
   assert.equal((await short.cmd('seekCue', indexOf('short-a'))).ok, true);
   assert(calls.at(-1).value > 11 && calls.at(-1).value < 11.004);
   assert.equal((await short.cmd('nextCue')).ok, true);
   assert(calls.at(-1).value > 11.004 && calls.at(-1).value < 11.008);
   assert.equal((await short.cmd('nextCue', 'translation')).ok, true);
-  assert.equal(calls.at(-1).value, 11.004);
+  assert(calls.at(-1).value > 11.004 && calls.at(-1).value < 11.008);
   f.player.browserTime = 11.006;
+  assert.equal((await short.cmd('prevCue', 'translation')).ok, true);
+  assert(calls.at(-1).value > 11 && calls.at(-1).value < 11.004,
+    'a translated cue must land before an overlapping later cue takes over');
   f.player.cues[0].end = 10.08;
   assert.equal((await short.cmd('prevCue')).ok, true);
   assert(calls.at(-1).value > 11 && calls.at(-1).value < 11.004,
@@ -497,14 +513,17 @@ test('Sahne does not carry a failed job or its retry into the replacement source
   let starts = 0, stops = 0;
   f.document.getElementById('makeSubsBtn').onclick = () => {
     starts++;
-    f.player.job = { mediaKey: f.player.mediaKey, generation: f.player.generation, failed: true };
+    f.player.job = { mediaKey: f.player.mediaKey, generation: f.player.generation, running: true };
   };
   f.document.getElementById('playerJobCancel').onclick = () => { stops++; };
   const first = f.open();
   first.actions().find(action => action.id === 'whisper').run();
+  const running = first.panel().job;
+  Object.assign(f.player.job,{running:false,failed:true});
   const failed = first.panel().job;
   assert.equal(failed.state, 'failed');
   assert.equal(typeof failed.retry, 'function');
+  assert.equal(failed.cancel,null);
   f.player.mediaKey = 'local:replacement';
   f.player.generation++;
   f.window.CinemaSahne.close();
@@ -512,7 +531,7 @@ test('Sahne does not carry a failed job or its retry into the replacement source
   assert.equal(next.panel().job.state, 'idle');
   assert.equal(next.panel().job.retry, undefined);
   failed.retry();
-  failed.cancel();
+  running.cancel();
   assert.equal(starts, 1);
   assert.equal(stops, 0);
 });
@@ -593,14 +612,14 @@ test('translation transport navigates its own cues across views and leaves the o
   assert.equal(initial.translationTargets.nextCue, 5);
   assert.equal(initial.translationTargets.replay, 2);
   assert.equal((await study.cmd('nextCue', 'translation', initial.rev)).ok, true);
-  assert.equal(f.commands.at(-1).time, 5);
+  assert.equal(f.commands.at(-1).time, 5.01);
   f.window.CinemaSahne.current.o.onMode('podcast', { reading: { identity: study.identity() } });
   const podcast = f.window.CinemaSahne.current.a;
   assert.equal(podcast.state().translationTargets.nextCue, undefined);
   assert.equal((await podcast.cmd('prevCue', 'translation')).ok, true);
-  assert.equal(f.commands.at(-1).time, 2);
+  assert.equal(f.commands.at(-1).time, 2.01);
   assert.equal((await podcast.cmd('replay', 'translation')).ok, true);
-  assert.equal(f.commands.at(-2).time, 2);
+  assert.equal(f.commands.at(-2).time, 2.01);
   assert.equal(f.commands.at(-1).type, 'togglePlay');
   const before = podcast.state();
   f.secondary.offsetSeconds += 3;
@@ -1110,4 +1129,17 @@ test('a thrown applied loop failure clears its own range but never a replacement
 
 test('assistant adapter respects an invalid explicit selection instead of opening general context',async t=>{
  const f=fixture(t),a=f.open();let opens=0;f.window.api.showAssistant=()=>opens++;f.window.CinemaSahne.current.captureAssistantPassage=()=>{f.window.CinemaSahne.current.assistantSelectionError='Select a shorter source passage';return null;};const refused=await a.cmd('assistant');assert.equal(refused.ok,false);assert.equal(refused.code,'selection-too-long');assert.equal(opens,0);f.window.CinemaSahne.current.captureAssistantPassage=()=>{f.window.CinemaSahne.current.assistantSelectionError='';return {text:'Source'};};assert.equal((await a.cmd('assistant')).ok,true);assert.equal(opens,1);
+});
+
+test('saved timestamps remain readable per line without granting stream seeking and the queue opens from Stage',async t=>{
+ const f=fixture(t);f.document.getElementById('playerLayer').classList.add('hidden');let queues=0,commands=0;
+ f.window.MediaShelfUI={readSnapshot:()=>({mediaKey:'shelf:A',generation:1,sourceVersion:'stream',duration:60}),isPodcastMode:()=>true,openPodcastMode:async()=>{},
+ getTranscriptTracks:()=>[{id:'source',revision:'r1',role:'source',timed:false,timestamped:true,timingState:'needs-review',text:'Stored',exactSource:{entryId:'A',sourceVersion:'copy'},recordedCues:[{id:'s1',start:2,end:5,text:'First actual sentence'},{id:'s2',start:6,end:9,text:'Second actual sentence'}],cues:[]},
+ {id:'tr',revision:'r2',role:'translation',timed:false,timestamped:true,recordedCues:[{id:'t1',start:2,end:5,text:'Gerçek çeviri'}],cues:[]}],
+ executeExisting:async()=>{commands++;return {ok:true};},openQueue:()=>queues++,queueSnapshot:()=>({rows:[{},{}],index:0})};
+ await f.window.CinemaSahne.openShelf();const a=f.window.CinemaSahne.current.a,st=a.state();
+ assert.equal(st.rows.length,2);assert.equal(st.rows[0].src,'First actual sentence');assert.deepEqual(Array.from(st.rows[0].trs),['Gerçek çeviri']);
+ assert.equal(st.rows[0].timed,false);assert.equal(st.rows[0].recordedRange.start,2);
+ assert.equal((await a.cmd('seekCue',0)).ok,false);assert.equal(commands,0);assert.equal(a.verifyTiming(),true);
+ await a.cmd('listeningQueue');assert.equal(queues,1);
 });

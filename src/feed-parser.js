@@ -89,7 +89,7 @@ function parseOpml(input){
 }
 const escape=value=>clean(value,4096).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function exportOpml(feeds){const groups=new Map();for(const f of feeds){if(!safeUrl(f.url))continue;const group=clean(f.folder,120),rows=groups.get(group)||[];rows.push(f);groups.set(group,rows);}return '<?xml version="1.0" encoding="UTF-8"?><opml version="2.0"><head><title>Whisper Feeds</title></head><body>'+[...groups].map(([group,rows])=>(group?'<outline text="'+escape(group)+'">':'')+rows.map(f=>'<outline type="rss" text="'+escape(f.title)+'" xmlUrl="'+escape(f.url)+'"/>').join('')+(group?'</outline>':'')).join('')+'</body></opml>';}
-function discoverPodcastEpisode(html, base) {
+function discoverPodcastEpisode(html, base, observedAudio) {
  const page = safeUrl(base);
  if (!page || typeof html !== 'string' || Buffer.byteLength(html) > MAX_BYTES) return null;
  const matches = new Map();
@@ -106,11 +106,14 @@ function discoverPodcastEpisode(html, base) {
    const media = row.associatedMedia || row.audio;
    const url = safeUrl(media?.contentUrl,page), title = plain(row.name,500);
    if (!url || !title || !schemaType(media?.['@type'],'AudioObject')) continue;
+   if (observedAudio && url !== safeUrl(observedAudio,page)) continue;
    const series = row.partOfSeries;
    const seriesUrl = safeUrl(series?.url,page);
    const showUrl = seriesUrl && new URL(seriesUrl).origin === new URL(page).origin ? seriesUrl : page;
    const image = safeUrl(typeof row.image === 'string' ? row.image : row.image?.url,page);
-   matches.set(url,{podcast:{url:showUrl,title:plain(series?.name || title,200),publisher:new URL(page).hostname,image,sourceKind:'web-episode'},
+   const showImage = safeUrl(typeof series?.image === 'string' ? series.image : series?.image?.url,page);
+   const publisher = plain(row.publisher?.name || series?.publisher?.name || '',200);
+   matches.set(url,{podcast:{url:showUrl,title:plain(series?.name || title,200),publisher:publisher||new URL(page).hostname,image:showImage||image,sourceKind:'web-episode'},
      episode:{url,pageUrl:page,title,image,description:plain(row.description,2000),duration:durationSeconds(row.timeRequired || media.duration),date:clean(row.datePublished,40)}});
   }
  }

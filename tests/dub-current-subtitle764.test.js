@@ -15,6 +15,11 @@ function fixture(mode='browser',extra={}){
 }
 test('Normal browser button adopts the active translation and range without picking or generating',async()=>{const h=fixture();try{await h.open();assert.equal(h.el('dubSrtName').textContent,'translated.tr.srt');assert.equal(h.el('dubRangeStart').value,'5:00');assert.equal(h.el('dubRangeEnd').value,'10:00');assert.equal(h.picked,0);assert.equal(h.started,0);}finally{h.close();}});
 test('Local player and assistant share the same preparation entry',async()=>{const h=fixture('player');try{await h.w.DubGeneratorUI.prepareCurrent();assert.equal(h.el('dubSrtName').textContent,'translated.tr.srt');assert.equal(h.started,0);}finally{h.close();}});
+test('A browser translation rejected by the current source cannot open as a dubbing input',async()=>{
+ const h=fixture('browser',{subtitleTrack:null,subtitleRange:null});
+ try{await h.w.DubGeneratorUI.prepareCurrent();assert.equal(h.el('dubSrtName').textContent,'—');assert.equal(h.el('dubRangeEnabled').checked,false);assert.equal(h.started,0);}
+ finally{h.close();}
+});
 
 test('saved audio is not attached after the automatically selected subtitle changes behind the open panel',async()=>{
  const h=fixture();try{let attached=0;h.w.api.latestDub=async()=>({ok:true,output:{id:'saved',name:'Saved voice',url:'file:///saved.wav'}});h.w.BrowserDubAudioUI.attachGenerated=async()=>{attached++;return true;};
@@ -364,7 +369,7 @@ test('Sahne shelf dub button: a Whisper episode opens its verified audio copy fi
  const noEntry=sahneDubFixture({snapshot:{entryId:''}});
  try{
   await noEntry.w.CinemaSahne.openShelf();const result=await noEntry.w.CinemaSahne.current.a.cmd('dub');
-  assert.equal(result.code,'needs-player');assert.match(result.message,/oynatıcıda/);assert.deepEqual(noEntry.state.opened,[]);assert.equal(noEntry.dialog.open,false);
+  assert.equal(result.code,'source-unavailable');assert.doesNotMatch(result.message,/oynatıcıda aç/);assert.deepEqual(noEntry.state.opened,[]);assert.equal(noEntry.dialog.open,false);
  }finally{noEntry.close();}
 });
 

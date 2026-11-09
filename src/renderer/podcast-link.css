@@ -21,6 +21,6 @@
 @media(prefers-reduced-motion:reduce){.pdl-modes::before{transition:none}}
 :is([data-cinema-motion=off],[data-cinema-motion=reduced],[data-motion=off],[data-motion=reduced]) .pdl-modes::before{transition:none}
 .pdl-episode-preview{display:flex;align-items:center;gap:14px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1)}
-.pdl-episode-preview img{width:96px;aspect-ratio:16/9;object-fit:cover;border-radius:7px;flex:none}
+.pdl-episode-preview img{display:block;width:96px;height:54px;object-fit:cover;border-radius:7px;flex:none}
 .pdl-episode-preview>div{min-width:0}
 .pdl-source .pdl-episode-preview h3{margin:0 0 4px}

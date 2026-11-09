@@ -11,3 +11,12 @@ test('Page navigation, reload generation and changed title metadata invalidate i
 test('Existing media conversations retain their persisted key while non-media pages remain distinct',()=>{const p={workspaceMode:'browser',mediaKey:'youtube:fixture',browserMediaSeen:true,browserPageUrl:'https://www.youtube.com/watch?v=fixture'};assert.equal(source.conversation(p),JSON.stringify(['browser','youtube:fixture']));assert.notEqual(source.conversation({...p,browserMediaSeen:false}),source.conversation(p));});
 
 test('Tool source carries a validated film item_id while excluding filesystem and person identifiers',()=>{const manifest=require('../src/assistant-context-manifest');assert.equal(manifest.sourceText({type:'discovery-title',id:'discovery:film:tt0112471'}).item_id,'discovery:film:tt0112471');assert.equal(manifest.sourceText({type:'library-title',id:'decision-job',catalogId:'saved-film'}).item_id,'saved-film');assert.equal(manifest.sourceText(manifest.sourceText({type:'discovery-title',id:'discovery:film:tt0112471'})).item_id,'discovery:film:tt0112471');for(const id of ['discovery:film:123','person:7','C:\\private\\film.mp4','https://secret.test/a','bad id'])assert.equal(manifest.sourceText({type:'library-title',id}).item_id,undefined);assert.equal(manifest.sourceText({type:'page',id:'some-page'}).item_id,undefined);});
+
+test('read-only podcast supplies reading evidence only for explicit full scope and keeps workflow tools available',()=>{
+ const snap={episodeIdentity:'A',sourceVersion:'stream',generation:1,mediaKey:'shelf:A',time:20,title:'Episode'};
+ const tracks=[{role:'source',id:'source-A',revision:'r1',timed:false,text:'Real reading transcript',recordedCues:[{start:0,end:10,text:'Stored words'}]}];
+ const watched=source.freezePodcast(snap,tracks,'watched'),full=source.freezePodcast(snap,tracks,'full');
+ assert.equal(watched.excerpt,undefined);assert.equal(watched.transcript_evidence.evidence.length,0);
+ assert.equal(full.excerpt,'Real reading transcript');assert.equal(full.transcript_evidence.evidence.length,0);
+ assert.match(full.note,/get_workflow_settings/);assert.match(full.note,/mergeContinuation/);assert.match(full.note,/open_voice_preparation/);
+});

@@ -72,9 +72,11 @@
       modes.style.setProperty('--pdl-mode',mode==='podcast'?'1':'0');
       for(const button of modes.children){button.setAttribute('aria-pressed',String(button.dataset.view===mode));button.disabled=busy;}
       lookup.disabled=busy;apply.disabled=busy||!selected;input.disabled=busy;direct.hidden=saveSpotify.hidden=!isSpotify(input.value);direct.disabled=saveSpotify.disabled=busy;
-      const feedAction=results.querySelector('[data-pdl-episode-open],[data-pdl-feed-use],[data-pdl-page-open]')||results.querySelector('[data-pdl-episode-save]:not([data-unavailable])');
+      const feedAction=results.querySelector('[data-pdl-episode-open],[data-pdl-feed-use],.pdl-feed')||results.querySelector('[data-pdl-page-open],[data-pdl-episode-save]:not([data-unavailable])');
       lookup.classList.toggle('pdl-primary',!selected&&!feedAction);lookup.classList.toggle('pdl-secondary',!!selected||!!feedAction);
       feedAction?.classList.toggle('pdl-primary',!selected);
+      const browserAction=results.querySelector('[data-pdl-page-open]');
+      browserAction?.classList.toggle('pdl-secondary',browserAction!==feedAction||!!selected);
       for(const button of results.querySelectorAll('button'))button.disabled=busy||button.dataset.unavailable==='true';
       apply.hidden=!selected;dialog.setAttribute('aria-busy',String(busy));
     }
@@ -164,6 +166,12 @@
       results.append(h('div',{class:'pdl-actions'},...(playingAudio?[saveEpisode]:[openEpisode,saveEpisode])));
       status.textContent=playingAudio?text('Çalan bölüm doğrulandı.','Playing episode verified.'):text('Yayıncının bölüm sesi doğrulandı.','Publisher episode audio verified.');
     }
+    function addBrowserOption(url) {
+      const actions=results.querySelector('.pdl-actions')||results;
+      actions.append(h('button',{type:'button',class:'pdl-button pdl-secondary','data-pdl-page-open':'',
+        text:text('Sayfayı Browser’da aç','Open page in Browser'),
+        on:{click:()=>void task(next=>openBrowserSource(url,{isCancelled:()=>!alive(next),onOpened:()=>{if(alive(next))dialog.close();}}))}}));
+    }
     form.addEventListener('submit',event=>{event.preventDefault();void task(async mine=>{
       selected=null;preview=null;results.replaceChildren();source.replaceChildren();status.textContent=text('Kaynaklar kontrol ediliyor…','Checking sources…');
       let parsed;try{parsed=new URL(input.value.trim());}catch{throw Error(text('Geçerli bir Spotify bölüm veya RSS adresi gir.','Enter a valid Spotify episode or RSS URL.'));}
@@ -173,12 +181,12 @@
       if(spotify){await spotifyPreview(mine);return;}
       requestId='podcast-link-'+(++sequence);const found=await request('discover',{url:parsed.href,requestId,podcastPage:true,playingAudio});if(!alive(mine))return;
       if(found.direct&&found.preview){showFeedReview(found.preview);return;}
-      if(found.episode){showPublisherEpisode(found.episode);return;}
+      if(found.episode){showPublisherEpisode(found.episode);if(!playingAudio)addBrowserOption(parsed.href);return;}
       if(playingAudio){status.textContent=text('Sayfadaki bölüm bilgisi ile çalan ses eşleştirilemedi. Kütüphaneye kayıt yapılmadı.','Could not match the page’s episode information to the playing audio. Nothing was saved.');return;}
       for(const feed of found.candidates||[])results.append(h('button',{type:'button',class:'pdl-feed pdl-button',text:feed.title||feed.url,on:{click:()=>void task(async next=>{
         requestId='podcast-link-'+(++sequence);const review=await request('preview',{url:feed.url,requestId});if(alive(next))showFeedReview(review);
       })}}));
-      if(!found.candidates?.length)results.append(h('button',{type:'button',class:'pdl-button','data-pdl-page-open':'',text:text('Sayfayı Browser’da aç','Open page in Browser'),on:{click:()=>void task(next=>openBrowserSource(parsed.href,{isCancelled:()=>!alive(next),onOpened:()=>{if(alive(next))dialog.close();}}))}}));
+      addBrowserOption(parsed.href);
       status.textContent=found.candidates?.length?text('Sayfanın sunduğu RSS kaynaklarından birini incele. Ekleme için ayrıca onay vereceksin.','Review one of the feeds advertised by this page. Adding it requires your approval.'):text('Bu bağlantı bir web sayfası; sayfada RSS adresi bildirilmemiş. Yayıncının doğrudan RSS adresini gir veya bölümü Browser’da aç. Henüz hiçbir kaynak eklenmedi.','This link is a web page with no advertised RSS feed. Enter the publisher’s direct RSS URL or open the episode in Browser. No source has been added.');
     });});
     apply.addEventListener('click',()=>void task(async mine=>{

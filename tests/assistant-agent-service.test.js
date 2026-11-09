@@ -381,16 +381,17 @@ test('A resumed "so far" video flow keeps the cutoff of its question on every pr
  }finally{h.app.emit('will-quit');}
 });
 
-test('A resumed "so far" Podcast flow keeps the cutoff of its question on every provider channel',async()=>{
+for(const kind of ['studio','page'])test('A resumed "so far" Podcast flow keeps the cutoff for '+kind,async()=>{
  const rows=[{id:'U1',start:590,end:595,text:'HEARD_EARLY_LINE alpha',translation:''},{id:'U2',start:596,end:612,text:'ACTIVE_LATE_LINE alpha',translation:''},{id:'U3',start:700,end:710,text:'FUTURE_LINE alpha',translation:''}];
  let phase='first',turn=0;const bodies=[],call=(id,name,args)=>({role:'assistant',content:null,tool_calls:[{id,type:'function',function:{name,arguments:JSON.stringify(args)}}]});
  const h=fixture(async(_url,options)=>{bodies.push({phase,text:JSON.stringify(JSON.parse(options.body).messages)});
   if(phase==='first')return reply(turn++===0?call('c1','restore_original_audio',{}):{role:'assistant',content:'Prepared.'});
   return reply(turn++===0?call('c2','search_subtitles',{query:'alpha'}):{role:'assistant',content:'Done.'});});
- h.owner.time=600;h.owner.kind='studio';h.owner.hasMedia=true;const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:packet.callId,result:{status:'completed'}}));};
+ h.owner.time=600;h.owner.kind=kind;h.owner.hasMedia=true;const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:packet.callId,result:{status:'completed'}}));};
  const question='Bu ana kadar ne söylendi? Sonra özgün sese dön.';
  try{
-  const first=await h.call('agentRun',{requestId:'so-far',question,owner:h.owner,pool:[{id:'U9',start:0,end:1,text:'UNRELATED_HIDDEN_PLAYER'}],context:{workspace:'podcast',watched_cutoff:600,evidence:rows},history:[{role:'assistant',content:'HISTORY_MARKER'}]});assert.equal(first.ok,true,first.error);
+  const packet=kind==='page'?{transcript_evidence:{coverage:'partial',evidence:rows.map(row=>({baslangic:row.start,bitis:row.end,metin:row.text,ceviri:row.translation}))}}:{evidence:rows};
+  const first=await h.call('agentRun',{requestId:'so-far',question,owner:h.owner,pool:[{id:'U9',start:0,end:1,text:'UNRELATED_HIDDEN_PLAYER'}],context:{workspace:'podcast',watched_cutoff:600,...packet},history:[{role:'assistant',content:'HISTORY_MARKER'}]});assert.equal(first.ok,true,first.error);
   const card=h.events.find(e=>e.value.type==='proposal').value.action,applied=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert(applied.result.continuationId);
   phase='resume';turn=0;h.events.length=0;
   const resumed=await h.call('agentRun',{requestId:'so-far-2',question,owner:{...h.owner,time:1200},pool:rows,continuationId:applied.result.continuationId});assert.equal(resumed.ok,true,resumed.error);
@@ -398,6 +399,30 @@ test('A resumed "so far" Podcast flow keeps the cutoff of its question on every 
   for(const marker of ['FUTURE_LINE','ACTIVE_LATE_LINE','UNRELATED_HIDDEN_PLAYER','HISTORY_MARKER'])assert(!all.includes(marker),marker+' must never reach the provider');
   assert(late.includes('HEARD_EARLY_LINE'),'the finished line before the question moment stays available');
   assert(!JSON.stringify(h.events.filter(e=>e.value.type==='evidence')).match(/FUTURE_LINE|ACTIVE_LATE_LINE/));
+ }finally{h.app.emit('will-quit');}
+});
+
+test('Whisper can be offered for detected browser episode audio without enabling video-only tools',()=>{
+ const caps=require('../src/assistant-capabilities'),manifest=require('../src/assistant-context-manifest');
+ const names=extra=>caps.list(manifest.clean({kind:'page',hasMedia:true,...extra})).map(entry=>entry.name);
+ assert(!names({}).includes('start_whisper'));
+ assert(names({hasBrowserAudio:true}).includes('start_whisper'));
+ assert(!names({hasBrowserAudio:true,hasMedia:false}).includes('start_whisper'));
+ assert(!names({hasBrowserAudio:true}).includes('translate_video_captions'));
+});
+test('Browser episode Whisper produces a source-bound card and dispatches only after approval',async()=>{
+ let turn=0;
+ const h=fixture(async()=>++turn===1?reply({role:'assistant',tool_calls:[{id:'episode',function:{name:'start_whisper',arguments:'{"translate":false,"start":0,"end":12}'}}]}):reply({role:'assistant',content:'Ready to review.'}));
+ Object.assign(h.owner,{kind:'page',hasMedia:true,hasBrowserAudio:true});
+ const send=h.sender.send;
+ h.sender.send=(channel,value)=>{send(channel,value);if(value.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:value.callId,result:{status:'accepted',jobId:'episode-job'}}));};
+ try{
+  assert((await h.call('agentRun',{requestId:'browser-podcast',question:'Bu bölümü yazıya dök',owner:h.owner})).ok);
+  const card=h.events.find(row=>row.value.type==='proposal')?.value.action;
+  assert.equal(card?.tool,'start_whisper');assert.equal(dispatches(h),0);
+  assert.equal((await h.call('agentApply',{proposalId:card.proposalId,owner:{...h.owner,generation:h.owner.generation+1}})).ok,false);
+  assert.equal((await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner})).result.status,'accepted');
+  assert.equal(dispatches(h),1);
  }finally{h.app.emit('will-quit');}
 });
 

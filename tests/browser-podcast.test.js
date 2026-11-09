@@ -40,10 +40,12 @@ const evidence=require('../src/assistant-source-context').freezePodcast(snap,tra
  player.browserActiveTabId = 'a';
  commandResult = () => ({ok:true});
  // All positions below are video-clock positions after per-track drift/offset.
- for(const [time,type,target] of [[15,'nextCue',25.01],[15,'previousCue',5.01],[40,'previousCue',25.01],[2,'nextCue',5.01],[2,'previousCue',5.01]]){
+ for(const rate of [.75,1.5,2])for(const [time,type,target] of [[15,'nextCue',25.01],[15,'previousCue',5.01],[40,'previousCue',25.01],[2,'nextCue',5.01],[2,'previousCue',5.01]]){
+  player.browserRate=rate;
   player.browserTime=time;const current=ui.snapshot();
   const result=await ui.execute({type,mediaKey:current.mediaKey,generation:current.generation,trackId:current.sourceTrack.id,trackRevision:current.sourceTrack.revision});
   assert.equal(result.ok,true,type+' at '+time);assert.equal(commands.at(-1).value,target,type+' must use its chronological neighbour at '+time);
+  assert.equal(player.browserRate,rate);
  }
  for(const [time,type] of [[40,'nextCue'],[15,'replay']]){
   player.browserTime=time;const current=ui.snapshot(),before=commands.length;

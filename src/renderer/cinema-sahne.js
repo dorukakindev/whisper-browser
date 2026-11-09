@@ -136,6 +136,7 @@
     const empty=role=>({id:'shelf-empty:'+role,revision:'none',role,timed:false,offsetSeconds:0,cues:[]});
     return {kind:'shelf',tab:()=>'',snap:()=>shelf()?.readSnapshot(),tracks:()=>['source','translation'].map(role=>{
       const all=shelf()?.getTranscriptTracks?.()||[],track=all.find(t=>(t.role||'source')===role)||empty(role);
+      if(track.timed===false && track.recordedCues?.length)return {...track,cues:track.recordedCues};
       if(track.timed===false && !track.cues?.length && track.text){
         let text=track.readingText||track.text;
         const cached=reading.get(role);
@@ -173,6 +174,10 @@
     }
     function build(src, sec, s) {
       const meta = [], secById = new Map(sec.cues.map((c) => [c.id, c]));
+      if(src.timed===false&&src.timestamped&&src.cues.length){
+        const translations=new Map(sec.timestamped?sec.cues.map(c=>[c.start+':'+c.end,c.text]):[]);
+        return {rows:src.cues.map(c=>({id:c.id,start:0,end:0,timed:false,recordedRange:{start:c.start,end:c.end},src:c.text,trs:translations.has(c.start+':'+c.end)?[translations.get(c.start+':'+c.end)]:[],unc:[],words:null})),meta:[],untimed:true};
+      }
       if(src.timed===false && src.cues.length){
         return {rows:[{id:'plain-source',start:0,end:0,timed:false,src:src.cues.map(c=>c.text).join('\n\n'),trs:sec.cues.length?[sec.cues.map(c=>c.text).join('\n\n')]:[],unc:[],words:null}],meta:[],untimed:true};
       }
@@ -284,7 +289,7 @@
       }
       return timed.find(index => cache.rows[index].start > anchor) ?? -1;
     }
-    function translationNavigation(s) {
+    function translationNavigation(s, command) {
       const track = cache.captionTracks?.[1];
       if (cache.untimed || !track || track.timed === false) return {};
       const offset = num(track.offsetSeconds), time = num(s.time), duration = num(s.duration);
@@ -293,18 +298,29 @@
         if (!Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.end <= cue.start || !cue.text?.trim()) continue;
         const start = Math.max(0, cue.start + offset), end = Math.min(duration, cue.end + offset);
         if (!(end > start)) continue;
-        if (first === undefined || start < first) first = start;
-        if (start <= time && time < end && (active === undefined || start >= active)) active = start;
+        const range={start,end};
+        if (first === undefined || start < first.start) first = range;
+        if (start <= time && time < end && (active === undefined || start >= active.start)) active = range;
       }
-      const anchor = active ?? time;
+      const anchor = active?.start ?? time;
       for (const cue of track.cues) {
         if (!Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.end <= cue.start || !cue.text?.trim()) continue;
         const start = Math.max(0, cue.start + offset);
-        if (!(Math.min(duration, cue.end + offset) > start)) continue;
-        if (start < anchor && (previous === undefined || start > previous)) previous = start;
-        if (start > anchor && (next === undefined || start < next)) next = start;
+        const end=Math.min(duration,cue.end+offset);
+        if (!(end > start)) continue;
+        const range={start,end};
+        if (start < anchor && (previous === undefined || start > previous.start)) previous = range;
+        if (start > anchor && (next === undefined || start < next.start)) next = range;
       }
-      return {prevCue: active !== undefined && time - active > 1.5 ? active : previous ?? first, nextCue: next, replay: active};
+      const targets={prevCue:active&&time-active.start>1.5?active:previous??first,nextCue:next,replay:active};
+      if(!command)return {prevCue:targets.prevCue?.start,nextCue:next?.start,replay:active?.start};
+      const range=targets[command];
+      if(!range)return {};
+      const end=track.cues.reduce((limit,cue)=>{
+        const start=cue.start+offset;
+        return start>range.start&&start<limit&&Number.isFinite(cue.end)&&cue.end>cue.start&&cue.text?.trim()?start:limit;
+      },range.end);
+      return {[command]:landing(range.start,end)};
     }
     function wordAction(type,value){
       const row=cache.rows[value?.row],word=String(value?.word||'').trim();
@@ -344,7 +360,7 @@
         const recovery=status.translationRetry,partial=!!recovery?.partial&&!status.preparing&&!['queued','running','failed','stopped'].includes(task.state);
         const canRetry=current()&&!!recovery?.canRetry&&!status.preparing&&!['queued','running'].includes(task.state);
         return { ...task, state: status.preparing || task.state === 'queued' ? 'running' : partial?'partial':task.state,
-          text: status.preparing ? T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…') : partial?`${recovery.completed}/${recovery.total} `+T('çeviri satırı hazır. Kaydedilmiş satırlar korunur; yalnız eksikleri tamamlayabilirsiniz.','translated lines ready. Saved lines are kept; complete only the missing lines.'):task.text,
+          text: status.preparing ? T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…') : partial?(recovery.total>0?`${recovery.completed}/${recovery.total} `+T('çeviri satırı hazır.','translated lines ready.'):T('Kısmi çeviri kaydedildi.','Partial translation saved.'))+' '+(canRetry?T('Kaydedilmiş satırlar korunur; yalnız eksikleri tamamlayabilirsiniz.','Saved lines are kept; complete only the missing lines.'):T('Eksikleri tamamlamak için İşlemler’den çeviriyi yeniden inceleyin.','Review translation in Tasks to complete the missing lines.')):task.text,
           retry:canRetry?()=>{const retry=actions().find(action=>action.id==='retry-translation');if(current()&&retry&&!retry.disabled)return retry.run();}:null,
           retryLabel:T('Yalnız eksikleri tamamla','Complete missing only'),
           cancel: current() && task.cancellable ? () => window.cancelPodcastQueueTask?.(snap, task.id) : null };
@@ -356,11 +372,18 @@
         return { state: 'idle' };
       }
       const bar = $('playerJobBar'), vis = !!bar && !bar.classList.contains('hidden'), text = $('playerJobText')?.textContent?.trim() || '';
+      const terminal = player.jobBarTerminal;
+      if (vis && terminal && (!activeJob || terminal.job===activeJob)) {
+        const matches = terminal.mediaKey===snap?.mediaKey && terminal.generation===snap?.generation
+          && (!terminal.job.browserTabId || terminal.job.browserTabId===F.tab());
+        if (!matches) return {state:'idle'};
+        if (terminal.outcome!=='failed' || !activeJob) return {state:terminal.outcome,text,ownerToken:terminal.job};
+      }
       const failed = !!(player.job && player.job.failed), pct = parseFloat($('playerJobFill')?.style.width);
       const cancel = $('playerJobCancel') || $('cancelBtn');
       const retryAction = lastAction;
       const jobCurrent = () => current() && player.job === activeJob;
-      return { ownerToken:activeJob, state: vis ? (failed ? 'failed' : 'running') : 'idle', text: text || (failed ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…')), progress: Number.isFinite(pct) && pct > 0 ? Math.min(1, pct / 100) : null, cancel: current() && cancel && !cancel.disabled ? () => { if(jobCurrent() && !cancel.disabled)cancel.click(); } : null, retry: current() && retryAction ? () => { if(!jobCurrent() || lastAction !== retryAction)return; const b = retryAction(); if (b && !b.disabled) b.click(); } : null };
+      return { ownerToken:activeJob, state: vis ? (failed ? 'failed' : activeJob?.running ? 'running' : 'idle') : 'idle', text: text || (failed ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…')), progress: Number.isFinite(pct) && pct > 0 ? Math.min(1, pct / 100) : null, cancel: current() && activeJob?.running && !activeJob.loading && cancel && !cancel.disabled ? () => { if(jobCurrent() && !cancel.disabled)cancel.click(); } : null, retry: current() && retryAction ? () => { if(!jobCurrent() || lastAction !== retryAction)return; const b = retryAction(); if (b && !b.disabled) b.click(); } : null };
     }
     const mirror = (resolver, label) => { const b = resolver(); if (!b) return null; const lbl = (label || b.textContent || '').trim().replace(/\s+/g, ' '); return { type: 'button', label: lbl || b.title, hint: b.disabled ? (b.title || '') : '', disabled: !!b.disabled, pressed: b.getAttribute('aria-pressed') === 'true' ? true : undefined, run: () => { if (!current()) return; const target = resolver(); if (target && !target.disabled) { lastAction = resolver; target.click(); } } }; };
     const trackLabel = (t) => (t.label || window.PlayerUiKit?.languageName?.(t.language, window.UiLocale?.get?.()) || T('Altyazı izi', 'Caption track')) + (t.role === 'translation' ? ' · ' + T('çeviri', 'translation') : '');
@@ -370,6 +393,10 @@
       const canTranscribe=$('browserWhisperSubtitles')&&!$('browserWhisperSubtitles').disabled;
       const canTranslate=hasSource&&$('makeTransBtn')&&!$('makeTransBtn').disabled;
       const preparing=typeof browserAudioPreparationStatus==='function'&&browserAudioPreparationStatus()?.state==='running';
+      const audio=typeof currentBrowserWhisperAudio==='function'&&currentBrowserWhisperAudio();
+      const settings=[$('model')?.value,$('engine')?.value,$('device')?.value,$('computeType')?.value].filter(Boolean).join(' · ');
+      const whisperHint=(audio?T('Bölüm sesi indirilir ve doğrulanır. ','Episode audio is downloaded and verified. '):'')
+        +T('YouTube ile ortak Whisper ayarları','Shared Whisper settings with YouTube')+(settings?' · '+settings:'');
       const primary=canTranslate&&!preparing?'translate-existing':canTranscribe?'transcribe':'live';
       const options=[
         ...(hasSource?[['translate-existing', 'makeTransBtn', T('Mevcut metni çevir','Translate existing transcript')]]:[]),
@@ -381,14 +408,14 @@
         const action=mirror(()=>$(button),label);
         if(!action)return [];
         if(preparing&&id==='translate-existing')return [{...action,id,disabled:true,hint:T('Ses hazırlanıyor…','Preparing audio…')}];
-        return [{...action,id,primary:id===primary&&!action.disabled}];
+        return [{...action,id,hint:action.hint||(['transcribe','transcribe-translate'].includes(id)?whisperHint:''),primary:id===primary&&!action.disabled}];
       });
       if(typeof currentBrowserWhisperAudio==='function'&&currentBrowserWhisperAudio()){
         actions.unshift({id:'whisper-saved',type:'button',label:T('Kayıtlı metni aç','Open saved transcript'),
           hint:T('Bu ses sürümü ve kapsam için iş geçmişini kontrol eder.','Checks job history for this audio version and scope.'),
           disabled:!canTranscribe,run:()=>{if(current())return startBrowserYoutubeWhisper(false,{savedOnly:true});}});
       }
-      return actions;
+      return actions.sort((a,b)=>Number(!!b.primary)-Number(!!a.primary));
     }
     function browserWhisperScope() {
       if(typeof browserWhisperScopeLabel!=='function'||!(currentBrowserYoutubeUrl()||currentBrowserWhisperAudio()))return null;
@@ -402,7 +429,7 @@
         if(kind==='browser'){
           const captions=mirror(()=>$('browserTrackTranslate'),T('Altyazıyı yükle ve çevir','Load and translate captions'));
           const scope=browserWhisperScope();
-          return [...(scope?[{...scope,label:scope.hint}]:[]),...browserWhisperActions(),
+        return [...browserWhisperActions(),...(scope?[{...scope,label:scope.hint,hint:''}]:[]),
             ...(captions&&!captions.disabled?[{...captions,id:'translate-track'}]:[])];
         }
         const buttons = [
@@ -434,7 +461,8 @@
       const content = kind === 'browser' ? $('playerSide') : doc.querySelector('.ms-podcast-identity');
       if (!content) return;
       const anchor = doc.createComment('shared-study-advanced-home'); content.before(anchor);
-      const previousStyle = content.getAttribute('style'), previousInert = content.inert;
+      const previousStyle = content.getAttribute('style'), previousInert = content.inert, wasRail=content.classList.contains('side-rail');
+      content.classList.remove('side-rail');
       const dialog = doc.createElement('dialog'); dialog.className = 'sh-existing-tools'; dialog.dataset.uiUntranslated = '';
       dialog.setAttribute('data-pw-occludes-native', 'true');
       const title = doc.createElement('h2'); title.textContent = T('İleri araçlar', 'Advanced tools');
@@ -445,7 +473,7 @@
       dialog.addEventListener('close', () => {
         if (anchor.isConnected) anchor.replaceWith(content);
         if (previousStyle === null) content.removeAttribute('style'); else content.setAttribute('style', previousStyle);
-        content.inert = previousInert; dialog.remove(); if (advancedOverlay === dialog) advancedOverlay = null; if(opener?.isConnected)opener.focus({preventScroll:true}); bounds();
+        content.classList.toggle('side-rail',wasRail); content.inert = previousInert; dialog.remove(); if (advancedOverlay === dialog) advancedOverlay = null; if(opener?.isConnected)opener.focus({preventScroll:true}); bounds();
       }, { once: true });
       doc.body.append(dialog); advancedOverlay = dialog; dialog.showModal(); bounds();
     }
@@ -517,12 +545,12 @@
           const two = !!s2?.value && s2.value !== s1?.value, loadBtn = () => two ? $('browserTrackLoadPair') : $('browserTrackLoad');
           items.push({ type: 'button', primary: true, label: T('Yükle', 'Load'), hint: !s1?.value ? T('Önce bir kaynak izi seç.', 'Choose a source track first.') : '', disabled: !s1?.value || !!loadBtn()?.disabled, run: () => { if (!current() || loadBtn()?.disabled) return; lastAction = loadBtn; loadBtn()?.click(); } });
           const tr = mirror(() => $('browserTrackTranslate'), T('Yükle ve çevir', 'Load and translate')); if (tr) items.push(tr);
-        } else items.push({ type: 'note', text: T('Bu sayfada erişilebilir altyazı izi bulunamadı. Aşağıdaki Whisper seçenekleri kullanılabilir.', 'No accessible caption track found on this page. Use the Whisper options below.') });
-        sections.push({ id: 'captions', title: T('Altyazı izleri', 'Caption tracks'), items });
+        }
+        if(items.length) sections.push({ id: 'captions', title: T('Altyazı izleri', 'Caption tracks'), items });
         const wh=browserWhisperActions();
         const scope=browserWhisperScope();
-        if(scope)wh.unshift(scope);
-        sections.push({ title: T('Whisper ve çeviri', 'Whisper and translation'), items: wh.length ? wh : [{ type: 'note', text: T('Bu kaynak için Whisper işlemi sunulmuyor.', 'No Whisper action is offered for this source.') }] });
+        if(scope)wh.push(scope);
+        sections.unshift({ title: T('Whisper ve çeviri', 'Whisper and translation'), items: wh.length ? wh : [{ type: 'note', text: T('Bu kaynak için Whisper işlemi sunulmuyor.', 'No Whisper action is offered for this source.') }] });
         const sample=F.sampleFor?.(F.snap());
         const sourceItems=[];
         if(sample?.audioChoices?.length>1||sample?.pinnedAudio){
@@ -550,20 +578,21 @@
         const loc = [...sourceActions, mirror(() => $('playerPickSub'), T('Altyazı dosyası seç', 'Choose a subtitle file')), {type:'button',label:T('Tüm oynatıcı ayarları','All player settings'),run:openAdvanced}].filter(Boolean);
         sections.push({ title: T('Altyazı ve Whisper', 'Subtitles and Whisper'), items: loc.length ? loc : [{ type: 'note', text: T('Bu kaynak için altyazı işlemi sunulmuyor.', 'No subtitle task is offered for this source.') }] });
       }
-      if(kind==='browser')sections.push({title:T('İleri araçlar','Advanced tools'),items:[{type:'button',label:T('Tüm altyazı ve tarayıcı araçları','All caption and browser tools'),run:openAdvanced}]});
       const attachDub = $(kind === 'browser' ? 'browserDubAdd' : 'playerDubAdd');
       if (kind !== 'shelf' && attachDub) sections.push({ title: T('Dublaj', 'Dubbing'), items: [{
         type: 'button', label: T('Hazır dublaj sesi ekle', 'Attach dubbing audio'), disabled: attachDub.disabled,
         run: () => { if (current() && !attachDub.disabled) attachDub.click(); }
       }] });
       if(kind!=='shelf'&&$('libraryViewResearch'))sections.push({title:T('Okuma ve notlar','Reading and notes'),items:[{id:'saved-notes',type:'button',label:T('Kayıtlı pasajlar ve notlar','Saved passages and notes'),hint:T('Araştırma defterinde inceleyin, düzenleyin veya kaynağa dönün.','Review, edit or return to the source in your research notebook.'),run:openNotebook}]});
-      sections.push({ title: T('Asistan', 'Assistant'), items: [{ type: 'button', label: T('Asistana sor', 'Ask assistant'), hint: T('Mevcut asistan penceresi, bu medyanın bağlamıyla açılır.', 'Opens the existing assistant window with this media as context.'), run: askAssistant }] });
-      sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='shelf'?num($('mediaShelfAudio')?.volume??1):kind==='browser'?num(player.browserVolume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:toggleStageFullscreen}]});
+      if(kind!=='browser'){
+        sections.push({ title: T('Asistan', 'Assistant'), items: [{ type: 'button', label: T('Asistana sor', 'Ask assistant'), hint: T('Mevcut asistan penceresi, bu medyanın bağlamıyla açılır.', 'Opens the existing assistant window with this media as context.'), run: askAssistant }] });
+        sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='shelf'?num($('mediaShelfAudio')?.volume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:toggleStageFullscreen}]});
+      }
       return { job: job(), sections };
     }
     return {
-      caps: { loop: true, save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf', dub: typeof window.DubGeneratorUI?.prepareCurrent === 'function' },
-      identity, panel, actions,
+      caps: { queue:kind==='shelf'||F.snap()?.sourceKind==='rss', loop: true, save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf', dub: typeof window.DubGeneratorUI?.prepareCurrent === 'function' },
+      identity, panel, actions, verifyTiming:()=>kind==='shelf'&&!!window.MediaShelfUI?.getTranscriptTracks?.().find(track=>track.role==='source')?.exactSource,
       recovery: () => {if(!current())return null;const recovery=kind==='shelf'?window.MediaShelfUI?.playbackRecovery():activePlaybackRecovery();return recovery?{...recovery,ownerToken:recovery,run:kind==='shelf'?recovery.run:()=>runPlaybackRecovery({expected:recovery,report:false})}:null;},
       processing:kind==='shelf'||F.snap()?.sourceKind==='rss'?()=>({duration:F.snap()?.duration}):null,
       info: () => {
@@ -575,13 +604,21 @@
         const chapterTiming=podcast&&audio.publisherTiming&&Number.isFinite(duration)&&Number.isFinite(published)
           &&Math.abs(duration-published)<=Math.min(3,Math.max(1,published*.01));
         const rawTitle=browserAudio?(sample.audioTitle||(sample.sourceChanged?T('Web sesi','Web audio'):F.mediaTitle())):F.mediaTitle()||s?.title||'';
-        const title=kind==='browser'?rawTitle.replace(/\s*[-–|]\s*YouTube\s*$/i,''):rawTitle;
+        const program=browserAudio?sample.showTitle||'':'';
+        const sub=(browserAudio&&(sample.publisher||sample.siteName))||F.sub()||'';
+        const titleParts=rawTitle.split(/\s+[|\-–—·]\s+/);
+        const suffixes=[program,sub,browserAudio?sample.siteName:'',kind==='browser'&&!browserAudio?'YouTube':'']
+          .filter(Boolean).map(value=>value.toLowerCase());
+        const suffix=titleParts.at(-1).trim().toLowerCase();
+        const title=browserAudio&&titleParts.length>1&&suffixes.includes(suffix)
+          ? rawTitle.slice(0,rawTitle.lastIndexOf(titleParts.at(-1))).replace(/\s+[|\-–—·]\s+$/,'')
+          : kind==='browser'&&!browserAudio?rawTitle.replace(/\s*[-–|]\s*YouTube\s*$/i,''):rawTitle;
         const live = kind==='browser' && s?.live === true;
-        return { title, sub: F.sub(), live, eyebrow: F.eyebrow?.() || (kind === 'browser' ? (live?T('Canlı yayın','Live broadcast'):browserAudio?T('Podcast','Podcast'):T('Web videosu','Web video')) : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), tint: null, webSource:kind==='browser', webVideo:kind==='browser'&&mode==='study'&&!browserAudio,
+        return { title, sub:program&&sub.toLowerCase()===program.toLowerCase()?'':sub, program, live, eyebrow: F.eyebrow?.() || (kind === 'browser' ? (live?T('Canlı yayın','Live broadcast'):browserAudio?T('Podcast','Podcast'):T('Web videosu','Web video')) : kind === 'shelf' ? T('Podcast', 'Podcast') : T('Yerel oynatıcı', 'Local player')), cover: F.cover(), fallbackCover:browserAudio?sample.fallbackArtworkUrl:'', tint: null, webSource:kind==='browser', webVideo:kind==='browser'&&mode==='study'&&!browserAudio,
           captionTrackCount: kind === 'browser' ? (player.browserTracks || []).filter(track => track.path).length : 0,
           youtubeCaptions: kind === 'browser' && /^browser:youtube:/.test(s?.mediaKey || ''),
         chapters:podcast?(audio.publisherChapters||[]).map(chapter=>({...chapter,t:chapterTiming&&chapter.t!==null&&chapter.t<duration?chapter.t:null})):kind!=='local'?[]:(player.chapters||[]).filter(c=>Number.isFinite(c.start)&&c.start>=0&&(!s?.duration||c.start<s.duration)).map(c=>({t:c.start,label:String(c.title||T('Bölüm','Chapter'))})),
-        queue:(()=>{const next=window.MediaShelfUI?.upNext?.();return next&&next.title?[{index:next.index,title:next.title,queueKey:next.queueKey}]:null;})()||(kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[]),native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:browserAudio||mode==='podcast'||kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
+        listeningQueue:window.MediaShelfUI?.queueSnapshot?.(),queue:(()=>{const next=window.MediaShelfUI?.upNext?.();return next&&next.title?[{index:next.index,title:next.title,queueKey:next.queueKey}]:null;})()||(kind==='local'?(player.playlist||[]).map((file,index)=>({index,title:window.PlayerUiKit?.displayTitle(String(file).split(/[\\/]/).pop())||String(file)})).slice(Math.max(0,player.playlistIndex+1),Math.max(0,player.playlistIndex+1)+2):[]),native:kind==='local'&&!!window.NativePlayerUI?.active(),audio:browserAudio||mode==='podcast'||kind==='shelf'||s?.sourceKind==='rss'||kind==='local'&&num($('playerVideo')?.readyState)>=2&&!num($('playerVideo')?.videoWidth),langs:l }; },
       state: () => {
         const s = F.snap();
         if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false };
@@ -622,7 +659,7 @@
         rowsFor(s);
         if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save','assistant'].includes(t))return Promise.resolve(staleTrack());
         if (v === 'translation' && ['prevCue','nextCue','replay'].includes(t)) {
-          const time = translationNavigation(s)[t];
+          const time = translationNavigation(s,t)[t];
           if (s.capabilities?.seek?.support !== 'yes' || !Number.isFinite(time)) {
             return Promise.resolve({ok:false,code:'untimed',message:T('Bu konumda zamanlı çeviri yok.', 'No timed translation is available at this position.')});
           }
@@ -643,18 +680,22 @@
             const source=excerpt||row.src,translation=excerpt?'':row.trs.join('\n\n');
             if(source.length>4000||translation.length>4000)return Promise.resolve({ok:false,code:'passage-too-long',message:T('Metin kayıt sınırını aşıyor. Kaynak metinden daha kısa bir bölüm seçin (en fazla 4000 karakter).','The text exceeds the save limit. Select a shorter passage from the source text (up to 4000 characters).')});
             const podcast=kind==='shelf'||s.sourceKind==='rss',audio=kind==='local'&&player.workspaceAudio?.mediaKey===s.mediaKey&&player.workspaceAudio?.generation===s.generation?player.workspaceAudio:null;
+            const browserSample=kind==='browser'?F.sampleFor?.(s):null;
+            const sourceVersion=browserSample?.mediaType==='audio'?'browser-audio:'+(browserSample.audioSourceIdentity||'unverified'):s.sourceVersion;
             const payload={type:excerpt&&excerpt.length<=120&&!/\s/u.test(excerpt)?'word':'quote',mediaId:s.mediaKey,mediaType:podcast?'podcast':kind==='browser'?'browser':'local',mediaTitle:F.mediaTitle(),mediaUrl:kind==='browser'?window.BrowserPlaceUrl?.redactUrlSensitiveParams?.(player.browserPageUrl)||'':'',
               source,translation,...(String(v?.note||'').trim()?{note:String(v.note)}:{}),timed:row.timed,start:row.timed?row.start:null,end:row.timed?row.end:null,
-              trackId:cache.meta[index]?.trackId||'readonly',cueId:row.id,sourceVersion:s.sourceVersion,sourceBinding:s.sourceBinding,episodeIdentity:s.episodeIdentity,playbackOwner:s.playbackOwner,
+              trackId:cache.meta[index]?.trackId||'readonly',cueId:row.id,sourceVersion,sourceBinding:s.sourceBinding,episodeIdentity:s.episodeIdentity,playbackOwner:s.playbackOwner,
               sourceEntryId:audio?.entryId||s.entryId||''};
             return Promise.resolve(window.api.upsertResearchAnnotation(payload)).then(result=>result?.ok?{ok:true,annotation:result.annotation}: {ok:false,code:'save-failed',message:T('Not kaydedilemedi.','Could not save the note.')}).catch(()=>({ok:false,code:'save-failed',message:T('Not kaydedilemedi.','Could not save the note.')}));
           }
           case 'notebook':return Promise.resolve(openNotebook());
+          case 'listeningQueue':window.MediaShelfUI?.openQueue();return Promise.resolve({ok:true});
           case 'advanced':openAdvanced();return Promise.resolve({ok:true});
           case 'assistant':return askAssistant();
           case 'display':
             if(kind==='browser'&&typeof setSubtitleMode==='function')setSubtitleMode({src:'source',tr:'translation',both:'both'}[v]||'both',false);
             return Promise.resolve({ok:true});
+          case 'verifiedAudio':
           case 'dub': {
             if (!window.DubGeneratorUI?.prepareCurrent) return Promise.resolve({ok:false,code:'unsupported'});
             if (kind !== 'shelf') return Promise.resolve(window.DubGeneratorUI.prepareCurrent()).then(() => ({ok:true}));
@@ -662,10 +703,11 @@
             // through the existing Podcast entry (the verified Whisper copy when the saved timings belong to it), then open the
             // shared dubbing panel for that player media. Nothing of a previously hidden player media is carried over.
             return (async () => {
-              const entryId = s.entryId, owner = { mediaKey: s.mediaKey, generation: s.generation }, actionEpoch=stageEpoch, openingIntent=Number(player.openIntent)||0;
+              let entryId = s.entryId; const owner = { mediaKey: s.mediaKey, generation: s.generation }, actionEpoch=stageEpoch, openingIntent=Number(player.openIntent)||0;
               const sameShelf = () => current() && F.snap()?.mediaKey === owner.mediaKey && F.snap()?.generation === owner.generation;
+              if(!entryId){const binding=await window.MediaShelfUI?.processingBinding?.();if(!sameShelf())return stale;entryId=binding?.entryId;}
               if (!entryId || typeof window.PlayerSourceCatalogIntegration?.openPodcastEntry !== 'function')
-                return { ok:false, code:'needs-player', message:T('Dublaj için bölümü oynatıcıda açın.', 'Open the episode in the player to dub it.') };
+                return { ok:false, code:'source-unavailable', message:T('Bölüm kaynağı hazırlanamadı. İşlemler’den yeniden deneyin.', 'The episode source could not be prepared. Retry in Tasks.') };
               const exact = window.MediaShelfUI?.getTranscriptTracks?.().find(track => track.role === 'source')?.exactSource;
               if (exact) {
                 const proof = await window.api.feedsRequest({ action:'podcast-exact-audio', entryId:exact.entryId });
@@ -674,14 +716,15 @@
                   return { ok:false, code:'exact-unavailable', message:T('Whisper ses kopyası artık mevcut değil.', 'The Whisper audio copy is no longer available.') };
               }
               const target = exact?.entryId || entryId;
-              await window.PlayerSourceCatalogIntegration.openPodcastEntry(target, { view: mode === 'study' ? 'bilingual' : 'podcast', ...(exact ? { exactVersion:exact.sourceVersion } : {}),
+              await window.PlayerSourceCatalogIntegration.openPodcastEntry(target, { view: mode === 'study' ? 'bilingual' : 'podcast', autoplay:false, ...(exact ? { exactVersion:exact.sourceVersion } : {}),
                 isCancelled: () => stageEpoch!==actionEpoch || !sameShelf() && !(player.workspaceMode==='player'&&player.openIntent===openingIntent+1) });
               const audio = player.workspaceAudio;
               // The handoff must really have produced this episode as the current player media before the panel opens.
               if (stageEpoch!==actionEpoch || !audio || audio.entryId !== target || audio.mediaKey !== player.mediaKey || audio.generation !== player.generation || (exact && (!audio.exactAudio || audio.sourceVersion !== exact.sourceVersion)))
                 return { ok:false, code:'source-changed', message:T('Bölüm oynatıcıda açılamadı; dublaj başlatılmadı.', 'The episode could not be opened in the player; dubbing was not started.') };
-              await window.DubGeneratorUI.prepareCurrent();
-              return { ok:true };
+              window.MediaShelfUI?.adoptPodcastPlayer?.(owner,target);
+              if(t==='dub')await window.DubGeneratorUI.prepareCurrent();
+              return { ok:true, handoff:{entryId:target,mediaKey:audio.mediaKey,generation:audio.generation}, from:owner };
             })();
           }
           case 'fullscreen': return toggleStageFullscreen();
@@ -793,9 +836,11 @@
     }
     if(!host){host = doc.createElement('div'); host.className = 'sh-host'; host.dataset.uiUntranslated=''; if(kind==='shelf'){host.classList.add('sh-shelf-host');doc.body.append(host);doc.body.classList.add('shelf-sahne-on');const old=doc.querySelector('.ms-podcast-workspace');if(old)old.inert=true;}else{layer.append(host);layer.classList.add('cp-sahne-on');}}
     host.style.top = kind === 'shelf' ? 'var(--window-controls-safe-height,38px)' : headH() + 'px';
+    const isMounted = () => inst?.a === adapter;
     inst = new Sahne(host, adapter, {
       mode, intro: intro && !had, prefs,
       onMode: (m, p) => {
+        if(!isMounted()||mountedIdentity!==adapter.identity())return;
         if(kind==='shelf'||kind==='local')window.MediaShelfUI?.rememberQueueScene?.(m);
         const restoreTabFocus = !!inst?.root.contains(doc.activeElement) && doc.activeElement.matches('[role="tab"][data-mode]');
         sticky = p;
@@ -804,6 +849,7 @@
         if(restoreTabFocus)inst?.root.querySelector('[role="tab"][aria-selected="true"]')?.focus({preventScroll:true});
       },
       onClose: () => {
+        if(!isMounted())return;
         stageEpoch++;
         const opener=stageOpener;stageOpener=null;
         if(kind==='shelf'){window.MediaShelfUI?.closePodcastMode?.();unmount();}

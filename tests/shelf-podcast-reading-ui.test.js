@@ -35,3 +35,13 @@ test('new downloaded ASR source remains readable on its captured stream without 
  assert.equal(w.surface.apply({binding,role:'source',text:'30 --> 32 Actual source words',status:'complete'}),true);assert.match(w.document.querySelector('.ms-podcast-transcript').textContent,/Actual source words/);assert.doesNotMatch(w.document.querySelector('.ms-podcast-transcript').textContent,/-->/);assert.equal(w.document.querySelectorAll('.ms-podcast-stamp').length,0);assert.equal(w.surface.snapshot().sourceVersion,'v1');assert.equal(w.audio.currentTime,1);
  }finally{h.dom.window.close();}
 });
+
+test('partial translation stays readable on the captured shelf source and retains the feed identity',async()=>{
+ const h=fixture(),w=h.w;try{w.current.feedEntryId='feed-A';w.api=async()=>({track:{id:'source',revision:'r1',timed:false,text:'Stored source',cues:[]},descriptors:[]});await w.surface.open();w.parseSubtitles=()=>[{id:'0',start:0,end:2,text:'Kısmi çeviri'}];
+ const binding={entryId:'feed-A',mediaKey:'shelf-podcast:episode',generation:4,sourceVersion:'download',playbackSourceVersion:'v1'};
+ assert.equal(w.surface.apply({binding,role:'translation',text:'partial subtitle',status:'partial'}),true);
+ assert.match(w.document.querySelector('.ms-podcast-transcript').textContent,/Kısmi çeviri/);
+ assert.equal(w.surface.snapshot().entryId,'feed-A');assert.equal(w.document.querySelectorAll('.ms-podcast-stamp').length,0);
+ w.current.episodeIdentity='different';assert.equal(w.surface.apply({binding,role:'translation',text:'late',status:'partial'}),false);
+ }finally{h.dom.window.close();}
+});
