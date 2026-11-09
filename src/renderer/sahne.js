@@ -16,6 +16,7 @@
     volume: 'M11 5 6 9H3v6h3l5 4V5Z|M15 8a6 6 0 0 1 0 8|M18 5a10 10 0 0 1 0 14', mic: 'M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 6 0Z|M6 11a6 6 0 0 0 12 0|M12 17v4', tools: 'M4 7h10|M18 7h2|M4 17h2|M10 17h10|M14 4v6|M6 14v6', down: 'M12 5v14|m6 13 6 6 6-6'
   };
   P.volumeZero = 'M11 5 6 9H3v6h3l5 4V5Z|m15 10 5 5|m20 10-5 5';
+  P.clock = 'M21 12a9 9 0 1 1-18 0 9 9 0 1 1 18 0Z|M12 7v5l3 2';
   const FILLED = new Set(['play', 'pause']);
   const ic = (n) => `<svg class="i${FILLED.has(n) ? ' f' : ''}" viewBox="0 0 24 24" aria-hidden="true">${P[n].split('|').map((d) => `<path d="${d}"/>`).join('')}</svg>`;
   const fmt = (v) => { const s = Math.max(0, Math.floor((Number(v) || 0)+.001)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
@@ -50,6 +51,14 @@
       this.volumeWork=this.panelWork.volume??={pending:false,next:null,requested:null};
       Object.defineProperty(this.volumeWork,'owner',{value:this,writable:true,configurable:true});
       Object.defineProperties(this,{volumePending:{get:()=>this.volumeWork.pending,set:value=>this.volumeWork.pending=value},nextVolume:{get:()=>this.volumeWork.next,set:value=>this.volumeWork.next=value}});
+      this.loopWork=this.panelWork.sentenceLoop??={pending:false};
+      Object.defineProperty(this.loopWork,'owner',{value:this,writable:true,configurable:true});
+      Object.defineProperty(this,'loopPending',{get:()=>this.loopWork.pending});
+      this.jumpWork=this.panelWork.exactSeek??={pending:false};
+      Object.defineProperty(this.jumpWork,'owner',{value:this,writable:true,configurable:true});
+      Object.defineProperty(this,'jumpPending',{get:()=>this.jumpWork.pending});
+      this.sleepWork=this.panelWork.sleep??={revision:0,pending:null,notice:null};
+      Object.defineProperty(this.sleepWork,'owner',{value:this,writable:true,configurable:true});
       this.lastAudibleVolume = reading?.lastAudibleVolume;
       this.s = {
         focus: !!prefs.focus, disp: prefs.disp || 'both', follow: reading?.follow ?? true,
@@ -77,12 +86,18 @@
       if(reading?.searchAnchor&&reading.searchAnchor.rev===this.st?.rev)this.searchReadingAnchor={...reading.searchAnchor};
       if(reading?.assistantChoice){this.assistantChoice={...reading.assistantChoice,identity:this.id0};if(!this.assistantPassage())this.assistantChoice=null;}
       if(reading?.noteDraft?.identity===this.id0){this.noteDraft=reading.noteDraft;if(this.noteDraft.open)this.renderNote(this.noteDraft);}
-      if (reading?.chapters && !this.q('.sh-chapter-entry')?.hidden) this.showReading(true);
+      if (reading?.chapters && !this.q('.sh-chapter-entry')?.hidden) {
+        this.showReading(true);
+        this.transcriptReading={scrollTop:reading.scrollTop,viewportAnchor:reading.viewportAnchor};
+        this.transcriptScroll=reading.scrollTop;
+      }
+      this.paintAssistantSelection();
       this.timer = setInterval(() => this.tick(), 120); this.raf = 0;
     }
     el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
     q(sel) { return this.root.querySelector(sel); }
     prefs(preserveReading = false) {
+      if(preserveReading&&this.s.note)this.captureNoteView(this.s.note);
       const { focus, disp, follow, sleep, sleepAt } = this.s;
       const prefs = { focus, disp, readingSize: this.readingSize };
       if (preserveReading && this.id0) {
@@ -96,6 +111,8 @@
           searchMatch:match?{rev:this.st?.rev,id:match.id,trackId:match.trackId,standaloneTranslation:!!match.standaloneTranslation}:null,
           processingScope:this.scopeBox?{mode:this.scopeMode,start:this.scopeBox.querySelector('[data-scope-time=start]').value,end:this.scopeBox.querySelector('[data-scope-time=end]').value,open:!this.scopeBox.querySelector('.sh-scope-fields').hidden}:null,
           chapterQuery: this.q('[data-r=chapterSearch]')?.value || '',
+          viewportAnchor: this.readingScroll?.viewportAnchor ?? (this.root.classList.contains('sh-chapters-open')
+            ? this.transcriptReading?.viewportAnchor : this.readingPosition().viewportAnchor),
           scrollTop: this.readingScroll?.scrollTop ?? (this.root.classList.contains('sh-chapters-open')
             ? this.transcriptScroll : this.q('[data-r=scroll]')?.scrollTop) ?? 0
         };
@@ -163,14 +180,30 @@
     }
     toast(msg) { const t = this.q('[data-r=toast]'); t.textContent = msg; t.classList.add('on'); clearTimeout(this.toastT); this.toastT = setTimeout(() => t.classList.remove('on'), 3200); }
     run(type, v, revision=this.st?.rev) {
-      const identity=this.a.identity?.()??'',current=()=>!this.dead&&(this.a.identity?.()??'')===identity&&(this.id0===undefined||this.id0===identity);
+      const copyVersion=type==='copy'?this.panelWork.copyVersion:undefined;
+      const identity=this.a.identity?.()??'',current=()=>!this.dead&&(this.a.identity?.()??'')===identity&&(this.id0===undefined||this.id0===identity)&&(type!=='copy'||copyVersion===this.panelWork.copyVersion);
       const stale=()=>({ok:false,code:'stale-source'});if(!current())return Promise.resolve(stale());
-      const failed = error => { if(!current())return stale(); const result = { ok:false, code:'command-failed', message:error?.message || T('Komut uygulanamadı.', 'Command could not be applied.') }; if (!this.dead) this.toast(result.message); return result; };
-      let r; try { r = this.a.cmd(type, v, revision); } catch (error) { return Promise.resolve(failed(error)); }
-      return Promise.resolve(r).then(res => {
-        if(!current())return stale();
-        if (res && res.ok === false && !this.dead) this.toast(res.code === 'stale-source' || res.code === 'source-changed' ? T('Kaynak değişti; komut uygulanmadı.', 'The source changed; command not applied.') : res.code === 'unsupported' ? T('Bu kaynakta bu komut desteklenmiyor.', 'This source does not support that command.') : (res.message || T('Komut uygulanamadı.', 'Command could not be applied.')));
-        return res;
+      const seeking=['seek','seekBy','seekCue','seekTranslation','prevCue','nextCue','replay'].includes(type);
+      const actionKey=seeking?'seek':type==='loop'?'loop':null;
+      const receipt=actionKey?{identity,owner:undefined,pending:true}:null;
+      if(receipt)this.panelWork.statusActions.set(actionKey,receipt);
+      const report=message=>{
+        if(!receipt){if(current())this.toast(message);return;}
+        if(this.panelWork.statusActions.get(actionKey)!==receipt)return;
+        receipt.pending=false;
+        if(current()){this.toast(message);this.panelWork.statusActions.delete(actionKey);}
+        else if(this.dead)receipt.error=message;
+        else this.panelWork.statusActions.delete(actionKey);
+      };
+      const finish=()=>{if(receipt){receipt.pending=false;if(!receipt.error&&this.panelWork.statusActions.get(actionKey)===receipt)this.panelWork.statusActions.delete(actionKey);}};
+      const failed = error => {
+        const result={ok:false,code:'command-failed',message:error?.message||T('Komut uygulanamadı.','Command could not be applied.')};
+        report(result.message);finish();return current()?result:stale();
+      };
+      let r;try{r=this.a.cmd(type,v,revision);}catch(error){return Promise.resolve(failed(error));}
+      return Promise.resolve(r).then(res=>{
+        if(res?.ok===false)report(res.code==='stale-source'||res.code==='source-changed'?T('Kaynak değişti; komut uygulanmadı.','The source changed; command not applied.'):res.code==='unsupported'?T('Bu kaynakta bu komut desteklenmiyor.','This source does not support that command.'):(res.message||T('Komut uygulanamadı.','Command could not be applied.')));
+        finish();return current()?res:stale();
       }).catch(failed);
     }
 
@@ -180,6 +213,11 @@
         if (!this.dead&&event.target.matches?.('[data-r=cover] img')) event.target.replaceWith(this.coverInitials());
       }, true);
       const jumpForm = this.q('[data-r=jumpForm]');
+      this.q('[data-r=jumpTime]')?.addEventListener('input', () => {
+        this.jumpEditVersion=(this.jumpEditVersion||0)+1;
+        this.q('[data-r=jumpTime]').removeAttribute('aria-invalid');
+        this.q('[data-r=jumpError]').hidden=true;
+      });
       jumpForm?.addEventListener('submit', event => {
         event.preventDefault();
         void this.seekTypedTime();
@@ -193,8 +231,10 @@
         size.value = this.readingSize;
         r.dataset.readingSize = size.value;
         size.onchange = () => {
+          const reading=!this.s.follow&&!this.root.classList.contains('sh-chapters-open')?this.readingPosition():null;
           this.readingSize = size.value;
           r.dataset.readingSize = size.value;
+          if(reading)this.applyReadingPosition(reading);
           this.followAfterLayout();
         };
       }
@@ -226,7 +266,9 @@
         if (b.classList.contains('sh-chap')) { if(this.canSeek&&b.dataset.t!==undefined)this.run('seek', Number(b.dataset.t)); return; }
         if (b.dataset.mode) { if (b.dataset.mode !== this.o.mode) this.o.onMode?.(b.dataset.mode, this.prefs(true)); return; }
         if (b.dataset.d) {
-          this.s.disp = b.dataset.d; this.applyDisp(); this.filterRows(true);
+          cancelAnimationFrame(this.readingLayoutRaf);
+          this.s.disp = b.dataset.d; this.applyDisp(); this.filterRows();
+          this.matchLine?.scrollIntoView?.({block:'nearest'});
           const display = this.displayMode();
           if (this.a.info().webVideo) this.lastDisplay = display;
           this.run('display', display);
@@ -269,7 +311,8 @@
           }
           case 'close': this.o.onClose?.(); break; case 'classic': this.o.onClassic?.(); break;
           case 'fullscreen':this.run('fullscreen');break;
-          case 'assistant':this.captureAssistantPassage();this.run('assistant');break;
+          case 'clearAssistantSelection':this.clearAssistantSelection();break;
+          case 'assistant':this.captureAssistantPassage();if(this.assistantSelectionError){this.toast(this.assistantSelectionError);break;}this.run('assistant');break;
           case 'dub':this.run('dub');break;
           case 'noteClose':this.closeNote();break;
           case 'noteSave':void this.saveNote();break;
@@ -367,6 +410,7 @@
       });
       const sc = this.q('[data-r=scroll]');
       const manual = () => {
+        cancelAnimationFrame(this.readingLayoutRaf);
         if (!this.s.follow) return;
         this.s.follow = false;
         cancelAnimationFrame(this.followRaf);
@@ -479,6 +523,7 @@
         if(this.dead||!volume.isConnected||(this.a.identity?.()??'')!==this.id0)return;
         this.volumeWork.owner=this;
         const value = Number(volume.value);
+        if(value>0)this.lastAudibleVolume=value;
         this.paintVolume(volume, value);
         this.volumeWork.requested=value;
         this.nextVolume = value;
@@ -515,7 +560,7 @@
       }
     }
     taskButtons() {
-      return (this.a.actions?.() || []).map(action => `<button class="sh-btn${action.primary ? ' sh-primary' : ''}" type="button" data-task="${esc(action.id)}" ${action.disabled || this.taskPending ? 'disabled' : ''} aria-busy="${!!this.taskPending&&this.pendingTaskId===action.id}" title="${esc(action.hint || action.label)}">${ic(action.id === 'retry-translation'?'replay':action.id === 'translate' ? 'swap' : 'mic')}<span>${esc(action.label)}${this.taskPending&&this.pendingTaskId===action.id?' · '+T('Hazırlanıyor…','Preparing…'):''}</span></button>`).join('');
+      return (this.a.actions?.() || []).map(action => `<button class="sh-btn${action.primary ? ' sh-primary' : ''}" type="button" data-task="${esc(action.id)}" ${action.disabled || this.taskPending ? 'disabled' : ''} aria-busy="${!!this.taskPending&&this.pendingTaskId===action.id}" title="${esc(action.hint || action.label)}">${ic(action.id === 'retry-translation'?'replay':action.id === 'translate'||action.id==='translate-existing' ? 'swap' : action.id==='whisper-scope'?'clock':'mic')}<span>${esc(action.label)}${this.taskPending&&this.pendingTaskId===action.id?' · '+T('Hazırlanıyor…','Preparing…'):''}</span></button>`).join('');
     }
     drawTasks() {
       const bar = this.q('[data-r=workbar]'), html = this.taskButtons();
@@ -560,6 +605,7 @@
       if ((identity ?? '') !== this.id0) return;
       const action = (this.a.actions?.() || []).find(item => item.id === id);
       if (!action || action.disabled) return;
+      if (id === 'whisper-scope') return action.run();
       this.taskPending = true;this.pendingTaskId=id; this.drawTasks();
       try {
         const range = ['transcribe','transcribe-translate'].includes(id) ? this.scopeRange() : null;
@@ -583,7 +629,7 @@
       const cue=this.rows[row];
       if(on&&(!cue?.timed||!Number.isFinite(cue.start)||!Number.isFinite(cue.end)||cue.end<=cue.start||cue.end<=0||cue.start>=this.st?.duration))return;
       const revision = this.st?.rev, identity = this.a.identity?.();
-      this.loopPending = true;
+      const work=this.loopWork;work.pending=true;this.paintLoopPending();
       try {
         const result = await this.run('loop', on ? { on, row } : { on }, revision);
         if (!result?.ok || this.dead || identity !== this.a.identity?.() || revision !== this.a.state().rev) return;
@@ -592,7 +638,23 @@
         this.paint();
         if (on && jump) await this.run('seekCue', row, revision);
       } finally {
-        this.loopPending = false;
+        work.pending=false;const owner=work.owner;if(owner&&!owner.dead)owner.tick();
+      }
+    }
+    paintLoopPending() {
+      const busy=!!this.loopPending;
+      const focused=document.activeElement;
+      if(busy&&this.root.contains(focused)&&focused.matches?.('[data-a=loop],[data-act=loop]')){
+        const target=focused.closest('[data-i]')||this.q('[data-a=toggle]');
+        if(target?.matches('[data-i]'))target.tabIndex=-1;
+        target?.focus({preventScroll:true});
+      }
+      for(const button of this.root.querySelectorAll('[data-a=loop],[data-act=loop]')){
+        const index=Number(button.closest('[data-i]')?.dataset.i),cue=this.rows[index];
+        if(button.dataset.act==='loop')button.disabled=busy||!this.canSeek||!cue?.timed||!Number.isFinite(cue.start)||!Number.isFinite(cue.end)||cue.end<=cue.start||cue.end<=0||cue.start>=this.st?.duration;
+        else if(busy)button.disabled=true;
+        if(busy)button.setAttribute('aria-busy','true');else button.removeAttribute('aria-busy');
+        if(busy&&button.dataset.a==='loop')button.lastChild.textContent=' '+T('Döngü ayarlanıyor…','Updating loop…');
       }
     }
     act(kind, i, opener) {
@@ -612,8 +674,9 @@
         }
         const text = parts.filter(part => part?.trim()).join('\n');
         if (!text) return;
+        const copyVersion=this.panelWork.copyVersion=(this.panelWork.copyVersion||0)+1;
         this.run('copy', text).then(result => {
-          if(this.dead)return;
+          if(this.dead||copyVersion!==this.panelWork.copyVersion)return;
           if(result?.ok===true)this.toast(T('Metin kopyalandı.', 'Text copied.'));
           else if(result?.ok!==false)this.toast(T('Kopyalama doğrulanamadı; yeniden deneyin.','Copying could not be confirmed; try again.'));
         });
@@ -624,7 +687,7 @@
       const normalize = text => text.normalize('NFC').trim().replace(/\s+/g, ' ');
       const query = normalize(this.q('[data-r=q]')?.value || '');
       const readingScroll=this.q('[data-r=scroll]');
-      if(query&&!this.searchReadingAnchor)this.searchReadingAnchor={rev:this.st?.rev,scrollTop:readingScroll.scrollTop};
+      if(query&&!this.searchReadingAnchor)this.searchReadingAnchor={rev:this.st?.rev,...this.readingPosition()};
       const folded = query.toLowerCase(), turkish = query.toLocaleLowerCase('tr');
       const display = this.displayMode();
       let visible=0;
@@ -656,7 +719,7 @@
             : T('Başka bir ifade deneyin veya aramayı temizleyerek metne dönün.', 'Try a different phrase, or clear the search to return to the text.'))
           : T('Diğer transkript dilini seçin.', 'Select the other transcript language.');
       }
-      if(!query&&this.searchReadingAnchor){const anchor=this.searchReadingAnchor;this.searchReadingAnchor=null;if(!this.s.follow&&anchor.rev===this.st?.rev)readingScroll.scrollTop=anchor.scrollTop;}
+      if(!query&&this.searchReadingAnchor){const anchor=this.searchReadingAnchor;this.searchReadingAnchor=null;if(!this.s.follow&&anchor.rev===this.st?.rev)this.applyReadingPosition(anchor);}
     }
     paintMatches() {
       const visible = this.lines.filter(line => !line.hidden);
@@ -667,13 +730,22 @@
       if (count.textContent !== text) count.textContent = text;
       this.q('[data-a=matchPrev]').setAttribute('aria-disabled', String(!visible.length || index === 0));
       this.q('[data-a=matchNext]').setAttribute('aria-disabled', String(!visible.length || index === visible.length - 1));
-      this.lines.forEach(line => line.classList.toggle('sh-query-match', line === this.matchLine));
+      this.lines.forEach(line => {
+        const selected=line===this.matchLine&&index>=0;
+        line.classList.toggle('sh-query-match',selected);
+        let label=line.querySelector('.sh-query-position');
+        if(!selected){label?.remove();return;}
+        if(!label){label=document.createElement('small');label.className='sh-query-position';line.append(label);}
+        const text=T('Aramada seçili','Selected search result')+' · '+(index+1)+' / '+visible.length;
+        if(label.textContent!==text)label.textContent=text;
+      });
     }
     moveMatch(direction, focus = false) {
       const visible = this.lines.filter(line => !line.hidden);
       const index = visible.indexOf(this.matchLine);
       const line = visible[index < 0 ? (direction > 0 ? 0 : visible.length - 1) : index + direction];
       if (!line) return false;
+      cancelAnimationFrame(this.readingLayoutRaf);
       this.matchLine = line;
       this.s.follow = false;
       this.paintMatches();
@@ -718,10 +790,31 @@
       if (select.value !== String(value)) select.value = String(value);
     }
     setSleep(minutes) {
-      if (!SLEEP.includes(minutes)) return;
+      if (!SLEEP.includes(minutes)||this.dead||this.id0!==(this.a.identity?.()??'')) return;
+      this.sleepWork.revision++;
+      this.sleepWork.pending=null;
+      this.sleepWork.notice=null;
       this.s.sleep = minutes;
       this.s.sleepAt = minutes ? Date.now() + minutes * 60000 : 0;
       this.paint();
+    }
+    expireSleep() {
+      const work=this.sleepWork,identity=this.id0,revision=work.revision;
+      this.s.sleep=0;this.s.sleepAt=0;
+      if(work.pending)return;
+      const pending=work.pending={identity,revision};
+      // This source-bound receipt survives a view rebuild; it never retries pause.
+      const finish=result=>{
+        if(work.pending!==pending||work.revision!==revision)return;
+        work.pending=null;
+        work.notice={identity,revision,message:result?.ok===true
+          ?T('Uyku süresi doldu; oynatma duraklatıldı.','Sleep timer finished; playback paused.')
+          :result?.message||T('Uyku süresi doldu; duraklatma doğrulanamadı. Oynatma kontrolünden yeniden deneyin.','Sleep timer finished; pause was not confirmed. Retry using the playback control.')};
+        const owner=work.owner;
+        if(owner&&!owner.dead)owner.tick();
+      };
+      try{Promise.resolve(this.a.cmd('pause',undefined,this.st?.rev)).then(finish,error=>finish({ok:false,message:error?.message}));}
+      catch(error){finish({ok:false,message:error?.message});}
     }
     toggleJump(restoreFocus=true) {
       const form = this.q('[data-r=jumpForm]');
@@ -733,6 +826,7 @@
       const input = this.q('[data-r=jumpTime]');
       this.q('[data-r=jumpError]').hidden = true;
       input.removeAttribute('aria-invalid');
+      this.paintJump();
       if (form.hidden) { if(restoreFocus)opener.focus({preventScroll:true}); }
       else {
         input.value = fmt(this.st.time);
@@ -757,16 +851,23 @@
         input.focus();
         return;
       }
-      const identity = this.a.identity?.(), generation = this.jumpGeneration;
-      this.jumpPending = true;
-      form.setAttribute('aria-busy','true');
+      const identity = this.a.identity?.(), generation = this.jumpGeneration, editVersion=this.jumpEditVersion||0;
+      input.removeAttribute('aria-invalid');error.hidden=true;
+      const work=this.jumpWork;work.pending=true;
+      this.paintJump();
       try {
         const result = await this.run('seek', time);
-        if (!this.dead && !form.hidden && generation === this.jumpGeneration && identity === this.a.identity?.() && result?.ok !== false) this.toggleJump(form.contains(document.activeElement));
+        if (!this.dead && !form.hidden && generation === this.jumpGeneration && editVersion===(this.jumpEditVersion||0) && input.value.trim()===value && identity === this.a.identity?.() && result?.ok !== false) this.toggleJump(form.contains(document.activeElement));
       } finally {
-        this.jumpPending = false;
-        form.removeAttribute('aria-busy');
+        work.pending=false;
+        const owner=work.owner;if(owner&&!owner.dead)owner.paintJump();
       }
+    }
+    paintJump() {
+      const form=this.q('[data-r=jumpForm]');if(!form)return;
+      const busy=!!this.jumpPending,submit=form.querySelector('[type=submit]');
+      form.toggleAttribute('aria-busy',busy);if(busy)form.setAttribute('aria-busy','true');
+      if(submit){if(busy&&document.activeElement===submit)this.q('[data-r=jumpTime]').focus({preventScroll:true});submit.disabled=busy;submit.textContent=busy?T('Atlanıyor…','Seeking…'):T('Git','Go');}
     }
     paintFullscreen() {
       const button = this.q('.browser-study-transport [data-a=fullscreen]');
@@ -780,6 +881,7 @@
       button.querySelector('span').textContent = label;
     }
     paint() {
+      this.paintAssistantSelection();
       const r = this.root, s = this.s, st = this.st || this.a.state();
       const draft=this.noteDraft?.identity===this.id0?this.noteDraft:null;
       const marker=draft?JSON.stringify([draft.rowId,!!draft.standaloneTranslation]):null;
@@ -794,7 +896,7 @@
         const label = sourceLoop ? T('Özgün döngü', 'Original loop') : T('Cümle döngüsü', 'Loop sentence');
         b.setAttribute('aria-label', label);
         b.title = label;
-        b.lastChild.textContent = s.loop && s.loopRow >= 0 && this.rows[s.loopRow]
+        b.lastChild.textContent = this.loopPending ? ' '+T('Döngü ayarlanıyor…','Updating loop…') : s.loop && s.loopRow >= 0 && this.rows[s.loopRow]
           ? ` ${sourceLoop ? label : T('Döngü', 'Loop')} · ${fmt(this.rows[s.loopRow].start)}` : label;
       }
       const range = this.q('[data-r=loopRange]'), loopCue = s.loop ? this.rows[s.loopRow] : null;
@@ -814,19 +916,28 @@
         this.activeLoopButton = loopButton;
       }
       for (const b of r.querySelectorAll('[data-a=focus]')) b.setAttribute('aria-pressed', String(s.focus));
-      const sl = r.querySelector('[data-a=sleep]'); if (sl) { sl.setAttribute('aria-pressed', String(!!s.sleep)); const label = s.sleep ? `${Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000))} ${T('dk', 'min')}` : T('Uyku', 'Sleep'); r.querySelector('[data-r=sleeplbl]').textContent = label; sl.setAttribute('aria-label', s.sleep ? T('Uyku zamanlayıcısı', 'Sleep timer') + ' · ' + label : T('Uyku zamanlayıcısı', 'Sleep timer')); }
+      const sleepPending=!!this.sleepWork.pending&&this.sleepWork.pending.identity===this.id0;
+      const sl = r.querySelector('[data-a=sleep]'); if (sl) { sl.setAttribute('aria-pressed', String(!!s.sleep)); const label = sleepPending?T('Duraklatılıyor…','Pausing…'):s.sleep ? `${Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000))} ${T('dk', 'min')}` : T('Uyku', 'Sleep'); r.querySelector('[data-r=sleeplbl]').textContent = label; sl.setAttribute('aria-label', s.sleep||sleepPending ? T('Uyku zamanlayıcısı', 'Sleep timer') + ' · ' + label : T('Uyku zamanlayıcısı', 'Sleep timer'));if(sleepPending)sl.setAttribute('aria-busy','true');else sl.removeAttribute('aria-busy'); }
       const sleep = this.q('[data-r=sleep]');
       if (sleep) {
         const active = Math.max(0, Math.ceil((s.sleepAt - Date.now()) / 60000));
+        const deadline=s.sleep?new Date(s.sleepAt).toLocaleTimeString(T('tr','en'),{hour:'2-digit',minute:'2-digit'}):'';
+        const description=sleepPending?T('Uyku süresi doldu; duraklatma doğrulanıyor.','Sleep timer finished; confirming pause.')
+          :s.sleep?T(`${active} dk kaldı · ${deadline} saatinde duraklat. Kapat ile zamanlayıcıyı iptal edin.`,`${active} min left · Pause at ${deadline}. Choose Turn off to cancel the timer.`)
+          :T('Seçtiğiniz süre sonunda bu medyayı duraklatır.','Pauses this media after the selected duration.');
+        if(sleep.title!==description)sleep.title=description;
+        const accessible=T('Uyku zamanlayıcısı','Sleep timer')+' · '+description;
+        if(sleep.getAttribute('aria-label')!==accessible)sleep.setAttribute('aria-label',accessible);
         for (const option of sleep.options) {
           const minutes = Number(option.value);
-          const text = minutes === 0 ? (s.sleep ? T('Kapat','Turn off') : T('Uyku','Sleep'))
+          const text = minutes === 0 ? (sleepPending?T('Duraklatılıyor…','Pausing…'):s.sleep ? T('Kapat','Turn off') : T('Uyku','Sleep'))
             : minutes === s.sleep ? `${active} ${T('dk kaldı','min left')}`
             : `${minutes} ${T('dk','min')}`;
           if (option.textContent !== text) option.textContent = text;
         }
         if (sleep.value !== String(s.sleep)) sleep.value = String(s.sleep);
-        sleep.parentElement.classList.toggle('active', !!s.sleep);
+        sleep.parentElement.classList.toggle('active', !!s.sleep||sleepPending);
+        if(sleepPending)sleep.setAttribute('aria-busy','true');else sleep.removeAttribute('aria-busy');
       }
       for (const b of r.querySelectorAll('[data-a=rate]')) b.textContent = (Number(st.rate) || 1) + '×';
       this.syncRate();
@@ -848,7 +959,7 @@
       if (c.words && c.words.length) { let out = '', at = 0; const text = String(c.src); c.words.forEach((w, k) => { out += esc(text.slice(at, w.s)) + `<span class="w" data-k="${k}">${esc(text.slice(w.s, w.e))}</span>`; at = w.e; }); out += esc(text.slice(at)); src = out; }
       const shared = this.o.mode !== 'cinema';
       const trs = c.trs.map((t, part) => {
-        const start = c.translationStarts?.[part];
+        const start = c.translationRanges?.[part]?.start;
         const time = Number.isFinite(start) ? captionStamp(start, true) : '';
         const button = shared && c.timed && c.trs.length > 1 && time
           ? `<button class="cue-card-time sh-part-time" type="button" data-a="translationSeek" data-part="${part}" aria-label="${time} · ${T('Çeviri cümlesine git', 'Go to translation sentence')}">${time}</button>` : '';
@@ -985,6 +1096,7 @@
       if(!host)return;
       const stamp=JSON.stringify(chapters);
       if(stamp===this.chapterStamp)return;
+      const hiddenChapterFocus=this.q('[data-r=chapterTools]')?.contains(document.activeElement)||this.q('.sh-chapter-entry')?.contains(document.activeElement);
       const oldButtons=[...host.querySelectorAll('button.sh-chap')];
       const focused=oldButtons.indexOf(document.activeElement);
       const focusKey=focused>=0?{time:oldButtons[focused].dataset.t,label:oldButtons[focused].querySelector('span')?.textContent}:null;
@@ -1029,6 +1141,8 @@
           || available[Math.min(focused,available.length-1)]
           || (navigation ? this.q(chapters.length?'[data-r=chapterSearch]':'[data-r=q]') : this.q('[data-a=toggle]'));
         target?.focus({preventScroll:true});
+      }else if(navigation&&!chapters.length&&hiddenChapterFocus){
+        this.q('[data-r=q]')?.focus({preventScroll:true});
       }
     }
     filterChapters() {
@@ -1046,9 +1160,11 @@
       count.textContent = matches ? T(`${matches} başlık`, `${matches} chapters`) : T('Eşleşen başlık yok','No matching chapters');
       list.scrollTop = 0;
     }
-    focusPassage(time) {
+    focusPassage(time, {role} = {}) {
       this.tick();
-      const index=this.cueAt(time);
+      const translation = role === 'translation' ? this.liveCueAt(this.st?.captionTracks?.[1], time) : null;
+      const index = role === 'translation'
+        ? this.translationRowByCue.get(translation?.id)?.[0] ?? -1 : this.cueAt(time);
       this.lines.forEach((line,i)=>line.classList.toggle('sh-search-match',i===index));
       const line = this.lines[index];
       if (!line) return;
@@ -1063,6 +1179,7 @@
         if (this.usesTranscriptDrawer() && !this.s.transcript) this.toggleTranscript(this.q('.sh-transcript-toggle'));
       }
       this.paint();
+      cancelAnimationFrame(this.readingLayoutRaf);
       line.scrollIntoView?.({block:'center',inline:'nearest'});
     }
     readCurrentSentence(opener) {
@@ -1095,13 +1212,11 @@
       const id = a.identity ? a.identity() : ''; if (this.id0 === undefined) this.id0 = id; else if (id !== this.id0) { if (!this.gone) { this.gone = true; this.o.onSource?.(id, this.prefs()); } return; }
       if(this.panelWork.notices.length)this.toast(this.panelWork.notices.splice(0).join('\n'));
       for(const [action,receipt]of this.panelWork.statusActions){if(receipt.pending)continue;if(receipt.error&&receipt.identity===id&&receipt.owner===this.statusOwner(action))this.toast(receipt.error);this.panelWork.statusActions.delete(action);}
-      if (s.sleep && Date.now() >= s.sleepAt) {
-        s.sleep = 0;
-        s.sleepAt = 0;
-        this.run('pause').then(result=>{if(!this.dead&&id===this.a.identity?.()&&result?.ok)this.toast(T('Uyku süresi doldu; oynatma duraklatıldı.','Sleep timer finished; playback paused.'));});
-      }
+      const sleepNotice=this.sleepWork.notice;
+      if(sleepNotice){this.sleepWork.notice=null;if(sleepNotice.identity===id&&sleepNotice.revision===this.sleepWork.revision)this.toast(sleepNotice.message);}
+      if (s.sleep && Date.now() >= s.sleepAt) this.expireSleep();
       if (document.hidden) return;
-      const st = this.st = a.state(), info = a.info();if(this.assistantChoice&&this.assistantChoice.rev!==st.rev){this.assistantChoice=null;document.dispatchEvent(new Event('media-context-changed'));}if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev&&!this.s.note.stale){this.s.note.stale=true;this.renderNote(this.s.note,false);}if(this.s.note?.result)this.finishNote(this.s.note);
+      const st = this.st = a.state(), info = a.info();if(this.assistantChoice&&this.assistantChoice.rev!==st.rev){this.assistantChoice=null;document.dispatchEvent(new Event('media-context-changed'));}if(this.s.word&&this.s.word.rev!==st.rev)this.closeWord();if(this.s.note&&this.s.note.rev!==st.rev&&!this.s.note.stale){this.s.note.stale=true;this.renderNote(this.s.note,false);}if(this.noteDraft?.result)this.finishNote(this.noteDraft);
       this.captionTrackCount = info.captionTrackCount || 0;
       this.root.classList.toggle('sh-web-video', !!info.webVideo);
       this.root.classList.toggle('sh-web-source', !!info.webSource);
@@ -1117,13 +1232,13 @@
       const chaptersKey=JSON.stringify([info.chapters||[],Math.round(st.duration||0)]);
       if(chaptersKey!==this.chaptersKey){this.chaptersKey=chaptersKey;this.drawChapters(info.chapters||[]);this.drawWaveMarks(st.duration,info.chapters||[]);}
       const upNext = this.q('[data-r=upnext]');
-      if (upNext) { const next = (info.queue || [])[0], sig = next ? JSON.stringify([next.index,next.title,next.queueKey]) : ''; if (sig !== this.metaQueueSig) { this.metaQueueSig = sig; upNext.replaceChildren(); upNext.hidden = !next; if (next) upNext.append(this.el(`<button class="sh-next-item sh-next-inline" type="button" data-a="queue" data-index="${Number(next.index)}" data-queue-key="${esc(next.queueKey)}"><small>${T('SIRADAKİ', 'UP NEXT')}</small><strong>${esc(next.title)}</strong></button>`)); } }
+      if (upNext) { const next = (info.queue || [])[0], sig = next ? JSON.stringify([next.index,next.title,next.queueKey]) : ''; if (sig !== this.metaQueueSig) { const restoreFocus=upNext.contains(document.activeElement);this.metaQueueSig = sig; upNext.replaceChildren(); upNext.hidden = !next; if (next) upNext.append(this.el(`<button class="sh-next-item sh-next-inline" type="button" data-a="queue" data-index="${Number(next.index)}" data-queue-key="${esc(next.queueKey)}"><small>${T('SIRADAKİ', 'UP NEXT')}</small><strong>${esc(next.title)}</strong></button>`));if(restoreFocus)(upNext.querySelector('button')||this.q('[data-a=toggle]'))?.focus({preventScroll:true}); } }
       const dur = Number(st.duration) || 0, observedTime = Number(st.time) || 0;
       const time = Number.isFinite(st.displayTime) ? st.displayTime : observedTime;
       const position = this.drag ? this.dragR * dur : dur > 0 ? Math.max(0, Math.min(dur, time)) : Math.max(0, time);
       const p = dur ? Math.min(100, position / dur * 100) : 0;
       const w = this.q('[data-r=wave]'); w.style.setProperty('--p', p + '%'); w.setAttribute('aria-disabled', String(!this.canSeek));
-      const t0 = this.q('[data-r=t0]'); if (t0) { t0.textContent = fmt(position); this.q('[data-r=t1]').textContent = dur ? '-' + fmt(Math.max(0, dur - position)) : '--:--'; }
+      const t0 = this.q('[data-r=t0]'); if (t0) { t0.textContent = info.live ? T('CANLI','LIVE') : fmt(position); this.q('[data-r=t1]').textContent = info.live ? '' : dur ? '-' + fmt(Math.max(0, dur - position)) : '--:--'; }
       w.tabIndex = this.canSeek ? 0 : -1;
       w.setAttribute('aria-valuenow', dur > 0 ? Math.round(position) : 0); w.setAttribute('aria-valuemax', Math.round(dur)); w.setAttribute('aria-valuetext', `${fmt(position)} / ${dur ? fmt(dur) : '--:--'}`);
       const chapters=(info.chapters||[]).filter(chapter=>Number.isFinite(chapter.t));
@@ -1219,6 +1334,17 @@
     navigateSentence(command) {
       return this.run(command, this.displayMode() === 'tr' && this.st?.translationTargets ? 'translation' : undefined);
     }
+    paintCaptionSeek(button, range, translated) {
+      const start = Math.max(0, range?.start);
+      const valid = Number.isFinite(range?.start) && Number.isFinite(range?.end)
+        && Math.min(this.st.duration, range.end) > start;
+      button.disabled = !this.canSeek || !valid;
+      const stamp = valid ? captionStamp(start, translated) : '—';
+      const label = translated ? T('Çeviriye git', 'Go to translation') : T('Cümleye git', 'Go to sentence');
+      (button.querySelector('span') || button).textContent = stamp;
+      button.setAttribute('aria-label', valid ? stamp + ' · ' + label : T('Altyazı zamanı doğrulanamadı', 'Caption timing is unverified'));
+      button.title = button.getAttribute('aria-label');
+    }
     paintTransport(time, active) {
       const hint = this.q('[data-r=transportHint]');
       if (!hint) return;
@@ -1233,27 +1359,20 @@
           const seek = line.querySelector('[data-a=cueSeek]');
           if (seek) {
             const row = this.rows[index], translated = this.usesTranslationTime(row);
-            const start = translated ? row.translationStart : row.start;
-            const valid = Number.isFinite(start) && start < this.st.duration && Number.isFinite(row.end) && row.end>row.start && row.end>0;
-            seek.disabled = !this.canSeek || !valid;
-            const label = translated ? T('Çeviriye git', 'Go to translation') : T('Cümleye git', 'Go to sentence');
-            const stamp = valid ? captionStamp(start, translated) : '—';
-            seek.querySelector('span').textContent = stamp;
-            seek.setAttribute('aria-label', valid ? stamp + ' · ' + label : T('Altyazı zamanı doğrulanamadı','Caption timing is unverified'));
-            seek.title = seek.getAttribute('aria-label');
+            this.paintCaptionSeek(seek, translated ? row.translationRange : row, translated);
           }
           const loop = line.querySelector('[data-act=loop]');
           if (loop) {const row=this.rows[index];loop.disabled = !this.canSeek || !Number.isFinite(row.start) || !Number.isFinite(row.end) || row.end<=row.start || row.start>=this.st.duration || row.end<=0;}
           for (const button of line.querySelectorAll('[data-a=translationSeek]')) {
-            const start=this.rows[index].translationStarts?.[Number(button.dataset.part)];
-            button.disabled = !this.canSeek || !Number.isFinite(start) || start >= this.st.duration;
+            this.paintCaptionSeek(button, this.rows[index].translationRanges?.[Number(button.dataset.part)], true);
           }
         });
       }
       const hasTimed = this.rows.some(row => row.timed);
       const available = this.canSeek && hasTimed;
       const cue = this.rows[active ?? -1];
-      const next = available && this.rows.some(row => row.timed && !row.standaloneTranslation && row.start<this.st.duration && row.start > (cue?.start ?? time) + .01);
+      const next = available && this.rows.some(row => row.timed && !row.standaloneTranslation
+        && row.end > 0 && row.start < this.st.duration && row.start > (cue?.start ?? time));
       const enabled = {
         back: this.canSeek && time > 0, fwd: this.canSeek && time < this.st.duration, prev: available, next,
         replay: available && !!cue, loop: this.s.loop || (available && !!cue)
@@ -1278,6 +1397,7 @@
         const value = enabled[button.dataset.a];
         if (value !== undefined) button.disabled = !value;
       }
+      this.paintLoopPending();
       if (this.transportTranslationLabels !== !!targets) {
         this.transportTranslationLabels = !!targets;
         const labels = targets ? {
@@ -1314,7 +1434,7 @@
     }
     motionAllowed(){return !document.hidden && !root.matchMedia?.('(prefers-reduced-motion: reduce)').matches && !['off','reduced'].includes(document.documentElement.dataset.cinemaMotion) && (root.PlayerUiKit?.motionAllowed?.()??true);}
     usesTranslationTime(row) {
-      return row.standaloneTranslation || (this.displayMode() === 'tr' && Object.hasOwn(row, 'translationStart'));
+      return row.standaloneTranslation || (this.displayMode() === 'tr' && Object.hasOwn(row, 'translationRange'));
     }
     scrollToActive(force) {
       const sc = this.q('[data-r=scroll]'), l = this.lines[this.cur]; if (!l || l.hidden || this.root.classList.contains('sh-chapters-open')) return;
@@ -1326,6 +1446,39 @@
       if (prev && target === l) { const prevTop = prev.getBoundingClientRect().top - base - 12; if (prevTop < top && targetTop + target.offsetHeight - prevTop <= sc.clientHeight - 16) top = prevTop; }
       sc.scrollTo({ top: Math.max(0, top), behavior: force || !this.motionAllowed() || this.s.idx === -2 ? 'auto' : 'smooth' });
     }
+    readingPosition() {
+      const scroll=this.q('[data-r=scroll]'),viewport=scroll.getBoundingClientRect();
+      const line=!this.root.classList.contains('sh-chapters-open')&&scroll.clientHeight>0
+        ?this.lines.find(line=>{const rect=line.getBoundingClientRect();return !line.hidden&&rect.bottom>viewport.top&&rect.top<viewport.bottom;}):null;
+      const row=line&&this.rows[Number(line.dataset.i)];
+      return {scrollTop:scroll.scrollTop,viewportAnchor:row?{rev:this.st?.rev,id:row.id,trackId:row.trackId,standaloneTranslation:!!row.standaloneTranslation,offset:line.getBoundingClientRect().top-viewport.top}:null};
+    }
+    applyReadingPosition(reading) {
+      const scroll=this.q('[data-r=scroll]');scroll.scrollTo({top:reading.scrollTop,behavior:'instant'});
+      const anchor=reading.viewportAnchor;
+      if(!anchor||anchor.rev!==this.st?.rev)return;
+      const index=this.rows.findIndex(row=>row.id===anchor.id&&row.trackId===anchor.trackId&&!!row.standaloneTranslation===!!anchor.standaloneTranslation),line=this.lines[index];
+      if(!line||line.hidden)return;
+      // Offscreen cue cards use intrinsic estimated heights. Measure the actual
+      // target before clamping its clipped reading offset to the new layout.
+      if(this.readingAnchorLine){const previous=this.readingAnchorLine;previous.line.style.contentVisibility=previous.visibility;}
+      this.readingAnchorLine={line,visibility:line.style.contentVisibility};
+      line.style.contentVisibility='visible';
+      line.scrollIntoView?.({block:'start',inline:'nearest',behavior:'instant'});
+      const rect=line.getBoundingClientRect(),offset=Math.max(anchor.offset,1-(rect.bottom-rect.top));
+      scroll.scrollTo({top:scroll.scrollTop+rect.top-scroll.getBoundingClientRect().top-offset,behavior:'instant'});
+      // Revealing virtualized neighbours can resolve their estimated heights
+      // over successive layouts. Bound settlement and yield to manual input.
+      cancelAnimationFrame(this.readingLayoutRaf);
+      const query=this.q('[data-r=q]')?.value,revision=this.st?.rev,identity=this.a.identity?.();
+      const settle=remaining=>{
+        if(this.dead||identity!==this.a.identity?.()||this.s.follow||revision!==this.st?.rev||query!==this.q('[data-r=q]')?.value||this.readingAnchorLine?.line!==line||!line.isConnected||line.hidden)return;
+        const final=line.getBoundingClientRect(),clipped=Math.max(anchor.offset,1-final.height);
+        scroll.scrollTo({top:scroll.scrollTop+final.top-scroll.getBoundingClientRect().top-clipped,behavior:'instant'});
+        if(remaining)this.readingLayoutRaf=requestAnimationFrame(()=>settle(remaining-1));
+      };
+      this.readingLayoutRaf=requestAnimationFrame(()=>settle(2));
+    }
     restoreReadingPosition() {
       const reading = this.readingScroll;
       if (!reading) return;
@@ -1335,7 +1488,7 @@
       }
       const scroll = this.q('[data-r=scroll]');
       if (!scroll?.clientHeight) return;
-      scroll.scrollTop = reading.scrollTop;
+      this.applyReadingPosition(reading);
       this.readingScroll = null;
     }
     followAfterLayout() {
@@ -1509,8 +1662,12 @@
     showReading(chapters) {
       const list = this.q('[data-r=chaps]');
       if (!list || this.o.mode === 'cinema') return;
+      cancelAnimationFrame(this.readingLayoutRaf);
       const scroll = this.q('[data-r=scroll]');
-      if (chapters && list.hidden) this.transcriptScroll = scroll.scrollTop;
+      if (chapters && list.hidden) {
+        this.transcriptReading=this.readingPosition();
+        this.transcriptScroll=scroll.scrollTop;
+      }
       const changed = list.hidden === chapters;
       list.hidden = !chapters;
       this.q('[data-r=chapterTools]').hidden = !chapters;
@@ -1519,7 +1676,8 @@
       this.q('[data-a=reading]').setAttribute('aria-pressed', String(!chapters));
       for (const button of this.root.querySelectorAll('[data-a=chapters]')) button.setAttribute('aria-pressed', String(chapters));
       if (!chapters && changed) {
-        scroll.scrollTop = this.transcriptScroll || 0;
+        if(!this.s.follow)this.applyReadingPosition(this.transcriptReading||{scrollTop:this.transcriptScroll||0});
+        else scroll.scrollTop=this.transcriptScroll||0;
         this.followAfterLayout();
       }
     }
@@ -1607,14 +1765,28 @@
       const paused=!!st.paused;if(this.lastPause!==paused){this.lastPause=paused;this.reveal?.();}
     }
     captureAssistantPassage() {
-      this.assistantChoice=null;try{
-      const selection=root.getSelection?.();if(!selection?.rangeCount||selection.isCollapsed)return null;
+      const previous=this.assistantChoice,retained=this.assistantPassage();
+      this.assistantChoice=null;this.assistantSelectionError='';try{
+      const selection=root.getSelection?.();if(!selection?.rangeCount||selection.isCollapsed){if(retained)this.assistantChoice=previous;return retained;}
       const index=this.lines.findIndex(line=>{const source=line?.querySelector('.src');return source?.contains(selection.anchorNode)&&source.contains(selection.focusNode);});
       const row=this.rows[index],text=String(selection).trim();
-      if(!row||!text||text.length>4000||!row.src.includes(text))return null;
+      if(!row||!text||!row.src.includes(text))return null;
+      if(text.length>4000){this.assistantSelectionError=T('Seçili pasaj 4000 karakteri aşıyor. Daha kısa bir kaynak pasajı seçip Asistana sor düğmesine yeniden basın.','The selected passage exceeds 4000 characters. Select a shorter source passage, then choose Ask assistant again.');return null;}
       this.assistantChoice={identity:this.id0,rev:this.st?.rev,index,id:row.id,text};
       return this.assistantPassage();
-      }finally{document.dispatchEvent(new Event('media-context-changed'));}
+      }finally{this.paintAssistantSelection();document.dispatchEvent(new Event('media-context-changed'));}
+    }
+    paintAssistantSelection(){
+      const box=this.q('[data-r=assistantSelection]');if(!box)return;
+      const passage=this.assistantChoice?this.assistantPassage():null;
+      const owned=box.contains(document.activeElement);box.hidden=!passage;
+      const text=this.q('[data-r=assistantExcerpt]');if(text.textContent!==(passage?.text||''))text.textContent=passage?.text||'';
+      if(!passage&&owned)this.cardReturnTarget(this.q('[data-a=assistant]'))?.focus({preventScroll:true});
+    }
+    clearAssistantSelection(){
+      this.assistantChoice=null;this.assistantSelectionError='';
+      const selection=root.getSelection?.();if(selection?.anchorNode&&this.root.contains(selection.anchorNode))selection.removeAllRanges();
+      this.paintAssistantSelection();document.dispatchEvent(new Event('media-context-changed'));
     }
     assistantPassage() {
       const claim=this.assistantChoice,row=this.rows[claim?.index];
@@ -1634,16 +1806,26 @@
       const excerpt=selection?.rangeCount&&source?.contains(selection.anchorNode)&&source.contains(selection.focusNode)?String(selection).trim():'';
       const existing=this.noteDraft;
       this.closeWord();const same=existing?.identity===this.id0&&this.noteRowIndex(existing)===row;
-      if(existing?.identity===this.id0&&!same&&(existing.pending||existing.text?.trim())){this.renderNote(existing);this.toast(T('Önce açık taslağı kaydedin veya Taslağı bırak seçeneğini kullanın.','Save the open draft first, or choose Discard draft.'));return;}
+      const newExcerpt=!!(same&&excerpt&&excerpt!==existing.excerpt);
+      if(existing?.identity===this.id0&&(!same||newExcerpt)&&(existing.pending||existing.text?.trim()||newExcerpt&&existing.rev!==this.st?.rev)){this.renderNote(existing);this.toast(T('Önce açık taslağı kaydedin veya Taslağı bırak seçeneğini kullanın.','Save the open draft first, or choose Discard draft.'));return;}
       this.noteOpener=opener||document.activeElement;
-      const note=same?existing:{identity:this.id0,row,rowId:cue.id,trackId:cue.trackId,standaloneTranslation:!!cue.standaloneTranslation,rev:this.st?.rev,source:cue.src,translations:[...cue.trs],start:cue.start,end:cue.end,timed:!!cue.timed,text:'',...(excerpt&&cue.src.includes(excerpt)?{excerpt}:{})};
+      const note=same&&!newExcerpt?existing:{identity:this.id0,row,rowId:cue.id,trackId:cue.trackId,standaloneTranslation:!!cue.standaloneTranslation,rev:this.st?.rev,source:cue.src,translations:[...cue.trs],start:cue.start,end:cue.end,timed:!!cue.timed,text:'',...(excerpt&&cue.src.includes(excerpt)?{excerpt}:{})};
       note.open=true;this.noteDraft=note;this.renderNote(note);
       if(note.result)this.finishNote(note);
     }
+    captureNoteView(note){
+      const box=this.q('.sh-note-card'),input=box?.querySelector('[data-note-text]'),excerpt=box?.querySelector('.sh-note-excerpt');
+      if(!note||this.s.note!==note||box.hidden||!input)return;
+      const active=document.activeElement;
+      note.view={scrollTop:box.scrollTop,inputTop:input.scrollTop,inputLeft:input.scrollLeft,excerptTop:excerpt?.scrollTop||0,
+        start:input.selectionStart,end:input.selectionEnd,direction:input.selectionDirection,
+        focus:active===excerpt?'excerpt':active===input?'input':note.view?.focus||'input'};
+    }
     renderNote(note,focus=true){
+      this.captureNoteView(note);
       if(this.s.panel){this.s.panel=false;this.drawPanel(true);}
       if(this.s.word)this.closeWord();
-      const box=this.q('.sh-note-card'),active=document.activeElement,owned=box.contains(active),wasInput=active?.matches('[data-note-text]'),selection=wasInput?[active.selectionStart,active.selectionEnd]:null,action=active?.dataset.a;
+      const box=this.q('.sh-note-card'),active=document.activeElement,owned=box.contains(active),action=active?.dataset.a,view=note.view;
       this.s.note=note;this.noteDraft=note;note.open=true;
       if(note.rev!==this.a.state()?.rev)note.stale=true;
       box.hidden=false;
@@ -1655,14 +1837,22 @@
       const notice=box.querySelector('.sh-note-state');notice.textContent=note.stale?T('Altyazı değişti. Taslağın korundu; kaydetmek için güncel pasajı önce incele.','The transcript changed. Your draft is kept; review the current passage before saving.'):note.pending?T('Kayıt sonucu bekleniyor. Görünüm değiştirmek ikinci kayıt başlatmaz.','Waiting for the save result. Switching views does not save a second copy.'):note.error||'';if(note.error)notice.tabIndex=0;
       box.querySelector('[data-a=noteSeek]')?.toggleAttribute('disabled',!!note.stale);box.querySelector('[data-a=noteRebind]')?.toggleAttribute('disabled',!!note.pending||this.noteRowIndex(note)<0);
       box.dataset.state=note.stale?'stale':note.pending?'saving':note.error?'error':'draft';this.paint();
-      if((focus&&!note.pending)||owned){const fallback=note.pending?box.querySelector('[data-a=noteClose]'):input;const target=(owned&&action?box.querySelector('[data-a="'+action+'"]:not(:disabled)'):null)||fallback;target?.focus({preventScroll:true});if(wasInput&&!note.pending&&selection)input.setSelectionRange(...selection);}
+      if((focus&&!note.pending)||owned){const fallback=note.pending?box.querySelector('[data-a=noteClose]'):view?.focus==='excerpt'?box.querySelector('.sh-note-excerpt'):input;const target=(owned&&action?box.querySelector('[data-a="'+action+'"]:not(:disabled)'):null)||fallback;target?.focus({preventScroll:true});}
+      if(view){
+        if(Number.isInteger(view.start)&&Number.isInteger(view.end))input.setSelectionRange(view.start,view.end,['backward','forward','none'].includes(view.direction)?view.direction:'none');
+        input.scrollTop=view.inputTop||0;input.scrollLeft=view.inputLeft||0;
+        box.querySelector('.sh-note-excerpt').scrollTop=view.excerptTop||0;box.scrollTop=view.scrollTop||0;
+      }
     }
-    closeNote(){const note=this.s.note;if(note){note.text=this.q('[data-note-text]')?.value??note.text;note.open=false;}this.s.note=null;const box=this.q('.sh-note-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore){const index=this.noteRowIndex(note);const row=index>=0?this.lines[index]:null;const opener=this.noteOpener?.isConnected?this.noteOpener:row&&!row.hidden&&row.querySelector('[data-act=save]');(opener||this.q('[data-r=q]'))?.focus({preventScroll:true});}}
+    cardReturnTarget(...preferred){
+      return [...preferred,this.q('[data-r=q]'),this.q('[data-a=toggle]')].find(node=>node?.isConnected&&this.root.contains(node)&&!node.disabled&&!node.closest('[hidden],[inert]'));
+    }
+    closeNote(){const note=this.s.note;this.captureNoteView(note);if(note){note.text=this.q('[data-note-text]')?.value??note.text;note.open=false;}this.s.note=null;const box=this.q('.sh-note-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore){const index=this.noteRowIndex(note);const row=index>=0?this.lines[index]:null;const opener=this.noteOpener?.isConnected?this.noteOpener:row&&!row.hidden&&row.querySelector('[data-act=save]');this.cardReturnTarget(opener,row&&!row.hidden&&row.querySelector('[data-act=save]'))?.focus({preventScroll:true});}}
     finishNote(note){
-      if(!note.result||this.s.note!==note||this.dead)return;
+      if(!note.result||(this.s.note!==note&&this.noteDraft!==note)||this.dead||note.identity!==this.a.identity?.())return;
       const result=note.result;note.result=null;
-      if(result?.ok){this.closeNote();if(this.noteDraft===note)this.noteDraft=null;this.toast(T('Araştırma defterine kaydedildi.','Saved to research notebook.'));}
-      else{note.error=result?.message||T('Not kaydedilemedi. Taslağın korundu; yeniden deneyebilirsin.','The note could not be saved. Your draft is kept; you can retry.');this.renderNote(note,false);}
+      if(result?.ok){if(this.s.note===note)this.closeNote();if(this.noteDraft===note)this.noteDraft=null;this.paint();this.toast(T('Araştırma defterine kaydedildi.','Saved to research notebook.'));}
+      else{note.error=result?.message||T('Not kaydedilemedi. Taslağın korundu; yeniden deneyebilirsin.','The note could not be saved. Your draft is kept; you can retry.');if(this.s.note===note)this.renderNote(note,false);}
     }
     async saveNote(){
       const note=this.s.note;if(!note||note.pending||note.stale||note.rev!==this.a.state()?.rev||note.identity!==this.a.identity?.())return;
@@ -1706,7 +1896,7 @@
       this.s.word={...result,row,rev:revision,cueId:this.rows[row]?.id};this.drawWord();this.paint();
       if(document.activeElement===openingFocus)this.q('.sh-word-card [data-a=wordClose]')?.focus({preventScroll:true});
     }
-    closeWord(){this.wordSeq=(this.wordSeq||0)+1;this.s.word=null;const box=this.q('.sh-word-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore)(this.wordOpener?.isConnected?this.wordOpener:this.q('[data-r=q]'))?.focus({preventScroll:true});}
+    closeWord(){this.wordSeq=(this.wordSeq||0)+1;this.s.word=null;const box=this.q('.sh-word-card'),restore=box?.contains(document.activeElement);if(box){box.hidden=true;box.textContent='';}this.paint();if(restore)this.cardReturnTarget(this.wordOpener)?.focus({preventScroll:true});}
     paintWordPending(){
       const box=this.q('.sh-word-card'),pending=!!this.s.word?.pending;
       box.setAttribute('aria-busy',String(pending));
@@ -1721,7 +1911,12 @@
     frame() { const f = () => { if (this.dead) return; if (this.cur >= 0 && this.st && !this.st.paused) this.wordsTick(); this.raf = requestAnimationFrame(f); }; this.raf = requestAnimationFrame(f); }
     destroy() {
       if(this.dead)return;
+      cancelAnimationFrame(this.readingLayoutRaf);
+      if(this.readingAnchorLine){const previous=this.readingAnchorLine;previous.line.style.contentVisibility=previous.visibility;this.readingAnchorLine=null;}
       if(this.volumeWork.owner===this)this.volumeWork.owner=null;
+      if(this.sleepWork.owner===this)this.sleepWork.owner=null;
+      if(this.jumpWork.owner===this)this.jumpWork.owner=null;
+      if(this.loopWork.owner===this)this.loopWork.owner=null;
       this.dead = true; document.removeEventListener('fullscreenchange', this.fullscreenChanged); cancelAnimationFrame(this.followRaf);root.removeEventListener('resize',this.followResize); clearInterval(this.timer); cancelAnimationFrame(this.raf); clearTimeout(this.toastT);clearTimeout(this.idleTimer); document.removeEventListener('keydown', this.keys, true);
       if (this.s.loop) {
         try {

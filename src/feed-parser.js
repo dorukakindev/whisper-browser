@@ -66,6 +66,7 @@ function normalizedEntry(row,base,language=''){
 }
 function parseFeed(input,base){
  if(typeof input!=='string'||Buffer.byteLength(input)>MAX_BYTES)throw Error('Feed body exceeds 2 MB.');const source=safeUrl(base);if(!source)throw Error('Unsafe feed URL.');let title='',language='',siteUrl='',format='',rows=[];
+ if(/^\s*<(?:!doctype\s+html\b|html\b|head\b)/i.test(input))throw Error('This is an HTML page, not an RSS, Atom or JSON Feed. Use the publisher feed URL.');
  if(input.trimStart().startsWith('{')){
   const data=JSON.parse(input);if(!['https://jsonfeed.org/version/1','https://jsonfeed.org/version/1.1'].includes(data.version)||!Array.isArray(data.items))throw Error('Unsupported JSON Feed.');format='json';title=clean(data.title,200);language=clean(data.language,40);siteUrl=safeUrl(data.home_page_url,source);
   rows=data.items.slice(0,MAX_ENTRIES).map(r=>({externalId:r.id,url:r.url||r.external_url,title:r.title,summary:r.summary,summaryFormat:'plain',content:typeof r.content_text==='string'?r.content_text:r.content_html,contentFormat:typeof r.content_text==='string'?'plain':'html',author:r.authors?.map(a=>a.name).join(', ')||r.author?.name,publishedAt:r.date_published,updatedAt:r.date_modified,imageUrl:r.image||r.banner_image,language:r.language,durationSeconds:(r.attachments||[]).find(a=>Number(a.duration_in_seconds)>0)?.duration_in_seconds,categories:r.tags,enclosures:(r.attachments||[]).map(a=>({url:a.url,type:a.mime_type,length:a.size_in_bytes}))}));
@@ -88,4 +89,31 @@ function parseOpml(input){
 }
 const escape=value=>clean(value,4096).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function exportOpml(feeds){const groups=new Map();for(const f of feeds){if(!safeUrl(f.url))continue;const group=clean(f.folder,120),rows=groups.get(group)||[];rows.push(f);groups.set(group,rows);}return '<?xml version="1.0" encoding="UTF-8"?><opml version="2.0"><head><title>Whisper Feeds</title></head><body>'+[...groups].map(([group,rows])=>(group?'<outline text="'+escape(group)+'">':'')+rows.map(f=>'<outline type="rss" text="'+escape(f.title)+'" xmlUrl="'+escape(f.url)+'"/>').join('')+(group?'</outline>':'')).join('')+'</body></opml>';}
-module.exports={MAX_BYTES,MAX_ENTRIES,durationSeconds,safeUrl,plain,parseFeed,discoverFeeds,parseOpml,exportOpml};
+function discoverPodcastEpisode(html, base) {
+ const page = safeUrl(base);
+ if (!page || typeof html !== 'string' || Buffer.byteLength(html) > MAX_BYTES) return null;
+ const matches = new Map();
+ const schemaType = (value,type) => [value].flat().some(item=>item===type||item==='https://schema.org/'+type||item==='http://schema.org/'+type);
+ const scripts = html.matchAll(/<!--[\s\S]*?(?:-->|$)|<(?:template|style)\b[^>]*>[\s\S]*?<\/(?:template|style)\s*>|<script\b([^>]{0,4096})>([\s\S]*?)<\/script\s*>/gi);
+ for (const [, attrs, body] of scripts) {
+  if (!attrs || attributes(attrs).type?.toLowerCase() !== 'application/ld+json' || body.length > 100000) continue;
+  let parsed;
+  try { parsed = JSON.parse(body); } catch { continue; }
+  const rows = Array.isArray(parsed) ? parsed : [parsed, ...(Array.isArray(parsed?.['@graph']) ? parsed['@graph'] : [])];
+  for (const row of rows.slice(0,100)) {
+   if (!schemaType(row?.['@type'],'PodcastEpisode') || typeof row.name !== 'string') continue;
+   if (row.url && safeUrl(row.url,page) !== page) continue;
+   const media = row.associatedMedia || row.audio;
+   const url = safeUrl(media?.contentUrl,page), title = plain(row.name,500);
+   if (!url || !title || !schemaType(media?.['@type'],'AudioObject')) continue;
+   const series = row.partOfSeries;
+   const seriesUrl = safeUrl(series?.url,page);
+   const showUrl = seriesUrl && new URL(seriesUrl).origin === new URL(page).origin ? seriesUrl : page;
+   const image = safeUrl(typeof row.image === 'string' ? row.image : row.image?.url,page);
+   matches.set(url,{podcast:{url:showUrl,title:plain(series?.name || title,200),publisher:new URL(page).hostname,image,sourceKind:'web-episode'},
+     episode:{url,pageUrl:page,title,image,description:plain(row.description,2000),duration:durationSeconds(row.timeRequired || media.duration),date:clean(row.datePublished,40)}});
+  }
+ }
+ return matches.size === 1 ? matches.values().next().value : null;
+}
+module.exports={MAX_BYTES,MAX_ENTRIES,durationSeconds,safeUrl,plain,parseFeed,discoverFeeds,discoverPodcastEpisode,parseOpml,exportOpml};

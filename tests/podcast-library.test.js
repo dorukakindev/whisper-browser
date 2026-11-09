@@ -77,7 +77,7 @@ test('queue edits preserve keyboard focus by row identity and closing returns to
  const h=await listeningFixture({rows:['A','B','C'].map(id=>({kind:'podcasts',id,entryId:id,title:id})),index:0,repeat:'off'});
  try{
   const opener=h.w.document.createElement('button');h.w.document.body.append(opener);opener.focus();h.shelf.openQueue();
-  const down=h.w.document.querySelectorAll('.ms-queue-down')[1];down.focus();down.click();
+  const down=h.w.document.querySelectorAll('.ms-queue-down')[1];down.focus();down.click();await tick();
   assert.equal(h.w.document.activeElement.closest('.ms-queue-row')?.querySelector('.ms-queue-play').textContent,'B');
   h.w.document.querySelector('dialog').close();assert.equal(h.w.document.activeElement,opener);
  }finally{h.dom.window.close();}
@@ -300,4 +300,27 @@ test('native failure evidence is scoped to one media generation and clears on a 
   const retry=w.NativePlayerUI.start();await tick();assert.equal(w.NativePlayerUI.failure(),null,'a fresh attempt clears the old failure');release({ok:false,error:'Native media could not play.'});await retry;
   assert.equal(w.NativePlayerUI.failure().generation,2);
  }finally{w.close();}
+});
+
+test('queue playback redraw preserves its filter, row focus and scrolling without stealing another control',async()=>{
+ const h=await listeningFixture({rows:['A','B','C'].map(id=>({kind:'podcasts',id,entryId:id,title:'Episode '+id})),index:0,repeat:'off'});
+ try{
+  h.shelf.openQueue();const dialog=h.w.document.querySelector('.ms-queue-dialog'),query=dialog.querySelector('input'),list=dialog.querySelector('.ms-queue-rows');
+  query.value='Episode';query.dispatchEvent(new h.w.Event('input'));dialog.scrollTop=110;list.scrollTop=70;
+  const target=[...dialog.querySelectorAll('.ms-queue-play')].find(b=>b.textContent==='Episode B');target.focus();target.click();await tick();await tick();
+  assert.equal(h.w.player.workspaceAudio.entryId,'B');assert.equal(query.value,'Episode');assert.equal(h.w.document.activeElement.closest('.ms-queue-row')?.querySelector('.ms-queue-play').textContent,'Episode B');assert.equal(dialog.scrollTop,110);assert.equal(list.scrollTop,70);
+  const remove=[...dialog.querySelectorAll('.ms-queue-row')].find(r=>r.querySelector('.ms-queue-play').textContent==='Episode C').querySelector('.ms-queue-remove');remove.focus();remove.click();await tick();
+  assert.equal(h.w.document.activeElement.closest('.ms-queue-row')?.querySelector('.ms-queue-play').textContent,'Episode B','removed row falls back to its remaining neighbour');
+  const play=dialog.querySelector('.ms-queue-play');play.focus();play.click();query.focus();await tick();await tick();assert.equal(h.w.document.activeElement,query,'later playback updates never pull focus away from the search');
+ }finally{h.dom.window.close();}
+});
+
+test('closing the queue after a source rebuild returns focus to the current Stage control',async()=>{
+ const h=await listeningFixture({rows:[{kind:'podcasts',id:'A',entryId:'A',title:'A'}],index:0,repeat:'off'});
+ try{
+  const opener=h.w.document.createElement('button');h.w.document.body.append(opener);opener.focus();h.shelf.openQueue();opener.remove();
+  const stageControl=h.w.document.createElement('button');stageControl.dataset.a='panel';h.w.document.body.append(stageControl);h.w.CinemaSahne={current:{q:()=>stageControl}};
+  h.w.document.querySelector('.ms-queue-dialog').close();assert.equal(h.w.document.activeElement,stageControl);
+  h.shelf.openQueue();const other=h.w.document.createElement('dialog'),input=h.w.document.createElement('input');other.append(input);h.w.document.body.append(other);other.showModal();input.focus();h.w.document.querySelector('.ms-queue-dialog').close();assert.equal(h.w.document.activeElement,input,'an independently opened dialog keeps focus');
+ }finally{h.dom.window.close();}
 });

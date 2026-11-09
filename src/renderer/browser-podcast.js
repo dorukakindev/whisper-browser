@@ -16,6 +16,9 @@
   let bridge, ui, toolsOpen = false;
   function getTranscriptTracks() {
     if (!isActive()) return [];
+    return mappedTranscriptTracks();
+  }
+  function mappedTranscriptTracks() {
     const roles = browserSubtitleRoleCues();
     return ['source','translation'].map(role => {
       const cues = roles[role] || [], secondary = cues === player.cues2;
@@ -34,6 +37,8 @@
     const duration = Number(player.browserDuration) > 0 ? Number(player.browserDuration) : null;
     const cap = (support,reason) => ({ support,reason });
     const observed = !!player.browserMediaSeen, youtube = !!currentBrowserYoutubeUrl();
+    const sample = browserTabState()?.browserClockSample;
+    const live = sample?.live === true && sample.mediaKey === player.mediaKey && sample.generation === player.generation;
     const spotify = /^https?:\/\/(?:open\.)?spotify\.com(?:[/:]|$)/i.test(player.browserPageUrl||'');
     return { mediaKey:player.mediaKey, generation:player.generation, episodeIdentity:player.mediaKey,
       sourceVersion:`observed:${key()}:${player.mediaKey}:${player.generation}`, sourceVersionStatus:'unknown', sourceKind:'browser', playbackOwner:'browser',
@@ -42,7 +47,7 @@
       time:Number(player.browserTime)||0, currentTime:Number(player.browserTime)||0, duration, paused:!!player.browserPaused, rate:Number(player.browserRate)||1,
       sourceTrack:{id:source.id,revision:source.revision}, secondaryTrack:translation.cues.length?{id:translation.id,revision:translation.revision}:null,
       capabilities:{play:cap(observed?'yes':'unknown','existing-web-player'),pause:cap(observed?'yes':'unknown','existing-web-player'),
-        seek:cap(observed&&duration&&!player.isLive?'yes':'no','existing-web-seek-range'),rate:cap(observed?'yes':'unknown','existing-web-rate'),
+        seek:cap(observed&&duration&&!player.isLive&&!live?'yes':'no','existing-web-seek-range'),rate:cap(observed?'yes':'unknown','existing-web-rate'),
         readTranscript:cap(source.cues.length?'yes':'no','existing-source-captions'),asr:cap(spotify?'no':youtube?'yes':'unknown',spotify?'no-authorized-audio-source':youtube?'existing-youtube-queue':'audio-access-unverified'),ASR:cap(spotify?'no':youtube?'yes':'unknown',spotify?'no-authorized-audio-source':youtube?'existing-youtube-queue':'audio-access-unverified'),
         liveAsr:cap(observed?'unknown':'no','system-audio-requires-explicit-consent'),download:cap(spotify?'no':'unknown',spotify?'no-authorized-download-source':'download-not-verified')} };
   }
@@ -64,7 +69,12 @@
       if(!cue)return {ok:false,code:'unknown-cue'};
       const landing=Math.max(0,cue.start+Math.min(.01,(cue.end-cue.start)/2,(snap.duration-cue.start)/2));
       const result=await browserCommand('seek',landing,tab);
-      if (command.type==='replay' && result?.ok && snap.paused && player.browserPaused && key()===tab && player.mediaKey===snap.mediaKey && player.generation===snap.generation) return browserCommand('play',undefined,tab);
+      if (command.type==='replay' && result?.ok && snap.paused && player.browserPaused
+        &&key()===tab&&player.mediaKey===snap.mediaKey&&player.generation===snap.generation
+        &&window.BrowserStudy.isActive()&&!layer.classList.contains('hidden')) {
+        const source=mappedTranscriptTracks()[0];
+        if(source.id===snap.sourceTrack.id&&source.revision===snap.sourceTrack.revision)return browserCommand('play',undefined,tab);
+      }
       return result;
     }
     const action={play:'play',pause:'pause',togglePlay:snap.paused?'play':'pause',seek:'seek',setRate:'speed',setVolume:'volume-set'}[command.type];

@@ -3,6 +3,7 @@ const vm = require('vm');
 const {
   buildBrowserMediaCommandScript,
   buildBrowserMediaProbeScript,
+  buildBrowserAudioSelectionScript,
   buildBrowserMediaPreferenceScript,
   buildBrowserOsdScript,
   normalizeBrowserMediaPreference,
@@ -255,6 +256,40 @@ test('oynayan ses öğesi duraklatılmış dekoratif videodan önce seçilir', (
     clientWidth: 0, clientHeight: 0, currentTime: 22, duration: 300 };
   assert.equal(probe([video, audio]).currentTime, 22);
 });
+test('media artwork uses page metadata and does not retain a removed image',()=>{
+  const audio={isConnected:true,tagName:'AUDIO',paused:false,ended:false,currentTime:1,duration:30};
+  const meta={getAttribute:name=>name==='content'?'/episode.jpg':''};
+  assert.equal(probe([audio],{'meta[property="og:image"]':meta}).artworkUrl,'/episode.jpg');
+  assert.equal(probe([audio]).artworkUrl,'');
+  const video={...audio,tagName:'VIDEO',poster:'https://publisher.example/poster.jpg'};
+  assert.equal(probe([video],{'meta[property="og:image"]':meta}).artworkUrl,video.poster);
+});
+test('full playing audio wins over a short clip and explicit selection targets one audio element',()=>{
+  const short={isConnected:true,tagName:'AUDIO',paused:false,duration:12,readyState:4,currentTime:1,src:'https://audio.test/clip'};
+  const full={...short,duration:190,readyState:3,currentTime:20,src:'https://audio.test/episode'};
+  const harness=mediaCommandHarness(short);
+  harness.context.document.querySelectorAll=()=>[short,full];
+  const run=source=>vm.runInNewContext(source,harness.context);
+  const probe=()=>run(buildBrowserMediaProbeScript(true));
+  const initial=probe();assert.equal(initial.currentTime,20);assert.equal(initial.audioChoices.length,2);
+  const token=initial.audioChoices.find(item=>item.duration===12).token;
+  assert.equal(run(buildBrowserAudioSelectionScript(token)),true);
+  assert.equal(probe().currentTime,1);
+  assert.equal(short.paused,false);assert.equal(full.paused,false);
+  short.src='https://audio.test/replacement';
+  assert.equal(probe().currentTime,20);assert.equal(run(buildBrowserAudioSelectionScript(token)),false);
+});
+
+test('custom podcast controls keep hidden loaded audio available for play, pause and seek', () => {
+  const audio={isConnected:true,tagName:'AUDIO',paused:false,ended:false,clientWidth:0,clientHeight:0,currentTime:22,duration:300,readyState:4};
+  const harness=mediaCommandHarness(audio);
+  harness.context.getComputedStyle=()=>({display:'none',visibility:'hidden',opacity:'0'});
+  assert.equal(vm.runInNewContext(buildBrowserMediaProbeScript(),harness.context)?.currentTime,22);
+  audio.paused=true;
+  assert.equal(vm.runInNewContext(buildBrowserMediaProbeScript(),harness.context)?.paused,true);
+  audio.readyState=0;
+  assert.equal(vm.runInNewContext(buildBrowserMediaProbeScript(),harness.context),null);
+});
 
 test('canlı yayının sonsuz süresi eşit görünür adaylarda sıralamayı çalmaz', () => {
   const recorded = { isConnected: true, tagName: 'VIDEO', paused: false, ended: false,
@@ -321,7 +356,7 @@ test('bozuk medya değerleri finite olmayan zamanı dışarı sızdırmaz', () =
     readyState: 0, videoWidth: 0, videoHeight: 0, totalVideoFrames: null,
     spinnerVisible: false, errorCode: 0, errorMessage: '',
     audioRecoveryRequired: false,
-    adSkippable: false, adRemaining: null, publisher: '', sourceUrl: '',
+    adSkippable: false, adRemaining: null, publisher: '', sourceUrl: '', artworkUrl: '', live: false,
   });
   broken.seeking = true;
   assert.equal(probe([broken]).seeking, true);

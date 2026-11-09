@@ -423,7 +423,7 @@ function controllerBootstrap() {
     // A bounded periodic scan discovers newly attached open shadow roots and
     // roots beyond the observer cap, including when no media exists yet.
     let lastDiscoveryAt = Date.now();
-    const select = () => {
+    const candidates = () => {
       cleanupDetachedRoots();
       for (const item of [...media]) if (!item.isConnected) releaseMedia(item);
       const now = Date.now();
@@ -432,9 +432,22 @@ function controllerBootstrap() {
         scan(document);
       }
       return [...media].filter((item) => {
+        // Custom podcast controls commonly hide their native audio element.
+        // Its pixels do not describe playback availability. Keep loaded audio
+        // selectable after pause too, so the same owner can resume or seek it.
+        if (String(item.tagName || '').toLowerCase() === 'audio') return Number(item.readyState) > 0 || (!item.paused && !item.ended);
         const style = globalThis.getComputedStyle?.(item) || {};
         return style.display !== 'none' && style.visibility !== 'hidden' && style.visibility !== 'collapse' && Number(style.opacity || 1) > .01;
-      }).sort(compareMedia)[0] || null;
+      }).sort(compareMedia);
+    };
+    const isAudio = item => String(item.tagName || '').toLowerCase() === 'audio';
+    let pinnedAudio = '';
+    const select = () => {
+      const items = candidates();
+      const pinned = pinnedAudio && items.find(item => isAudio(item) && tokenFor(item) === pinnedAudio);
+      if (pinned) return pinned;
+      pinnedAudio = '';
+      return items[0] || null;
     };
 
     scan(document);
@@ -536,7 +549,12 @@ function controllerBootstrap() {
         return { ...playbackPreference };
       },
       get docToken() { const item = select(); return item ? tokenFor(item) : docToken; },
-      probe() {
+      selectAudio(token) {
+        if (token && !candidates().some(item => isAudio(item) && tokenFor(item) === token)) return false;
+        pinnedAudio = token;
+        return true;
+      },
+      probe(includeChoices = false) {
         const item = select();
         if (!item) return null;
         const ad = detectAd();
@@ -562,9 +580,22 @@ function controllerBootstrap() {
           '[data-testid="player-spinner"]',
         ]);
         const rect = item.getBoundingClientRect?.();
+        const audioTitle = isAudio(item) && String(item.getAttribute?.('aria-label') || item.title || '').trim().slice(0,120);
+        const audioArtwork = isAudio(item) && String(item.dataset?.artwork || item.dataset?.image || '').slice(0,4096);
         return {
           docToken: tokenFor(item),
           sourceUrl: String(item.currentSrc || item.src || '').slice(0,16384),
+          artworkUrl: String(audioArtwork || item.poster || document.querySelector('meta[property="og:image"]')?.getAttribute?.('content') || document.querySelector('meta[name="twitter:image"]')?.getAttribute?.('content') || '').slice(0,4096),
+          live: item.duration === Infinity,
+          ...(pinnedAudio ? {userSelected:true} : {}),
+          ...(audioTitle ? {audioTitle} : {}),
+          ...(audioArtwork ? {audioArtworkBound:true} : {}),
+          ...(pinnedAudio ? {userSelected:true} : {}),
+          ...(isAudio(item) && item.getAttribute?.('aria-label') ? {audioTitle:String(item.getAttribute('aria-label')).trim().slice(0,120)} : {}),
+          ...(includeChoices ? {pinnedAudio, audioChoices:candidates().filter(isAudio).slice(0,8).map(audio=>({
+            token:tokenFor(audio), label:String(audio.getAttribute?.('aria-label')||audio.title||'').trim().slice(0,120),
+            duration:finite(audio.duration), paused:!!audio.paused,
+          }))} : {}),
           publisher: String(document.querySelector('ytd-watch-metadata ytd-video-owner-renderer #channel-name a, #owner #channel-name a')?.textContent || '').trim().slice(0,300),
           currentTime: finite(item.currentTime),
           duration: finite(item.duration),
@@ -632,10 +663,10 @@ function buildBrowserMediaPreferenceScript(raw, expectedDocToken) {
   })()`;
 }
 
-function buildBrowserMediaProbeScript() {
+function buildBrowserMediaProbeScript(includeChoices = false) {
   return `(() => {
     const controller = ${controllerBootstrap()};
-    return controller.probe();
+    return controller.probe(${!!includeChoices});
   })()`;
 }
 
@@ -756,5 +787,11 @@ function buildBrowserOsdScript(text, ms) {
   })()`;
 }
 
-module.exports = { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,
+function buildBrowserAudioSelectionScript(token) {
+  return `(() => {
+    const controller = ${controllerBootstrap()};
+    return controller.selectAudio(${JSON.stringify(token)});
+  })()`;
+}
+module.exports = { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript, buildBrowserAudioSelectionScript,
   buildBrowserMediaPreferenceScript, buildBrowserOsdScript, normalizeBrowserMediaPreference };

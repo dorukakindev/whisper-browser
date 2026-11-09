@@ -78,6 +78,10 @@ const evidence=require('../src/assistant-source-context').freezePodcast(snap,tra
   assert(!commands.slice(before).some(row=>row.type==='play'),'no playback is started after the tab changed');
   commandResult=()=>({ok:true});
  }
+
+ for(const interruption of ['track-edited','view-closed','study-handoff']){
+  player.browserActiveTabId='a';player.mediaKey='browser:one';player.browserTime=6;player.browserPaused=true;ui.setMode(true);let release;commandResult=type=>type==='seek'?new Promise(resolve=>release=()=>resolve({ok:true})):{ok:true};const now=ui.snapshot(),before=commands.length,pending=ui.execute({type:'replay',mediaKey:now.mediaKey,generation:now.generation,trackId:now.sourceTrack.id,trackRevision:now.sourceTrack.revision});assert.equal(typeof release,'function');if(interruption==='track-edited')player.cues[0].text+=' revised';else if(interruption==='view-closed')opened=false;else ui.setMode(false);release();await pending;assert.equal(commands.slice(before).some(row=>row.type==='play'),interruption==='study-handoff','replay respects explicit close but preserves same-owner handoff: '+interruption);opened=true;commandResult=()=>({ok:true});
+ }
  ui.setMode(true);player.browserPageUrl='https://open.spotify.com/episode/test';assert.equal(ui.snapshot().capabilities.ASR.support,'no');
  const previousCloses=menuCloses;ui.setMode(false);assert(menuCloses>previousCloses,'menu exit closes the originating menu too');assert.equal(ui.isActive(),false);assert.equal(document.getElementById('web'),video);dom.window.close();console.log('browser-podcast: existing owner/position/rate, mapped bilingual clocks, bounded assistant evidence, stale actions and Spotify boundary OK');
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

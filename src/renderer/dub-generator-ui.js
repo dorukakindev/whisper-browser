@@ -16,7 +16,7 @@
   let srt = '', cfg = null, current = null, output = null;
   let timer = null, logPath = null;
   let previousOutput=null,previousMedia=null,previousRangeEnd=null;
-  let runtimePhases={},runtimeError='',runtimeMetrics=null,artifactOpenVersion=0;
+  let runtimePhases={},runtimeError='',runtimeMetrics=null,artifactOpenVersion=0,attachmentPending=null,preparationSequence=0;
   let lastFailure='',outputOwner='',nextStep=null;
   const cacheInfo=document.createElement('p');cacheInfo.id='dubCacheInfo';cacheInfo.dataset.uiUntranslated='';el('dubPhaseSummary').before(cacheInfo);
   const savedRecipe=document.createElement('details');savedRecipe.id='dubSavedRecipe';savedRecipe.className='dub-saved-recipe';savedRecipe.dataset.uiUntranslated='';el('dubPreviewCard').append(savedRecipe);
@@ -362,8 +362,10 @@
     fileName('dubVoiceName',basename(voice?.reference || ''));
     el('dubTranscriptName').textContent = basename(voice?.transcript || '');
     if (!current && (referenceQualityPendingReset || lastReferenceQuality && lastReferenceIdentity !== cfg?.reference)) { referenceInfo(null); referenceQualityPendingReset=false; }
-    const locked = !!current || referenceBusy || planning || choosing || workspaceBusy || externalBusy;
-    el('dubGeneratorUse').disabled = locked;
+    const locked = !!current || referenceBusy || planning || choosing || workspaceBusy || externalBusy || !!attachmentPending;
+    el('dubGeneratorUse').disabled = locked||!!attachmentPending;
+    el('dubGeneratorUse').textContent=attachmentPending?L('Ses bağlanıyor…','Attaching audio…'):L('Sesi kullan','Use audio');
+    if(attachmentPending)el('dubGeneratorUse').setAttribute('aria-busy','true');else el('dubGeneratorUse').removeAttribute('aria-busy');
     for (const id of ['dubChooseSrt', 'dubChooseEngine', 'dubChooseVoice', 'dubChooseTranscript', 'dubSampleOnly', 'dubProfile', 'dubConcurrency', 'dubKeepEngine', 'dubTimingMode', 'dubVerification', 'dubAutoFit', 'dubNaturalSpeech']) el(id).disabled = locked;
     el('dubGrouping').disabled = locked;
     el('dubFollowDelivery').disabled = locked;
@@ -449,11 +451,11 @@
       el('dubPronunciationStatus').textContent=en?'Saved. Applies to the next generation.':'Kaydedildi. Sonraki ses üretiminde uygulanır.';
     } catch(error) {delete el('dubPronunciationStatus').dataset.saved;el('dubPronunciationStatus').textContent=error.message;}
   });
-  async function configure(kind, preserveOptions = false) {
+  async function configure(kind, preserveOptions = false, isCurrent = () => true) {
     pronunciationLabels();
     const sequence = ++configSequence;
     const r = await window.api.dubConfig(kind).catch(() => null);
-    if (sequence !== configSequence) return;
+    if (sequence !== configSequence || !isCurrent()) return;
     if (!r?.ok) { cfg = null; controls(); status(r?.error || 'Ses ayarları yüklenemedi.'); return; }
     cfg = r;
     cfg.globalPronunciations=r.pronunciations||[];
@@ -667,6 +669,7 @@
   el('dubPodcastTrack')?.addEventListener('change', event => { if (podcastBusy() || event.target.value === 'manual') { paintPodcast(); return; } void applyPodcastTrack(event.target.value); });
   el('dubPodcastAction')?.addEventListener('click', () => void podcastAction());
   async function open() {
+    const opening = ++preparationSequence;
     podcastTrackRequest++;
     inheritSubtitleRange();
     // A Podcast takes its subtitle from its own stored transcript, never from a leftover player path.
@@ -674,12 +677,13 @@
     if (!modal.open) modal.showModal();
     syncBrowserOcclusion();
     const openedMedia=requestIdentity();
-    await configure();
-    if (openedMedia !== requestIdentity()) return;
+    const isCurrent=()=>modal.open&&opening===preparationSequence&&openedMedia===requestIdentity();
+    await configure(undefined,false,isCurrent);
+    if (!isCurrent()) return;
     await window.VoiceReferenceUI?.refresh();
-    if (openedMedia !== requestIdentity()) return;
+    if (!isCurrent()) return;
     await loadPodcast();
-    if (openedMedia !== requestIdentity()) return;
+    if (!isCurrent()) return;
     const hadAutomaticSubtitle=!!srt&&!['manual','podcast'].includes(srtOrigin);
     if (!podcastOwner() && candidateSelection === currentSubtitleSelection()) adoptCurrentSubtitle(currentSubtitle());
     // Removing an automatically inherited track must not fall back to its unscoped saved result.
@@ -690,7 +694,7 @@
       const lookup = {source:window.BrowserDubAudioUI?.context()?.source || window.BrowserDubAudioUI?.context()?.mediaKey || ''};
       if (srt) { try { lookup.srt=srt; lookup.range=selectedRange(); } catch (_) { return; } }
       const r = await window.api.latestDub(lookup).catch(() => null);
-      if (openedMedia !== requestIdentity() || requestedSelection !== selection() || current || output || !r?.output) return;
+      if (!isCurrent() || requestedSelection !== selection() || current || output || !r?.output) return;
       adoptSavedOutput(r.output);
     }
   }
@@ -771,9 +775,17 @@
     return report;
   }
   async function compareGrouping(){
-    if(current||planning||referenceBusy||choosing||workspaceBusy||!srt)return null;const owner=mediaIdentity(),selection=planSelection(),file=srt,currentMode=el('dubGrouping').value;
-    if(!plan)await preparePlan();if(!plan||selection!==planSelection()||owner!==mediaIdentity())return null;
-    planning=true;controls();try{const mode=currentMode==='anlatim'?'akici':'anlatim',r=await window.api.planDub({srt:file,range:selectedRange(),grouping:mode,compare:true});if(owner!==mediaIdentity()||selection!==planSelection()||!r?.ok||r.sourceHash!==plan.sourceHash)return null;return {mode,currentMode,current:plan.groups,alternative:r.groups};}finally{planning=false;controls();}
+    if(!modal.open||current||planning||referenceBusy||choosing||workspaceBusy||attachmentPending||!srt)return null;
+    const owner=requestIdentity(),opening=artifactOpenVersion,selection=planSelection(),file=srt,currentMode=el('dubGrouping').value;
+    const valid=()=>modal.open&&opening===artifactOpenVersion&&owner===requestIdentity()&&selection===planSelection();
+    if(!plan)await preparePlan();if(!plan||!valid())return null;
+    const selectedPlan=plan;
+    planning=true;controls();
+    try{
+      const mode=currentMode==='anlatim'?'akici':'anlatim',r=await window.api.planDub({srt:file,range:selectedRange(),grouping:mode,compare:true});
+      if(!valid()||plan!==selectedPlan||!r?.ok||r.sourceHash!==selectedPlan.sourceHash)return null;
+      return {mode,currentMode,current:selectedPlan.groups,alternative:r.groups};
+    }finally{planning=false;controls();}
   }
   function preparePronunciations(terms,expectedOwner,expectedSrt){
     if(current||planning||referenceBusy||choosing||workspaceBusy||pronunciationLoading||!srt||expectedOwner!==mediaIdentity()||expectedSrt!==srt)return false;
@@ -801,9 +813,9 @@
     if(output){selectQuality(target.key);syncQualityPlan(true);}else await editPlanGroup(target.key);
     el('dubPlanText').focus();return true;
   }
-  window.DubGeneratorUI = Object.freeze({ selectQuality,editPlanGroup,inspectProduction,compareGrouping,preparePronunciations,editAtCurrent,experience:()=>({owner:mediaIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
+  window.DubGeneratorUI = Object.freeze({ selectQuality,editPlanGroup,inspectProduction,compareGrouping,preparePronunciations,editAtCurrent,experience:()=>({owner:mediaIdentity(),requestOwner:requestIdentity(),srt,plan,edits:{...edits},groups:[...results.values()],output,source:lastRequest?.source||'',busy:!!current||planning||referenceBusy||choosing||workspaceBusy||!!attachmentPending}),prepareCurrent: open, takeContext:()=>({id:output?.id||'',key:el('dubQualityGroup').value,owner:mediaIdentity(),busy:!!current||referenceBusy||planning||choosing||workspaceBusy||!!attachmentPending,recipeReady:!!lastRequest}), useTake:(key,token)=>start(true,[],{[key]:token}), assistant:Object.freeze({state:voiceState,configure:voiceConfigure,start:voiceStart,group:voiceGroup,use:voiceUse,refreshReference:()=>configure(undefined,true)}) });
   el('dubGeneratorClose').addEventListener('click', () => modal.close());
-  modal.addEventListener('close', () => { artifactOpenVersion++;el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
+  modal.addEventListener('close', () => { preparationSequence++;artifactOpenVersion++;attachmentPending=null;el('dubGeneratedPreview').pause(); syncBrowserOcclusion(); });
   async function openArtifact(file,isCurrent=()=>true){
     const owner=requestIdentity(),ticket=++artifactOpenVersion;let failed=false;
     try{const result=await window.api.openPath(file);failed=typeof result==='string'?!!result:result?.ok===false;}catch{failed=true;}
@@ -964,7 +976,7 @@
     review.onclick=()=>{window.dispatchEvent(new Event('dub-preflight-ready'));};proceed.onclick=()=>{if(selection!==startSelection()||owner!==requestIdentity()||job.isCancelled?.()||current||planning)return;acceptedPreflight=selection;generationGate.hidden=true;void start(false,[],null,job);};generationGate.append(title,copy,review,proceed);generationGate.scrollIntoView?.({block:'center'});refreshOverview();
   }
   async function start(retry = false, forceGroups = [], takeChoices = null, job = {}) {
-    if (current || referenceBusy || planning || choosing || workspaceBusy || !srt || !cfg?.ready) return;
+    if (current || referenceBusy || planning || choosing || workspaceBusy || attachmentPending || !srt || !cfg?.ready) return;
     if(mediaContextKey!==null&&mediaContextKey!==mediaIdentity()){
       inheritSubtitleRange();
       status(L('Kaynak değişti. Güncel bölümün dublaj panelini yeniden açın.','The source changed. Reopen voice preparation for the current episode.'));
@@ -1133,27 +1145,30 @@
   });
   el('dubGeneratorOutput').addEventListener('click', () => { const file=output;if(file)void openArtifact(file.path,()=>output===file); });
   async function attachSelectedOutput(selected,isCancelled=()=>false) {
-    const context=window.BrowserDubAudioUI?.context(),owner=requestIdentity();
-    if(!selected||selected.sample||selected.syncInvalid||!context?.tabId||!context.hasMedia||!context.visible)return false;
+    const context=window.BrowserDubAudioUI?.context(),owner=requestIdentity(),opening=artifactOpenVersion;
+    if(attachmentPending||!modal.open||!selected||selected.sample||selected.syncInvalid||!context?.tabId||!context.hasMedia||!context.visible)return false;
     const selection=lookupSelection(),track=currentSubtitleSelection();
     const selectionCurrent=()=>selection===lookupSelection()&&(srtOrigin!==''||(mediaContextKey===null||mediaContextKey===mediaIdentity())&&currentSubtitle()===srt&&track===currentSubtitleSelection());
-    if(!selectionCurrent())return false;
-    // Generated audio belongs to its recorded source, even when its job
-    // finishes after the user has opened another video. Imported projects have
-    // no production id and remain an intentional manual attachment.
-    let file=selected;
-    if(selected.id){
-      const proof=await window.api.latestDub({id:selected.id,source:context.source||context.mediaKey}).catch(()=>null);
-      if(!proof?.ok||proof.output?.id!==selected.id||proof.output.sample||proof.output.syncInvalid)return false;
-      file=proof.output;
-    }
-    if(isCancelled()||output!==selected||current||owner!==requestIdentity()||!selectionCurrent())return false;
-    el('dubGeneratedPreview').pause();
-    return await window.BrowserDubAudioUI.attachGenerated({...file,...window.DubWorkspaceUI?.attachment(selected)},context)===true;
+    if(!selectionCurrent()||isCancelled())return false;
+    const pending=attachmentPending={owner,opening};controls();
+    const valid=()=>attachmentPending===pending&&modal.open&&opening===artifactOpenVersion&&!isCancelled()&&output===selected&&!current&&owner===requestIdentity()&&selectionCurrent();
+    try{
+      // Revalidate saved output against the exact source before attaching. A
+      // closed/reopened panel cannot inherit this in-flight user action.
+      let file=selected;
+      if(selected.id){
+        const proof=await window.api.latestDub({id:selected.id,source:context.source||context.mediaKey}).catch(()=>null);
+        if(!proof?.ok||proof.output?.id!==selected.id||proof.output.sample||proof.output.syncInvalid)return false;
+        file=proof.output;
+      }
+      if(!valid())return false;
+      el('dubGeneratedPreview').pause();
+      return await window.BrowserDubAudioUI.attachGenerated({...file,...window.DubWorkspaceUI?.attachment(selected)},context)===true;
+    }finally{if(attachmentPending===pending)attachmentPending=null;controls();}
   }
   el('dubGeneratorUse').addEventListener('click', async () => {
-    const selected = output,owner=requestIdentity();
-    if (!selected || selected.sample || selected.syncInvalid) return;
+    const selected = output,owner=requestIdentity(),opening=artifactOpenVersion;
+    if (attachmentPending||!modal.open||!selected || selected.sample || selected.syncInvalid) return;
     const context = window.BrowserDubAudioUI?.context();
     if (!context?.tabId || !context.hasMedia || !context.visible) {
       status('Ses eklemek için önce bir video açın.'); return;
@@ -1162,8 +1177,8 @@
     el('dubGeneratorUse').disabled = true;
     try {
       const attached = await attachSelectedOutput(selected);
-      if (output === selected && !current && owner===requestIdentity()) status(attached ? 'Üretim tamamlandı; dublaj videoya bağlandı.' : 'Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.');
-    } catch (_) { if(output===selected && !current && owner===requestIdentity())status('Ses bağlanamadı; videoyu kontrol edip tekrar deneyin.'); }
+      if (modal.open&&opening===artifactOpenVersion&&output === selected && !current && owner===requestIdentity()) status(attached ? L('Dublaj sesi bu medyaya bağlandı.','Dubbing audio was attached to this media.') : L('Ses bağlanamadı; medyayı kontrol edip tekrar deneyin.','Audio could not be attached; check the media and retry.'));
+    } catch (_) { if(modal.open&&opening===artifactOpenVersion&&output===selected && !current && owner===requestIdentity())status(L('Ses bağlanamadı; medyayı kontrol edip tekrar deneyin.','Audio could not be attached; check the media and retry.')); }
     finally { controls(); }
   });
   el('dubTextStudio').addEventListener('click', async () => {
@@ -1267,12 +1282,12 @@
   }
   function voiceSettings(){return {resultMode,profile:el('dubProfile').value,concurrency:Number(el('dubConcurrency').value),grouping:el('dubGrouping').value,verification:el('dubVerification').value,timingMode:el('dubTimingMode').value,expression:el('dubExpression').value,keepBackground:el('dubKeepBackground').checked,followDelivery:el('dubFollowDelivery').checked,deliveryStrength:el('dubDeliveryStrength').value,sample:el('dubSampleOnly').checked};}
   function voiceState(query={}){
-    if(mediaContextKey!==null&&mediaContextKey!==mediaIdentity())return {opened:modal.open,busy:!!current||planning||referenceBusy||choosing||workspaceBusy,sourceChanged:true,subtitleReady:false,engineAndReferenceReady:false,output:null,groups:[],counts:{total:0,review:0,failed:0},note:'Voice preparation belongs to another source. Open the current video voice panel / Ses hazırlığı başka kaynağa ait. Güncel videonun ses panelini aç.'};
+    if(mediaContextKey!==null&&mediaContextKey!==mediaIdentity())return {opened:modal.open,busy:!!current||planning||referenceBusy||choosing||workspaceBusy||!!attachmentPending,sourceChanged:true,subtitleReady:false,engineAndReferenceReady:false,output:null,groups:[],counts:{total:0,review:0,failed:0},note:'Voice preparation belongs to another source. Open the current video voice panel / Ses hazırlığı başka kaynağa ait. Güncel videonun ses panelini aç.'};
     let range=null,invalidRange=false;try{range=selectedRange();}catch(_){invalidRange=true;}
     const groups=[...results.values()].sort((a,b)=>Number(a.status==='ready')-Number(b.status==='ready')||a.group-b.group);
     const offset=query.offset??0;if(!Number.isInteger(offset)||offset<0||offset>10000)throw Error('Invalid voice group offset.');
     const visible=query.group_id?groups.filter(row=>row.key===query.group_id):groups.slice(offset,offset+30),nextOffset=!query.group_id&&offset+30<groups.length?offset+30:null;
-    return {playingGroup:!groupAudio.paused?el('dubQualityGroup').value:null,currentJobId:current?.id||null,opened:modal.open,busy:!!current||referenceBusy||planning||choosing||workspaceBusy,subtitleReady:!!srt,engineAndReferenceReady:!!cfg?.ready,
+    return {playingGroup:!groupAudio.paused?el('dubQualityGroup').value:null,currentJobId:current?.id||null,opened:modal.open,busy:!!current||referenceBusy||planning||choosing||workspaceBusy||!!attachmentPending,subtitleReady:!!srt,engineAndReferenceReady:!!cfg?.ready,
       reference:{ready:!!cfg?.ready,name:cfg?.ready?basename(cfg.reference).slice(0,100):''},
       settings:voiceSettings(),range,invalidRange,canRegenerate:!!lastRequest&&!!cfg?.ready,
       output:output?{id:output.id,sample:output.sample===true,syncInvalid:output.syncInvalid===true,qualityUnavailable:output.qualityUnavailable===true}:null,
@@ -1282,7 +1297,7 @@
   async function ensureVoice(isCancelled){
     if(!modal.open)await window.DubGeneratorUI.prepareCurrent();else if(!cfg)await configure();
     if(isCancelled())throw Error('The source changed / Kaynak değişti.');
-    if(current||referenceBusy||planning||choosing||workspaceBusy)throw Error('Voice controls are busy / Ses kontrolleri meşgul.');
+    if(current||referenceBusy||planning||choosing||workspaceBusy||attachmentPending)throw Error('Voice controls are busy / Ses kontrolleri meşgul.');
   }
   async function voiceConfigure(args,isCancelled,expectedSettings){
     const requestedSelection=()=>{

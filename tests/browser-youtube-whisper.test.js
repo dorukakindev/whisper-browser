@@ -14,7 +14,7 @@ const node = id => {
 };
 const calls = [];
 const ctx = {
-  URL, console, Object, Number, Date, setTimeout: fn => { fn(); return 1; },
+  URL, console, Object, Number, Date, interfaceChoice:tr=>tr, setTimeout: fn => { fn(); return 1; },
   player: { workspaceMode: 'browser', mediaKey: 'browser:youtube:abcdefghijk', browserActiveTabId: 'a',
     browserPageUrl: 'https://www.youtube.com/watch?v=abcdefghijk&list=ignored', browserTracks: [],
     browserDuration: 1800, browserTime: 800, subPath: '', sub2Path: '' },
@@ -234,5 +234,76 @@ vm.runInContext(section('async function startProgressivePlayerTranscription(', '
   await ctx.startBrowserYoutubeWhisper(true, { forSpeech: true });
   assert.equal(speechJobs.length, 3, 'matching model/provider/range should reuse output');
 
-  console.log('Browser YouTube Whisper: URL, intent, mode-specific reuse, time range, race and stop passed.');
+  ctx.state.running=false;ctx.player.browserTracks=[];
+  Object.assign(ctx.player,{workspaceMode:'browser',browserActiveTabId:'audio-tab',mediaKey:'web:episode',generation:12,browserPageUrl:'https://publisher.example/episode',browserMediaSeen:true});
+  const audioTab={id:'audio-tab',generation:2,mediaId:'episode',browserClockSample:{mediaKey:'web:episode',generation:12,mediaType:'audio',mediaToken:'audio-one'}};
+  ctx.browserTabState=()=>audioTab;const audioRequests=[];
+  ctx.window={api:{browserExtras:async request=>{audioRequests.push(request);return {ok:true,path:'prepared.mp3',mediaToken:'audio-one'};}}};
+  await ctx.startBrowserYoutubeWhisper(false,{clipRange:{start:0,end:10}});
+  assert.equal(audioRequests[0].action,'whisper-audio');assert.equal(ctx.player.job.baseOpts.input,'prepared.mp3');assert.equal(ctx.player.job.baseOpts.youtube,undefined);assert.equal(ctx.player.job.browserMediaToken,'audio-one');assert.equal(ctx.player.job.ranges[0].end,10);
+  ctx.state.running=false;await ctx.startBrowserYoutubeWhisper(true,{clipRange:{start:0,end:10}});assert.equal(ctx.player.job.baseOpts.translate,true);assert.equal(ctx.player.job.baseOpts.translateKeepSource,true);
+  ctx.pSecToTime=seconds=>String(seconds)+'s';
+  ctx.PodcastTaskScope=require('../src/renderer/podcast-task-scope');
+  ctx.player.browserWhisperRange={url:ctx.player.browserPageUrl,tabId:'audio-tab',mediaKey:'web:episode',mediaToken:'audio-one',range:{start:0,end:10}};
+  assert.equal(ctx.currentBrowserWhisperRange().end,10);
+  assert.equal(ctx.browserWhisperScopeLabel(),'0:00 → 0:10 · İşlenecek süre 0:10');
+  ctx.player.browserWhisperRange.tabId='other-tab';
+  assert.equal(ctx.currentBrowserWhisperRange(),null);
+  assert.match(ctx.browserWhisperScopeLabel(),/^Bölümün tamamı · /);
+  ctx.player.browserWhisperRange.tabId='audio-tab';
+  assert.equal(ctx.browserWhisperSourceChanged(ctx.player.job),false);audioTab.browserClockSample.mediaToken='audio-two';assert.equal(ctx.browserWhisperSourceChanged(ctx.player.job),true);assert.equal(ctx.currentBrowserWhisperRange(),null);
+  const retained=[];ctx.rememberPendingPlayerLoad=(event,job)=>retained.push({event,job});
+  assert.equal(await ctx.handleProgressiveTerminal({type:'done',files:['old-source.srt']},ctx.player.job),true);assert.equal(retained.length,1,'completed output remains pending instead of loading into changed audio');
+  ctx.state.running=false;const lastJob=ctx.player.job;
+  ctx.player.browserTracks=[{id:'old',path:'old.srt',generatedBy:'whisper',role:'source',status:'complete',mediaToken:'audio-one'}];let preparedCalls=0;
+  ctx.window.api.browserExtras=async()=>{preparedCalls++;audioTab.browserClockSample.mediaToken='audio-three';return {ok:true,path:'stale.mp3',mediaToken:'audio-two'};};
+  await ctx.startBrowserYoutubeWhisper(false);assert.equal(preparedCalls,1,'old audio captions cannot be reused for new audio');assert.equal(ctx.player.job,lastJob,'late audio preparation cannot start a job for another source');
+  let finishPreparation;
+  ctx.window.api.browserExtras=request=>{
+    audioRequests.push(request);
+    return request.action==='whisper-audio'?new Promise(resolve=>{finishPreparation=resolve;}):Promise.resolve({ok:true});
+  };
+  const pending=ctx.startBrowserYoutubeWhisper(false);
+  const preparation=ctx.browserAudioPreparationStatus();
+  assert.equal(preparation.state,'running');
+  await preparation.cancel();
+  assert.equal(ctx.browserAudioPreparationStatus().cancel,null);
+  assert.equal(audioRequests.at(-1).action,'cancel-whisper-audio');
+  assert.equal(audioRequests.at(-1).requestId,audioRequests.at(-2).requestId);
+  finishPreparation({ok:true,path:'late.mp3',mediaToken:'audio-three'});
+  await pending;
+  assert.equal(ctx.player.job,lastJob,'late success after cancel cannot launch Whisper');
+  assert.equal(ctx.browserAudioPreparationStatus(),null);
+  const retainedBefore=retained.length;
+  await ctx.handleProgressiveTerminal({type:'done',files:['old-source.srt'],browserWhisperSaved:true},lastJob);
+  assert.equal(retained.length,retainedBefore,'durably saved result must not become a retry on another episode');
+  const savedOutput={path:'saved.srt',role:'source',status:'complete'};
+  ctx.window.api.browserExtras=async()=>({ok:true,path:'prepared.mp3',mediaToken:'audio-three',outputs:[savedOutput]});
+  ctx.attachCompletedJobSubtitles=async(event,job)=> {
+    assert.equal(event.outputs[0],savedOutput);
+    assert.equal(job.browserMediaToken,'audio-three');
+    return {loaded:true,path:savedOutput.path};
+  };
+  const reused=await ctx.startBrowserYoutubeWhisper(false,{savedOnly:true});
+  assert.equal(reused.reused,true);
+  assert.equal(ctx.player.job,lastJob,'opening saved text must not create a job');
+  ctx.window.api.browserExtras=async()=>({ok:true,path:'prepared.mp3',mediaToken:'audio-three'});
+  await ctx.startBrowserYoutubeWhisper(false,{savedOnly:true});
+  assert.equal(ctx.player.job,lastJob,'missing saved text must not start Whisper');
+  ctx.friendlySystemError=raw=>raw;
+  ctx.window.api.browserExtras=async()=>({ok:false,error:'ENOSPC'});
+  await ctx.startBrowserYoutubeWhisper(false,{clipRange:{start:2,end:8}});
+  const failed=ctx.browserAudioPreparationStatus();
+  assert.match(failed.text,/Diskte yer aç/);
+  let retried;
+  ctx.window.api.browserExtras=async request=>{retried=request;return {ok:true,path:'prepared.mp3',mediaToken:'audio-three'};};
+  await failed.retry();
+  assert.equal(retried.range.start,2);
+  assert.equal(retried.range.end,8);
+  ctx.player.job.failed=true;ctx.player.job.browserWhisperStage='load_model';
+  const workerFailure=ctx.browserAudioPreparationStatus();
+  assert.match(workerFailure.text,/modelini veya aygıt/);
+  audioTab.browserClockSample.mediaToken='other-audio';
+  assert.equal(ctx.browserAudioPreparationStatus(),null,'old retry must not appear on another episode');
+  console.log('Browser Whisper: YouTube and observed audio, intent, reuse, time range, race and stop passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -336,7 +336,7 @@ function spawnSync(command, args, options = {}) {
 }
 const { buildBrowserOverlayScript } = require('./browser-overlay-controller');
 const { buildBrowserMediaCommandScript, buildBrowserMediaProbeScript,
-  buildBrowserMediaPreferenceScript, buildBrowserOsdScript } = require('./browser-media-controller');
+  buildBrowserMediaPreferenceScript, buildBrowserOsdScript, buildBrowserAudioSelectionScript } = require('./browser-media-controller');
 const { buildBrowserLinkHintsScript } = require('./browser-link-hints');
 const { buildDarkReaderCssScript } = require('./browser-dark-mode');
 const { isYoutubePageUrl, youtubeStyleCss } = require('./browser-youtube-style');
@@ -3434,7 +3434,7 @@ function saveHistory(list, options = {}) {
 function addHistory(rec) {
   const list = loadHistory().filter(h => h.id !== rec.id);
   list.unshift(rec);
-  saveHistory(list);
+  return saveHistory(list);
 }
 
 // ---- İzleme kütüphanesi ----
@@ -4221,7 +4221,7 @@ function createBrowserTabRecord(initial = {}) {
     viewMode: restored.viewMode || 'reading',
     targetLanguage: restored.targetLanguage || '',
     trackRefs: restored.trackRefs || [],
-    subtitleSelection: restored.subtitleSelection || null,
+    subtitleSelection: browserSelectionWithoutUnverifiedWhisper(restored.subtitleSelection),
     recoveryJobs: Array.isArray(restored.recoveryJobs) ? restored.recoveryJobs : [],
     subtitleSyncRecords: Array.isArray(restored.subtitleSyncRecords) ? restored.subtitleSyncRecords : [],
     subtitleEdits: Array.isArray(restored.subtitleEdits) ? restored.subtitleEdits : [],
@@ -6420,14 +6420,27 @@ function browserSubtitlePreferences() {
   }
   return browserSubtitlePreferenceStore;
 }
+function browserSelectionWithoutUnverifiedWhisper(saved) {
+  const selection=saved?{...saved}:null;
+  if(selection?.primaryFile||selection?.secondaryFile){
+    const audioDir=path.join(app.getPath('userData'),'browser-whisper-audio');
+    const generated=loadHistory().filter(record=>record?.browserWhisper
+      || (typeof record?.input==='string'&&path.dirname(record.input)===audioDir));
+    for(const key of ['primaryFile','secondaryFile']){
+      if(selection[key]&&generated.some(record=>Array.isArray(record.files)&&record.files.includes(selection[key])))delete selection[key];
+    }
+  }
+  return selection;
+}
 function restoreBrowserMediaSubtitlePreference(tab) {
   const row = browserSubtitlePreferences().get(tab.streamMediaId || tab.mediaId);
   if (!row) return null;
-  tab.subtitleSelection = row.subtitleSelection;
+  const selection=browserSelectionWithoutUnverifiedWhisper(row.subtitleSelection);
+  tab.subtitleSelection = selection;
   tab.subtitleMode = row.subtitleMode;
   tab.overlay = { ...(tab.overlay || {}), mode: row.subtitleMode };
   tab.subtitleSyncRecords = row.subtitleSyncRecords;
-  return row;
+  return {...row,subtitleSelection:selection};
 }
 
 function browserWatchMediaId(tab) {
@@ -13211,7 +13224,7 @@ async function probeActiveBrowserMedia(requestedTab = null) {
   try {
     // Komut gönderiminde kullanılan sıralamayla aynı adayı seç. Böylece
     // durum/altyazı yayını, komutların hedeflediği videodan kopmaz.
-    const probed = await withTimeout(executeBrowserFrames(buildBrowserMediaProbeScript()),
+    const probed = await withTimeout(executeBrowserFrames(buildBrowserMediaProbeScript(true)),
       BROWSER_SCRIPT_TIMEOUT, 'Web video durumu zaman aşımına uğradı.');
     if (!isCurrentBrowserContext(context) || browserView !== activeView
         || activeContents.isDestroyed() || activeContents.getURL() !== pageUrl) return false;
@@ -13240,6 +13253,9 @@ async function probeActiveBrowserMedia(requestedTab = null) {
       ? NaN : Number(media.adRemaining);
     const safeMedia = {
       ...media,
+      audioChoices: probed.flatMap(item=>item?.audioChoices||[]).slice(0,12),
+      artworkUrl: require('./feed-parser').safeUrl(media.artworkUrl,pageUrl),
+      live: media.live === true,
       currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
       duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
       // Gözlenen hız sitenin gerçek değeridir: kontrol sınırı 4x ama siteler
@@ -13259,21 +13275,29 @@ async function probeActiveBrowserMedia(requestedTab = null) {
       adSkippable: !!media.adSkippable,
       adRemaining: Number.isFinite(adRemaining) ? Math.max(0, adRemaining) : null,
     };
-    const directIdentity=!safeMedia.adPlaying&&safeMedia.readyState>=1?observedDirectMediaIdentity(pageUrl,media.sourceUrl):'';
+    const directIdentity=!safeMedia.adPlaying&&safeMedia.readyState>=1
+      ? observedDirectMediaIdentity(pageUrl,media.sourceUrl,media.tagName) : '';
     // The raw resource URL is only used inside main for a redacted identity;
     // signed URLs never become renderer diagnostics, provider context or logs.
     delete safeMedia.sourceUrl;
+    if (media.tagName==='audio' && directIdentity) {
+      tab.pageArtworkAudioIdentity ||= directIdentity;
+      if (tab.pageArtworkAudioIdentity!==directIdentity&&!media.audioArtworkBound) safeMedia.artworkUrl='';
+    }
     if(directIdentity){
       const previous=tab.observedDirectMediaIdentity;
       tab.observedDirectMediaIdentity=directIdentity;
       if(previous&&previous!==directIdentity){
+        browserExtras?.cancel(tab, false);
         tab.generation+=1;
         invalidateBrowserTabSubtitles(tab);
         tab.subtitleSelection=null;tab.subtitleSyncRecords=[];tab.trackRefs=[];
         tab.streamMediaId=directIdentity;
         tab.playbackDiagnostics.reset({clearCapabilities:true});
         resetBrowserCaptureState({cancelTranslation:true});
-        sendBrowserEvent(tab,{type:'navigation',...browserNavigationStateForTab(tab),sourceChanged:true,sourceMediaId:directIdentity});
+        tab.lastMediaEventSignature='';
+        tab.restoredPlayback=null;
+        sendBrowserEvent(tab,{type:'navigation',...browserNavigationStateForTab(tab),sourceChanged:true,sourceMediaId:directIdentity,audioChanged:media.tagName==='audio'});
         void resetBrowserPageCaptureState(tab.view);
         scheduleBrowserSessionSave();
         return true;
@@ -13293,7 +13317,8 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     tab.translationScheduler?.updatePlayhead(tab.position);
     const playbackDiagnostics = tab.playbackDiagnostics.observeMediaSample(safeMedia);
     for (const diagnostic of playbackDiagnostics) publishBrowserPlaybackDiagnostics(tab, diagnostic);
-    const mediaSignature = [safeMedia.docToken || '', safeMedia.publisher, Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
+    tab.activeAudioToken=media.tagName==='audio'?media.docToken:'';
+    const mediaSignature = [safeMedia.docToken || '', safeMedia.publisher, safeMedia.artworkUrl, safeMedia.audioTitle, JSON.stringify(safeMedia.audioChoices), safeMedia.pinnedAudio, safeMedia.live, Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
       Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused, !!safeMedia.adPlaying,
       !!safeMedia.adSkippable, safeMedia.adRemaining ?? '', safeMedia.readyState, !!safeMedia.seeking, !!safeMedia.ended, safeMedia.spinnerVisible].join('|');
     if (mediaSignature !== tab.lastMediaEventSignature) {
@@ -13857,6 +13882,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
     tab.mediaId = identity.key;
     tab.streamMediaId = '';
     tab.observedDirectMediaIdentity = '';
+    tab.pageArtworkAudioIdentity = '';
+    tab.activeAudioToken = '';
     restoreBrowserMediaSubtitlePreference(tab);
     tab.service = identity.service;
     tab.contentId = identity.contentId;
@@ -13883,6 +13910,8 @@ function ensureBrowserView(tab = activeBrowserTab(true)) {
         tab.mangaRestoreAttemptedGeneration = -1;
         tab.streamMediaId = '';
         tab.observedDirectMediaIdentity = '';
+        tab.pageArtworkAudioIdentity = '';
+        tab.activeAudioToken = '';
         stopBrowserManga(tab, true);
         stopBrowserPageTranslation(tab, true);
         invalidateBrowserTabSubtitles(tab);
@@ -16474,6 +16503,25 @@ ipcMain.handle('browser:command', async (event, payload) => {
       return osdResult && osdResult.handled
         ? { ok: true, ...browserEventContext(tab) }
         : { ok: false, error: 'Sayfa bildirimi gösterilemedi.' };
+    } else if (command === 'select-audio') {
+      const token = typeof value === 'string' ? value : '';
+      if (tab.compatibilityMode || (token && !/^doc-[\w-]{1,120}$/.test(token))) return {ok:false};
+      const selection = tab.audioSelectionSeq = (tab.audioSelectionSeq || 0) + 1;
+      const currentSelection = () => tab.audioSelectionSeq===selection && isCurrentBrowserContext(context);
+      const choices = await Promise.all(browserFrames().map(async frame=>({
+        frame, media:await withTimeout(frame.executeJavaScript(buildBrowserMediaProbeScript(true)),3000,'Audio probe timed out.').catch(()=>null),
+      })));
+      const target = choices.find(item=>item.media?.audioChoices?.some(choice=>choice.token===token));
+      if (!currentSelection() || (token&&!target)) return {ok:false,stale:true,error:dt('Ses kaynağı değişti.','The audio source changed.')};
+      for(const item of choices){
+        if(item!==target&&!item.media?.pinnedAudio)continue;
+        if(!currentSelection())return {ok:false,stale:true};
+        const applied=await withTimeout(item.frame.executeJavaScript(buildBrowserAudioSelectionScript(item===target?token:'')),3000,'Audio selection timed out.');
+        if(!applied)return {ok:false,stale:true,error:dt('Ses kaynağı değişti.','The audio source changed.')};
+      }
+      if(!currentSelection())return {ok:false,stale:true};
+      void probeActiveBrowserMedia(tab);
+      return {ok:true,...browserEventContext(tab)};
     } else if (['seek', 'seek-relative', 'play-pause', 'play', 'pause', 'mute', 'volume-relative', 'volume-set', 'frame-step', 'speed', 'fullscreen', 'pip', 'skipAd', 'loop', 'media-preference'].includes(command)) {
       // Probe first, then mutate only the best frame. Sending the command to
       // every iframe also controls ad/preview videos and can pause the wrong
@@ -16486,7 +16534,12 @@ ipcMain.handle('browser:command', async (event, payload) => {
       })));
       let media = null;
       let commandError = '';
-      for (const candidate of rankBrowserMediaCandidates(candidates)) {
+      const ranked=rankBrowserMediaCandidates(candidates);
+      if(tab.activeAudioToken&&ranked[0]?.media.docToken!==tab.activeAudioToken){
+        void probeActiveBrowserMedia(tab);
+        return {ok:false,stale:true,error:dt('Ses kaynağı değişti.','The audio source changed.')};
+      }
+      for (const candidate of tab.activeAudioToken?ranked.slice(0,1):ranked) {
         // Probe awaited across frames; the tab may have navigated meanwhile.
         // Re-verify the context before mutating so a stale command does not
         // seek/pause the *new* document's video (result check below only
@@ -18938,6 +18991,22 @@ function availableHistoryOutputs(record, candidates, { localOnly = false } = {})
       return fs.statSync(file).isFile();
     } catch (_) { return false; }
   });
+}
+
+function findBrowserWhisperOutputs(binding, range) {
+  const start=range?.start, end=range?.end;
+  if (!(start===null&&end===null) && !(Number.isFinite(start)&&start>=0&&Number.isFinite(end)&&end>start)) return [];
+  for(const row of loadHistory()){
+    if(row?.imported||!row?.ok||row.browserWhisper?.identity!==binding.identity
+        ||row.browserWhisper.sha256!==binding.sha256||row.clipStart!==start||row.clipEnd!==end)continue;
+    const candidates=historyOutputCandidates(row);
+    const item=row.browserWhisper.source;
+    if(item?.role!=='source'||item.status!=='complete'||!candidates.includes(item.path)
+        ||!availableHistoryOutputs(row,[item.path],{localOnly:true}).length)continue;
+    const granted=subtitleFileAccess.grant(item.path);
+    if(granted)return [{...item,path:granted}];
+  }
+  return [];
 }
 
 ipcMain.handle('history:list', async (event) => {
@@ -21486,12 +21555,15 @@ function resolvePython() {
 function recordJob(meta, event) {
   const files = Array.isArray(event.files) ? event.files : [];
   const base = files[0] || meta.input;
-  const title = base ? String(base).split(/[\\/]/).pop().replace(/\.[^.]+$/, '') : 'İsimsiz';
-  addHistory({
+  const title = meta.browserWhisper?.title || (base ? String(base).split(/[\\/]/).pop().replace(/\.[^.]+$/, '') : 'İsimsiz');
+  const source=meta.browserWhisper&&event.type==='done'&&event.partial!==true
+    ? require('./subtitle-output-contract').selectOutputs(event).source : null;
+  return addHistory({
     id: `${meta.startedAt}-${Math.random().toString(36).slice(2, 8)}`,
     at: new Date().toISOString(),
     title,
     source: meta.source,
+    ...(meta.browserWhisper?{browserWhisper:{...meta.browserWhisper,source}}:{}),
     input: meta.input,
     video: meta.video,
     files,
@@ -21901,6 +21973,7 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     input: options.youtube || options.input || '',
     source: options.youtube ? 'youtube' : 'local',
     video: options.youtube ? '' : (subtitlePlayback?.input || options.input || ''),
+    browserWhisper: !options.translateOnly && browserExtras?.whisperInputBinding(options.input),
     translateOnly:!!options.translateOnly,subtitlePlayback,
     language: options.lang || options.language || '', targetLanguage: options.translateTo || options.targetLang || options.targetLanguage || '',
     model: options.model || '',
@@ -22040,7 +22113,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
         persistQueueTerminal(jobMeta.queueItemId, event,
           (message) => writeJobLog({ type: 'log', level: 'error', message, jobId }));
         if (!jobMeta.skip) {
-          recordJob(jobMeta, event);
+          const recorded=recordJob(jobMeta, event);
+          if(recorded&&jobMeta.browserWhisper&&event.type==='done')event.browserWhisperSaved=true;
           jobMeta.skip = true;              // tek is = tek kayit
         }
       }
@@ -22379,12 +22453,15 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
   owner: () => mainWindow, getTab: browserTabById, activeTab: activeBrowserTab,
   translationTargetLanguage: () => browserTranslationConfig({}).targetLanguage,
   context: browserEventContext, authorized: authorizedBrowserSender,
+  sendEvent: sendBrowserEvent,
+  findWhisperOutputs: findBrowserWhisperOutputs,
   frames: browserFrames, probeScript: buildBrowserMediaProbeScript,
   rankCandidates: rankBrowserMediaCandidates, commandScript: buildBrowserMediaCommandScript,
   captureFrame: captureBrowserVideoFrame, restoreLayout: applyBrowserViewsLayout,
   hideOffscreen: hideBrowserViewOffscreen,
   viewRegistry: browserViewRegistry,
   grantSubtitle: file => { subtitleFileAccess.grant(file); trackBrowserSubtitleFile(file); },
+  grantMedia: file => mediaFileAccess.grant(file),
   authorizeMedia: file => authorizeLocalMediaPath(file),
   pythonPath: resolvePython, ffmpegPath: () => resolveFfTool('ffmpeg'), ffprobePath: () => resolveFfTool('ffprobe'),
   dialogText: dt,
@@ -22411,7 +22488,19 @@ const mediaCatalogService = require('./media-catalog-service').registerMediaCata
   inspectMedia: validateLocalMediaPath, grantMedia: file => mediaFileAccess.grant(file), watchItems: loadWatchLibraryAll,
   dialogText: dt,
 });
-const mediaFeedsService = require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,grantMedia:file=>mediaFileAccess.grant(file),grantSubtitle:file=>subtitleFileAccess.grant(file),createTextTranslator:({targetLanguage='tr'}={})=>{const config=browserTranslationConfig({targetLanguage,register:'natural prose'});if(browserTranslationConfigProblem(config))throw Error('Önce çeviri sağlayıcısını yapılandırın.');return async(text,signal,context={})=>(await requestBrowserSentenceTranslation({kind:'article',text,contextBefore:context.before,contextAfter:context.after},config,signal)).text;},translateText:(text,signal)=>translateMediaTextToTurkish(text,signal,'article')});
+async function observePodcastAudio(binding) {
+  const tab = activeBrowserTab();
+  const view = tab?.view;
+  if (!view || tab.compatibilityMode || tab.id !== binding.tabId || tab.generation !== binding.generation) return '';
+  const candidates = await Promise.all(browserFrames(view).map(async frame => ({
+    media: await withTimeout(frame.executeJavaScript(buildBrowserMediaProbeScript()), 4000, 'Audio probe timed out.').catch(() => null),
+  })));
+  if (activeBrowserTab() !== tab || tab.view !== view || tab.generation !== binding.generation) return '';
+  const media = rankBrowserMediaCandidates(candidates)[0]?.media;
+  return media?.tagName === 'audio' && !media.live && media.docToken === binding.mediaToken
+    ? require('./feed-parser').safeUrl(media.sourceUrl) : '';
+}
+const mediaFeedsService = require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,observePodcastAudio,grantMedia:file=>mediaFileAccess.grant(file),grantSubtitle:file=>subtitleFileAccess.grant(file),createTextTranslator:({targetLanguage='tr'}={})=>{const config=browserTranslationConfig({targetLanguage,register:'natural prose'});if(browserTranslationConfigProblem(config))throw Error('Önce çeviri sağlayıcısını yapılandırın.');return async(text,signal,context={})=>(await requestBrowserSentenceTranslation({kind:'article',text,contextBefore:context.before,contextAfter:context.after},config,signal)).text;},translateText:(text,signal)=>translateMediaTextToTurkish(text,signal,'article')});
 let recallPersonalService;
 personalMediaService=require('./personal-media-service').registerPersonalMedia({ipcMain,authorized:authorizedBrowserSender,catalogStore:mediaCatalogService.store,userData:()=>app.getPath('userData'),history:loadWatchLibraryAll,
   sourceContext:()=>personalMediaNativeSource(),resolveDiscovery:(event,identity)=>mediaCatalogService.discovery.handle(event,{action:'detail',kind:identity.kind,id:identity.imdbId}),

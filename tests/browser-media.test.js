@@ -28,6 +28,14 @@ test('eşit alanlı videoda oynayan aday öne alınır, giriş sırası korunur'
   assert.deepEqual(ranked.map((item) => item.frame), ['playing', 'same', 'paused']);
 });
 
+test('explicit audio selection wins across frames and automatic ranking prefers the full playing episode', () => {
+  const clip={frame:'clip',media:{tagName:'audio',paused:false,area:200,duration:12}};
+  const episode={frame:'episode',media:{tagName:'audio',paused:false,area:0,duration:240}};
+  assert.equal(rankBrowserMediaCandidates([clip,episode])[0].frame,'episode');
+  clip.media.userSelected=true;
+  assert.equal(rankBrowserMediaCandidates([clip,episode])[0].frame,'clip');
+});
+
 test('ana süreç medya komutunu tüm karelere yayınlamaz', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   assert.match(main, /rankBrowserMediaCandidates\(candidates\)/);

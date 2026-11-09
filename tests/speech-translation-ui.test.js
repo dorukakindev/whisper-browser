@@ -11,6 +11,7 @@ const starts = [];
 let url = 'https://www.youtube.com/watch?v=abcdefghijk';
 const ctx = vm.createContext({ $, $$: selector => [...doc.querySelectorAll(selector)],
   player: { browserDuration: 1000 }, uiText: text => text,
+  interfaceChoice:tr=>tr, PodcastTaskScope:require('../src/renderer/podcast-task-scope'),
   currentBrowserYoutubeUrl: () => url, closeBrowserToolbarMenus() {},
   parseClipInput: value => /^\d+:\d{2}$/.test(value) ? value.split(':').map(Number).reduce((a,b) => a*60+b) : NaN,
   pSecToTime: value => `${Math.floor(value/60)}:${String(Math.floor(value%60)).padStart(2,'0')}`,
@@ -31,6 +32,8 @@ assert.equal($('browserWhisperSpeechHint').classList.contains('hidden'), false);
 $('browserWhisperRangeEnabled').checked = true;
 $('browserWhisperRangeStart').value = '2:00';
 $('browserWhisperRangeEnd').value = '5:00';
+$('browserWhisperRangeEnd').dispatchEvent(new doc.defaultView.Event('input'));
+assert.equal($('browserWhisperRangePreview').textContent,'2:00 → 5:00 · İşlenecek süre 3:00');
 $('browserWhisperRangeApply').click();
 assert.equal(starts.length, 0, 'applying settings must not start transcription');
 assert.equal($('translateForSpeech').checked, true);

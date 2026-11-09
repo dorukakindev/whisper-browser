@@ -76,10 +76,11 @@ test('saved passage applies the selected track offset and keeps the same playbac
  const h=setup(),receipt={};
  h.context.window.PlayerWorkspaceIntegration.getTranscriptTracks=()=>[{role:'source',offsetSeconds:2},{role:'translation',offsetSeconds:-1.25}];
  let focused;
- h.context.window.CinemaSahne.current={focusPassage:time=>focused=time};
+ h.context.window.CinemaSahne.current={focusPassage:(time,options)=>focused={time,role:options?.role}};
  assert.equal(await h.context.openPodcastResearchResult({...h.result,role:'translation',seconds:12},{beforeSeek:async()=>{},receipt}),true);
  assert.equal(h.calls[1][1].time,10.75);
- assert.equal(focused,10.75);
+ assert.equal(focused.time,10.75);
+ assert.equal(focused.role,'translation');
  assert.equal(receipt.mode,'seek');
 });
 

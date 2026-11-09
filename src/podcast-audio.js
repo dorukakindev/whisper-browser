@@ -14,7 +14,7 @@ function managedAudioExtension(mime,url){
  throw Error('Podcast audio format is unsupported.');
 }
 // Same pinned DNS transport policy as feed/transcript requests; audio streams to disk.
-async function acquireAudio(url,file,{signal,publicPin,transport,maxBytes=512*1024*1024}={}){
+async function acquireAudio(url,file,{signal,publicPin,transport,onProgress,maxBytes=512*1024*1024}={}){
  let created=false;
  const combined=signal?AbortSignal.any([signal,AbortSignal.timeout(20*60*1000)]):AbortSignal.timeout(20*60*1000);
  try{for(let hop=0;hop<=5;hop++){
@@ -28,8 +28,10 @@ async function acquireAudio(url,file,{signal,publicPin,transport,maxBytes=512*10
   const stat=await fs.promises.statfs(require('node:path').dirname(file));if(stat.bavail*stat.bsize<maxBytes+256*1024*1024){response.destroy();throw Error('Insufficient space for bounded podcast download.');}
   const rawLength=response.headers['content-length'],expected=rawLength===undefined?null:Number(rawLength),digest=createHash('sha256');
   if(expected!==null&&(!Number.isSafeInteger(expected)||expected<0)){response.destroy();throw Error('Invalid podcast audio length.');}
-  let size=0,checked=false;
-  const limit=new Transform({transform(chunk,_encoding,cb){size+=chunk.length;if(size>maxBytes)return cb(Error('Podcast audio exceeds 512 MiB.'));if(!checked){checked=true;if(/^\s*(?:<!doctype|<html|\{)/i.test(chunk.subarray(0,200).toString('utf8')))return cb(Error('Podcast source returned a document instead of audio.'));}digest.update(chunk);cb(null,chunk);}});
+  let size=0,checked=false,lastProgress=0;
+  const reportProgress=()=>onProgress?.({bytes:size,totalBytes:expected});
+  reportProgress();
+  const limit=new Transform({transform(chunk,_encoding,cb){size+=chunk.length;if(size>maxBytes)return cb(Error('Podcast audio exceeds 512 MiB.'));if(!checked){checked=true;if(/^\s*(?:<!doctype|<html|\{)/i.test(chunk.subarray(0,200).toString('utf8')))return cb(Error('Podcast source returned a document instead of audio.'));}digest.update(chunk);if(onProgress&&Date.now()-lastProgress>=350){lastProgress=Date.now();reportProgress();}cb(null,chunk);}});
   let handle;try{handle=await fs.promises.open(file,'wx');created=true;}catch(error){response.destroy();throw error;}await pipeline(response,limit,handle.createWriteStream(),{signal:combined});if(!size)throw Error('Empty podcast audio.');if(expected!==null&&expected!==size)throw Error('Podcast audio length mismatch.');const rawEtag=response.headers.etag,etag=typeof rawEtag==='string'&&rawEtag.length<=500&&!/[\r\n\0]/.test(rawEtag)?rawEtag:'unknown';return {bytes:size,mime,etag,sha256:digest.digest('hex'),probe:'unknown'};
  }throw Error('Podcast audio redirect limit.');}catch(error){if(created)await fs.promises.rm(file,{force:true}).catch(()=>{});throw error;}
 }

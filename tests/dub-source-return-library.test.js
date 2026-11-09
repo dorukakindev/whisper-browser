@@ -266,10 +266,10 @@ test('YOUTUBE RACES: tab closes, another video starts in the same tab, A while B
 
 test('source-only stream opening passes autoplay=false to HLS and does not start the native engine',async()=>{
  const source=read('media-hub-ui.js'),start=source.indexOf('async function playStream('),end=source.indexOf('async function drawPlayer(',start);assert(start>=0&&end>start);
- const calls=[],context={player:{openIntent:0},flushWatchState:async()=>{},document:{getElementById:()=>({classList:{remove:()=>{}}})},setWorkspaceMode:()=>{},setPlayerHls:(...args)=>calls.push(['hls',args[3]]),setPlayerSource:()=>calls.push(['source']),currentGeneration:()=>1,currentTorrent:null,window:{NativePlayerUI:{start:async()=>calls.push(['native'])}}};vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+ const calls=[],video={paused:true,classList:{remove:()=>{}},play:async()=>calls.push(['play'])},context={player:{openIntent:0},flushWatchState:async()=>{},document:{getElementById:()=>video},setWorkspaceMode:()=>{},setPlayerHls:(...args)=>calls.push(['hls',args[3]]),setPlayerSource:(_url,_title,key)=>{context.player.mediaKey=key;calls.push(['source']);},currentGeneration:()=>1,currentTorrent:null,window:{NativePlayerUI:{start:async()=>{calls.push(['native']);return true;}}}};vm.createContext(context);vm.runInContext(source.slice(start,end),context);
  await context.playStream({url:'https://fixture.test/audio.m3u8',key:'a',title:'A'},0,{autoplay:false});assert.equal(calls[0][1].autoplay,false);assert.equal(calls.some(row=>row[0]==='native'),false);
  calls.length=0;await context.playStream({url:'https://fixture.test/audio.mp3',key:'b',title:'B'},0,{autoplay:false});assert.deepEqual(calls,[['source']]);
- calls.length=0;await context.playStream({url:'https://fixture.test/audio.mp3',key:'b',title:'B'});assert.deepEqual(calls,[['source'],['native']]);
+ calls.length=0;await context.playStream({url:'https://fixture.test/audio.mp3',key:'b',title:'B'});assert.deepEqual(calls,[['source'],['native'],['play']]);
 });
 
 test('source-return mute hold restores only its own web contents and preserves prior manual mute',()=>{
@@ -277,4 +277,13 @@ test('source-return mute hold restores only its own web contents and preserves p
  let muted=true;const wc={isDestroyed:()=>false,isAudioMuted:()=>muted,setAudioMuted:value=>muted=value};const tab={view:{webContents:wc},sourceReturnHold:{wc,priorMuted:false}};context.releaseSourceReturnHold(tab);assert.equal(muted,false);assert.equal(tab.sourceReturnHold,null);
  muted=true;tab.sourceReturnHold={wc,priorMuted:true};context.releaseSourceReturnHold(tab);assert.equal(muted,true);
  tab.sourceReturnHold={wc:{},priorMuted:false};context.releaseSourceReturnHold(tab);assert.equal(muted,true);
+});
+
+test('native stream autoplay cannot play a replacement source, cancelled request or failed start',async()=>{
+ const source=read('media-hub-ui.js'),start=source.indexOf('async function playStream('),end=source.indexOf('async function drawPlayer(',start);
+ for(const scenario of ['cancelled','source','generation','intent','failed','unknown']){
+  let cancelled=false,generation=1,plays=0;const video={paused:true,classList:{remove:()=>{}},play:async()=>{plays++;}};
+  const context={player:{openIntent:0},flushWatchState:async()=>{},document:{getElementById:()=>video},setWorkspaceMode:()=>{},setPlayerSource:(_url,_title,key)=>{context.player.mediaKey=key;},currentGeneration:()=>generation,currentTorrent:null,window:{NativePlayerUI:{start:async()=>{await Promise.resolve();if(scenario==='cancelled')cancelled=true;if(scenario==='source')context.player.mediaKey='another';if(scenario==='generation')generation++;if(scenario==='intent')context.player.openIntent++;return scenario==='failed'?false:scenario==='unknown'?undefined:true;}}}};
+  vm.createContext(context);vm.runInContext(source.slice(start,end),context);await context.playStream({url:'https://fixture.test/audio.wav',key:'expected',title:'Expected'},0,{isCancelled:()=>cancelled});assert.equal(plays,0,scenario+' must not play another source');
+ }
 });
