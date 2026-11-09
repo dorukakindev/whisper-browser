@@ -921,6 +921,7 @@ function modalFocusable(modal) {
 }
 
 function setModalBackgroundInert(modal, inert) {
+  for(const host of document.querySelectorAll('.sh-shelf-host'))if(!host.contains(modal))host.inert=inert;
   const app = document.querySelector('.app');
   if (!app) return;
   [...app.children].forEach((child) => {
@@ -1022,6 +1023,11 @@ function openManagedModal(modal, initialFocus, returnFocus = null) {
     return;
   }
   if (_activeModal === modal) return;
+  // Shelf Stage is a body-level overlay; the app's isolated stacking context
+  // cannot lift its dialogs above it. Preserve the node/listeners in a portal.
+  if(document.body.classList.contains('shelf-sahne-on')&&modal.parentElement!==document.body&&!modal._managedPortalAnchor){
+    const anchor=document.createComment('managed-modal-home');modal.before(anchor);modal._managedPortalAnchor=anchor;document.body.append(modal);
+  }
   _modalReturnFocus = returnFocus
     || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
   _activeModal = modal;
@@ -1049,6 +1055,7 @@ function closeManagedModal(modal, restoreFocus = true) {
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden', 'true');
   setModalBackgroundInert(modal, false);
+  if(modal._managedPortalAnchor){const anchor=modal._managedPortalAnchor;delete modal._managedPortalAnchor;if(anchor.isConnected)anchor.replaceWith(modal);}
   document.body.classList.remove('modal-open');
   if (wasActive) _activeModal = null;
   syncBrowserOcclusion();
@@ -5096,6 +5103,13 @@ function playerJobEvent(event) {
       finish(result.loaded ? successText
         : `Dosya kaydedildi; oynatıcıya yüklenemedi: ${result.reason}`,
         result.loaded && !translationPartial ? 'success' : 'warn', translationPartial?'partial':'done');
+      const repairOutput=completedSubtitleOutputs(event,isTranslateJob?'translation':'source').translation;
+      if(repairOutput?.path&&window.SubtitleTranslationRepair){
+        $('playerTranslationRepair')?.remove();
+        const offer=document.createElement('div');offer.id='playerTranslationRepair';offer.dataset.mediaKey=player.mediaKey;
+        bar.append(offer);const paths=[player.subPath,player.sub2Path].join('|'),generation=player.generation;
+        void window.SubtitleTranslationRepair.offer(repairOutput.path,offer,{isCurrent:()=>offer.isConnected&&job.mediaKey===player.mediaKey&&generation===player.generation&&paths===[player.subPath,player.sub2Path].join('|')&&!state.running,suspected:Math.max(0,Number(repairOutput.failed)||0)}).catch(()=>{});
+      }
       if (job.browserTrackId) {
         const latestTrack = player.browserTracks.find((track) => track.id === job.browserTrackId);
         if (latestTrack && Number(latestTrack.cueCount || 0) > Number(job.browserSourceCueCount || 0)) {
@@ -5864,6 +5878,62 @@ if ($('resultModal')) {
   });
 }
 
+// One explicit repair action for generated subtitle results and voice preflight.
+// Inspection is read-only; only the click creates a separate queued retry.
+window.SentenceMergeControl={set(enabled){
+  for(const id of ['mergeContinuation','playerMergeCont']){const control=$(id);if(control&&control.checked!==!!enabled){control.checked=!!enabled;control.dispatchEvent(new Event('change',{bubbles:true}));}}
+  window.dispatchEvent(new CustomEvent('workflow-merge-change',{detail:{enabled:!!enabled}}));
+}};
+window.SubtitleTranslationRepair={epochs:new WeakMap(),
+enqueue:async function(file,info,{isCurrent=()=>true,allowMixed=false}={}){
+  if(!isCurrent())return {ok:false,stale:true};
+  const result=await window.api.repairSubtitleTranslation({path:file,prepare:true,expectedHash:info.fingerprint,allowMixed});
+  if(!isCurrent())return {ok:false,stale:true};
+  if(!result?.ok||!result.sourcePath)throw Error(result?.error||interfaceChoice('Çeviri kaydı değişti; yeniden inceleyin.','Translation changed; review it again.'));
+  const override={translateOnly:true,translate:true,input:result.sourcePath,translateExisting:result.translationPath,translateTo:result.targetLanguage,language:'auto',translateForSpeech:result.forSpeech,translateRetryOnly:true,translateCueRange:'',mergeContinuation:false,dedupeCues:false,clipStart:'',clipEnd:'',outputNameSuffix:'-translation-repair'};
+  if(!addToQueue('file',result.sourcePath,{optionsOverride:override}))throw Error(interfaceChoice('Çeviri kuyruğa eklenemedi.','Could not queue translation.'));
+  if(!state.queueRunning&&!state.running)void startQueue();
+  return {ok:true,queued:true};
+},
+review:async function(file,{isCurrent=()=>true,allowMixed=false}={}){
+  const info=await window.api.repairSubtitleTranslation({path:file,allowMixed});
+  if(!isCurrent())return {ok:false,stale:true};
+  if(!info?.ok)throw Error(info?.error||interfaceChoice('Altyazı incelenemedi.','Could not inspect subtitles.'));
+  if(!info.canRepair)throw Error(interfaceChoice('Çevrilmemiş olabilecek satır saptanmadı. Bu kontrol çevirinin eksiksiz olduğunu kanıtlamaz.','No likely untranslated lines were detected. This does not prove the translation is complete.'));
+  const approved=await openAppDialog({title:interfaceChoice('Çevrilmemiş yerleri çevir','Translate untranslated lines'),description:interfaceChoice(`Bu dosyada ${info.failed} eksik veya İngilizce kalmış olabilecek satır bulundu. Yalnız bu satırlar çevrilsin mi? Diğer satırlar ve tüm zamanlar korunur; yeni dosya oluşur.`,`${info.failed} incomplete or likely English lines were found. Translate only these lines? Other lines and all timestamps are kept in a new file.`),confirmLabel:interfaceChoice('Bu satırları çevir','Translate these lines'),intent:'primary'});
+  if(!approved)return {ok:true,cancelled:true};
+  if(!isCurrent())return {ok:false,stale:true};
+  return window.SubtitleTranslationRepair.enqueue(file,info,{isCurrent,allowMixed});
+},
+offer:async function(file,container,{isCurrent=()=>true,suspected=0}={}){
+  if(!file||!window.api.repairSubtitleTranslation)return;
+  const token={},epochs=window.SubtitleTranslationRepair.epochs;epochs.set(container,token);
+  const valid=()=>epochs.get(container)===token&&isCurrent()&&container.isConnected;
+  const info=await window.api.repairSubtitleTranslation({path:file});
+  if(!valid())return;
+  if(!info?.canRepair&&!suspected)return;
+  const box=document.createElement('div');box.className='cue-untranslated-banner translation-repair-offer';box.dataset.uiUntranslated='';box.setAttribute('role','status');
+  const label=document.createElement('span'),button=document.createElement('button');
+  const choice=(tr,en)=>interfaceChoice(tr,en);
+  label.textContent=info?.canRepair?choice(`Bu dosyada ${info.failed} satır eksik veya ${info.targetLanguage==='tr'?'Türkçeye':'hedef dile'} çevrilmemiş olabilir. Bu satırlar çevrilsin mi? Hazır satırlar ve zamanlar korunur.`,`${info.failed} lines in this file are incomplete or may be untranslated. Translate these lines? Ready lines and timestamps are kept.`):choice('Çevrilmemiş olabilecek satırlar var; güvenli satır kurtarma bilgisi bulunamadı. Kaynak ve çeviriyi inceleyin.','Some lines may be untranslated; safe cue recovery is unavailable. Review the source and translation.');
+  box.append(label);
+  if(info?.canRepair){
+    button.type='button';button.className='btn btn-secondary btn-sm';button.textContent=choice('Evet, bu satırları çevir','Yes, translate these lines');box.append(button);
+    button.onclick=async()=>{
+      if(button.disabled||!valid())return;
+      button.disabled=true;button.setAttribute('aria-busy','true');
+      try{
+        const result=await window.SubtitleTranslationRepair.enqueue(file,info,{isCurrent:valid});
+        if(!result.ok||!valid())return;
+        label.textContent=choice('Eksik satırlar çeviri kuyruğuna eklendi. Yeni sonucu inceleyip dublaj için yeniden seçin.','Missing lines were queued for translation. Review the new result and select it again for dubbing.');
+        button.hidden=true;
+      }catch(error){if(valid())label.textContent=String(error.message);}
+      finally{button.disabled=false;button.removeAttribute('aria-busy');}
+    };
+  }
+  container.classList.remove('hidden');container.append(box);
+}};
+
 function showResultModal(event) {
   state.resultModalFiles = Array.isArray(event.files) ? event.files.slice() : [];
   state.resultModalVideo = state.lastJobVideo || null;
@@ -5915,7 +5985,12 @@ function showResultModal(event) {
       const completion=document.createElement('p');completion.textContent=summary.failed?interfaceChoice(`Kısmi çeviri: ${summary.ready}/${summary.total} hazır; ${summary.failed} satır eksik.`,`Partial translation: ${summary.ready}/${summary.total} ready; ${summary.failed} rows incomplete.`):interfaceChoice(`${summary.total} çeviri satırı. Otomatik kontroller insan değerlendirmesi yerine geçmez.`,`${summary.total} translation rows. Automatic checks do not replace human review.`);translationPanel.append(completion);
       for(const group of summary.groups){const p=document.createElement('p');p.textContent=interfaceChoice(group.tr,group.en)+': '+group.indices.slice(0,12).map(n=>n+1).join(', ')+(group.indices.length>12?'…':'');translationPanel.append(p);}
       const note=document.createElement('small');note.textContent=interfaceChoice('Okuma hızı altyazı ölçüsüdür; sesin süreye sığdığını veya anlamın bütünüyle korunduğunu kanıtlamaz.','Reading speed describes subtitles; it does not prove speech fits the time window or preserves every meaning.');translationPanel.append(note);
+
     }
+  }
+  if(window.SubtitleTranslationRepair){
+    const files=state.resultModalFiles,translation=completedSubtitleOutputs(event,'source').translation;
+    if(translation?.path)void window.SubtitleTranslationRepair.offer(translation.path,$('modalTranslationReview'),{isCurrent:()=>state.resultModalFiles===files&&!$('resultModal').classList.contains('hidden'),suspected:Math.max(0,Number(translation.failed)||0)}).catch(()=>{});
   }
   const filesEl = $('modalFiles');
   filesEl.innerHTML = '';
@@ -27214,6 +27289,8 @@ function syncSubtitlePrimaryAction() {
 }
 
 function updateMakeTransState() {
+  const repair=$('playerTranslationRepair');
+  if(repair&&(state.running||state.queueRunning||repair.dataset.mediaKey!==player.mediaKey))repair.remove();
   const btn = $('makeTransBtn');
   if (!btn) return;
   const ok = (player.subRole === 'source' && !!player.subPath && player.cues.length > 0)

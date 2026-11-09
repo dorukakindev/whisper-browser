@@ -32,6 +32,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   let textUI = null;
   const plans = new Map();
   const referenceRecipes = new Map();
+  const positionPlans = new Map();
+  const continuations = new Map();
+  const continuationSenders = new WeakSet();
   const staleReferenceRecipe=()=>Error('The saved voice recipe reference changed or expired. Restore its original unchanged reference or start a new full generation. / Kayıtlı ses tarifinin referansı değişti veya süresi doldu. Özgün değişmemiş referansı geri seçin ya da yeni tam üretim başlatın.');
   function referenceFingerprint(c) {
     const hash = require('node:crypto').createHash('sha256');
@@ -91,7 +94,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     let pronunciations=[]; try { pronunciations=normalizePronunciations(saved.pronunciations || []); } catch (_) {}
     return { pronunciations, keepEngine:saved.keepEngine !== false, engine, reference: savedPath('reference') || path.join(engine, 'anlatici_ham.wav'),
       transcript: savedPath('transcript') || path.join(engine, 'anlatici_ham.txt'),
-      verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'detailed',
+      verification: ['fast','balanced','detailed'].includes(saved.verification) ? saved.verification : 'balanced',
       autoFit: saved.autoFit !== false, naturalSpeech: saved.naturalSpeech !== false,
       resultMode: saved.resultMode === 'custom' ? 'custom' : 'natural',
       timingMode: saved.timingMode === 'clip' ? 'clip' : 'video',
@@ -134,6 +137,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     // A late or repeated terminal event must not rewrite a finished run or clean up another run's files.
     if (s.finished) return;
     s.finished = true;
+    if (s.continuationRecipe && ['error','cancelled'].includes(type)) {
+      s.continuationRecipe.interrupted = true;
+      data = {...data, canResume:true};
+    }
     if (s.heartbeat) { clearInterval(s.heartbeat); s.heartbeat = null; }
     s.sender.removeListener?.('destroyed', s.onDestroyed);
     if (type === 'error' || type === 'cancelled') cleanupArtifacts(s);
@@ -313,12 +320,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     planning.get(senderId)?.cancel?.();
     const attempt = {};
     planning.set(senderId, attempt);
-    if(request.compare!==true)plans.delete(senderId);
+    const planStore = request.positionSample === true ? positionPlans : plans;
+    if(request.compare!==true)planStore.delete(senderId);
     if (!planSenders.has(e.sender) && typeof e.sender.once === 'function') {
       planSenders.add(e.sender);
       e.sender.once('destroyed', () => {
         planning.get(senderId)?.cancel?.();
-        planning.delete(senderId); plans.delete(senderId);
+        planning.delete(senderId); plans.delete(senderId); positionPlans.delete(senderId);
       });
     }
     try {
@@ -367,7 +375,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       });
     });
     if (planning.get(senderId) !== attempt || e.sender.isDestroyed()) throw new Error('Dublaj planı artık kullanılmıyor.');
-    if(request.compare!==true)plans.set(senderId, { srt, range, grouping, ...result });
+    if(request.compare!==true)planStore.set(senderId, { srt, range, grouping, ...result });
     return { ok: true, grouping, ...result };
     } finally { if (planning.get(senderId) === attempt) planning.delete(senderId); }
   }));
@@ -482,7 +490,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }));
   // `trusted` is supplied only by in-process callers (an approved retry), never by IPC: it carries the stored
   // input copy and the pinned identity so the renderer cannot name a path or an identity.
-  async function startGeneration(e, request = {}, trusted = null) {
+  async function startGeneration(e, request = {}, trusted = null, resume = null) {
     if (textUI) throw new Error('SRT üretimi için önce metin stüdyosunu kapatın.');
     if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
@@ -532,8 +540,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (typeof c.followDelivery !== 'boolean' || !['gentle','balanced','strong'].includes(c.deliveryStrength)) throw new Error('Invalid delivery option.');
       s.sourceIdentity = trusted ? trusted.sourceIdentity : sourceIdentity(request.source);
       // The locator is derived here from main-owned records and corroborated by the bound source; a retry keeps the original's.
-      s.sourceLocator = trusted ? (trusted.sourceLocator ?? null) : await locators.pin(request);
+      s.sourceLocator = trusted ? (trusted.sourceLocator ?? null) : resume ? resume.sourceLocator : await locators.pin(request);
       if (trusted) { s.retryOf = trusted.retryOf; s.attempt = trusted.attempt; }
+      if (resume) { s.retryOf = resume.id; s.attempt = resume.attempt + 1; }
       s.settings = { profile, steps: profile === 'fast' ? 10 : 15, concurrency, maxSpeed: timingMode === 'video' ? 1 : 1.25 };
       Object.assign(s.settings, { verification, autoFit:c.autoFit, naturalSpeech:c.naturalSpeech, forceAll, forceGroupCount:forceGroups.length });
       s.settings.referenceName = path.basename(c.reference);
@@ -545,6 +554,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         &&!!(request.prosodySource||request.backgroundTab?.tabId);
       s.settings.deliveryAutomatic=automaticDelivery;
       s.range = rangeOption(request.range); s.settings.range = s.range; s.settings.timingMode = timingMode;
+      const positionSample = request.positionSample === true;
+      if(positionSample && (!s.sample || !s.range || s.range.end-s.range.start>20.001
+          || (sourceDuration!==undefined && s.range.end>sourceDuration) || request.narration===true)) throw Error('Invalid playback sample range.');
+      if(positionSample)s.settings.positionSample=true;
       const python = path.join(c.engine, '.venv', 'Scripts', 'python.exe');
       const script = path.join(__dirname,'..','tools','voxcpm2','altyazi_oku.py');
       for (const file of [python, script, path.join(c.engine,'kitap_ortak.py'), c.reference, c.transcript]) {
@@ -566,7 +579,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       s.subtitleHash = require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex');
       if (sourceBytes.length > 4000000) throw new Error('SRT çok büyük.');
       const effectivePronunciations=trusted?normalizePronunciations(trusted.pronunciations||[]):pronunciationStore().resolve(pronunciationScope(request.source,sourceBytes),c.pronunciations).pronunciations;
-      const prepared = plans.get(e.sender.id);
+      const prepared = resume?.plan || (positionSample ? positionPlans : plans).get(e.sender.id);
+      if(resume && (resume.subtitleHash!==s.subtitleHash || resume.srt!==srt || resume.reference!==referenceRecipe
+          || JSON.stringify(resume.pronunciations)!==JSON.stringify(effectivePronunciations))) {
+        throw Error('The subtitle or voice settings changed / Altyazı veya ses ayarları değişti.');
+      }
       if (prepared?.srt === srt && JSON.stringify(prepared.range) === JSON.stringify(s.range)
           && prepared.sourceHash !== require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex')) {
         throw new Error('SRT değişti; dublaj planını yeniden hazırlayın.');
@@ -604,6 +621,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       s.settings.speechSourceGroups=speechSources.size;
       s.settings.speechSourceStatus=speechSources.size?'available':'unavailable';
       s.settings.speechSourceIdentity=require('node:crypto').createHash('sha256').update(JSON.stringify([...speechSources])).digest('hex');
+      if(resume && resume.speechSourceIdentity!==s.settings.speechSourceIdentity) throw Error('The source text changed / Kaynak metin değişti.');
+      const canEdit=(c.autoFit||c.naturalSpeech)&&typeof shorten==='function';
+      const editorVersion=canEdit?require('node:crypto').createHash('sha256').update(JSON.stringify([String(editorIdentity()).slice(0,128),s.settings.speechSourceIdentity])).digest('hex'):null;
+      if(resume&&resume.editorVersion!==editorVersion)throw Error('The text editor changed / Metin düzenleyicisi değişti.');
       const selectedTakes=await groupTakes.resolve(e.sender,request.groupTakes,{subtitleHash:s.subtitleHash,sourceIdentity:s.sourceIdentity,range:s.range},forceGroups);
       if(forceAll&&Object.keys(selectedTakes).length)throw Error('Whole-plan regeneration cannot reuse selected recordings.');
       if (s.cancelled) { job = null; finish(s, 'cancelled'); return { ok: false, error: 'İptal edildi.' }; }
@@ -612,7 +633,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const output = path.join(outputDir, `${s.id}.wav`);
       claimArtifacts(s, [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json'),
         output.replace(/\.wav$/i, '.tmp.wav'), output.replace(/\.wav$/i, '.partial.wav'), output.replace(/\.wav$/i, '.performance.json')]);
-      if (request.narration !== true) atomicWriteFileSync(configPath(), JSON.stringify({ ...c, ...defaultReference }, null, 2), { encoding: 'utf8' });
+      if (request.narration !== true && !resume && !positionSample) atomicWriteFileSync(configPath(), JSON.stringify({ ...c, ...defaultReference }, null, 2), { encoding: 'utf8' });
       const logDir = path.join(app.getPath('userData'), 'dub-logs');
       try {
         fs.mkdirSync(logDir, { recursive: true });
@@ -623,7 +644,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         runLedger().begin({ summaryPath: s.summaryPath, id: s.id, startedAt: s.startedAt, sample: s.sample, retryOf: s.retryOf, attempt: s.attempt, label: path.basename(srt, '.srt'),
           pinned: { profile: s.settings.profile, verification, timingMode, grouping: c.grouping, expression: c.expression, deliveryStrength: c.deliveryStrength, resultMode: c.resultMode,
             concurrency, autoFit: c.autoFit, naturalSpeech: c.naturalSpeech, followDelivery: c.followDelivery, deliveryAutomatic: s.settings.deliveryAutomatic, forceAll, forceGroups,
-            narration: request.narration === true, sample: s.sample, range: s.range, sourceDuration, sourceIdentity: s.sourceIdentity, sourceLocator: s.sourceLocator || undefined, subtitleHash: s.subtitleHash,
+            narration: request.narration === true, sample: s.sample, positionSample, range: s.range, sourceDuration, sourceIdentity: s.sourceIdentity, sourceLocator: s.sourceLocator || undefined, subtitleHash: s.subtitleHash,
             referenceFingerprint: referenceRecipe, referenceName: s.settings.referenceName, pronunciations: effectivePronunciations,
             groupTakesCount: Object.keys(selectedTakes || {}).length, speechSourceStatus: s.settings.speechSourceStatus } });
         s.ledgerRun = true;
@@ -670,19 +691,18 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         fs.writeFileSync(file,JSON.stringify(selectedTakes),{encoding:'utf8',flag:'wx'});
         args.push('--take-selections-file',file);s.settings.selectedTakeCount=Object.keys(selectedTakes).length;
       }
-      if (request.sample === true) args.push('--limit', '11', '--representative-preview');
+      if (s.sample && !positionSample) args.push('--limit', '11', '--representative-preview');
       const rewriteDir = path.join(inputDir, 'duration-edits');
-      if ((c.autoFit || c.naturalSpeech) && typeof shorten === 'function') {
+      if (canEdit) {
         fs.mkdirSync(rewriteDir, {recursive:true});
         args.push('--rewrite-dir', rewriteDir);
-        const editorVersion=require('node:crypto').createHash('sha256').update(JSON.stringify([String(editorIdentity()).slice(0,128),s.settings.speechSourceIdentity])).digest('hex');
         args.push('--editor-identity', editorVersion);
         if (c.autoFit) args.push('--auto-fit');
         if (c.naturalSpeech) args.push('--natural-speech');
       }
       if (s.range) args.push('--range-start', String(s.range.start), '--range-end', String(s.range.end));
       if (request.dubText) {
-        const plan = plans.get(e.sender.id);
+        const plan = prepared;
         if (!plan || plan.srt !== srt || plan.grouping !== c.grouping || request.dubText.sourceHash !== plan.sourceHash || JSON.stringify(plan.range) !== JSON.stringify(s.range)) throw new Error('Dublaj planını yeniden hazırlayın.');
         const edits = request.dubText.edits;
         if (!edits || typeof edits !== 'object' || Array.isArray(edits)) throw new Error('Geçersiz dublaj metni.');
@@ -703,7 +723,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         try {
           if (typeof prepareProsody !== 'function') throw new Error('Source delivery unavailable');
           emit(s,'status',{stage:'delivery_analysis',text:'Özgün konuşmanın anlatımı analiz ediliyor…'});
-          await prepareProsody({request,srt:inputSrt,range:s.range,sample:s.sample,grouping:c.grouping,
+          await prepareProsody({request,srt:inputSrt,range:s.range,sample:s.sample&&!positionSample,grouping:c.grouping,
             strength:c.deliveryStrength,output:file,onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
             status:progress=>emit(s,'status',{stage:'delivery_analysis',text:progress==='stop_failed'
               ? 'Analiz durdurulamadı; Durdur düğmesiyle tekrar deneyin.' : `Özgün anlatım analiz ediliyor · ${progress}`})});
@@ -933,7 +953,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           }
           const qualityIncomplete=Number.isSafeInteger(s.progress?.total)&&s.progress.total>0&&(!quality?.groups||quality.groups.length!==s.progress.total);
           finish(s, 'done', { path: output, url: pathToFileURL(output).href, settings:s.settings, qualityUnavailable: !quality?.groups?.length||qualityIncomplete, qualityIncomplete,
-            subtitle: inputSrt, name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample ? null : s.range, sync, background, quality, sample:s.sample });
+            subtitle: inputSrt, name: path.basename(srt, '.srt') + (s.range ? `-${s.range.start}-${s.range.end}s` : '') + '-dublaj.wav', timing: s.timing || null, range: s.sample && !positionSample ? null : s.range, sync, background, quality, sample:s.sample });
         } else {
           // Python reports the real cause on stderr: a traceback line such as
           // "TypeError: ..." or the plain message of a SystemExit. Show that
@@ -945,6 +965,26 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       // start() döndükten sonra gelen iptal: çalışan run'ı durdur (kapanış yukarıdaki close işleyicisinden 'cancelled' olur).
       // cancel() waits for startPhase and then terminates the assigned run.
       referenceRecipes.set(e.sender.id+':'+s.id,referenceRecipe);
+      if(!trusted && request.narration!==true && !forceGroups.length && !Object.keys(selectedTakes).length) {
+        const frozen={srt,range:s.range,sourceDuration,sample:s.sample,positionSample,profile,concurrency,timingMode,verification,
+          grouping:c.grouping,expression:c.expression,followDelivery:c.followDelivery,deliveryStrength:c.deliveryStrength,
+          resultMode:c.resultMode,autoFit:c.autoFit,naturalSpeech:c.naturalSpeech,keepEngine:c.keepEngine,
+          keepBackground:request.keepBackground===true};
+        for(const key of ['source','referenceId','backgroundSource','prosodySource']){
+          if(typeof request[key]==='string')frozen[key]=request[key];
+        }
+        if(request.dubText)frozen.dubText={sourceHash:request.dubText.sourceHash,edits:structuredClone(request.dubText.edits)};
+        if(request.backgroundTab?.tabId)frozen.backgroundTab={tabId:request.backgroundTab.tabId,
+          generation:request.backgroundTab.generation,mediaId:request.backgroundTab.mediaId};
+        s.continuationRecipe={id:s.id,attempt:s.attempt||1,reference:referenceRecipe,request:frozen,plan:prepared,srt,
+          sourceLocator:s.sourceLocator,subtitleHash:s.subtitleHash,pronunciations:effectivePronunciations,
+          speechSourceIdentity:s.settings.speechSourceIdentity,editorVersion};
+        continuations.set(e.sender.id,s.continuationRecipe);
+        if(!continuationSenders.has(e.sender)){
+          continuationSenders.add(e.sender);
+          e.sender.once?.('destroyed',()=>continuations.delete(e.sender.id));
+        }
+      }
       while(referenceRecipes.size>128)referenceRecipes.delete(referenceRecipes.keys().next().value);
       return { ok: true, id: s.id };
     } catch (error) {
@@ -953,7 +993,17 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       finish(s, s.cancelled ? 'cancelled' : 'error', { error: error.message }); throw error;
     }
   }
-  ipcMain.handle('dub:start', guard((e, request = {}) => startGeneration(e, request)));
+  ipcMain.handle('dub:start', guard(async (e, request = {}) => {
+    if(request.resumeOf===undefined)return startGeneration(e,request);
+    const recipe=continuations.get(e.sender.id);
+    if(!recipe?.interrupted || recipe.claimed || recipe.id!==request.resumeOf)throw Error('The paused run is unavailable / Yarım kalan üretim bulunamadı.');
+    recipe.claimed=true;
+    try {
+      const result=await startGeneration(e,{...recipe.request,id:request.id,recipeId:request.resumeOf},null,recipe);
+      if(result?.ok)recipe.interrupted=false;
+      return result;
+    } finally {recipe.claimed=false;}
+  }));
   // Current settings as the retry preview compares them (same keys as the pinned options; no paths).
   function currentRunSettings() {
     const c = config();

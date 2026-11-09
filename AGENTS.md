@@ -24,7 +24,7 @@
 - İkincil gezinme soldaki simgenin hover/tıklama/klavye menüsünde; dar ekranda kontrolleri ezme. İleri ayarlar erişilebilir kalsın. Gerçek Windows geniş/dar görüntüsünü onaylı tasarımla karşılaştır; test geçmesini estetik başarı sayma.
 - Değişen davranışa kısa, anlamlı test ve sözdizimi kontrolü yap. Belge değişiminde bağlantı/diff kontrolü yeterlidir; gereksiz tam paket/uzun test bekleme. Mock, canlı site/GPU/sağlayıcı başarısı değildir; sınırları açık yaz.
 - Kullanıcının güncel tercihi: kısa hedefli kontrollerle ilerle; kendiliğinden genişlik matrisi, yüzlerce ekran çekimi, CPU/frame ölçümü veya kapsamlı kabul raporu üretme. Computer Use kullanma ve dosya erişim onay penceresi açan testleri tetikleme. Küçük görsel ayrıntılar için işi durdurup tekrar onay isteme; mevcut onaylı tasarım dilini uygula.
-- Uygulama açılacaksa LG monitörü kullan; ilk monitöre açma. Canlı podcast transkripsiyon/çeviri denemesi en fazla 3–4 dakika olsun. Gereksiz yeni test dosyası üretme; uygun mevcut testleri güncelle. Agent gerekirse varsayılan `gpt-6.1-sol` medium; işlem gerektiriyorsa high.
+- Uygulama açılacaksa LG monitöründe izole profil ve gerçek 1920×1080 tam ekran kullan; OS çözünürlüğünü değiştirme, kişisel açık uygulamaya dokunma. Canlı podcast transkripsiyon/çeviri denemesi en fazla 3–4 dakika olsun. Gereksiz yeni test dosyası üretme; uygun mevcut testleri güncelle. Kullanıcı istemedikçe agent açma.
 - Windows ana ortamdır: D:\Whisper Local. Normal açılış start.bat; npm start/native fixture, start.bat/CUDA/kişisel kullanım doğrulaması yerine geçmez.
 - **GitHub Actions başlatma: kredi yok.** Commit/PR/merge başlıklarında [skip ci] kullan. Başarısız kabul hedefini gizleme, eşiği gevşetme veya tamamlandı deme.
 
@@ -32,5 +32,5 @@
 
 - Yarım kalan/engellenen işi turn sonunda **BACKLOG.md**'ye yaz: durum, dal/PR, kanıt, kalan kabul koşulu ve tam sonraki adım. Sohbeti tek kayıt yeri yapma. Yalnız doğrulanmış biten değişikliği **CHANGELOG.md**'ye ekle.
 - Her teslimde docs/devir/YYYY-MM-DD-HHMM.md oluştur ve DEVIR-NOTU.md indeksini güncelle. Başlangıç/bitiş kod kimliği, dosyalar, testler, sınırlar ve kalan işleri yaz; eski notları silme. Ürün ve belge commitlerini ayır; yalnız belge işinde ürün kodunun değişmediğini belirt.
-- Doğru repo: https://github.com/dorukakindev/whisper-browser. Güncel master'dan codex/ dalı ve PR kullan. Tamamlanmış/doğrulanmış işi mevcut sürekli yetkiyle merge edip ana kopyayı kişisel dosyaları koruyarak güncelle; tekrar onay isteme. Kullanıcının özel bekletme/onay/kabul şartı varsa ona uy.
+- Doğru repo: https://github.com/dorukakindev/whisper-browser; gerçek ana dal `master`. Geliştirmeyi üçlü, anlamlı işler halinde yerelde biriktir. GitHub teslimini kısa öner ve açık commit/push/merge komutu bekle; genel “devam et/hepsini yap” Git teslimi değildir. Açık teslim komutunda güncel master'dan `codex/` dalı ve PR kullan, doğrulanmış işi birleştir ve ana kopyayı kişisel farkları koruyarak güncelle; aynı teslim için yeniden onay isteme.
 - Sonuçta push/merge/yerel HEAD'i doğrula; repo, tarihli devir bağlantısı, tam uzak commit kimliği ve doğrulanmayanları kısaca bildir. Push/merge gerçekleşmeden gerçekleşti deme.

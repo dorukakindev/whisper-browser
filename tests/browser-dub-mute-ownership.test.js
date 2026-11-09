@@ -2,11 +2,12 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const source=fs.readFileSync(require.resolve('../src/main.js'),'utf8');
 const block=source.slice(source.indexOf("ipcMain.handle('browser:tab:mute'"),source.indexOf("ipcMain.handle('browser:places:folder'"));
+const releaseHold=source.slice(source.indexOf('function releaseSourceReturnHold('),source.indexOf("ipcMain.handle('browser:navigate'"));
 function harness(initial=false){
  let muted=initial,handler,authorized=true;const events=[];
  const wc={isDestroyed:()=>false,isAudioMuted:()=>muted,setAudioMuted:value=>{muted=value;},isCurrentlyAudible:()=>false};
  const tab={id:'tab',generation:1,mediaId:'video-A',view:{webContents:wc}};
- vm.runInNewContext(block,{ipcMain:{handle:(_name,fn)=>{handler=fn;}},authorizedBrowserSender:()=>authorized,browserTabById:id=>id==='tab'?tab:null,sendBrowserEvent:(_tab,value)=>events.push(value)});
+ vm.runInNewContext(releaseHold+block,{ipcMain:{handle:(_name,fn)=>{handler=fn;}},authorizedBrowserSender:()=>authorized,browserTabById:id=>id==='tab'?tab:null,sendBrowserEvent:(_tab,value)=>events.push(value)});
  const meta=(owner,mode,extra={})=>({owner,mode,generation:1,mediaId:'video-A',...extra});
  return {tab,wc,events,meta,read:()=>muted,call:(value,lease)=>handler({},'tab',value,lease),deny:()=>{authorized=false;}};
 }

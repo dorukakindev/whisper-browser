@@ -15,7 +15,7 @@ const {inspectVoiceOutput}=require('./voice-output');
 const ID=/^[a-zA-Z0-9-]{1,80}$/;
 const ENUMS={profile:['fast','quality'],verification:['fast','balanced','detailed'],timingMode:['clip','video'],grouping:['akici','anlatim','cumle','satir'],
  expression:['reference','calm','warm','lively'],deliveryStrength:['gentle','balanced','strong'],resultMode:['natural','custom']};
-const FLAGS=['followDelivery','autoFit','naturalSpeech','forceAll','narration','sample','deliveryAutomatic'];
+const FLAGS=['followDelivery','autoFit','naturalSpeech','forceAll','narration','sample','deliveryAutomatic','positionSample'];
 const MAX_RUNS=60,MAX_TAIL=64*1024,TOKEN_TTL=10*60*1000;
 const locators=require('./dub-source-locator');
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -309,7 +309,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
    const use=entry.use;
    const request={id:newId,profile:use.profile,concurrency:use.concurrency,timingMode:use.timingMode,verification:use.verification,grouping:use.grouping,expression:use.expression,
     followDelivery:use.followDelivery,deliveryStrength:use.deliveryStrength,resultMode:use.resultMode,autoFit:use.autoFit,naturalSpeech:use.naturalSpeech,forceAll:false,
-    forceGroups:entry.pinned.forceGroups||[],sample:entry.pinned.sample===true,range:entry.pinned.range,sourceDuration:entry.pinned.sourceDuration};
+    forceGroups:entry.pinned.forceGroups||[],sample:entry.pinned.sample===true,positionSample:entry.pinned.positionSample===true,range:entry.pinned.range,sourceDuration:entry.pinned.sourceDuration};
    for(const key of Object.keys(request))if(request[key]===undefined)delete request[key];
    const result=await start(request,{srt:entry.copy,sourceIdentity:entry.pinned.sourceIdentity??null,sourceLocator:entry.pinned.sourceLocator??null,pronunciations:entry.pinned.pronunciations||[],retryOf:entry.runId,attempt:entry.attempt});
    // A failed start may have left a partial run behind: the approval is consumed and a new preview is required.

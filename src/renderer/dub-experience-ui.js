@@ -12,7 +12,7 @@
  host.hidden=true;
  window.addEventListener('dub-takes:context',reviewVisibility);
  window.addEventListener('dub-generator:busy',reviewVisibility);
- $('dubGeneratorDialog').querySelector('.dub-studio-scroll').prepend(host);
+ $('dubReviewToolsBody').prepend(host);
  reviewVisibility();
  const files=el('details','dub-files-menu'),fileLabel=el('summary','btn btn-ghost'),filePanel=el('div','dub-files-panel');files.append(fileLabel,filePanel);for(const id of ['dubGeneratorOutput','dubStorageOpen','dubGeneratorLog'])filePanel.append($(id));($('dubGeneratorDialog').querySelector('.dub-run-meta')||$('dubGeneratorCancel').parentElement).append(files);
  $('dubGeneratorDialog').addEventListener('pointerdown',event=>{if(!files.contains(event.target))files.open=false;});
@@ -23,16 +23,17 @@
  let serial=0,lastOwner=ui().experience().owner;
  document.addEventListener('media-context-changed',()=>{const owner=ui().experience().owner;if(owner===lastOwner)return;lastOwner=owner;files.open=false;serial++;inspect.disabled=false;status.textContent='';details.hidden=true;list.replaceChildren();});
  function labels(){groupCompare.textContent=t('Compare grouping','Gruplamayı karşılaştır');fileLabel.textContent=t('Files & log','Dosyalar ve kayıt');title.textContent=t('Review & repair','İnceleme ve onarım');inspect.textContent=t('Inspect script','Metni denetle');compare.textContent=t('Compare translations','Çevirileri karşılaştır');repair.textContent=t('Repair current moment · Ctrl+Alt+R','İzlediğim anı düzelt · Ctrl+Alt+R');}
- async function preflight(){const request=++serial,identity=JSON.stringify([ui().experience().owner,ui().experience().srt]);inspect.disabled=true;
-  try{const report=await ui().inspectProduction();if(request!==serial||identity!==JSON.stringify([ui().experience().owner,ui().experience().srt]))return;if(!report){status.textContent=t('Select a subtitle first.','Önce altyazı seç.');return;}
-   inspectedSource=identity;
+ async function preflight(scopedReport=null){const request=++serial,identity=JSON.stringify([ui().experience().owner,ui().experience().srt]);inspect.disabled=true;
+  try{const report=scopedReport||await ui().inspectProduction();if(request!==serial||identity!==JSON.stringify([ui().experience().owner,ui().experience().srt]))return;if(!report){status.textContent=t('Select a subtitle first.','Önce altyazı seç.');return;}
+   inspectedSource=scopedReport?null:identity;
    summary.textContent=t(`${report.rows.length} groups · ${report.flagged} text checks · ${report.dense} dense`,`${report.rows.length} grup · ${report.flagged} metin uyarısı · ${report.dense} yoğun`);
    status.textContent=t('Advisory checks, not a completeness or naturalness guarantee. Nothing is changed automatically. ','Bunlar inceleme ipuçlarıdır; eksiksizlik veya doğallık garantisi değildir. Hiçbir şey otomatik değiştirilmez. ')+(report.referenceChecked?(report.referenceWarnings.length?t('Reference needs review: ','Referansı kontrol et: ')+report.referenceWarnings.map(w=>({quiet:t('low level','kısık ses'),clipping:t('clipping','ses patlaması'),silence:t('long silence','uzun sessizlik'),short:t('too short','çok kısa'),'downmix-cancellation':t('stereo cancellation in mono','mono karışımda stereo zayıflaması')}[w]||w)).join(', '):t('Reference level was checked.','Referans seviyesi kontrol edildi.')):t('Reference audio has not been measured in this session.','Referans sesi bu oturumda henüz ölçülmedi.'));
    const issueLabels={'empty':t('Empty text','Boş metin'),'damaged-text':t('Damaged characters','Bozuk karakterler'),'translation-marker':t('Translation failure marker','Çeviri hata işareti'),'source-copy':t('Text matches the English source','Metin İngilizce kaynakla aynı'),'number-check':t('Check quantities against source; formats may differ','Miktarları kaynakla karşılaştır; yazılışları farklı olabilir'),'possible-source-language':t('May still be in the source language; review','Kaynak dilde kalmış olabilir; kontrol et')};
    list.replaceChildren();for(const row of report.rows.filter(r=>r.issues.length||r.dense||r.long).slice(0,20)){
     const reasons=[...row.issues.map(i=>issueLabels[i]),...(row.long?[t('Long group','Uzun grup')]:[]),...(row.dense?[t('Dense timing','Yoğun zamanlama')]:[])];
     const text=t(`${Number.isFinite(row.seconds)?row.seconds.toFixed(1):'—'} s available · ~${row.estimated} s estimated`,`${Number.isFinite(row.seconds)?row.seconds.toFixed(1):'—'} sn aralık · ~${row.estimated} sn tahmin`);
-    const b=button(reasons.join(' · ')+' — '+text+' · '+row.text.slice(0,110),()=>void ui().editPlanGroup(row.key));list.append(b);
+    const copy=reasons.join(' · ')+' — '+text+' · '+row.text.slice(0,110);
+    list.append(scopedReport?el('p','',copy):button(copy,()=>void ui().editPlanGroup(row.key)));
    }
    if(!list.childElementCount)list.append(el('p','',t('No groups flagged by these checks. Listen to a sample before deciding.','Bu kontrollerde grup işaretlenmedi. Karar vermeden önce kısa örneği dinle.')));
    if(report.rows.filter(r=>r.issues.length||r.dense||r.long).length>20)list.append(el('p','',t('First 20 flagged groups shown. All groups remain in the text editor.','İlk 20 işaretli grup gösteriliyor. Tüm gruplar metin düzenleyicisinde bulunur.')));
@@ -128,7 +129,15 @@
  }
  window.addEventListener('dub-takes:context',showContinuity);document.addEventListener('ui-locale-change',showContinuity);
  document.addEventListener('keydown',event=>{if(event.defaultPrevented||event.isComposing||[...document.querySelectorAll('dialog[open]')].some(dialog=>dialog!==$('dubGeneratorDialog')))return;if(event.ctrlKey&&event.altKey&&!event.shiftKey&&event.code==='KeyR'&&!event.repeat&&!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)&&!event.target.isContentEditable){event.preventDefault();void repairNow();}});
- window.addEventListener('dub-preflight-ready',()=>void preflight());
+ window.addEventListener('dub-preflight-ready',event=>{
+  if(event.detail?.reveal){
+   $('dubReviewTools').open=true;
+   host.open=true;
+   host.scrollIntoView?.({block:'nearest'});
+   title.focus({preventScroll:true});
+  }
+  void preflight(event.detail?.scopedReport);
+ });
  document.addEventListener('ui-locale-change',labels);labels();
  window.DubExperienceUI=Object.freeze({preflight,repairNow,comparison});
 })();

@@ -26,18 +26,18 @@ test('failed or stale publisher loading leaves the accepted transcript and trans
   if(failure==='stale')await f.context.load(1);else await assert.rejects(f.context.load(1));assert.equal(JSON.stringify(f.audio),before,failure);assert.equal(f.player.cues2[0].text,'Old timed translation');
  }
 });
-test('Saved RSS output uses timed loading only for exact complete source and otherwise becomes read-only',async()=>{
+test('Saved RSS output uses timed loading for a matching source and otherwise becomes read-only',async()=>{
  const audio={entryId:'A',mediaKey:'rss:A',generation:2,sourceVersion:'remote-unknown'},requests=[],loads=[],modes=[];const player={workspaceAudio:audio,mediaKey:'rss:A',generation:2};
  let saved={sourceVersion:'download-sha',workspace:{transcript:{state:'timed',text:'srt',status:'complete'}}};
  const context={player,t:(_tr,en)=>en,api:async input=>{requests.push(input);return input.action==='podcast-materialize'?{path:'managed.srt'}:saved;},parseSubtitles:()=>[{start:1,end:2,text:'Stored result'}],loadSubtitle:async(...args)=>{loads.push(args);player.subPath=args[0];},window:{PlayerWorkspaceIntegration:{setPodcastMode:value=>modes.push(value),refresh(){}}}};
- const start=source.indexOf('  async function loadSavedPodcastResult('),end=source.indexOf('  function podcastTools(',start);vm.runInNewContext(source.slice(start,end)+';globalThis.load=loadSavedPodcastResult;',context);
+ const start=source.indexOf('  const savedPodcastResultLoads='),end=source.indexOf('  function podcastTools(',start);vm.runInNewContext(source.slice(start,end)+';globalThis.load=loadSavedPodcastResult;',context);
  await context.load();assert.equal(audio.transcriptState,'untimed');assert.equal(audio.transcriptText,'Stored result');assert.match(audio.transcriptTimingNotice,/Read-only/);assert.equal(loads.length,0);assert.equal(audio.sourceVersion,'remote-unknown');assert.equal(modes.length,0,'loading saved text preserves the explicitly selected player view');
  audio.sourceVersion='download-sha';const load=context.loadSubtitle;
  context.loadSubtitle=async()=>{};await assert.rejects(context.load(),/selection changed/);assert.equal(audio.transcriptState,'untimed');
  context.loadSubtitle=load;await context.load();assert.equal(audio.transcriptState,'timed');assert.equal(loads.length,1);assert.equal(requests.at(-1).action,'podcast-materialize');assert.equal(audio.transcriptTimingNotice,undefined);assert.equal(audio.transcriptText,undefined);
  saved.workspace.translation={state:'untimed',text:'translated',status:'complete'};await context.load('translation');assert.equal(modes.length,0,'loading a translation also preserves the selected view');
- saved.workspace.transcript.status='partial';await context.load();assert.equal(audio.transcriptState,'untimed');assert.equal(loads.length,1);
- saved.workspace.transcript.status='complete';saved.workspace.transcript.provenance='asr';await context.load();assert.equal(audio.transcriptState,'untimed','a cached download hash does not verify a newly opened RSS stream');assert.equal(loads.length,1);
+ saved.workspace.transcript.status='partial';await context.load();assert.equal(audio.transcriptState,'timed');assert.equal(loads.length,2);
+ saved.workspace.transcript.status='complete';saved.workspace.transcript.provenance='asr';await context.load();assert.equal(audio.transcriptState,'untimed','a cached download hash does not verify a newly opened RSS stream');assert.equal(loads.length,2);
 });
 test('Spotify confirmation exposes explicit RSS open without playback until the open action',async()=>{
  class Element{constructor(tag){this.tag=tag;this.children=[];this.dataset={};this.listeners={};this.isConnected=true;this.textContent='';}append(...nodes){this.children.push(...nodes);}replaceChildren(...nodes){this.children=nodes;}setAttribute(){}addEventListener(event,fn){this.listeners[event]=fn;}showModal(){this.open=true;}close(){this.open=false;this.listeners.close?.();}remove(){this.isConnected=false;}}
@@ -51,7 +51,7 @@ test('Spotify confirmation exposes explicit RSS open without playback until the 
 
 test('A late saved-result response cannot replace the next episode',async()=>{
  let complete;const first={entryId:'A',mediaKey:'A',generation:1,sourceVersion:'a'},player={workspaceAudio:first,mediaKey:'A',generation:1};const context={player,t:(_tr,en)=>en,api:()=>new Promise(resolve=>{complete=resolve;}),window:{PlayerWorkspaceIntegration:{refresh(){throw Error('stale refresh');}}}};
- const start=source.indexOf('  async function loadSavedPodcastResult('),end=source.indexOf('  function podcastTools(',start);vm.runInNewContext(source.slice(start,end)+';globalThis.load=loadSavedPodcastResult;',context);const pending=context.load();player.workspaceAudio={entryId:'B',mediaKey:'B',generation:2,sourceVersion:'b'};player.mediaKey='B';player.generation=2;complete({sourceVersion:'a',workspace:{transcript:{state:'untimed',text:'stale result'}}});await pending;assert.equal(first.transcriptText,undefined);assert.equal(player.workspaceAudio.transcriptText,undefined);
+ const start=source.indexOf('  const savedPodcastResultLoads='),end=source.indexOf('  function podcastTools(',start);vm.runInNewContext(source.slice(start,end)+';globalThis.load=loadSavedPodcastResult;',context);const pending=context.load();player.workspaceAudio={entryId:'B',mediaKey:'B',generation:2,sourceVersion:'b'};player.mediaKey='B';player.generation=2;complete({sourceVersion:'a',workspace:{transcript:{state:'untimed',text:'stale result'}}});await pending;assert.equal(first.transcriptText,undefined);assert.equal(player.workspaceAudio.transcriptText,undefined);
  const integration=fs.readFileSync(require.resolve('../src/renderer/player-workspace-integration.js'),'utf8');assert.match(integration,/rows = player\.workspaceAudio\?\.transcriptState==='untimed'\?\[\]/);assert.match(integration,/timed:!\['untimed','needs-review'\]\.includes/);
 });
 

@@ -1982,6 +1982,7 @@ def stage_translation_metadata(transaction, output_path, staged_subtitle,
              "model": str(getattr(args, "translate_model", "") or ""),
              "provider": str(getattr(args, "translate_base_url", "") or ""),
              "forSpeech": bool(getattr(args, "translate_for_speech", False)),
+             **({"mixedSubtitleRepair": True} if getattr(args, "mixed_subtitle_repair", False) else {}),
              **({"speechProtocol": SPEECH_TRANSLATION_PROTOCOL} if getattr(args, "translate_for_speech", False) else {}),
              "cues": cues, **context}
     def write_metadata(staged):
@@ -9219,7 +9220,10 @@ def translate_existing_subtitle(args):
                     if (record and str(record.get("status")) == "completed"
                             and len(old) >= 3 and str(old[2]).strip()
                             and (not translation_is_source_echo(entry[2], old[2])
-                                 or is_structural_sdh_cue(entry[2]))):
+                                 or is_structural_sdh_cue(entry[2])
+                                 or (getattr(args, 'translate_retry_only', False)
+                                     and existing_meta.get('mixedSubtitleRepair') is True
+                                     and str(entry[2]).strip() == str(old[2]).strip()))):
                         existing_by_key[(
                             round(float(entry[0]), 3), round(float(entry[1]), 3), index
                         )] = old[2]
@@ -9261,6 +9265,11 @@ def translate_existing_subtitle(args):
                                '/ Yeniden deneme kaynağı veya metadata değişti; yeni istek gönderilmedi.')
     def existing_for(entry, index):
         return existing_by_key.get((round(float(entry[0]), 3), round(float(entry[1]), 3), index))
+
+    # Explicit mixed-file repair preserves unselected rows verbatim. This is
+    # never permission to bypass the source-echo guard in ordinary translations.
+    args.mixed_subtitle_repair = bool(getattr(args, 'translate_retry_only', False)
+                                     and existing_meta and existing_meta.get('mixedSubtitleRepair') is True)
 
     # Kaynak==hedef dil kapısı. Normal transkripsiyon yolunda zaten vardı
     # (:6738) ama var-olan-altyazı modunda yoktu: Türkçe bir .tr.srt'i
@@ -9353,9 +9362,11 @@ def translate_existing_subtitle(args):
         # None'ı boş liste gibi ele alıp kaynak metinleri "çeviri" dosyasına
         # yazmak, kullanıcıya başarısız işi tamamlanmış gibi gösteriyordu.
         if translated_pending is None:
+            reason = AI_FRIENDLY_ERRORS.get(translation_status.get("lastError"), "")
             raise RuntimeError(
                 "Eksik altyazı blokları çevrilemedi; mevcut çeviri korunarak "
                 "yeniden deneme için çıktı yazılmadı."
+                + (f" {reason}" if reason else "")
             )
         # llm_translate her zaman girişle aynı uzunlukta ve aynı sıralamada
         # döndürür (başarısız konumda kaynak metin kalır); indeksler artık

@@ -26,7 +26,37 @@
     const track = (role, list) => ({ id: role + '-track', revision: 'r1', role, timed: true, offsetSeconds: 0, cues: cues(list), language: role === 'source' ? 'en' : 'tr' });
     const tracks = variant === 'untimed' ? [{ id: 'source-text', revision: 'r1', role: 'source', timed: false, text: sentences.join('\n\n'), cues: [] }]
       : variant === 'single' ? [track('source', sentences)] : [track('source', sentences), track('translation', tr)];
+    if (variant === 'missing') {
+      tracks[1].cues[1].translationMissing = true;
+      tracks[1].cues[1].text = sentences[1];
+      tracks[0].cues[3].text = tracks[1].cues[3].text = 'The people who were there would have heard what they said in the room.';
+    }
     const snap = { mediaKey: 'shelf:B', generation: 1, entryId: 'entry-B', sourceVersion: VERSION, title: 'Bölüm 214 — Yapay zekâ ve dil öğrenimi: konuşmayı yeniden düşünmek', duration: 1800, time: 21, paused: false, rate: 1, capabilities: { seek: { support: 'yes' } } };
+    if (mode === 'cinema') {
+      const source = tracks[0], translation = tracks[1] || {id:'translation-track', revision:'empty', role:'translation', cues:[], offsetSeconds:0};
+      Object.assign(player, { workspaceMode:'player', mediaKey:'local:fixture', generation:1,
+        subRole:'source', sub2Role:'translation', subLang:'en', sub2Lang:'tr',
+        subPath:'C:/fixture/source.srt', offset:0, cues:source.cues, cues2:translation.cues });
+      fx.stageCommands=[];
+      let podcastMode=false;
+      window.PlayerWorkspaceIntegration = { ...window.PlayerWorkspaceIntegration, bridge:{},
+        snapshot:() => ({...snap, mediaKey:player.mediaKey, sourceKind:'local'}),
+        getTranscriptTracks:() => [{...source,offsetSeconds:player.offset}, translation],
+        executeExisting:async command=>{
+          fx.stageCommands.push(command.type);
+          if(command.type==='setAB'){player.abA=command.a;player.abB=command.b;}
+          if(command.type==='seek')snap.time=command.time;
+          return {ok:true};
+        },
+        isPodcastMode:() => podcastMode, setPodcastMode(value) {podcastMode=value;} };
+      document.getElementById('playerTitle').textContent = snap.title;
+      document.getElementById('playerEmpty').classList.add('hidden');
+      document.getElementById('playerWorkspaceV3').hidden = false;
+      document.getElementById('playerLayer').classList.remove('hidden');
+      hideHomeOnVideoLoad();
+      CinemaSahne.open({mode});
+      return {ok:CinemaSahne.current?.o.mode === mode};
+    }
     const shelf = { readSnapshot: () => snap, isPodcastMode: () => true, openPodcastMode: async () => {}, getTranscriptTracks: () => tracks, executeExisting: async () => ({ ok: true }), podcastInfo: () => ({}) };
     window.MediaShelfUI = new Proxy(shelf, { get: (target, key) => key in target ? target[key] : key === 'then' ? undefined : () => null });
     return CinemaSahne.openShelf({ mode });

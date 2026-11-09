@@ -157,12 +157,11 @@ async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='
     request_id = uuid.uuid4().hex
     response_path = args.rewrite_dir / (request_id + '.json')
     rewrite_started=time.monotonic()
-    print('DUB_ACTIVITY '+json.dumps({'stage':'text_edit'}),flush=True)
     print('DUB_REWRITE ' + json.dumps({'id': request_id, 'group': i + 1,
         'key':getattr(args,'group_keys',[])[i] if i<len(getattr(args,'group_keys',[])) else '',
         'sourceHash':getattr(args,'source_hash',''),
         'text': text, 'seconds': min(35, seconds), 'mode':mode, 'measured':measured, 'before':before[-1500:], 'after':after[:1500]}), flush=True)
-    try:
+    async def wait_for_reply():
         # The editor may perform one source-meaning review after its rewrite.
         # Both provider requests have their own deadlines; this wait is bounded.
         for _ in range(900):
@@ -182,6 +181,9 @@ async def rewrite_for_window(args, i, text, seconds, before='', after='', mode='
                 return text
             await asyncio.sleep(.1)
         return text
+    try:
+        from dub_activity import observe
+        return await observe(wait_for_reply(), group=i+1, attempt=1, limit=90, stage='text_edit')
     except (OSError, ValueError, TypeError):
         # Optional editing failure must never turn otherwise valid speech into silence.
         return text
@@ -267,8 +269,8 @@ async def uret(args, cues, paths, prompt_text):
         verifier.phases=getattr(args,'phases',None)
         total = len(cues)
         done = sum(1 for i, p in enumerate(paths) if p.is_file() and args.group_keys[i] not in args.force_groups)
-        if done:
-            print(f"[{done}/{total}] Kayitli satirlar kullaniliyor.", flush=True)
+        if total:
+            print(f"[{done}/{total}]" + (" Kayitli satirlar kullaniliyor." if done else ""), flush=True)
         cached = done
         results = []
 
@@ -899,6 +901,7 @@ def main(argv=None, runtime=None):
     else:
         sr = sf.info(str(paths[0])).samplerate
         print("Tum satirlar hazir; zaman cizelgesi kuruluyor.", flush=True)
+        print(f"[{len(paths)}/{len(paths)}] Kayitli satirlar kullaniliyor.", flush=True)
         print('DUB_METRICS ' + json.dumps({'attempts': 0, 'retries': 0,
               'cached_groups': len(paths), 'generated_groups': 0,
               'steps': args.steps, 'concurrency': args.eszamanli}), flush=True)

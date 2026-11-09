@@ -64,6 +64,7 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
 (async()=>{
   try {
     assert.equal((await call('dub:config')).ready,true);
+    assert.equal((await call('dub:config')).verification,'balanced');
     assert.equal((await call('dub:pronunciations',[{from:'Newton',to:'Nyutin'}])).ok,true);
     assert.deepEqual((await call('dub:config')).pronunciations,[{from:'Newton',to:'Nyutin'}]);
     assert.equal((await call('dub:pronunciations',[{from:'12',to:'x'}])).ok,false);
@@ -480,6 +481,30 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal(backgroundLimit, 0, 'packed representative preview must not separate a full video background');
     assert.ok(calls.at(-1).args.includes('--representative-preview'));
     child.emit('close',1);
+    const sampleRange={start:42.125,end:62.125};
+    assert.equal((await call('dub:start',{id:'position-too-long',srt,sample:true,positionSample:true,range:{start:42,end:63}})).ok,false);
+    assert.equal((await call('dub:start',{id:'position-sample',srt,sample:true,positionSample:true,range:sampleRange,sourceDuration:90,profile:'fast',timingMode:'clip'})).ok,true);
+    let sampleArgs=calls.at(-1).args;
+    assert.equal(sampleArgs[sampleArgs.indexOf('--range-start')+1],'42.125');
+    assert.equal(sampleArgs[sampleArgs.indexOf('--range-end')+1],'62.125');
+    assert.ok(!sampleArgs.includes('--representative-preview'));
+    child.stdout.emit('data','[1/2]\n');
+    assert.equal((await call('dub:cancel')).ok,true);child.emit('close',1);
+    assert.equal(events.at(-1).type,'cancelled');
+    assert.equal(events.at(-1).canResume,true);
+    assert.equal((await handlers['dub:start']({sender:{...sender,id:8}},{id:'other-sender',resumeOf:'position-sample'})).ok,false);
+    fs.writeFileSync(srt,'changed since stop');
+    assert.equal((await call('dub:start',{id:'position-stale',resumeOf:'position-sample'})).ok,false);
+    fs.writeFileSync(srt,'fixture');
+    assert.equal((await call('dub:start',{id:'position-resume',resumeOf:'position-sample',profile:'quality',range:{start:1,end:2}})).ok,true);
+    sampleArgs=calls.at(-1).args;
+    assert.equal(sampleArgs[sampleArgs.indexOf('--steps')+1],'10');
+    assert.equal(sampleArgs[sampleArgs.indexOf('--range-start')+1],'42.125');
+    assert.ok(!sampleArgs.includes('--force-groups'));
+    fs.writeFileSync(sampleArgs[sampleArgs.indexOf('--output')+1],wav);child.emit('close',0);
+    assert.deepEqual(events.at(-1).range,sampleRange);
+    assert.equal(events.at(-1).sample,true);
+    assert.equal((await call('dub:start',{id:'position-replay',resumeOf:'position-sample'})).ok,false);
     backgroundMode='hold';
     const preparing=call('dub:start',{id:'cancel-background',srt,keepBackground:true});
     await new Promise(resolve=>setImmediate(resolve));

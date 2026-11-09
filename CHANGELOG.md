@@ -1,5 +1,33 @@
 # Changelog
 
+- **Yerel, 2026-11-09.** Podcast kuyruğu yerel sesi otomatik başlatır. Altyazı çevirisi zaman aşımı ve istek sınırı nedenlerini gösterir. Kaynakla aynı kalan belirgin kısa İngilizce cümleler olası eksik olarak işaretlenir. [Devir](docs/devir/2026-11-09-1630.md)
+
+- **Yerel, 2026-11-09.** Aynı medyanın transkripti güncellendiğinde Sahne okuma konumunu korur ve eski satır eşlemesini bırakır. [Devir](docs/devir/2026-11-09-1620.md)
+
+- **Yerel, 2026-11-09.** Podcast kuyruğunu alt çubukta gösterir. Çift dilli görünüm cümle tekrarını ve döngüsünü bir arada tutar. Oynatıcı oynatma ve ±10 saniye kontrollerini ayrı grupta öne çıkarır. [Devir](docs/devir/2026-11-09-1556.md)
+
+- **Yerel, 2026-11-09.** Aynı medyanın Sahne görünümleri arasında transkript okuma bağlamı korunur. İşlemler’de altyazı zamanlaması, sabit ses aralığını döngüde dinleyerek ayarlanabilir. [Devir](docs/devir/2026-11-09-1546.md)
+
+- **Yerel, 2026-11-09.** Tek altyazı görünümü dengeli satır sarımı ve sabit okuma alanı kullanır. Transkript araması eşleşen metni vurgular ve seçili sonuçtan oynatabilir. [Devir](docs/devir/2026-11-09-1542.md)
+
+- **Yerel, 2026-11-09.** Dublaj panelinde oynatma konumundan en fazla 20 saniyelik dinleme örneği ve aynı oturumdaki yarım üretime devam eylemi eklendi. Örnek seçili tam üretim kapsamını korur. Devam, özgün ayarları ve eşleşen hazır grupları kullanır. [Devir](docs/devir/2026-11-09-1538.md)
+
+- **Yerel, 2026-11-09.** Transkriptte eksik çeviri filtresi, satır sayısı ve Sonraki eksik eylemi eklendi. Doğrulanmış ve olası eksikler ayrı etiketlenir. Doğal dublaj, metin hazırlığı, ses üretimi ve Whisper denetimini grup numarasıyla ayrı gösterir. İşlenen grup sayısı görünür kalır. [Devir](docs/devir/2026-11-09-1527.md)
+
+- **Yerel, 2026-11-09.** Sahne’de İşlemler altyazı ve Whisper eylemlerini öne alır. Kısmi çeviri şeridi eksik satır sayısını tek tamamlama düğmesinde gösterir ve uzun mesajları sarar. Oynatıcıdaki dil düğmesi iki dil olduğunda görünür ve önceki tercihi hatırlar. [Devir](docs/devir/2026-11-09-1449.md)
+
+- **Yerel, 2026-11-09.** İşlemler’de eksik çeviri için tek onaylı eylem var. Dublaj ilk açılışta denetim kapsamını gösteriyor ve kayıtlı tercih yoksa Dengeli kullanıyor. Sonuç kartı dinleme oynatıcısını öne çıkarıyor. [Devir](docs/devir/2026-11-09-1442.md)
+
+- **Yerel, 2026-11-09.** Dublaj hazırlığı, seçili altyazı, ses ve kapsamı tek listede gösteriyor. Her satır kendi kontrollerini açıyor. Dil adları okunur biçimde gösteriliyor ve kısmi sonuç düğmeleri daha dar pencereye sığıyor. [Devir](docs/devir/2026-11-09-1436.md)
+
+- **Yerel, 2026-11-09.** Dublaj menüsünde altyazı, referans ses, kapsam ve başlatma ilk ekranda. Üretim ayarları, metin ve çıktı araçları, geçmiş ayrı açılır bölümlerde. Ön denetim ve sonuç kısayolları ilgili bölümü açar. [Devir](docs/devir/2026-11-09-1431.md)
+
+- **Yerel, 2026-11-09:** İşlemler’e cümle birleştirme kutucuğu ve yüklü partial/karma altyazıdaki çevrilmemiş yerleri onayla çevirme eylemi eklendi. Kutucuk mevcut işleme/oynatıcı ayarlarını ve yeni dublaj gruplamasını kullanır; çalışan işi değiştirmez. Metadata’sız karma dosyada seçilmeyen metin ve zamanlar korunur. Podcast Sahnesi üzerindeki onayın katman ve inert koruması düzeltildi. Son odaklı kontroller 15/15 Node + 2/2 backend; canlı sağlayıcı/ses kabulü değildir. [Devir](docs/devir/2026-11-09-1310.md)
+
+- **Yerel, 2026-11-09:** çeviri sonucu ve dublaj ön kontrolünde eksik veya İngilizce kalmış olabilecek satırlar için “Evet, bu satırları çevir” seçeneği eklendi. Onay, doğrulanmış kaynaktan ayrı bir eksik-satır işi oluşturur; eski onay reddedilir, başarılı metin ve zamanlar korunur. Dublajdaki metin denetimi etiketi sıra süresini istek sınırından ayırır. 29/29 hedefli test; kontrollü başsız görsel kontrol. Canlı sağlayıcı/gerçek dublaj kabulü değildir. [Devir](docs/devir/2026-11-09-1247.md)
+
+- **Yerel belge güncellemesi, 2026-11-09:** yeni sohbet başlangıcı, son master/PR, açık üç canlı kabul ve Git teslim tercihi kök belgelere işlendi. Ürün kodu değişmedi. [Devir](docs/devir/2026-11-09-1227.md)
+
 - Podcast kütüphanesi ve Browser Sahne birikmiş düzeltmeleri toplu teslim edildi. Kaynak ve sekme sahipliği, ortak Whisper hazırlığı, kısmi çeviri/zaman gösterimi, asistan/dublaj devri, kuyruk ve İleri araçlar kapsamı; 536/536 hedefli test. [Toplu devir](docs/devir/2026-11-09-1220.md)
 
 - **Yerel** Podcast kütüphanesinden Sahne’ye açılan bölümün kısmi çevirisi artık gizlenmez. Kayıtlı fakat açık RSS sesiyle doğrulanmamış zamanlar salt okunur aralıklarla gösterilir; doğrulanmış Whisper ses kopyası açıldığında aynı oynatıcıda satır takibi, atlama ve dublaj hazırlığı kullanılabilir. Asistan etkin Podcast’i tanır, cümle birleştirme ayarını okuyabilir ve mevcut onaylı ayar akışında değiştirebilir. Kuyruk sayısı/üyeliği görünür, İleri araçlar penceresinin boş simge düzeni düzeltildi. [Devir](docs/devir/2026-11-09-1212.md)

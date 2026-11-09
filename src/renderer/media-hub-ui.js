@@ -62,10 +62,11 @@
   else setPlayerSource(result.url,result.title,result.key,{localPath});player.originalUrl=result.url.startsWith('whisper-media:')?result.key:result.url;
   player.pendingLibrarySeek={key:result.key,generation:currentGeneration(),seconds:Number(seconds)||0};
   if(result.hash)currentTorrent={hash:result.hash,index:result.index};else currentTorrent=null;
-  if(autoplay&&!usesHls&&/^(?:https?|rtsp):/i.test(result.url)){
+  if(autoplay&&!usesHls){
    const owner={key:player.mediaKey,generation:currentGeneration()};
-   const started=await window.NativePlayerUI.start();
-   if(started===true&&intent===player.openIntent&&!isCancelled()&&player.mediaKey===owner.key&&currentGeneration()===owner.generation){
+   const remote=/^(?:https?|rtsp):/i.test(result.url);
+   const started=!remote||await window.NativePlayerUI.start()===true;
+   if(started&&intent===player.openIntent&&!isCancelled()&&player.mediaKey===owner.key&&currentGeneration()===owner.generation){
     const video=document.getElementById('playerVideo');if(video?.paused)await video.play();
    }
   }
