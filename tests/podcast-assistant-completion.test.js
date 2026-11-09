@@ -15,7 +15,13 @@ test('Podcast request freezes episode, byte binding, generation, track and horiz
  assert.notEqual(context.scope({},frozen),context.scope({},{...frozen,sourceVersion:'bytes-b'}));
 });
 test('Untimed publisher text never becomes past or full episode timed evidence',()=>{
- for(const scope of ['watched','full']){const frozen=context.freezePodcast(snap,[{...track,timed:false,text:'unheard spoilers'}],scope);assert.deepEqual(frozen.transcript_evidence.evidence,[]);assert(frozen.transcript_evidence.limitations.includes('untimed-transcript-excluded'));assert(!JSON.stringify(frozen).includes('unheard spoilers'));}
+ const tracks=[{...track,timed:false,text:'unheard spoilers'}];
+ for(const scope of ['watched','nearby','selection','full']){
+  const frozen=context.freezePodcast(snap,tracks,scope);
+  assert.deepEqual(frozen.transcript_evidence.evidence,[]);
+  assert.equal(frozen.excerpt,scope==='full'?'unheard spoilers':undefined);
+  if(scope!=='selection')assert(frozen.transcript_evidence.limitations.includes('untimed-transcript-excluded'));
+ }
 });
 test('Presentation toggle does not call source loading, play, acquisition or ASR',()=>{
  const source=fs.readFileSync(require.resolve('../src/renderer/player-workspace-integration.js'),'utf8');

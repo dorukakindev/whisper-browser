@@ -58,10 +58,20 @@ function podcastTrack(episode,role='source') {
   if(!transcript)return null;
   const timed=workspace.sourceVersion===episode.sourceVersion&&transcript.state==='timed';
   const cues = transcript.state==='timed' ? require('./browser-subtitles').parseSubtitlePayload(transcript.text, '', 'publisher.'+transcript.format).cues.map((cue,index)=>({...cue,id:String(index)})) : [];
+  if (role === 'translation' && transcript.recovery && workspace.transcript && cues.length) {
+    try {
+      const recovery = require('./podcast-translation-recovery').validate(transcript.recovery, workspace.transcript.text, transcript.text, transcript.targetLanguage);
+      if (cues.length === recovery.completed.length && cues.every((cue, index) =>
+        Math.round(cue.start * 1000) === recovery.sourceCues[index].startMs && Math.round(cue.end * 1000) === recovery.sourceCues[index].endMs)) {
+        cues.forEach((cue, index) => { if (!recovery.completed[index]) cue.translationMissing = true; });
+      }
+    } catch (_) { /* Old or unbound recovery is not evidence of a missing cue. */ }
+  }
   const timingState = workspace.sourceVersion!==episode.sourceVersion ? 'needs-review' : undefined;
   const exactSource = timingState && transcript.state === 'timed' && transcript.provenance === 'asr' && transcript.timeline && episode.feedEntryId
     ? { entryId:episode.feedEntryId, sourceVersion:workspace.sourceVersion } : undefined;
-  return {id:(role==='translation'?'translation:':'publisher:')+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role, status:transcript.status||'complete', offsetSeconds:0, timed, timestamped:transcript.state==='timed', ...(timingState?{timingState}:{}),...(exactSource?{exactSource}:{}),...(timed?{}:{recordedCues:cues}),cues:timed?cues:[], text:transcript.text, provenance:transcript.provenance,timeline:transcript.timeline};
+  const missingIds = cues.filter(cue => cue.translationMissing).map(cue => cue.id);
+  return {id:(role==='translation'?'translation:':'publisher:')+episode.episodeIdentity, revision:createHash('sha256').update(transcript.text).digest('hex'), role, language:transcript.targetLanguage, missingRevision:missingIds.join(','), status:transcript.status||'complete', offsetSeconds:0, timed, timestamped:transcript.state==='timed', ...(timingState?{timingState}:{}),...(exactSource?{exactSource}:{}),...(timed?{}:{recordedCues:cues}),cues:timed?cues:[], text:transcript.text, provenance:transcript.provenance,timeline:transcript.timeline};
 }
 
 // Read existing records only; result tokens bind the exact text, source and location.

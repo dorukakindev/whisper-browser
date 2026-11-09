@@ -53,6 +53,39 @@ function fixture(t, {deferLoop=false} = {}) {
   return { window, document, player, source, secondary, commands, loopReplies, context, setParser(parser) { context.parseSubtitles=parser; }, open(mode = 'podcast') { window.CinemaSahne.open({ mode }); return window.CinemaSahne.current.a; } };
 }
 
+test('playing a search result checks the transcript revision and starts paused media after seeking',async t=>{
+ const f=fixture(t),adapter=f.open('study'),revision=adapter.state().rev;
+ assert.equal((await adapter.cmd('playCue',{index:0},'old-revision')).code,'stale-track');
+ assert.equal(f.commands.length,0);
+ assert.equal((await adapter.cmd('playCue',{index:0},revision)).ok,true);
+ assert.deepEqual(f.commands.map(command=>command.type),['seekCue','togglePlay']);
+ assert.equal((await adapter.cmd('playCue',{index:0},revision)).ok,true);
+ assert.deepEqual(f.commands.map(command=>command.type),['seekCue','togglePlay','seekCue']);
+});
+
+test('timing preview holds its audio range across a subtitle offset change',async t=>{
+ const f=fixture(t);
+ f.player.cues=f.source.cues;
+ f.player.offset=2;
+ f.context.localSyncProfileKey=()=> 'source-track';
+ const adapter=f.open('study');
+ const preview=()=>adapter.panel().sections.flatMap(section=>section.items).find(item=>item.id==='timing-preview-source');
+ assert.equal(preview().disabled,false);
+ assert.equal((await preview().run()).ok,true);
+ assert.deepEqual(f.commands.map(command=>command.type),['setAB','seek','togglePlay']);
+ assert.deepEqual([f.player.abA,f.player.abB],[2,10]);
+ f.source.offsetSeconds=2.1;
+ f.source.revision='shifted';
+ adapter.state();
+ assert.equal(preview().pressed,true);
+ assert.deepEqual([f.player.abA,f.player.abB],[2,10]);
+ f.source.cues[0].text='Replacement cue';
+ f.source.revision='replaced';
+ adapter.state();
+ assert.equal(preview().pressed,false);
+ assert.deepEqual([f.player.abA,f.player.abB],[null,null]);
+});
+
 test('locale rebuild restores owned search focus and selection but never steals external focus',t=>{
  const f=fixture(t),Base=f.context.Sahne;f.context.Sahne=class extends Base{constructor(...args){super(...args);const input=f.document.createElement('input');input.dataset.r='q';input.value='needle text';this.root.append(input);}};
  f.open('study');const input=f.window.CinemaSahne.current.root.querySelector('[data-r=q]');input.focus();input.setSelectionRange(2,5);
@@ -989,12 +1022,22 @@ test('Two overlapping Podcast Stage opens: the newest user choice stays even whe
 });
 
 
-test('a saved partial Podcast translation prioritizes missing-only retry and remains visible after stopping',t=>{
+test('a saved partial Podcast translation offers a single confirmed missing-only retry',async t=>{
  const f=fixture(t),original=f.window.PlayerWorkspaceIntegration.snapshot,calls=[];f.window.PlayerWorkspaceIntegration.snapshot=()=>({...original(),sourceKind:'rss',sourceVersion:'v1'});
  let job={state:'done'},status={hasSourceTranscript:true,translationRetry:{partial:true,failed:2,completed:3,total:5,canRetry:true},job};
  f.window.PlayerSourceCatalogIntegration={podcastTaskState:()=>status,runPodcastTask:async request=>{calls.push(request);return {queued:true};}};
+ let approve=false;
+ f.context.openAppDialog=async options=>{assert.match(options.description,/2 missing lines/);return approve;};
  const adapter=f.open(),actions=adapter.actions();assert.equal(actions.find(row=>row.primary).id,'retry-translation');assert.equal(adapter.panel().job.state,'partial');assert.match(adapter.panel().job.text,/3.*5/);
- adapter.panel().job.retry();assert.equal(calls[0].operation,'retry-translation');assert.equal(calls.length,1);
+ assert.equal(adapter.job().retryActionId,'retry-translation');
+ assert.equal(adapter.panel().sections[0].title,'Subtitles and Whisper');
+ assert.ok(adapter.panel().sections.some(section=>section.title==='Listening queue'));
+ assert.equal(adapter.panel().sections.flatMap(section=>section.items).filter(item=>item.id==='retry-translation').length,1);
+ await adapter.panel().job.retry();assert.equal(calls.length,0);
+ approve=true;
+ const pending=adapter.panel().job.retry();
+ await actions.find(item=>item.id==='retry-translation').run();
+ await pending;assert.equal(calls[0].operation,'retry-translation');assert.equal(calls.length,1);
  status={...status,job:{state:'stopped'}};assert.equal(adapter.panel().job.state,'stopped');
  f.player.generation++;adapter.panel().job.retry?.();assert.equal(calls.length,1,'an old retry never applies to another media owner');
 });
@@ -1142,4 +1185,14 @@ test('saved timestamps remain readable per line without granting stream seeking 
  assert.equal(st.rows[0].timed,false);assert.equal(st.rows[0].recordedRange.start,2);
  assert.equal((await a.cmd('seekCue',0)).ok,false);assert.equal(commands,0);assert.equal(a.verifyTiming(),true);
  await a.cmd('listeningQueue');assert.equal(queues,1);
+});
+
+
+test('Tasks exposes one real sentence merge checkbox and reviews the selected partial track',async t=>{
+ const f=fixture(t),processing=f.document.createElement('input');processing.id='mergeContinuation';processing.type='checkbox';f.document.body.append(processing);
+ let enabled=null,opened='';f.window.SentenceMergeControl={set:value=>{enabled=value;processing.checked=value;}};f.window.SubtitleTranslationRepair={review:async(file,{isCurrent,allowMixed})=>{assert(isCurrent());assert(allowMixed);opened=file;return {ok:true};}};
+ f.player.subPath='source.srt';f.player.sub2Path='manual.partial.srt';f.player.subRole='source';f.player.sub2Role='translation';
+ const adapter=f.open(),items=adapter.panel().sections.flatMap(section=>section.items),toggle=items.find(item=>item.id==='sentence-merge'),repair=items.find(item=>item.id==='retry-translation');
+ assert(toggle);assert(repair);assert.equal(repair.disabled,false);toggle.onChange(true);assert.equal(enabled,true);await repair.run();assert.equal(opened,'manual.partial.srt');
+ opened='';f.player.sub2Path='new-track.srt';await repair.run();assert.equal(opened,'');
 });

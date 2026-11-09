@@ -14,7 +14,7 @@
         <div>${button('close', 'close', T('Kapat', 'Close'))}</div>
         <div class="sh-seg browser-study-modes" role="tablist" style="--n:${caps.cinema ? 3 : 2};--i:${modeIndex}" aria-label="${T('Medya görünümü', 'Media view')}">${modes}</div>
         <div class="sh-top-r">
-          ${caps.queue ? button('listeningQueue', 'list', T('Dinleme kuyruğu', 'Listening queue'), 'aria-haspopup="dialog"') : ''}
+          ${caps.queue && mode !== 'podcast' ? button('listeningQueue', 'list', T('Dinleme kuyruğu', 'Listening queue'), 'aria-haspopup="dialog"') : ''}
           ${caps.dub ? button('dub', 'voice', T('Altyazıdan dublaj', 'Dub from subtitles'), 'aria-haspopup="dialog"') : ''}
           ${button('transcript', 'classic', T('Transkript', 'Transcript'), 'aria-expanded="false"', 'sh-transcript-toggle')}
           ${button('panel', 'tools', T('İşlemler', 'Tasks'), 'aria-pressed="false" aria-haspopup="dialog"')}
@@ -41,10 +41,10 @@
             </form>
             <div class="browser-study-playback"><div class="sh-transport">
               <span class="sh-time-nav" data-group-label="${T('Oynatma','Playback')}" role="group" aria-label="${T('Oynatma','Playback')}">${transportButton('back', 'back', T('10 sn geri', 'Back 10 s'))}${transportButton('toggle', 'play', T('Oynat', 'Play'), 'play')}${transportButton('fwd', 'fwd', T('10 sn ileri', 'Forward 10 s'))}</span>
-              <span class="sh-sentence-nav" data-group-label="${T('Cümle','Sentence')}" role="group" aria-label="${T('Cümle gezinmesi','Sentence navigation')}">${transportButton('prev', 'prev', T('Önceki cümle', 'Previous sentence'))}${transportButton('replay', 'replay', T('Cümleyi tekrar dinle', 'Replay sentence'))}${transportButton('next', 'next', T('Sonraki cümle', 'Next sentence'))}</span>
-            </div><div class="browser-study-playback-options"><label class="browser-study-rate"><select data-r="rate" aria-label="${T('Oynatma hızı', 'Playback speed')}"></select>${icon('chev')}</label><span class="sh-rate-state" data-r="rateState" role="status" hidden>${T('Hız değişiyor…','Changing speed…')}</span>${loop}${button('fullscreen', 'focus', T('Tam ekran', 'Fullscreen'))}</div></div>
+              <span class="sh-sentence-nav" data-group-label="${T('Cümle','Sentence')}" role="group" aria-label="${T('Cümle gezinmesi','Sentence navigation')}">${transportButton('prev', 'prev', T('Önceki cümle', 'Previous sentence'))}${transportButton('replay', 'replay', T('Cümleyi tekrar dinle', 'Replay sentence'))}${transportButton('next', 'next', T('Sonraki cümle', 'Next sentence'))}${mode==='study'?loop:''}</span>
+            </div><div class="browser-study-playback-options"><label class="browser-study-rate"><select data-r="rate" aria-label="${T('Oynatma hızı', 'Playback speed')}"></select>${icon('chev')}</label><span class="sh-rate-state" data-r="rateState" role="status" hidden>${T('Hız değişiyor…','Changing speed…')}</span>${mode==='podcast'?loop:''}${button('fullscreen', 'focus', T('Tam ekran', 'Fullscreen'))}</div></div>
             <div class="sh-volume"><button class="sh-volume-icon" type="button" data-a="mute" data-r="volumeIcon" aria-label="${T('Sesi kapat','Mute')}" aria-pressed="false">${icon('volume')}</button><input class="sh-local-volume" type="range" min="0" max="1" step=".01" value="1" aria-label="${T('Ses düzeyi', 'Volume')}"><output>100%</output></div>
-            ${mode === 'study' ? button('readCurrent', 'classic', T('Cümlenin tamamı', 'Full sentence'), 'disabled', 'sh-read-current') : ''}
+            ${mode === 'study' ? button('readCurrent', 'classic', T('Cümlenin tamamı', 'Full sentence'), 'disabled', 'sh-read-current') : caps.queue ? button('listeningQueue', 'list', T('Dinleme kuyruğu', 'Listening queue'), 'aria-haspopup="dialog"', 'sh-dock-queue') : ''}
             <p class="sh-transport-hint" data-r="transportHint" role="status" hidden></p>
           </div>
         </section>
@@ -56,7 +56,7 @@
           </div>
           <details class="browser-study sh-processing" data-r="processing" hidden><summary><span>${T('Transkripsiyon ve çeviri', 'Transcription and translation')}</span><small data-r="processingState" role="status"></small></summary><div class="sh-processing-body"><div class="sh-workbar browser-study-actions" data-r="workbar" hidden></div></div></details>
           <div class="bp-flow"><div class="bp-flow-head"><h3 class="bp-section-title">${T('CÜMLE AKIŞI', 'SENTENCE FLOW')}</h3><div class="browser-study-track-labels"><span class="sh-lang" data-r="lsb"></span><span class="sh-lang" data-r="ltb"></span></div></div>
-            <div class="bp-search sh-search" role="search">${icon('search')}<input type="search" data-r="q" placeholder="${T('Cümlelerde ara', 'Search sentences')}" aria-label="${T('Cümlelerde ara', 'Search sentences')}" title="${T('Enter ile ilk eşleşmeye odaklan','Press Enter to focus the first match')}"><button type="button" data-a="clearSearch" data-r="clearSearch" aria-label="${T('Aramayı temizle','Clear search')}" hidden>${T('Temizle','Clear')}</button></div>
+            <div class="bp-search sh-search" role="search">${icon('search')}<input type="search" data-r="q" placeholder="${T('Cümlelerde ara', 'Search sentences')}" aria-label="${T('Cümlelerde ara', 'Search sentences')}" title="${T('Yukarı ve aşağı oklarla eşleşme seç, Enter ile oynat','Select a match with Up or Down, press Enter to play')}"><button type="button" data-a="clearSearch" data-r="clearSearch" aria-label="${T('Aramayı temizle','Clear search')}" hidden>${T('Temizle','Clear')}</button></div>
             <div class="sh-seg browser-study-display" data-r="disp" style="--n:3;--i:${['src', 'both', 'tr'].indexOf(display)}" role="group" aria-label="${T('Gösterilen altyazı ve transkript dili', 'Subtitle and transcript language')}">${[['src', T('Kaynak', 'Source')], ['both', T('İkisi', 'Both')], ['tr', T('Çeviri', 'Translation')]].map(([value, label]) => `<button type="button" data-d="${value}" aria-pressed="${display === value}">${esc(label)}</button>`).join('')}</div>
             <button class="sh-follow bp-follow" data-a="follow" type="button" aria-pressed="true">${icon('down')}<span>${T('Takip açık', 'Follow on')}</span></button>
             <div class="sh-search-navigation" data-r="searchNav" hidden>

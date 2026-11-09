@@ -2549,6 +2549,19 @@ ipcMain.handle('youtube:cancel', async (event) => {
   return { ok: true };
 });
 
+ipcMain.handle('media:repairTranslation', async (event, request={}) => {
+  if (!authorizedBrowserSender(event)) return {ok:false,error:'Unauthorized request / Yetkisiz istek.'};
+  try {
+    const file=subtitleFileAccess.inspect(request.path);
+    // A repair never opens a permission dialog or expands authority to arbitrary files.
+    if(!subtitleFileAccess.has(file))throw Error('Open the generated subtitle first / Önce üretilmiş altyazıyı açın.');
+    const result=require('./podcast-translation-recovery').repairFile({file,bytes:fs.readFileSync(file),
+      directory:path.join(app.getPath('userData'),'translation-repairs'),prepare:request.prepare===true,expectedHash:request.expectedHash,allowMixed:request.allowMixed===true});
+    if(result.sourcePath){subtitleFileAccess.grant(result.sourcePath);subtitleFileAccess.grant(result.translationPath);}
+    return {ok:true,...result};
+  } catch(error){return {ok:false,error:error.message};}
+});
+
 ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   try {

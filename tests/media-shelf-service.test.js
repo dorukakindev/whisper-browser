@@ -1,6 +1,7 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { createHash } = require('node:crypto');
 const { csvPlan, urlOf, registerMediaShelf } = require('../src/media-shelf-service');
 const { createMediaCatalogStore } = require('../src/media-catalog-store');
 const { findTestPython } = require('./python-runtime');
@@ -34,12 +35,14 @@ test('shelf main boundary, book progress, shared catalog import, podcast refresh
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shelf-service-'));
   try {
     const handlers = new Map(), picker = [], python = findTestPython(); assert(python, 'Python required');
+    let registryBinding;
     const catalog = createMediaCatalogStore({ filePath: path.join(dir, 'media-catalog.json') });
     const old = catalog.upsert({ title: 'Existing', kind: 'film', year: 2024, ratings: { personal: 'keep' } });
     registerMediaShelf({ ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, authorized: event => event.allowed,
       dialog: { showOpenDialog: async () => ({ canceled: !picker.length, filePaths: picker.splice(0) }) }, owner: () => null, userData: () => dir,
       pythonPath: () => python, ffprobePath: () => 'ffprobe', inspectMedia: file => file, grantMedia() {}, grantPdf() {},
       nativeImage: { createFromDataURL: () => ({ isEmpty: () => true }) }, catalogStore: () => catalog,
+      podcastRegistryBinding: async () => registryBinding,
       fetchImpl: async () => new Response('<rss><channel><title>Test</title><item><title>A</title><enclosure url="https://audio.example/a.mp3"/></item></channel></rss>') });
     const handle = handlers.get('media-shelf:request'), api = (action, rest = {}) => handle({ allowed: true }, { action, ...rest });
     assert.equal((await handle({ allowed: false }, { action: 'list' })).ok, false);
@@ -55,6 +58,23 @@ test('shelf main boundary, book progress, shared catalog import, podcast refresh
     await api('listen-progress', { kind: 'podcasts', id: pod.id, url: pod.episodes[0].url, position: 42, duration: 120 });
     await api('podcast-add', { url: 'https://feed.example/rss' });
     assert.equal((await api('list')).podcasts[0].episodes[0].position, 42);
+    const episode = (await api('list')).podcasts[0].episodes[0];
+    const original = [{startMs:1000,endMs:3000,text:'One.'},{startMs:3000,endMs:5000,text:'Two.'}];
+    const sourceText = '1\n00:00:01,000 --> 00:00:03,000\nOne.\n\n2\n00:00:03,000 --> 00:00:05,000\nTwo.\n';
+    const translationText = sourceText.replace('One.', 'Bir.');
+    const recovery = {version:1,targetLanguage:'tr',forSpeech:false,sourceCues:original,completed:[true,false],
+      translationTextHash:createHash('sha256').update(translationText).digest('hex')};
+    registryBinding = {entryId:'episode-fixture',workspace:{sourceVersion:episode.sourceVersion,
+      transcript:{state:'timed',format:'srt',text:sourceText},
+      translation:{state:'timed',format:'srt',targetLanguage:'tr',status:'partial',text:translationText,recovery}}};
+    const trackRequest = {id:pod.id,url:episode.url,sourceVersion:episode.sourceVersion};
+    const saved = await api('podcast-processing-binding', trackRequest);
+    assert.equal(saved.ok, true, saved.error);
+    assert.deepEqual(saved.translation.cues.map(cue=>!!cue.translationMissing), [false,true]);
+    recovery.translationTextHash = 'stale';
+    const unverified = await api('podcast-processing-binding', trackRequest);
+    assert.deepEqual(unverified.translation.cues.map(cue=>!!cue.translationMissing), [false,false]);
+    assert.equal(saved.translation.revision, unverified.translation.revision);
     const csv = path.join(dir, 'ratings.csv'); fs.writeFileSync(csv, 'Name,Year,Rating\nExisting,2024,5\nNew Film,2020,4.5\n'); picker.push(csv);
     const preview = await api('letterboxd-preview'); assert.equal(preview.preserved, 1);
     assert.equal(catalog.list().length, 1, 'Preview must not mutate');

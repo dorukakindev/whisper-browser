@@ -56,6 +56,7 @@
         const previous = projected.get(role);
         if (previous?.id === id && previous.revision === revision && previous.input === cues) return previous.track;
         const mapped = cues.map((cue, index) => ({ ...cue, id: String(cue.id ?? index),
+          rawStart: cue.start, rawEnd: cue.end,
           start: subtitleVideoTime(cue.start, secondary, timeTransform), end: subtitleVideoTime(cue.end, secondary, timeTransform) }));
         const track = { id, revision, role, timed: true, offsetSeconds: 0, secondary, timeTransform, language, cues: mapped };
         projected.set(role, { id, revision, input: cues, track });
@@ -168,15 +169,27 @@
       : player.abA === range.a && player.abB === range.b;
     function clearOwnedLoop() {
       const range = ownLoop; ownLoop = null;
+      if (range?.preview) playbackIntent++;
       if (!range || !current() || !activeLoop(F.snap(), range)) return;
       if (kind === 'shelf') void dispatch('clearAB', {a:range.a,b:range.b});
       else setAB(null, null);
     }
     function build(src, sec, s) {
       const meta = [], secById = new Map(sec.cues.map((c) => [c.id, c]));
+      const partial = sec.status === 'partial' || /\.partial\.srt$/i.test(sec.id);
+      const language = sec.language || (partial ? 'tr' : F.langs().tr);
+      const sourceByTime = new Map(src.cues.map(cue => [cue.start+':'+cue.end,cue]));
+      const matchingSource = sec.cues.map(cue => sourceByTime.get(cue.start+':'+cue.end));
+      const suspectIndices = window.TranslationReviewSummary?.untranslatedIndices(matchingSource, sec.cues, String(language).toLowerCase().split('-')[0]) || [];
+      const suspected = new Set(suspectIndices.map(index => sec.cues[index].id));
+      const missingTranslation = cues => cues.some(cue => cue.translationMissing) ? 'confirmed'
+        : cues.some(cue => suspected.has(cue.id)) ? 'suspected' : '';
       if(src.timed===false&&src.timestamped&&src.cues.length){
-        const translations=new Map(sec.timestamped?sec.cues.map(c=>[c.start+':'+c.end,c.text]):[]);
-        return {rows:src.cues.map(c=>({id:c.id,start:0,end:0,timed:false,recordedRange:{start:c.start,end:c.end},src:c.text,trs:translations.has(c.start+':'+c.end)?[translations.get(c.start+':'+c.end)]:[],unc:[],words:null})),meta:[],untimed:true};
+        const translations=new Map(sec.timestamped?sec.cues.map(c=>[c.start+':'+c.end,c]):[]);
+        return {rows:src.cues.map(c=>{
+          const translated = translations.get(c.start+':'+c.end);
+          return {id:c.id,start:0,end:0,timed:false,recordedRange:{start:c.start,end:c.end},src:c.text,trs:translated?[translated.text]:[],translationMissing:translated?missingTranslation([translated]):'',unc:[],words:null};
+        }),meta:[],untimed:true};
       }
       if(src.timed===false && src.cues.length){
         return {rows:[{id:'plain-source',start:0,end:0,timed:false,src:src.cues.map(c=>c.text).join('\n\n'),trs:sec.cues.length?[sec.cues.map(c=>c.text).join('\n\n')]:[],unc:[],words:null}],meta:[],untimed:true};
@@ -194,7 +207,7 @@
           const translationRange = translationRanges.reduce((first, range) =>
             range && (!first || range.start < first.start) ? range : first, null);
           const copied = matched.some(c => String(c.text).trim() === String(r.sourceText).trim() && String(c.text).trim().length > 10);
-          return { id: r.cueId, trackId:src.id, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text), translationCueIds: matched.map(c=>c.id), translationRanges, translationRange, translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
+          return { id: r.cueId, trackId:src.id, start: timed ? r.videoStart : 0, end: timed ? r.videoEnd : 0, timed, src: String(r.sourceText || ''), trs: matched.map(c=>c.text), translationCueIds: matched.map(c=>c.id), translationRanges, translationRange, translationMissing:missingTranslation(matched), translationReview:copied||matched.some(c=>c.qualityWarning), unc: r.pairing === 'uncertain' ? (r.secondaryCandidates || []).map((c) => c.text) : [], words: timed ? F.words(byId.get(r.cueId), src) : null };
         });
         const paired = new Set(rows.flatMap(row => row.translationCueIds));
         const standalone = mode === 'cinema' || sec.timed === false ? [] : sec.cues.filter(cue => !paired.has(cue.id)
@@ -205,7 +218,7 @@
           const start = cue.start + num(sec.offsetSeconds), end = cue.end + num(sec.offsetSeconds);
           entries.push({
             row: { id: cue.id, trackId:sec.id, start, end, timed: true, src: '', trs: [cue.text], unc: [], words: null,
-              translationCueIds: [cue.id], translationRange: { start, end }, standaloneTranslation: true },
+              translationCueIds: [cue.id], translationRange: { start, end }, standaloneTranslation: true, translationMissing:missingTranslation([cue]) },
             binding: { cueId: cue.id, trackId: sec.id, trackRevision: sec.revision }
           });
         }
@@ -220,7 +233,7 @@
           const end = timed ? cue.end + num(sec.offsetSeconds) : 0;
           meta.push({ cueId: cue.id, trackId: sec.id, trackRevision: sec.revision });
           return { id: cue.id, trackId: sec.id, start, end, timed, src: '', trs: [String(cue.text || '')],
-            translationRange: timed ? { start, end } : null, unc: [], words: null };
+            translationRange: timed ? { start, end } : null, translationMissing:missingTranslation([cue]), unc: [], words: null };
         });
         return { rows, meta, untimed: !timedTrack };
       }
@@ -236,7 +249,7 @@
         cache = { rev: `readonly:${s.mediaKey}:${s.generation}:${JSON.stringify([text,translation])}`, meta: [], untimed: true, rows };
         return cache;
       }
-      const [src, sec] = s.projectedTracks || F.tracks(); const rev = `${src.id}|${src.revision}|${src.offsetSeconds}|${sec.id}|${sec.revision}|${sec.offsetSeconds}|${s.mediaKey}|${s.generation}`;
+      const [src, sec] = s.projectedTracks || F.tracks(); const rev = `${src.id}|${src.revision}|${src.offsetSeconds}|${sec.id}|${sec.revision}|${sec.offsetSeconds}|${sec.language||''}|${sec.missingRevision||''}|${s.mediaKey}|${s.generation}`;
       if (rev !== cache.rev) cache = { rev, ...build(src, sec, s), captionTracks: [src, sec] };
       return cache;
     }
@@ -268,6 +281,51 @@
         : dispatch('seek', { time: landing(row.start, row.end) });
     }
     const staleTrack = () => ({ ok: false, code: 'stale-track', message: T('Altyazı değişti; satırı yeniden seçin.', 'The transcript changed; select the line again.') });
+    function timingCue(snapshot, role) {
+      const track = rowsFor(snapshot).captionTracks?.[role==='translation'?1:0];
+      if (!track || track.timed===false || snapshot.adPlaying || snapshot.capabilities?.seek?.support!=='yes') return null;
+      const offset = num(track.offsetSeconds), time = num(snapshot.time) - offset;
+      const cue = track.cues.reduce((active, item) => item.start<=time && time<item.end && (!active || item.start>=active.start) ? item : active, null);
+      if (!cue) return null;
+      const a=Math.max(0,cue.start+offset), b=Math.min(num(snapshot.duration),cue.end+offset);
+      return b>a ? {track,cue,a,b} : null;
+    }
+    function timingPreviewCurrent(data, preview) {
+      const track=data.captionTracks?.[preview.role==='translation'?1:0];
+      return track?.id===preview.trackId && track.timed!==false && track.cues.some(cue =>
+        cue.id===preview.cueId && (cue.rawStart??cue.start)===preview.rawStart
+        && (cue.rawEnd??cue.end)===preview.rawEnd && cue.text===preview.text);
+    }
+    async function previewTiming(role, trackId) {
+      const snapshot=F.snap();
+      if (!current(snapshot)) return stale;
+      if (ownLoop?.preview && ownLoop.role===role) {
+        clearOwnedLoop();
+        return {ok:true};
+      }
+      const selected=timingCue(snapshot,role);
+      if (!selected || selected.track.id!==trackId) return staleTrack();
+      if (ownLoop || (player.abA!==null && player.abB!==null)) {
+        return {ok:false,message:T('Önce açık cümle veya A–B döngüsünü kapatın.','Stop the active sentence or A–B loop first.')};
+      }
+      const {track,cue,a,b}=selected;
+      const range=ownLoop={preview:true,role,trackId:track.id,cueId:cue.id,rawStart:cue.rawStart??cue.start,
+        rawEnd:cue.rawEnd??cue.end,text:cue.text,a,b,revision:cache.rev};
+      try {
+        const result=await dispatch('setAB',{a,b});
+        if (!result.ok || ownLoop!==range || !current()) {
+          if (ownLoop===range) clearOwnedLoop();
+          return result.ok?stale:result;
+        }
+        range.confirmed=true;
+        const playback=await finishReplay(dispatch('seek',{time:landing(a,b)}),snapshot.paused,cache.rev);
+        if (!playback.ok && ownLoop===range) clearOwnedLoop();
+        return playback;
+      } catch (error) {
+        if (ownLoop===range) clearOwnedLoop();
+        throw error;
+      }
+    }
     async function finishReplay(seek, wasPaused, revision) {
       const intent = playbackIntent;
       const result = await seek;
@@ -358,11 +416,13 @@
       if (service) {
         const status = service.podcastTaskState?.() || {}, task = status.job || {state:'idle'};
         const recovery=status.translationRetry,partial=!!recovery?.partial&&!status.preparing&&!['queued','running','failed','stopped'].includes(task.state);
-        const canRetry=current()&&!!recovery?.canRetry&&!status.preparing&&!['queued','running'].includes(task.state);
+        const repair=missingTranslationAction(snap,service,status);
+        const canRetry=(!!recovery?.partial||recovery?.failed>0)&&!!repair&&!repair.disabled;
         return { ...task, state: status.preparing || task.state === 'queued' ? 'running' : partial?'partial':task.state,
           text: status.preparing ? T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…') : partial?(recovery.total>0?`${recovery.completed}/${recovery.total} `+T('çeviri satırı hazır.','translated lines ready.'):T('Kısmi çeviri kaydedildi.','Partial translation saved.'))+' '+(canRetry?T('Kaydedilmiş satırlar korunur; yalnız eksikleri tamamlayabilirsiniz.','Saved lines are kept; complete only the missing lines.'):T('Eksikleri tamamlamak için İşlemler’den çeviriyi yeniden inceleyin.','Review translation in Tasks to complete the missing lines.')):task.text,
           retry:canRetry?()=>{const retry=actions().find(action=>action.id==='retry-translation');if(current()&&retry&&!retry.disabled)return retry.run();}:null,
-          retryLabel:T('Yalnız eksikleri tamamla','Complete missing only'),
+          retryLabel:canRetry?repair.label:null,
+          retryActionId:canRetry?'retry-translation':null,
           cancel: current() && task.cancellable ? () => window.cancelPodcastQueueTask?.(snap, task.id) : null };
       }
       const activeJob = player.job;
@@ -422,36 +482,99 @@
       return {id:'whisper-scope',type:'button',label:T('Whisper kapsamı','Whisper scope'),hint:browserWhisperScopeLabel(),
         run:()=>{if(current())openBrowserWhisperRangeSettings(doc.activeElement);}};
     }
+    let missingTranslationPending = false;
+    function missingTranslationAction(snapshot, service, status = {}) {
+      const recovery = status.translationRetry;
+      const savedRetry = recovery?.canRetry && !!service?.runPodcastTask;
+      const selectedFile = () => kind === 'shelf' ? '' : player.subRole === 'translation' ? player.subPath
+        : player.sub2Role === 'translation' && player.sub2Path ? player.sub2Path : player.subPath || '';
+      const shelfTrack = () => kind === 'shelf' ? service?.getTranscriptTracks?.().find(track => track.role === 'translation') : null;
+      const file = selectedFile(), track = shelfTrack();
+      const canInspect = !!window.SubtitleTranslationRepair?.review && (!!file || !!track?.text);
+      const knownPartial = !!recovery?.partial || recovery?.failed > 0;
+      if (!savedRetry && !canInspect && !knownPartial) return null;
+
+      const isBusy = value => !!value.preparing || ['queued', 'running'].includes(value.job?.state);
+      const selection = () => JSON.stringify([player.subPath, player.sub2Path, player.subRole, player.sub2Role]);
+      const selectedTracks = selection();
+      const label = T('Eksik çeviriyi tamamla', 'Complete missing translation');
+      return {
+        id:'retry-translation', type:'button', label:savedRetry && recovery.failed > 0 ? label + ' · ' + recovery.failed : label,
+        primary: knownPartial && (savedRetry || canInspect),
+        disabled: !current() || isBusy(status) || (!savedRetry && !canInspect),
+        hint: savedRetry ? T('Hazır satırlar ve zamanları korunur.', 'Completed lines and timestamps are kept.')
+          : canInspect ? T('Altyazıyı incele ve bulunan eksikleri onayla.', 'Inspect subtitles and approve the lines to translate.')
+          : T('Önce zamanlı çeviri dosyasını açın.', 'Open a timed translation file first.'),
+        async run() {
+          const freshStatus = () => service?.podcastTaskState?.() || {};
+          const valid = () => current() && !isBusy(freshStatus()) && (kind === 'shelf'
+            ? shelfTrack() === track : selectedFile() === file && selection() === selectedTracks);
+          if (!valid()) return stale;
+          if (missingTranslationPending) return {ok:true};
+          missingTranslationPending = true;
+          try {
+            if (savedRetry) {
+              const sameRecovery = () => valid() && JSON.stringify(freshStatus().translationRetry) === JSON.stringify(recovery);
+              if (!sameRecovery()) return stale;
+              const approved = await openAppDialog({
+                title:label,
+                description:T(`${recovery.failed} eksik satır yeniden çevrilsin mi? Hazır satırlar ve zamanları korunur.`,
+                  `Translate ${recovery.failed} missing lines? Completed lines and timestamps are kept.`),
+                confirmLabel:T('Eksikleri çevir','Translate missing lines'), intent:'primary'
+              });
+              if (!approved) return {ok:true,cancelled:true};
+              if (!sameRecovery()) return stale;
+              const expected = {mediaKey:snapshot.mediaKey,generation:snapshot.generation,sourceVersion:snapshot.sourceVersion};
+              return await service.runPodcastTask({operation:'retry-translation',expected,isCancelled:()=>!sameRecovery()});
+            }
+            let subtitle = file;
+            if (kind === 'shelf') {
+              const binding = await service.processingBinding();
+              if (!valid()) return stale;
+              const result = await window.api.feedsRequest({action:'podcast-materialize',entryId:binding.entryId,sourceVersion:binding.sourceVersion,role:'translation',as:'srt'});
+              if (!valid()) return stale;
+              if (!result?.ok) throw Error(result?.error || T('Zamanlı çeviri bulunamadı.','Timed translation unavailable.'));
+              subtitle = result.path;
+            }
+            return await window.SubtitleTranslationRepair.review(subtitle,{allowMixed:true,isCurrent:valid});
+          } finally {
+            missingTranslationPending = false;
+          }
+        }
+      };
+    }
     function actions() {
       const snapshot = F.snap();
       const service = kind === 'shelf' ? window.MediaShelfUI : snapshot?.sourceKind === 'rss' ? window.PlayerSourceCatalogIntegration : null;
+      const status = service?.podcastTaskState?.() || {};
+      const repair = missingTranslationAction(snapshot, service, status);
       if (!service?.runPodcastTask) {
         if(kind==='browser'){
           const captions=mirror(()=>$('browserTrackTranslate'),T('Altyazıyı yükle ve çevir','Load and translate captions'));
           const scope=browserWhisperScope();
         return [...browserWhisperActions(),...(scope?[{...scope,label:scope.hint,hint:''}]:[]),
-            ...(captions&&!captions.disabled?[{...captions,id:'translate-track'}]:[])];
+            ...(captions&&!captions.disabled?[{...captions,id:'translate-track'}]:[]),...(repair?[repair]:[])];
         }
         const buttons = [
           ['whisper', () => $('makeSubsBtn'), T('Whisper ile yazıya dök', 'Transcribe with Whisper')],
           ['translate-track', () => $('makeTransBtn'), T('Altyazıyı çevir', 'Translate captions')]
         ];
-        return buttons.map(([id, resolver, label]) => { const action = mirror(resolver, label); return action && { ...action, id, primary:id==='whisper' }; }).filter(Boolean);
+        return [...buttons.map(([id, resolver, label]) => { const action = mirror(resolver, label); return action && { ...action, id, primary:id==='whisper' }; }).filter(Boolean), ...(repair?[repair]:[])];
       }
       const expected = { mediaKey: snapshot.mediaKey, generation: snapshot.generation, sourceVersion: snapshot.sourceVersion };
-      const status = service.podcastTaskState?.() || {};
-      const primary=status.translationRetry?.canRetry?'retry-translation':status.hasSourceTranscript?'translate':'transcribe';
-      return [
+      const primary=repair?.primary?'retry-translation':status.hasSourceTranscript?'translate':'transcribe';
+      const tasks = [
         ['transcribe', T('Whisper ile yazıya dök', 'Transcribe with Whisper')],
         ['transcribe-translate', T('Yazıya dök ve çevir', 'Transcribe and translate')],
-        ...(status.hasSourceTranscript ? [['translate', T('Transkripti çevir', 'Translate transcript')]] : []),
-        ...((status.translationRetry?.failed>0||status.translationRetry?.partial)?[['retry-translation',T('Yalnız eksikleri tamamla','Complete missing only')+(status.translationRetry.failed>0?' · '+status.translationRetry.failed:'')]]:[])
-      ].sort((a,b)=>Number(b[0]===primary)-Number(a[0]===primary)).map(([id, label], index) => ({ id, type: 'button', label, primary: id===primary,
-        disabled: !current() || !!status.preparing || ['queued','running'].includes(status.job?.state) || id==='retry-translation'&&!status.translationRetry?.canRetry,
-        hint: id==='retry-translation'?(status.translationRetry?.canRetry?`${status.translationRetry.completed}/${status.translationRetry.total} `+T('hazır; başarılı satırlar korunur.','ready; successful lines are kept.'):T('Bu sonuç için güvenli kurtarma bilgisi yok veya çeviri modu uyuşmuyor.','Safe recovery metadata is unavailable or the translation mode differs.')):status.preparing ? T('Kaynak hazırlanıyor…', 'Preparing source…') : '',
+        ...(status.hasSourceTranscript ? [['translate', T('Transkripti çevir', 'Translate transcript')]] : [])
+      ].map(([id, label]) => ({ id, type: 'button', label, primary: id===primary,
+        disabled: !current() || !!status.preparing || ['queued','running'].includes(status.job?.state),
+        hint: status.preparing ? T('Kaynak hazırlanıyor…', 'Preparing source…') : '',
         run: (config={}) => { if (!current()) throw new Error(T('Kaynak değişti; işlem başlatılmadı.', 'Source changed; task not started.'));
           return service.runPodcastTask({ operation: id, expected,range:config.range||null, isCancelled: () => !current() }); }
       }));
+      if (repair) tasks.push(repair);
+      return tasks.sort((a,b)=>Number(b.primary)-Number(a.primary));
     }
     function openAdvanced() {
       if (!current()) return;
@@ -486,6 +609,10 @@
     }
     function panel() {
       const sections = [], a11y = [];
+      const merge=$('mergeContinuation');
+      const workflowItems=merge?[{id:'sentence-merge',type:'checkbox',label:T('Cümleleri birleştir','Merge sentences'),value:merge.checked,disabled:!current(),
+        hint:T('Yeni altyazı ve çeviri işlerinde devam cümlelerini birleştirir; dublajı cümle akışıyla hazırlar. Çalışan iş değişmez.','Combines continuation sentences for new subtitle and translation jobs; prepares dubbing with sentence flow. Running jobs are unchanged.'),
+        onChange:value=>{if(!current())return;window.SentenceMergeControl?.set(value);}}]:[];
       if (kind !== 'shelf') {
         const roles = browserSubtitleRoleCues();
         const items = [];
@@ -513,6 +640,20 @@
               input.dispatchEvent(new Event('input', { bubbles: true }));
             }
           } });
+          const snapshot=F.snap(), active=ownLoop?.preview && ownLoop.role===role && activeLoop(snapshot,ownLoop);
+          const candidate=!active && current(snapshot) ? timingCue(snapshot,role) : null;
+          const clock=value=>{
+            const tenths=Math.round(value*10);
+            return `${Math.floor(tenths/600)}:${((tenths%600)/10).toFixed(1).padStart(4,'0')}`;
+          };
+          items.push({id:'timing-preview-'+role,type:'button',pressed:!!active,
+            label:active?T('Döngüyü kapat','Stop preview loop'):T('Bu cümleyi döngüde dinle','Loop this sentence'),
+            hint:active?`${clock(ownLoop.a)} – ${clock(ownLoop.b)} · `+T('Ses aralığı sabit','Audio range stays fixed')
+              : candidate?T('Dinlerken altyazıyı 0,1 sn adımlarla kaydırın.','Adjust subtitles in 0.1 s steps while listening.')
+              : T('Önce zamanlı bir altyazı cümlesine gelin.','First move to a timed subtitle sentence.'),
+            disabled:!active&&!candidate,
+            run:()=>previewTiming(role,candidate?.track.id)});
+          if(active && ownLoop.text)items.push({type:'note',text:ownLoop.text.replace(/\s+/g,' ').slice(0,160)});
         }
         if (items.length) sections.push({ title: T('Altyazı zamanlaması', 'Subtitle timing'), items });
       }
@@ -534,7 +675,7 @@
             if(result?.readOnly)throw Error(T('Ses kopyası değişti. Yeniden açın.','The audio copy changed. Reopen it.'));
           }
         }]});
-        sections.push({title:T('Podcast işlemleri','Podcast tasks'),items:[...actions(),{type:'button',label:T('Döküm, Whisper ve çeviri araçları','Transcript, Whisper and translation tools'),run:openAdvanced}]});
+        sections.unshift({title:T('Podcast işlemleri','Podcast tasks'),items:[...actions(),...workflowItems,{type:'button',label:T('Döküm, Whisper ve çeviri araçları','Transcript, Whisper and translation tools'),run:openAdvanced}]});
       } else if (kind === 'browser') {
         const tracks = (player.browserTracks || []).filter((t) => !t.sourceMismatch), s1 = $('browserTrackSelect'), s2 = $('browserTrackSelect2'), items = [];
         if (tracks.length) {
@@ -548,9 +689,12 @@
         }
         if(items.length) sections.push({ id: 'captions', title: T('Altyazı izleri', 'Caption tracks'), items });
         const wh=browserWhisperActions();
+        const repair=actions().find(action=>action.id==='retry-translation');
+        if(repair)wh.push(repair);
         const scope=browserWhisperScope();
         if(scope)wh.push(scope);
-        sections.unshift({ title: T('Whisper ve çeviri', 'Whisper and translation'), items: wh.length ? wh : [{ type: 'note', text: T('Bu kaynak için Whisper işlemi sunulmuyor.', 'No Whisper action is offered for this source.') }] });
+        if (!wh.length) wh.push({ type: 'note', text: T('Bu kaynak için Whisper işlemi sunulmuyor.', 'No Whisper action is offered for this source.') });
+        sections.unshift({ title: T('Whisper ve çeviri', 'Whisper and translation'), items: [...wh, ...workflowItems] });
         const sample=F.sampleFor?.(F.snap());
         const sourceItems=[];
         if(sample?.audioChoices?.length>1||sample?.pinnedAudio){
@@ -574,9 +718,9 @@
           else sections.push(section);
         }
       } else {
-        const sourceActions=F.snap()?.sourceKind==='rss'?[...actions(),{type:'button',label:T('Podcast / Whisper ve çeviri araçları','Podcast / Whisper and translation tools'),run:()=>{if(current())window.PlayerSourceCatalogIntegration?.podcastTools?.();}}]:[mirror(()=>$('makeSubsBtn'),T('Whisper ile altyazı oluştur','Create subtitles with Whisper')),mirror(()=>$('makeTransBtn'),T('Yüklü altyazıyı çevir','Translate loaded subtitles'))];
-        const loc = [...sourceActions, mirror(() => $('playerPickSub'), T('Altyazı dosyası seç', 'Choose a subtitle file')), {type:'button',label:T('Tüm oynatıcı ayarları','All player settings'),run:openAdvanced}].filter(Boolean);
-        sections.push({ title: T('Altyazı ve Whisper', 'Subtitles and Whisper'), items: loc.length ? loc : [{ type: 'note', text: T('Bu kaynak için altyazı işlemi sunulmuyor.', 'No subtitle task is offered for this source.') }] });
+        const sourceActions=F.snap()?.sourceKind==='rss'?[...actions(),{type:'button',label:T('Podcast / Whisper ve çeviri araçları','Podcast / Whisper and translation tools'),run:()=>{if(current())window.PlayerSourceCatalogIntegration?.podcastTools?.();}}]:[mirror(()=>$('makeSubsBtn'),T('Whisper ile altyazı oluştur','Create subtitles with Whisper')),mirror(()=>$('makeTransBtn'),T('Yüklü altyazıyı çevir','Translate loaded subtitles')),actions().find(action=>action.id==='retry-translation')];
+        const loc = [...sourceActions, ...workflowItems, mirror(() => $('playerPickSub'), T('Altyazı dosyası seç', 'Choose a subtitle file')), {type:'button',label:T('Tüm oynatıcı ayarları','All player settings'),run:openAdvanced}].filter(Boolean);
+        sections.unshift({ title: T('Altyazı ve Whisper', 'Subtitles and Whisper'), items: loc });
       }
       const attachDub = $(kind === 'browser' ? 'browserDubAdd' : 'playerDubAdd');
       if (kind !== 'shelf' && attachDub) sections.push({ title: T('Dublaj', 'Dubbing'), items: [{
@@ -592,7 +736,7 @@
     }
     return {
       caps: { queue:kind==='shelf'||F.snap()?.sourceKind==='rss', loop: true, save: typeof window.api.upsertResearchAnnotation==='function', cinema:kind==='local', study:true, word:kind!=='shelf', dub: typeof window.DubGeneratorUI?.prepareCurrent === 'function' },
-      identity, panel, actions, verifyTiming:()=>kind==='shelf'&&!!window.MediaShelfUI?.getTranscriptTracks?.().find(track=>track.role==='source')?.exactSource,
+      identity, panel, actions, job, verifyTiming:()=>kind==='shelf'&&!!window.MediaShelfUI?.getTranscriptTracks?.().find(track=>track.role==='source')?.exactSource,
       recovery: () => {if(!current())return null;const recovery=kind==='shelf'?window.MediaShelfUI?.playbackRecovery():activePlaybackRecovery();return recovery?{...recovery,ownerToken:recovery,run:kind==='shelf'?recovery.run:()=>runPlaybackRecovery({expected:recovery,report:false})}:null;},
       processing:kind==='shelf'||F.snap()?.sourceKind==='rss'?()=>({duration:F.snap()?.duration}):null,
       info: () => {
@@ -624,21 +768,24 @@
         if (!s) return { time: 0, duration: 0, paused: true, rate: 1, rows: [], rev: 'none', canSeek: false };
         const r = rowsFor(s);
         if (ownLoop?.failed) clearOwnedLoop();
-        if (ownLoop && ownLoop.revision !== r.rev) {
+        if (ownLoop?.preview) {
+          if (s.adPlaying || (ownLoop.revision!==r.rev && !timingPreviewCurrent(r,ownLoop))) clearOwnedLoop();
+          else if (ownLoop) ownLoop.revision=r.rev;
+        } else if (ownLoop && ownLoop.revision !== r.rev) {
           const index = r.rows.findIndex((row, i) => row.id === ownLoop.cueId && r.meta[i]?.trackId === ownLoop.trackId
             && row.timed && row.start === ownLoop.a && row.end === ownLoop.b);
           if (index < 0) clearOwnedLoop();
           else Object.assign(ownLoop, { row: index, revision: r.rev });
         }
         const loopRow = ownLoop && activeLoop(s, ownLoop) ? ownLoop.row : -1;
-        if (loopRow < 0 && ownLoop?.confirmed) ownLoop = null;
+        if (ownLoop?.confirmed && !activeLoop(s,ownLoop)) ownLoop = null;
         const sample = F.sampleFor?.(s);
         const translationTargets = translationNavigation(s);
         return { time: num(s.time), duration: num(s.duration), paused: !!s.paused, rate: num(s.rate) || 1, volume: kind === 'shelf' ? num($('mediaShelfAudio')?.volume ?? 1) : kind === 'browser' ? num(player.browserVolume ?? 1) : num($('playerVideo')?.volume ?? 1), rows: r.rows, rev: cache.rev, untimed: r.untimed, timingNotice:F.timingNotice?.()||'', canSeek: s.capabilities?.seek?.support === 'yes', canRate: !s.capabilities?.rate || s.capabilities.rate.support==='yes', loopRow, adPlaying: !!s.adPlaying, displayTime: F.displayTime?.(s), captionTracks: r.untimed ? undefined : r.captionTracks, waiting: !!sample?.waiting && !s.paused, seeking: !!sample?.seeking, translationTargets };
       },
       slot: (m) => { const el = F.slot(m); if (el) { el.classList.add('sh-slot-fill'); bounds(); } return el; },
       transferLoopTo(target) {
-        if (ownLoop && !ownLoop.failed && current() && activeLoop(F.snap(), ownLoop)
+        if (ownLoop && !ownLoop.preview && !ownLoop.failed && current() && activeLoop(F.snap(), ownLoop)
             && target.acceptLoop(identity(), ownLoop)) ownLoop = null;
       },
       acceptLoop(sourceIdentity, range) {
@@ -653,11 +800,12 @@
         return true;
       },
       releaseSlot: () => { clearOwnedLoop(); disposed = true; F.unslot(); restore(); F.dispose(); },
+      stopTimingPreview() { if(ownLoop?.preview)clearOwnedLoop(); },
       cmd(t, v, expectedRevision) {
         if (t === 'loop' && !(v && v.on)) { clearOwnedLoop(); return Promise.resolve({ ok: true }); }   // kendi A–B döngümüzü her durumda kapat
         const s = F.snap(); if (!current()) return Promise.resolve(stale);
         rowsFor(s);
-        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save','assistant'].includes(t))return Promise.resolve(staleTrack());
+        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','playCue','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save','assistant'].includes(t))return Promise.resolve(staleTrack());
         if (v === 'translation' && ['prevCue','nextCue','replay'].includes(t)) {
           const time = translationNavigation(s,t)[t];
           if (s.capabilities?.seek?.support !== 'yes' || !Number.isFinite(time)) {
@@ -742,6 +890,12 @@
           case 'seek': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, v)) });
           case 'seekBy': return dispatch('seek', { time: Math.max(0, Math.min(num(s.duration) || Infinity, num(s.time) + v)) });
           case 'seekCue': return cache.rows[v]?.timed ? seekRow(v) : Promise.resolve({ ok: false, code: 'untimed', message: T('Zamansız satıra atlanamaz.', 'Cannot seek to an untimed line.') });
+          case 'playCue': {
+            const row = cache.rows[v?.index];
+            if (!row?.timed) return Promise.resolve({ok:false,code:'untimed'});
+            const seek = v.translation ? seekTranslationRange(row.translationRanges?.[v.part] || row.translationRange,s) : seekRow(v.index);
+            return finishReplay(seek,s.paused,cache.rev);
+          }
           case 'seekTranslation': {
             const hasPart = v && typeof v === 'object';
             const row = cache.rows[hasPart ? v.row : v];
@@ -816,6 +970,7 @@
     const had = !!inst, active = doc.activeElement;
     if(!had&&active?.matches?.('button,a,summary')&&!active.closest('.sh-host'))stageOpener=active;
     const adapter = makeAdapter(kind, mode);
+    if (!prefs && inst && key.startsWith(kind+':') && mountedIdentity===adapter.identity()) prefs=inst.prefs(true);
     const keepFullscreenHost=!!inst&&key.startsWith(kind+':')&&mountedIdentity===adapter.identity()&&doc.fullscreenElement===host;
     if (inst && key.startsWith(kind + ':') && prefs?.reading?.identity === adapter.identity()) inst.a.transferLoopTo(adapter);
     unmount(keepFullscreenHost);

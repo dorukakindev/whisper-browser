@@ -4515,6 +4515,42 @@ def test_translate_existing_metadata_completed_source_echo_is_retried():
         assert len(seen) == 1
         assert "Çarpıcı bir gelişme yaşandı." in existing.read_text(encoding="utf-8-sig")
 
+def test_explicit_mixed_subtitle_retry_preserves_unselected_turkish_rows():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source, existing = root / 'mixed.srt', root / 'mixed.tr.srt'
+        entries = [(1.0, 3.0, 'Bu Türkçe satır aynen korunacak.'),
+                   (3.0, 6.0, 'The rulers of the kingdom said that they would return from Egypt.')]
+        text = '1\n00:00:01,000 --> 00:00:03,000\n' + entries[0][2] + '\n\n2\n00:00:03,000 --> 00:00:06,000\n' + entries[1][2] + '\n'
+        source.write_text(text, encoding='utf-8-sig')
+        existing.write_text(text, encoding='utf-8-sig')
+        args = _TrArgs(translate_cache=False)
+        args.input, args.output_dir, args.language = str(source), str(root), 'auto'
+        args.max_lines, args.wrap_mode = 2, 'none'
+        args.formats, args.dual_subtitle, args.dual_translation_first = 'srt', False, False
+        args.translate_existing, args.translate_retry_only = str(existing), True
+        digest = T.subtitle_entries_hash(entries)
+        metadata = dict(version=1, role='translation', sourceHash=digest,
+                        sourceId=T.subtitle_source_id(args, digest), targetLanguage='tr', forSpeech=False,
+                        subtitleHash=hashlib.sha256(existing.read_bytes()).hexdigest(), total=2,
+                        mixedSubtitleRepair=True,
+                        cues=[dict(key=T.translation_cue_fingerprint(row, i), status='failed' if i else 'completed', text=row[2])
+                              for i, row in enumerate(entries)])
+        Path(str(existing)+'.meta.json').write_text(json.dumps(metadata), encoding='utf-8')
+        seen = []
+        def translate(pending, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
+            seen.append(dict(precompleted or {}))
+            status_out.update(completed=[1], failed=[], precompleted=[0])
+            return [entries[0], (3.0, 6.0, 'Krallığın yöneticileri Mısır’dan döneceklerini söyledi.')]
+        with mock.patch.object(T, 'llm_translate', side_effect=translate), mock.patch.object(T, 'emit'):
+            T.translate_existing_subtitle(args)
+        assert seen == [{0: entries[0][2]}], seen
+        written = existing.read_text(encoding='utf-8-sig')
+        assert entries[0][2] in written and '00:00:01,000 --> 00:00:03,000' in written
+        assert entries[1][2] not in written
+        assert source.read_text(encoding='utf-8-sig') == text
+
+
 def test_translate_existing_total_failure_does_not_create_fake_translation():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -4530,13 +4566,19 @@ def test_translate_existing_total_failure_does_not_create_fake_translation():
         args.dual_subtitle = False
         args.dual_translation_first = False
         args.translate_existing = ""
-        with mock.patch.object(T, "llm_translate", return_value=None):
-            try:
-                T.translate_existing_subtitle(args)
-            except RuntimeError as error:
-                assert "çıktı yazılmadı" in str(error)
-            else:
-                raise AssertionError("tam API arızası başarı sayıldı")
+        for code, label in (("timeout", "yanıt süresi aşıldı"),
+                            ("rate_limit", "istek sınırına ulaşıldı")):
+            def fail(*_args, status_out, **_kwargs):
+                status_out["lastError"] = code
+                return None
+            with mock.patch.object(T, "llm_translate", side_effect=fail):
+                try:
+                    T.translate_existing_subtitle(args)
+                except RuntimeError as error:
+                    assert "çıktı yazılmadı" in str(error)
+                    assert label in str(error)
+                else:
+                    raise AssertionError("tam API arızası başarı sayıldı")
         assert not (root / "offline.tr.srt").exists()
         assert source.exists() and "Hello." in source.read_text(encoding="utf-8-sig")
 

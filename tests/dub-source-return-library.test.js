@@ -270,6 +270,8 @@ test('source-only stream opening passes autoplay=false to HLS and does not start
  await context.playStream({url:'https://fixture.test/audio.m3u8',key:'a',title:'A'},0,{autoplay:false});assert.equal(calls[0][1].autoplay,false);assert.equal(calls.some(row=>row[0]==='native'),false);
  calls.length=0;await context.playStream({url:'https://fixture.test/audio.mp3',key:'b',title:'B'},0,{autoplay:false});assert.deepEqual(calls,[['source']]);
  calls.length=0;await context.playStream({url:'https://fixture.test/audio.mp3',key:'b',title:'B'});assert.deepEqual(calls,[['source'],['native'],['play']]);
+ calls.length=0;await context.playStream({url:'file:///cached-audio.mp3',key:'c',title:'C'});assert.deepEqual(calls,[['source'],['play']]);
+ calls.length=0;await context.playStream({url:'file:///cached-audio.mp3',key:'c',title:'C'},0,{autoplay:false});assert.deepEqual(calls,[['source']]);
 });
 
 test('source-return mute hold restores only its own web contents and preserves prior manual mute',()=>{

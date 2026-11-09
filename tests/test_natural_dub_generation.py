@@ -102,8 +102,10 @@ class NaturalGenerationTests(unittest.TestCase):
                  'nanovllm_voxcpm':SimpleNamespace(VoxCPM=SimpleNamespace(from_pretrained=lambda *_a,**_k:server))}
         cues=[(g['start'],g['end'],g['text']) for g in groups]
         self.last_args=args
-        with patch.dict(sys.modules,modules),contextlib.redirect_stdout(io.StringIO()):
+        with patch.dict(sys.modules,modules),contextlib.redirect_stdout(io.StringIO()) as activity:
             asyncio.run(scope['uret'](args,cues,paths,'exact reference transcript'))
+        self.activity=[json.loads(line.removeprefix('DUB_ACTIVITY ')) for line in activity.getvalue().splitlines()
+                       if line.startswith('DUB_ACTIVITY ')]
         return args,paths
 
     def test_final_context_reaches_engine_question_isolated_plain_retains_prompt(self):
@@ -131,6 +133,8 @@ class NaturalGenerationTests(unittest.TestCase):
             self.assertEqual(self.requests[0]['text'],'Bugün burada bulunuyoruz.')
             self.assertEqual(self.requests[0]['key'],'1')
             self.assertEqual(self.requests[0]['sourceHash'],'bound-source-sha')
+            edits = [event for event in self.activity if event['stage'] == 'text_edit']
+            self.assertEqual([(event['group'],event['finished']) for event in edits], [(1,False),(1,True)])
             record=json.loads(paths[0].with_suffix('.json').read_text(encoding='utf-8'))
             self.assertEqual(record['speechEditing']['natural'],'source_reviewed')
             self.assertTrue(record['naturalEdited'])

@@ -3831,27 +3831,24 @@
 </div>
 
 <dialog class="dub-generator dub-studio dub-v2 media-surface" id="dubGeneratorDialog" aria-labelledby="dubGeneratorTitle" aria-describedby="dubStateChip" data-phase="notready">
-  <header class="dub-studio-header"><div class="dub-title-block"><h2 id="dubGeneratorTitle" data-ui-untranslated data-tr="Doğal dublaj" data-en="Natural dubbing">Doğal dublaj</h2><p data-ui-untranslated data-tr="Altyazıyı, sesi ve kapsamı doğrulayın; hazırsa üretin." data-en="Confirm the subtitles, voice and scope, then generate.">Altyazıyı, sesi ve kapsamı doğrulayın; hazırsa üretin.</p></div><div class="dub-header-actions"><span class="dub-state" id="dubStateChip" data-state="notready" role="status" aria-live="polite"><i aria-hidden="true"></i><span id="dubStateLabel" data-ui-untranslated>Hazır değil</span></span><button class="btn btn-secondary" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></div></header>
-  <div class="dub-readiness dub-slate" role="group" aria-label="Üretim hazırlığı"><div data-cell="source"><small>Altyazı</small><strong id="dubReadySource" data-ui-untranslated>—</strong><em class="dub-ready-note" id="dubReadySourceNote" data-ui-untranslated></em></div><div data-cell="voice"><small>Ses</small><strong id="dubReadyVoice" data-ui-untranslated>—</strong><em class="dub-ready-note" id="dubReadyVoiceNote" data-ui-untranslated></em></div><div data-cell="scope"><small>Kapsam</small><strong id="dubReadyRange" data-ui-untranslated>—</strong><em class="dub-ready-note" id="dubReadyRangeNote" data-ui-untranslated></em></div></div>
+  <header class="dub-studio-header"><div class="dub-title-block"><h2 id="dubGeneratorTitle" data-ui-untranslated data-tr="Doğal dublaj" data-en="Natural dubbing">Doğal dublaj</h2><p data-ui-untranslated data-tr="Bir seçimi değiştirmek için satırına tıklayın." data-en="Select a row to change it.">Bir seçimi değiştirmek için satırına tıklayın.</p></div><div class="dub-header-actions"><span class="dub-state" id="dubStateChip" data-state="notready" role="status" aria-live="polite"><i aria-hidden="true"></i><span id="dubStateLabel" data-ui-untranslated>Hazır değil</span></span><button class="btn-icon" id="dubGeneratorClose" type="button" aria-label="Kapat">×</button></div></header>
   <div class="dub-studio-scroll"><div class="dub-studio-grid"><main class="dub-studio-main">
-    <details class="dub-card dub-runs" id="dubRuns" data-ui-untranslated data-state="idle"><summary><span class="dub-runs-title" id="dubRunsTitle" data-tr="Son çalışmalar" data-en="Recent runs">Son çalışmalar</span><span class="dub-runs-count" id="dubRunsCount" hidden></span><span class="dub-runs-attention" id="dubRunsSummary" hidden></span><button class="btn btn-ghost btn-sm" id="dubRunsRefresh" type="button">Yenile</button></summary>
-      <div class="dub-runs-body"><div class="dub-runs-bar"><p id="dubRunsNotice" role="status" aria-live="polite" hidden></p></div><ul class="dub-runs-list" id="dubRunsList" aria-labelledby="dubRunsTitle"></ul></div></details>
-    <section class="dub-card" id="dubPreviewCard" hidden><div class="dub-card-heading"><h3 id="dubResultTitle" data-ui-untranslated data-tr="Dublaj hazır" data-en="Dubbing ready">Dublaj hazır</h3></div><p id="dubNaturalReview" data-ui-untranslated></p><button id="dubNaturalReviewOpen" class="btn btn-secondary" type="button" data-ui-untranslated data-tr="Grupları dinle ve kayıtları karşılaştır" data-en="Review groups and compare takes">Grupları dinle ve kayıtları karşılaştır</button><p id="dubGeneratedName" data-ui-untranslated></p><audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio></section>
-    <section class="dub-card dub-source-card"><div class="dub-card-heading"><h3 data-ui-untranslated data-tr="Altyazı ve kapsam" data-en="Subtitles and scope">Altyazı ve kapsam</h3></div>
+    <section class="dub-card" id="dubPreviewCard" hidden><div class="dub-card-heading"><h3 id="dubResultTitle" data-ui-untranslated data-tr="Dublaj hazır" data-en="Dubbing ready">Dublaj hazır</h3></div><p id="dubNaturalReview" data-ui-untranslated></p><p id="dubGeneratedName" data-ui-untranslated></p><audio id="dubGeneratedPreview" class="hidden" controls preload="metadata" aria-label="Üretilen sesi dinle"></audio><button id="dubNaturalReviewOpen" class="btn btn-ghost btn-sm" type="button" data-ui-untranslated data-tr="Grupları incele" data-en="Review groups">Grupları incele</button></section>
+    <div class="dub-readiness dub-setup">
+      <button class="dub-readiness-action" type="button" data-choice="source" aria-controls="dubSubtitleSettings" aria-expanded="false">
+        <span class="dub-choice-label" data-ui-untranslated data-tr="Altyazı" data-en="Subtitles">Altyazı</span>
+        <span class="dub-choice-value"><strong id="dubReadySource" data-ui-untranslated>—</strong><span class="dub-ready-note" id="dubReadySourceNote" data-ui-untranslated></span></span>
+      </button>
+    <section class="dub-card dub-source-card dub-choice-panel" id="dubSubtitleSettings" hidden>
 <div class="dub-generator-row"><button class="btn btn-secondary" id="dubChooseSrt" type="button">SRT seç</button><span id="dubSrtName" data-ui-untranslated>—</span></div>
     <div class="dub-podcast-source" id="dubPodcastSource" hidden data-ui-untranslated><small class="dub-podcast-eyebrow" data-ui-untranslated data-tr="Podcast bölümü" data-en="Podcast episode">Podcast bölümü</small><strong class="dub-podcast-episode" id="dubPodcastEpisode" data-ui-untranslated></strong><label for="dubPodcastTrack" data-ui-untranslated data-tr="Altyazı izi" data-en="Subtitle track">Altyazı izi</label><select id="dubPodcastTrack" data-ui-untranslated></select><p class="dub-podcast-meta" id="dubPodcastMeta" role="status" data-ui-untranslated></p><p class="dub-input-notice" id="dubPodcastNotice" role="status" hidden data-ui-untranslated></p><button class="btn btn-secondary" id="dubPodcastAction" type="button" hidden data-ui-untranslated></button></div>
     <p id="dubInputNotice" class="dub-input-notice" role="status" hidden data-ui-untranslated></p>
-<details id="dubScopeSettings"><summary data-ui-untranslated data-tr="Kısa örnek veya belirli bir bölüm" data-en="Short sample or selected range">Kısa örnek veya belirli bir bölüm</summary><label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
-  <div class="dub-generator-row dub-range-row">
-    <label for="dubRangeStart">Başlangıç (dk:sn)</label><input id="dubRangeStart" type="text" value="0:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
-    <label for="dubRangeEnd">Bitiş (dk:sn)</label><input id="dubRangeEnd" type="text" value="1:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
-    <button id="dubRangeNow" class="btn btn-ghost" type="button">Başlangıcı videodan al</button>
-  </div>
-  <p>Aralık dışında videonun özgün sesi çalar. Sınırdaki altyazı cümlesi tam okunur; yalnız sabit video modunda sığmayan sonu kesilebilir.</p>
-<label class="dub-generator-row"><input id="dubSampleOnly" type="checkbox" />Önce temsil edici kısa örnek üret</label>
-    <p>Kısa, uzun ve yoğun konuşmalı bölümlerden örnek seçilir. Önizleme videoya bağlanmaz.</p></details>
     </section>
-    <section class="dub-card dub-voice-card"><div class="dub-card-heading"><h3 data-ui-untranslated data-tr="Referans ses" data-en="Reference voice">Referans ses</h3></div><div class="dub-active-reference" role="status"><small data-ui-untranslated data-tr="Etkin referans" data-en="Active reference">Etkin referans</small><strong id="dubCurrentVoiceName" data-ui-untranslated>—</strong><p id="dubCurrentVoiceHint" data-ui-untranslated></p></div><details id="voiceReferenceLibrary" class="dub-reference-library"><summary id="voiceReferenceLibraryLabel" data-ui-untranslated>Kayıtlı sesleri değiştir</summary>
+      <button class="dub-readiness-action" type="button" data-choice="voice" aria-controls="dubVoiceSettings" aria-expanded="false">
+        <span class="dub-choice-label" data-ui-untranslated data-tr="Ses" data-en="Voice">Ses</span>
+        <span class="dub-choice-value"><strong id="dubReadyVoice" data-ui-untranslated>—</strong><span class="dub-ready-note" id="dubReadyVoiceNote" data-ui-untranslated></span></span>
+      </button>
+    <section class="dub-card dub-voice-card dub-choice-panel" id="dubVoiceSettings" hidden><div class="dub-active-reference" role="status"><small data-ui-untranslated data-tr="Etkin referans" data-en="Active reference">Etkin referans</small><strong id="dubCurrentVoiceName" data-ui-untranslated>—</strong><p id="dubCurrentVoiceHint" data-ui-untranslated></p></div><details id="voiceReferenceLibrary" class="dub-reference-library"><summary id="voiceReferenceLibraryLabel" data-ui-untranslated>Kayıtlı sesleri değiştir</summary>
     <div id="voiceReferencePicker" class="voice-reference-picker"><label for="voiceReferenceSearch">Referans seslerde ara</label>
     <input id="voiceReferenceSearch" type="search" maxlength="160" placeholder="Ad ile ara" aria-describedby="voiceReferenceCount" autocomplete="off" />
     <p id="voiceReferenceCount" class="voice-reference-count" role="status" aria-live="polite" data-ui-untranslated></p>
@@ -3859,14 +3856,6 @@
     <select id="voiceReferenceSelect" aria-label="Referans sesler"></select><audio id="voiceReferencePreview" controls preload="metadata" class="hidden"></audio><div class="dub-generator-row"><button id="voiceReferenceUse" type="button" class="btn btn-primary" disabled>Bu sesi kullan</button><button id="voiceReferenceFolder" type="button" class="btn btn-ghost">Referans sesler klasörünü aç</button></div></div>
 </details>
     <div class="dub-generator-row"><button id="voiceReferenceLocal" type="button" class="btn btn-secondary">Yerelden referans ses ekle</button><button id="voiceReferenceVideo" type="button" class="btn btn-ghost">Açık videoyu kullan</button><span id="voiceReferenceSourceName" data-ui-untranslated></span></div>
-<details id="dubDeliverySettings"><summary>Anlatım ve duygu seçenekleri</summary>
-    <label class="dub-generator-row"><input id="dubFollowDelivery" type="checkbox" />Videodaki anlatımı takip et · deneysel</label>
-    <label for="dubDeliveryStrength">Aktarım gücü</label><select id="dubDeliveryStrength" disabled><option value="gentle">Hafif</option><option value="balanced" selected>Dengeli</option><option value="strong">Belirgin</option></select>
-    <div class="dub-generator-row"><button id="dubChooseDeliverySource" type="button" class="btn btn-ghost" disabled>Analiz için yerel ses seç</button><button id="dubResetDeliverySource" type="button" class="btn btn-ghost" disabled>Analizde açık videoyu kullan</button><span id="dubDeliverySourceName" data-ui-untranslated></span></div>
-    <p>Özgün sesin enerji, perde hareketi ve durakları izlenir; kesin duygu etiketi çıkarılmaz. Müzik ve birden fazla konuşmacı yanıltabilir. Belirsiz bölümde ek yönlendirme uygulanmaz.</p>
-    <label for="dubExpression">Anlatım tonu</label><select id="dubExpression"><option value="reference">Referansın tonunu koru</option><option value="calm">Sakin anlatım · deneysel</option><option value="warm">Sıcak anlatım · deneysel</option><option value="lively">Canlı anlatım · deneysel</option></select>
-    <p>En doğal duygu için aynı kişinin istediğiniz tonda konuştuğu temiz bir referans seçin. Deneysel tonlar ses kimliğini etkileyebilir; önce kısa örnek dinleyin.</p>
-    </details>
 <details id="voiceReferenceRecorder">
     <summary>Video veya yerel sesten referans al</summary>
     <p>Yerel ses için başlangıç ve bitiş aralığını seçin. Ses hazırlanıp dökümü çıkarılır; Bu sesi kullan ile etkinleştirin.</p>
@@ -3895,13 +3884,24 @@
     </details>
 
   </details>
-<details id="dubBackgroundSettings" class="dub-bg-settings"><summary>Müzik ve ortam sesleri</summary>
-<label class="dub-generator-row"><input id="dubKeepBackground" type="checkbox" />Müzik ve ortam seslerini koru</label>
-  <p>Açık YouTube videosunun sesi ayrıştırılır. İlk işlem model indirir; bazı konuşma izleri kalabilir. İstersen yerel kaynak seç.</p>
-  <p>Müzik ayrı katmandır; Sesi kullan ile dublajın yanında çalar.</p>
-  <div class="dub-generator-row"><button id="dubChooseBackground" class="btn btn-ghost" type="button">Arka plan için video / ses seç</button><button id="dubBackgroundReset" class="btn btn-ghost" type="button">Açık videoyu kullan</button><span id="dubBackgroundName" data-ui-untranslated></span></div></details>
     </section>
-    <section class="dub-card dub-natural-card"><div class="dub-natural-heading"><div><h3 id="dubNaturalTitle" data-ui-untranslated data-tr="Doğal dublaj (önerilen)" data-en="Natural dubbing (recommended)">Doğal dublaj (önerilen)</h3><p id="dubNaturalSummary" data-ui-untranslated></p></div><button id="dubNaturalRecommend" class="btn btn-secondary" type="button" data-ui-untranslated data-tr="Doğal dublajı kullan" data-en="Use natural dubbing" hidden>Doğal dublajı kullan</button></div>
+      <button class="dub-readiness-action" type="button" data-choice="scope" aria-controls="dubScopeSettings" aria-expanded="false">
+        <span class="dub-choice-label" data-ui-untranslated data-tr="Kapsam" data-en="Scope">Kapsam</span>
+        <span class="dub-choice-value"><strong id="dubReadyRange" data-ui-untranslated>—</strong><span class="dub-ready-note" id="dubReadyRangeNote" data-ui-untranslated></span></span>
+      </button>
+<div id="dubScopeSettings" class="dub-choice-panel" hidden><label class="dub-generator-row"><input id="dubRangeEnabled" type="checkbox" />Yalnız seçilen zaman aralığını seslendir</label>
+  <div class="dub-generator-row dub-range-row">
+    <label for="dubRangeStart">Başlangıç (dk:sn)</label><input id="dubRangeStart" type="text" value="0:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
+    <label for="dubRangeEnd">Bitiş (dk:sn)</label><input id="dubRangeEnd" type="text" value="1:00" inputmode="decimal" maxlength="16" data-ui-untranslated />
+    <button id="dubRangeNow" class="btn btn-ghost" type="button">Başlangıcı videodan al</button>
+  </div>
+  <p>Aralık dışında videonun özgün sesi çalar. Sınırdaki altyazı cümlesi tam okunur; yalnız sabit video modunda sığmayan sonu kesilebilir.</p>
+<label class="dub-generator-row"><input id="dubSampleOnly" type="checkbox" />Önce temsil edici kısa örnek üret</label>
+    <p>Kısa, uzun ve yoğun konuşmalı bölümlerden örnek seçilir. Önizleme videoya bağlanmaz.</p></div>
+    </div>
+    <details class="dub-card dub-natural-card dub-tool-section" id="dubManualSettings">
+      <summary><span data-ui-untranslated data-tr="Üretim ayarları" data-en="Production settings">Üretim ayarları</span><span id="dubVerificationAtStart" class="dub-tool-description" data-ui-untranslated></span></summary>
+      <div class="dub-tool-body"><div class="dub-natural-heading"><div><h3 id="dubNaturalTitle" data-ui-untranslated data-tr="Doğal dublaj (önerilen)" data-en="Natural dubbing (recommended)">Doğal dublaj (önerilen)</h3><p id="dubNaturalSummary" data-ui-untranslated></p></div><button id="dubNaturalRecommend" class="btn btn-secondary" type="button" data-ui-untranslated data-tr="Doğal dublajı kullan" data-en="Use natural dubbing" hidden>Doğal dublajı kullan</button></div>
       <div class="dub-presets" role="group" aria-label="Ses üretim profilleri"><button type="button" class="dub-preset" id="dubPresetBalanced" aria-pressed="false"><strong>Dengeli</strong><small>Önerilen · 15 adım</small></button><button type="button" class="dub-preset" id="dubPresetFast" aria-pressed="false"><strong>Hızlı deneme</strong><small>10 adım · kısa bekleme</small></button><button type="button" class="dub-preset" id="dubPresetCareful" aria-pressed="false"><strong>Ayrıntılı kontrol</strong><small>15 adım · metin doğrulama</small></button></div>
 
       <p id="dubPresetSummary" role="status"></p>
@@ -3909,7 +3909,19 @@
       <p id="dubReadySettings" class="dub-production-summary" role="status" aria-live="polite" data-ui-untranslated></p>
       <p id="dubNaturalState" role="status" data-ui-untranslated></p>
       <p id="dubNaturalDelivery" data-ui-untranslated></p>
-      <details id="dubManualSettings"><summary data-ui-untranslated data-tr="Gelişmiş üretim ayarları" data-en="Advanced production settings">Gelişmiş üretim ayarları</summary>
+<details id="dubDeliverySettings"><summary>Anlatım ve duygu seçenekleri</summary>
+    <label class="dub-generator-row"><input id="dubFollowDelivery" type="checkbox" />Videodaki anlatımı takip et · deneysel</label>
+    <label for="dubDeliveryStrength">Aktarım gücü</label><select id="dubDeliveryStrength" disabled><option value="gentle">Hafif</option><option value="balanced" selected>Dengeli</option><option value="strong">Belirgin</option></select>
+    <div class="dub-generator-row"><button id="dubChooseDeliverySource" type="button" class="btn btn-ghost" disabled>Analiz için yerel ses seç</button><button id="dubResetDeliverySource" type="button" class="btn btn-ghost" disabled>Analizde açık videoyu kullan</button><span id="dubDeliverySourceName" data-ui-untranslated></span></div>
+    <p>Özgün sesin enerji, perde hareketi ve durakları izlenir; kesin duygu etiketi çıkarılmaz. Müzik ve birden fazla konuşmacı yanıltabilir. Belirsiz bölümde ek yönlendirme uygulanmaz.</p>
+    <label for="dubExpression">Anlatım tonu</label><select id="dubExpression"><option value="reference">Referansın tonunu koru</option><option value="calm">Sakin anlatım · deneysel</option><option value="warm">Sıcak anlatım · deneysel</option><option value="lively">Canlı anlatım · deneysel</option></select>
+    <p>En doğal duygu için aynı kişinin istediğiniz tonda konuştuğu temiz bir referans seçin. Deneysel tonlar ses kimliğini etkileyebilir; önce kısa örnek dinleyin.</p>
+    </details>
+<details id="dubBackgroundSettings" class="dub-bg-settings"><summary>Müzik ve ortam sesleri</summary>
+<label class="dub-generator-row"><input id="dubKeepBackground" type="checkbox" />Müzik ve ortam seslerini koru</label>
+  <p>Açık YouTube videosunun sesi ayrıştırılır. İlk işlem model indirir; bazı konuşma izleri kalabilir. İstersen yerel kaynak seç.</p>
+  <p>Müzik ayrı katmandır; Sesi kullan ile dublajın yanında çalar.</p>
+  <div class="dub-generator-row"><button id="dubChooseBackground" class="btn btn-ghost" type="button">Arka plan için video / ses seç</button><button id="dubBackgroundReset" class="btn btn-ghost" type="button">Açık videoyu kullan</button><span id="dubBackgroundName" data-ui-untranslated></span></div></details>
 <details id="dubEngineSettings"><summary>Ses ve motor ayarları</summary>
     <section class="dub-pronunciations" data-ui-untranslated>
       <h4 id="dubPronunciationTitle">Telaffuz sözlüğü</h4>
@@ -3926,7 +3938,7 @@
 
   <label for="dubTimingMode">Konuşma süreye sığmazsa</label>
   <select id="dubTimingMode"><option value="video">Konuşmayı tam tut; videoyu yavaşlat</option><option value="clip">Video sabit; sığmayan konuşmayı kes</option></select>
-  <p>Videoyu yavaşlat modunda konuşma kesilmez. Ses dosyası daha uzun olabilir; Sesi kullan ile senkron oynatılır.</p><p>Videoyu yavaşlat modunda konuşma kesilmez. Ses dosyası daha uzun olabilir; Sesi kullan ile senkron oynatılır.</p>
+  <p>Videoyu yavaşlat modunda konuşma kesilmez. Ses dosyası daha uzun olabilir; Sesi kullan ile senkron oynatılır.</p>
       <details id="dubProductionSettings"><summary>Motor ve konuşma gruplama</summary>
 <div class="dub-generator-row"><label for="dubProfile">Ses kalitesi</label><select id="dubProfile"><option value="quality">Kaliteli (15 adım)</option><option value="fast">Hızlı (10 adım)</option></select></div>
   <div class="dub-generator-row"><label for="dubConcurrency">Paralel üretim</label><select id="dubConcurrency"><option value="4">4 grup (az bellek)</option><option value="8">8 grup (daha fazla bellek)</option></select></div>
@@ -3937,14 +3949,17 @@
       </details>
 
       <details id="dubAdvancedSettings"><summary>Gelişmiş kalite ve AI ayarları</summary><p id="dubEditorProviderHint" data-ui-untranslated></p>
-<div class="dub-generator-row"><label for="dubVerification">Konuşma doğrulaması</label><select id="dubVerification"><option value="fast">Hızlı · ses denetimi</option><option value="balanced">Dengeli · şüpheli bölümlerde metin denetimi</option><option value="detailed" selected>Ayrıntılı · tüm bölümlerde metin denetimi</option></select></div>
+<div class="dub-generator-row"><label for="dubVerification">Konuşma doğrulaması</label><select id="dubVerification"><option value="fast">Hızlı · ses denetimi</option><option value="balanced" selected>Dengeli · şüpheli bölümlerde metin denetimi</option><option value="detailed">Ayrıntılı · tüm bölümlerde metin denetimi</option></select></div>
     <p>Metin denetimi kayıtlı Whisper small modelini CPU ile kullanır; ek süre alır. Model yoksa doğrulanamadığı bildirilir.</p>
     <label class="dub-generator-row"><input id="dubNaturalSpeech" type="checkbox" checked />Seslendirmeden önce doğal konuşma düzenlemesi yap</label>
     <p>İkinci geçiş seçili AI sağlayıcısını kullanır; ek süre ve API kullanımı gerektirir. Altyazı korunur, okunacak metin ayrı kaydedilir. Elle uyguladığınız metin tekrar düzenlenmez.</p>
     <label class="dub-generator-row"><input id="dubAutoFit" type="checkbox" checked />Uzun konuşmayı AI ile süreye göre düzenle</label>
-    <p>Seçili çeviri sağlayıcısını kullanır. Gerçek okuma süresi ölçülür; anlamı koruyan daha kısa bir öneri denenir; sığmazsa zamanlama seçiminiz uygulanır.</p></details></details>
-    </section>
-    <section class="dub-card dub-edit-card"><div class="dub-card-heading"><h3 data-ui-untranslated data-tr="Metin, parçalar ve çıktı" data-en="Text, groups and output">Metin, parçalar ve çıktı</h3></div><details id="dubTextEditor"><summary>Dublaj metnini düzenle</summary>
+    <p>Seçili çeviri sağlayıcısını kullanır. Gerçek okuma süresi ölçülür; anlamı koruyan daha kısa bir öneri denenir; sığmazsa zamanlama seçiminiz uygulanır.</p></details>
+      </div>
+    </details>
+    <details class="dub-card dub-edit-card dub-tool-section" id="dubReviewTools">
+      <summary><span data-ui-untranslated data-tr="Metin, gruplar ve çıktı" data-en="Text, groups and output">Metin, gruplar ve çıktı</span><span class="dub-tool-description" data-ui-untranslated data-tr="İncele, düzenle, dışa aktar" data-en="Review, edit, export">İncele, düzenle, dışa aktar</span></summary>
+      <div class="dub-tool-body" id="dubReviewToolsBody"><details id="dubTextEditor"><summary>Dublaj metnini düzenle</summary>
     <p>Orijinal SRT korunur. Kısaltma önerisini kontrol edip uygula; süreye sığması tahminidir.</p>
     <button id="dubPlanPrepare" class="btn btn-secondary" type="button">Cümle planını hazırla</button>
     <select id="dubPlanGroup" aria-label="Cümle grubu" data-ui-untranslated></select>
@@ -3997,12 +4012,17 @@
     <div class="dub-generator-row"><button id="dubWorkspaceExport" class="btn btn-primary" type="button" disabled>Dışa aktar</button><button id="dubWorkspaceCancel" class="btn btn-ghost" type="button" disabled>İşlemi durdur</button><button id="dubWorkspaceReveal" class="btn btn-ghost hidden" type="button">Kaydedilen dosyayı aç</button></div>
     <p id="dubWorkspaceStatus" role="status" aria-live="polite"></p>
     <progress id="dubWorkspaceProgress" class="hidden"></progress>
-  </details></section>
+  </details>
+      <div class="dub-generator-row"><button class="btn btn-secondary" id="dubTextStudio" type="button">Metin / TXT stüdyosunu aç</button></div>
+      </div>
+    </details>
+    <details class="dub-card dub-runs" id="dubRuns" data-ui-untranslated data-state="idle"><summary><span class="dub-runs-title" id="dubRunsTitle" data-tr="Son çalışmalar" data-en="Recent runs">Son çalışmalar</span><span class="dub-runs-count" id="dubRunsCount" hidden></span><span class="dub-runs-attention" id="dubRunsSummary" hidden></span></summary>
+      <div class="dub-runs-body"><div class="dub-runs-bar"><button class="btn btn-ghost btn-sm" id="dubRunsRefresh" type="button">Yenile</button><p id="dubRunsNotice" role="status" aria-live="polite" hidden></p></div><ul class="dub-runs-list" id="dubRunsList" aria-labelledby="dubRunsTitle"></ul></div></details>
   </main></div></div>
   <footer class="dub-studio-footer" data-phase="notready">
     <div class="dub-runbar">
       <div class="dub-run-copy"><p id="dubGeneratorStatus" class="dub-run-status" role="status" aria-live="polite">Hazır</p><p id="dubStartRequirement" class="dub-run-reason" role="status" data-ui-untranslated></p><p class="dub-run-live"><span id="dubGeneratorCount" data-ui-untranslated></span><span id="dubGeneratorActivity" data-ui-untranslated aria-live="polite"></span></p></div>
-      <div class="dub-generator-row dub-run-actions"><button class="btn btn-secondary" id="dubStartNext" type="button" hidden data-ui-untranslated></button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-secondary hidden" id="dubGeneratorUse" type="button">Sesi kullan</button><button class="btn btn-primary" id="dubGeneratorStart" aria-describedby="dubStartRequirement" type="button" data-ui-untranslated data-tr="Dublajı başlat" data-en="Start dubbing">Dublajı başlat</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost" id="dubStorageOpen" type="button" disabled>Sesler klasörünü aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>
+      <div class="dub-generator-row dub-run-actions"><button class="btn btn-secondary" id="dubStartNext" type="button" hidden data-ui-untranslated></button><button class="btn btn-secondary" id="dubGeneratorCancel" type="button" disabled>Durdur</button><button class="btn btn-secondary hidden" id="dubGeneratorUse" type="button">Sesi kullan</button><button class="btn btn-secondary" id="dubSampleHere" type="button" hidden data-ui-untranslated></button><button class="btn btn-primary" id="dubGeneratorStart" aria-describedby="dubStartRequirement" type="button" data-ui-untranslated>Dublajı başlat</button><button class="btn btn-ghost hidden" id="dubGeneratorOutput" type="button">Ses dosyasını aç</button><button class="btn btn-ghost" id="dubStorageOpen" type="button" disabled>Sesler klasörünü aç</button><button class="btn btn-ghost hidden" id="dubGeneratorLog" type="button">Üretim kaydını aç</button></div>
     </div>
     <progress id="dubGeneratorProgress" max="100" value="0" aria-label="Üretim ilerlemesi"></progress>
     <div class="dub-run-meta"><p><span>Geçen süre</span> <span id="dubGeneratorElapsed" data-ui-untranslated>0:00</span></p><button id="dubOpenQuality" class="btn btn-ghost btn-sm" type="button" data-ui-untranslated hidden>Grupları kontrol et</button>

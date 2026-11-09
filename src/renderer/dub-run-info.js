@@ -44,7 +44,8 @@
     const r=output.range||s.range;
     const time=n=>`${Math.floor(n/60)}:${(n%60).toFixed(2).padStart(5,'0').replace(/\.00$/,'')}`;
     const validRange=r&&Number.isFinite(r.start)&&Number.isFinite(r.end)&&r.start>=0&&r.end>r.start;
-    add(en?'Scope':'Kapsam',output.sample===true?(en?'Short sample':'Kısa örnek'):validRange?time(r.start)+' → '+time(r.end):en?'All subtitle cues':'Altyazının tamamı');
+    const scope=validRange?time(r.start)+' → '+time(r.end):'';
+    add(en?'Scope':'Kapsam',output.sample===true?[(en?'Short sample':'Kısa örnek'),s.positionSample?scope:''].filter(Boolean).join(' · '):scope||(en?'All subtitle cues':'Altyazının tamamı'));
     add(en?'Grouping':'Gruplama',({anlatim:en?'Sentence flow':'Cümle akışı',akici:en?'Flowing blocks':'Akıcı bloklar',cumle:en?'Sentence groups':'Cümle grupları',satir:en?'Subtitle rows':'Altyazı satırları'})[s.grouping]);
     add(en?'Quality':'Kalite',Number.isSafeInteger(s.steps)&&s.steps>0&&s.steps<=100?s.steps+(en?' steps':' adım'):'');
     add(en?'Verification':'Doğrulama',({fast:en?'Audio checks':'Ses denetimi',balanced:en?'Selective text checks':'Seçili metin denetimi',detailed:en?'Full text checks':'Tam metin denetimi'})[s.verification]);
@@ -54,5 +55,12 @@
     if(editing.length){const reviewed=editing.filter(value=>value==='source_reviewed').length,unchanged=editing.filter(value=>value==='unchanged').length;add(en?'Speech editing':'Konuşma düzenlemesi',en?`${reviewed} source-reviewed · ${unchanged} unchanged`:`${reviewed} kaynak anlamı denetlenen · ${unchanged} değiştirilmeden korunan`);}
     return rows;
   }
-  return {counts,recipe,speechResult,verificationSummary};
+  function activityLabel(g,en){
+    const verification=g.stage==='verification', editing=g.stage==='text_edit';
+    const label=verification?(en?'Whisper check / queue':'Whisper denetimi / sıra')
+      : editing?(en?'Text preparation':'Metin hazırlığı'):(en?'Speech generation':'Ses üretimi');
+    const attempt=editing?'':(en?'attempt ':'deneme ')+g.attempt+' · ';
+    return (en?'Group ':'Grup ')+g.group+' · '+label+' · '+attempt+Math.floor(g.elapsed)+(en?' s elapsed':' sn geçti')+' · '+(verification?(en?'request limit (excludes queue) ':'istek sınırı (sıra hariç) '):(en?'timeout ':'zaman aşımı '))+g.limit+(en?' s':' sn');
+  }
+  return {counts,recipe,speechResult,verificationSummary,activityLabel};
 });

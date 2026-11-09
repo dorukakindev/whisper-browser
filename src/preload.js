@@ -171,6 +171,7 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('youtube:event', wrapped);
   },
   readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
+  repairSubtitleTranslation: request => ipcRenderer.invoke('media:repairTranslation', request),
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),
   webResearch: query => ipcRenderer.invoke('assistant:webResearch', query),

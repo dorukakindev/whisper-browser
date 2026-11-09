@@ -1,6 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {recipe,counts}=require('../src/renderer/dub-run-info'),{inspectVoiceOutput}=require('../src/voice-output');
+
+test('verification activity labels distinguish queue elapsed time from the request timeout',()=>{
+ const {activityLabel}=require('../src/renderer/dub-run-info'),row={group:71,attempt:1,elapsed:140,limit:120,stage:'verification'};
+ assert.match(activityLabel(row,false),/sıra hariç/);assert.match(activityLabel(row,true),/excludes queue/);
+ assert.match(activityLabel({...row,stage:'synthesis'},true),/timeout 120/);
+});
 test('WAV facts come from validated frames; reading never modifies source bytes',()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'wav-info809-'));
  try {const file=path.join(root,'Türkçe.wav'),bytes=require('./helpers/wav-fixture')(24000);fs.writeFileSync(file,bytes);const info=inspectVoiceOutput(file);assert.equal(info.seconds,1);assert.equal(info.channels,1);assert.equal(info.sampleRate,24000);assert.equal(info.bits,16);assert.deepEqual(fs.readFileSync(file),bytes);

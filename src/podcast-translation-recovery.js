@@ -70,4 +70,37 @@ function materialize({directory,sourceVersion,source,translation,targetLanguage,
  fs.mkdirSync(directory,{recursive:true});const write=require('./fsync-utils').atomicWriteFileSync;write(sourcePath,sourcePayload);write(translationPath,translationPayload);write(translationPath+'.meta.json',JSON.stringify(metadata)+'\n');
  return {sourcePath,translationPath,targetLanguage:recovered.targetLanguage,forSpeech:false,translateRetryOnly:true,total:translated.length,completed,failed:translated.length-completed,coverage:selected};
 }
-module.exports={readOutputRecovery,validate,coverage,recoveryInfo,materialize};
+// File repair is separate from feed recovery: the exact generated file and sidecar
+// are re-read at approval. Original artifacts and successful rows stay untouched.
+function repairFile({file,bytes,directory,prepare=false,expectedHash,allowMixed=false}){
+ let raw=readOutputRecovery(file,bytes),mixed=false;
+ const text=require('./browser-textutil').decodeSubtitleBuffer(bytes).text;
+ if(!raw){
+  if(!allowMixed)return {canRepair:false,reason:'missing-recovery'};
+  const rows=parse(text);mixed=true;
+  raw={version:1,targetLanguage:'tr',forSpeech:false,sourceCues:rows,completed:rows.map(()=>true),translationTextHash:hash(text)};
+ }
+ const translated=parse(text);
+ const suspects=require('./translation-review-summary').untranslatedIndices(raw.sourceCues,translated,raw.targetLanguage).filter(i=>raw.completed[i]);
+ const failed=new Set(raw.completed.flatMap((done,i)=>done?[]:[i]));for(const i of suspects)failed.add(i);
+ const metadata=mixed?{mixedSubtitleRepair:true}:JSON.parse(fs.readFileSync(file+'.meta.json','utf8'));
+ if(metadata.mixedSubtitleRepair===true)mixed=true;
+ const fingerprint=hash(Buffer.concat([bytes,Buffer.from(JSON.stringify(metadata))]));
+ const info={canRepair:failed.size>0,total:raw.completed.length,failed:failed.size,suspected:suspects.length,targetLanguage:raw.targetLanguage,fingerprint,mixed};
+ if(!prepare||!info.canRepair)return info;
+ if(expectedHash!==fingerprint)fail();
+ if(raw.forSpeech&&!(typeof metadata.speechProtocol==='string'&&/^speech-[a-z0-9-]{1,100}$/.test(metadata.speechProtocol)))fail('for-speech-unsupported');
+ const sourceText=serialize(raw.sourceCues),source={state:'timed',text:sourceText,status:'complete'};
+ const track={state:'timed',text,status:'partial',targetLanguage:raw.targetLanguage,
+  recovery:{...raw,forSpeech:false,completed:raw.completed.map((done,i)=>done&&!failed.has(i))}};
+ const result=materialize({directory,sourceVersion:fingerprint,source,translation:track,targetLanguage:raw.targetLanguage,expectedTranscriptText:sourceText});
+ if(raw.forSpeech||mixed){
+  const staged=JSON.parse(fs.readFileSync(result.translationPath+'.meta.json','utf8'));
+  if(mixed)staged.mixedSubtitleRepair=true;
+  if(raw.forSpeech){staged.forSpeech=true;staged.speechProtocol=metadata.speechProtocol;}
+  require('./fsync-utils').atomicWriteFileSync(result.translationPath+'.meta.json',JSON.stringify(staged)+'\n');
+  result.forSpeech=raw.forSpeech;
+ }
+ return {...info,...result};
+}
+module.exports={readOutputRecovery,validate,coverage,recoveryInfo,materialize,repairFile};

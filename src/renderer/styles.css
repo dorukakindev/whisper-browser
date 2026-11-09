@@ -6990,6 +6990,10 @@ html[data-theme="light"] .player-layer .player-parse-status { color: var(--text-
   background: var(--bg-2); color: var(--text); font-size: 12px;
 }
 .cue-untranslated-banner .btn { flex: none; width: auto; }
+.translation-repair-offer { flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.translation-repair-offer > span { flex: 1 1 28ch; min-width: 0; line-height: 1.6; }
+.translation-repair-offer .btn { white-space: normal; }
+.dub-generation-gate > .translation-repair-offer { flex: 1 1 100%; }
 /* Yeniden çeviri farkı. */
 .retranslate-review {
   position: fixed; inset: 0; margin: auto; height: fit-content;

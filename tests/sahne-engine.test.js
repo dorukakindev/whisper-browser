@@ -491,6 +491,82 @@ test('a single available language hides the redundant selector and two languages
  assert.equal(display.hidden,false);
  assert.equal(f.sh.displayMode(),'both');
 });
+test('the cinema language button keeps its preference while only one subtitle language is available', t => {
+ const f = mount(t, {cinema:true, prefs:{disp:'tr'}});
+ const display = f.sh.q('[data-a=display]');
+ assert.equal(display.hidden, false);
+ assert.equal(f.sh.displayMode(), 'tr');
+ display.focus();
+ const translations = f.rows[0].trs;
+ f.rows[0].trs = [];
+ f.setRevision('source-only'); f.sh.tick();
+ assert.equal(display.hidden, true);
+ assert.equal(f.w.document.activeElement, f.sh.q('[data-a=toggle]'));
+ assert.equal(f.sh.displayMode(), 'src');
+ display.click();
+ f.rows[0].trs = translations;
+ f.setRevision('restored-pair'); f.sh.tick();
+ assert.equal(display.hidden, false);
+ assert.equal(f.sh.displayMode(), 'tr');
+ display.click();
+ assert.equal(f.sh.displayMode(), 'both');
+});
+test('the three Stage decks prioritize listening, sentence work and basic playback', t => {
+ const study=mount(t,{study:true}), cinema=mount(t,{cinema:true});
+ assert.ok(study.sh.q('.sh-sentence-nav [data-a=loop]'));
+ assert.ok(study.sh.q('.sh-dock [data-a=readCurrent]'));
+ assert.deepEqual(Array.from(cinema.sh.q('.sh-cinema-transport').children,b=>b.dataset.a),['toggle','back','fwd']);
+ cinema.sh.q('.sh-cinema-transport [data-a=fwd]').click();
+ assert.deepEqual(cinema.commands[0].slice(0,2),['seekBy',10]);
+ assert.ok(cinema.sh.q('.sh-cinema-sentences [data-a=replay]'));
+});
+test('the workbar yields a duplicate translation retry to the visible status action', t => {
+ const retry = {id:'retry-translation', label:'Complete missing translation', primary:true};
+ const f = mount(t, {actions:[retry, {id:'translate',label:'Translate'}], sections:[{title:'Subtitles',items:[retry]}]});
+ const job = {state:'partial', retry:()=>{}, retryActionId:retry.id};
+ f.sh.a.job = () => job;
+ f.sh.q('[data-task=retry-translation]').focus();
+ f.sh.tick();
+ const statusRetry = f.sh.q('[data-a=jobretry]');
+ assert.equal(statusRetry.hidden, false);
+ assert.equal(f.w.document.activeElement, statusRetry);
+ assert.equal(f.sh.q('[data-task=retry-translation]'), null);
+ assert.ok(f.sh.q('[data-task=translate]'));
+ job.state = 'idle';
+ f.sh.tick();
+ assert.equal(f.sh.q('[data-r=job]').hidden, true);
+ assert.ok(f.sh.q('[data-task=retry-translation]'));
+});
+test('missing translation filter and next action reuse the timed sentence seek', t => {
+ for (const mode of [{}, {study:true}, {cinema:true}]) {
+  const f = mount(t, mode);
+  assert.equal(f.sh.q('[data-r=missingTools]').hidden, true);
+  f.rows[0].translationMissing = 'confirmed';
+  f.rows[1].translationMissing = 'suspected';
+  f.rows.push({id:'ready',start:20,end:30,timed:true,src:'Translated source',trs:['Hazır çeviri'],unc:[]});
+  f.setRevision('missing'); f.sh.tick();
+  const filter = f.sh.q('[data-a=missingFilter]'), next = f.sh.q('[data-a=missingNext]');
+  assert.match(filter.textContent, /2/);
+  filter.click();
+  assert.deepEqual(Array.from(f.sh.lines, line => line.hidden), [false,false,true]);
+  assert.match(f.sh.lines[1].textContent, /eksik olabilir/);
+  next.click(); next.click(); next.click();
+  assert.deepEqual(f.commands.map(([command,index])=>[command,index]), [['seekCue',0],['seekCue',1],['seekCue',0]]);
+  f.sh.lines[0].querySelector('.src').click();
+  assert.deepEqual(f.commands.at(-1).slice(0,2), ['seekCue',0]);
+  assert.equal(f.sh.s.follow, false);
+  f.setCanSeek(false); f.sh.tick();
+  next.click();
+  assert.equal(f.commands.length, 4);
+  assert.ok(f.sh.lines[1].classList.contains('sh-missing-current'));
+  filter.focus();
+  f.rows.forEach(row => { delete row.translationMissing; });
+  f.setRevision('repaired'); f.sh.tick();
+  assert.equal(f.sh.q('[data-r=missingTools]').hidden, true);
+  assert.equal(f.w.document.activeElement, f.sh.q('[data-r=q]'));
+  assert.ok(f.sh.lines.every(line => !line.hidden));
+ }
+});
 test('untimed content is readable without a timestamp, active line, or seek command',t=>{
  const f=mount(t,{untimed:true}),row=f.sh.q('[data-i="0"]');assert(row.textContent.includes('Yayıncı metni'));assert.equal(row.hasAttribute('tabindex'),false);assert.equal(row.querySelector('.at'),null);assert.equal(f.sh.cur,-1);row.click();assert.equal(f.commands.length,0);
 });
@@ -1203,9 +1279,10 @@ test('mode handoff preserves same-source reading and sleep but rejects another m
   assert.equal(study.sh.s.follow, false);
   assert.equal(study.sh.s.sleepAt, podcast.sh.s.sleepAt);
   assert.equal(study.sh.lines[0].hidden, true);
+  assert.equal(study.sh.q('.sh-transcript-toggle').getAttribute('aria-expanded'), 'true');
   const scroll = study.sh.q('[data-r=scroll]');
   Object.defineProperty(scroll, 'clientHeight', { value: 300 });
-  study.sh.q('.sh-transcript-toggle').click();
+  study.sh.tick();
   assert.equal(scroll.scrollTop, 73);
   const other = mount(t, { study:true, prefs, identity:'different-source' });
   assert.equal(other.sh.q('[data-r=q]').value, '');
@@ -1559,6 +1636,19 @@ test('same-source search handoff keeps the selected result only for the same tra
  const other=mount(t,{identity:'another-source',prefs});assert.equal(other.sh.matchLine==null,true);
 });
 
+test('moving an active search into the player keeps its result and opens the transcript drawer',t=>{
+ const from=mount(t,{study:true});
+ const query=from.sh.q('[data-r=q]');
+ query.value='sentence';
+ query.dispatchEvent(new from.w.Event('input'));
+ from.sh.moveMatch(1);
+ const next=mount(t,{cinema:true,prefs:from.sh.prefs(true)});
+ assert.equal(next.sh.root.classList.contains('transcript-open'),true);
+ assert.equal(next.sh.q('[data-r=q]').value,'sentence');
+ assert.equal(next.sh.matchLine,next.sh.lines[0]);
+ assert.deepEqual(next.commands,[]);
+});
+
 test('search selection follows real row identity through translation updates and drops removed or hidden matches',t=>{
  const f=mount(t),q=f.sh.q('[data-r=q]');q.value='sentence';q.dispatchEvent(new f.w.Event('input'));f.sh.moveMatch(1);f.sh.moveMatch(1);
  const selected=f.rows[1];f.sh.a.state=(()=>{const state=f.sh.a.state;return ()=>({...state(),rows:[selected,{...f.rows[0],trs:['Yeni çeviri sentence']}],rev:'reordered'});})();f.sh.tick();
@@ -1877,4 +1967,13 @@ for(const handoff of [false,true])test('dragging volume to zero restores the lat
 
 for(const action of ['passage','full-sentence'])test('explicit passage reading wins over the chapter return position, action='+action,t=>{
  const f=mount(t);f.sh.s.follow=false;f.sh.showReading(true);let cancelled=false;f.sh.applyReadingPosition=()=>{f.sh.readingLayoutRaf=678;};f.w.cancelAnimationFrame=id=>{if(id===678)cancelled=true;};if(action==='passage')f.sh.focusPassage(12);else f.sh.readCurrentSentence(f.sh.q('[data-a=readCurrent]'));assert.equal(cancelled,true);assert.equal(f.sh.root.classList.contains('sh-chapters-open'),false);assert.equal(f.commands.length,0);
+});
+
+
+test('Tasks sentence checkbox is keyboard-native, keeps focus and rejects an obsolete source',t=>{
+ const values=[],item={type:'checkbox',id:'sentence-merge',label:'Cümleleri birleştir',value:false,onChange:value=>{values.push(value);item.value=value;}};
+ const f=mount(t,{sections:[{title:'Altyazı ve Whisper',items:[item]}]});f.sh.togglePanel();
+ let input=f.sh.q('[data-pid="sentence-merge"]');assert.equal(input.type,'checkbox');input.focus();input.click();
+ assert.deepEqual(values,[true]);input=f.sh.q('[data-pid="sentence-merge"]');assert(input.checked);assert.equal(f.w.document.activeElement,input);
+ f.sh.a.identity=()=> 'other-source';input.click();assert.deepEqual(values,[true]);
 });
