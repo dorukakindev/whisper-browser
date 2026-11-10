@@ -68,6 +68,7 @@ function episodeOf(raw) {
       !Number.isSafeInteger(number) || number < 1 || number > 10000) return null;
   const id = text(raw.id, 120) || `s${season}e${number}`;
   return { id, season, number, title: text(raw.title, 300),
+    runtime:Number.isFinite(Number(raw.runtime))&&Number(raw.runtime)>0&&Number(raw.runtime)<=10000?Number(raw.runtime):null,
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : 'unspecified', source: sourceOf(raw.source),
     airDate: /^\d{4}-\d{2}-\d{2}$/.test(raw.airDate || '') ? raw.airDate : '' };
 }
@@ -89,6 +90,7 @@ function directorPeopleOf(raw) {
 const inWatchlist = status => status === 'planned' || status === 'watching';
 
 function stampWatchlist(item, old) {
+  if(old&&item.ratings?.personal!==old.ratings?.personal){item.ratedAt=Date.now();item.activity=require('./personal-history').append(item.activity,'rating',old.ratings?.personal==null?null:Number(old.ratings.personal),item.ratings?.personal==null?null:Number(item.ratings.personal),item.ratedAt);}
   if (inWatchlist(item.watchStatus) && !inWatchlist(old?.watchStatus)) item.watchlistAddedAt = Date.now();
   if(item.watchStatus!==old?.watchStatus){item.statusMarkedAt=Date.now();item.activity=require('./personal-history').append(item.activity,'status',old?.watchStatus,item.watchStatus,item.statusMarkedAt);if(item.watchStatus==='completed')item.completedMarkedAt=item.statusMarkedAt;}
   return item;
@@ -137,6 +139,7 @@ function itemOf(raw, old = null) {
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),
     tasteDomain: require('./media-domains').DOMAINS.includes(raw.tasteDomain??old?.tasteDomain)?(raw.tasteDomain??old.tasteDomain):null,
     activity: require('./personal-history').clean((old||raw).activity),
+    ratedAt: Number.isSafeInteger((old||raw).ratedAt)?(old||raw).ratedAt:null,
     statusMarkedAt: Number.isSafeInteger((old||raw).statusMarkedAt)?(old||raw).statusMarkedAt:null,
     completedMarkedAt: Number.isSafeInteger((old||raw).completedMarkedAt)?(old||raw).completedMarkedAt:null,
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus || 'unspecified',

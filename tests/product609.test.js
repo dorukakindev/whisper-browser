@@ -13,3 +13,25 @@ fs.writeFileSync(r.path,'bad');assert.equal((await prepare(file,options)).cached
 const other=path.join(dir,'other.avi'),u=spawnSync(ffmpeg,['-v','error','-f','lavfi','-i','color=c=black:s=160x90:d=1','-c:v','mpeg4',other],{encoding:'utf8'});assert.equal(u.status,0,u.stderr);await assert.rejects(prepare(other,options),/H.264/);
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('timing endpoint comparison includes media offset, scale, distinct start/end shifts and no invented residual',()=>{
+ const changes=[{before:{start:10,end:12},after:{start:9.9,end:12.1}},{before:{start:90,end:92},after:{start:90,end:92.2}}],before=JSON.stringify(changes);
+ const effect=tools.effect(changes,time=>time+2);assert.equal(effect.start.before,12);assert.equal(effect.start.after,11.9);assert.equal(effect.end.before,94);assert.equal(effect.end.after,94.2);assert.equal(effect.count,2);
+ const scaled=tools.effect(changes,time=>time*1.01+3);assert(Math.abs(scaled.start.delta+.101)<1e-8);assert(Math.abs(scaled.end.delta-.202)<1e-8);assert.equal(effect.residual,undefined);assert.equal(JSON.stringify(changes),before);
+ assert.equal(tools.effect([]),null);assert.equal(tools.effect(changes,()=>NaN),null);
+});
+
+test('timing dialog previews media endpoints without changes; cancel and stale-source Apply never mutate',()=>{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('<input id="timelineQcFps" value="24">',{runScripts:'outside-only'}),w=dom.window;let writes=0;
+ try{
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+ const cues=[{start:1.08,end:2,text:'First'},{start:2.2,end:3,text:'Second'}];
+ Object.assign(w,{SceneTimingTools:tools,player:{workspaceMode:'player',mediaKey:'A',cues,timeline:{analysis:{shots:[1]}}},$:(id)=>w.document.getElementById(id),interfaceChoice:(tr,en)=>en,sceneInterval:()=>({lo:0,hi:3}),subtitleSourceTime:t=>t,subtitleVideoTime:t=>t+2,currentGeneration:()=>1,staleGeneration:()=>false,timelinePushUndo:()=>writes++,timelineMarkDirty:()=>writes++,sceneStatus:message=>{throw Error(message);}});
+ const source=fs.readFileSync(path.join(__dirname,'../src/renderer/renderer.js'),'utf8');
+ w.eval(source.slice(source.indexOf('function timingEffectCopy('),source.indexOf('function refreshBrowserSyncEffect(')));
+ w.eval(source.slice(source.indexOf('function previewTimingChanges('),source.indexOf("$('timingPreview')?.addEventListener")));
+ const before=JSON.stringify(cues);w.previewTimingChanges();assert.equal(JSON.stringify(cues),before);assert.equal(writes,0);assert.match(w.document.querySelector('.timing-effect-summary').textContent,/3.080 → 3.000/);assert.match(w.document.querySelector('.timing-effect-summary').textContent,/not measured/);
+ w.document.querySelector('dialog footer button').click();assert.equal(w.document.querySelector('dialog'),null);assert.equal(writes,0);
+ w.previewTimingChanges();cues[0].text='Changed';w.document.querySelector('dialog footer button:last-child').click();assert.equal(w.document.querySelector('dialog footer button:last-child').disabled,true);assert.equal(writes,0);assert.equal(cues[0].start,1.08);
+ }finally{w.close();}
+});

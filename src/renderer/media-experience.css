@@ -173,3 +173,5 @@
 .assistant-note-dialog .note-preview-text{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,currentColor 6%,transparent);max-height:200px;overflow:auto}
 .assistant-note-dialog .note-status,.assistant-note-dialog .note-access,.assistant-note-dialog .note-existing{margin:0;font-size:13px;overflow-wrap:anywhere}
 .assistant-note-dialog .note-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+
+.dub-take-metrics-wrap{overflow:auto}.dub-take-metrics-wrap table{width:100%;border-collapse:collapse;font-size:12px;line-height:1.6}.dub-take-metrics-wrap :is(th,td){padding:9px 12px;border-bottom:1px solid var(--border);text-align:start}.dub-take-metrics-wrap thead{color:var(--accent)}.dub-take-metrics-wrap tbody th{font-weight:400;color:var(--text-muted)}

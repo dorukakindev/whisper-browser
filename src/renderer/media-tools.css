@@ -127,3 +127,4 @@
 .mrv-opinions .mrv-evidence>summary{font-size:12px;line-height:1.65;min-height:36px}
 @media(min-width:1150px){.mrv-opinions{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(min-width:601px) and (max-width:1149px){.mrv-opinions{grid-template-columns:repeat(2,minmax(0,1fr))}.mrv-opinions>section:last-child:nth-child(odd){grid-column:1/-1;max-width:72ch}}
+.mtx-storage-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px;margin:18px 0}.mtx-storage-row>p{margin:0;padding:14px 0;border-bottom:1px solid var(--border);font-size:14px}.mtx-storage-row>.mtx-section,.mtx-storage-row>.mtx-muted{grid-column:1/-1}.mtx-storage-row>.mtx-section{margin-top:24px}@media(max-width:760px){.mtx-storage-row{grid-template-columns:1fr}}

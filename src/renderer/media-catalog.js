@@ -575,7 +575,7 @@
   function renderPackage() {
     state.includeVideos ??= false;
     const body = $('div', 'mc-content mc-form'); body.append(button('← Kataloğa dön', () => { state.mode = 'list'; render(); }), $('h3', '', 'Taşınabilir çalışma paketi'),
-      $('p', 'mc-muted', 'Katalog, posterler, kayıtlı altyazılar, düzeltmeler, notlar, izleme geçmişi ve senkron tercihleri birlikte taşınır. Hesap oturumları ve anahtarlar dahil değildir. Videoları eklerseniz kopyalama uzun sürebilir (en fazla 100 GB).'),
+      $('p', 'mc-muted', english()?'Catalog, posters, subtitles, notes and watch history travel with personal anime/manga records, the content network, shelves, collections, pause notes and series tracking. Account sessions and keys are excluded. Downloaded anime/manga covers, models and external media are outside the standard package. Including local videos can take longer (up to 100 GB).':'Katalog, afişler, altyazılar, notlar ve izleme geçmişi; kişisel anime/manga kayıtları, içerik ağı, raflar, koleksiyonlar, ara verme notları ve seri takibiyle birlikte taşınır. Hesap oturumları ve anahtarlar dahil değildir. İndirilen anime/manga kapakları, modeller ve harici medya standart paketin dışındadır. Yerel videoları eklemek uzun sürebilir (en fazla 100 GB).'),
       button('Paketi dışa aktar', async () => { const rendererValues = Object.fromEntries(['subtitleStyle', 'subtitlePos', 'browser-source-edits-v1', 'browser-source-edit-scopes-v1', 'browser-subtitle-drafts-v1'].map(key => [key, localStorage.getItem(key)])); const result = await api('package-export', { rendererValues, includeVideos: state.includeVideos }); if (result) feedback(`${result.count} çalışma dosyası, ${result.videos || 0} video ve kayıtlı düzenlemeler paketlendi.`); }),
       button('Geri yüklenecek paketi seç', async () => { const result = await api('package-preview'); if (result) { state.packageData = result; state.packageMappings = new Map(); render(); } }));
     const include = $('label', 'mc-check'), checkbox = $('input'); checkbox.type = 'checkbox'; checkbox.checked = state.includeVideos; checkbox.disabled = state.busy;
@@ -586,6 +586,8 @@
       const scope = state.packageData.scope;
       if (scope) {
         const parts = [];
+        for (const [key,en,tr] of [['personalCollectionItems','personal collection records (ratings and source history)','kişisel koleksiyon kaydı (puanlar ve kaynak geçmişi)'],['recommendationHistory','recommendation feedback/history records','öneri geri bildirimi/geçmiş kaydı'],['repeatSessions','repeat viewing/reading sessions','tekrar izleme/okuma oturumu'],['readingSessions','book reading sessions','kitap okuma oturumu'],['workspacePreferences','workspace appearance preferences','çalışma alanı görünüm tercihleri'],['feedPassages','saved RSS source passages','kayıtlı RSS kaynak kesiti'],['feedReadingPlaces','RSS reading places','RSS okuma yeri'],['adaptationLinks','personal adaptation/edition links','kişisel uyarlama/sürüm bağı'],['networkReferences','network references (hidden state preserved)','ağ referansı (gizleme korunur)'],['networkHypotheses','saved hypotheses','kayıtlı hipotez'],['smartShelves','smart shelves','akıllı raf'],['personalCollections','personal collections','kişisel koleksiyon'],['pauseNotes','pause notes','ara verme notu'],['followedSeries','followed series','takip edilen seri'],['releaseCalendars','release calendars','yayın takvimi']]) if (scope[key]) parts.push(`${scope[key]} ${english()?en:tr}`);
+        body.append($('p','mc-muted',english()?'Personal library files are included when present. Downloaded anime/manga cover cache, credentials, models and external media are excluded from the standard package.':'Kişisel kütüphane dosyaları varsa dahildir. İndirilen anime/manga kapak önbelleği, kimlik bilgileri, modeller ve harici medya standart pakete dahil değildir.'));
         for(const [key,en,tr]of [['feedSubscriptions','feed subscriptions','akış aboneliği'],['feedEntries','feed entries','akış kaydı'],['playerSourcePins','pinned sources','sabitlenmiş kaynak'],['dailyJournalEntries','dated journal entries','tarihli günlük kaydı'],['watchlistSections','watchlist positions','izleme listesi konumu'],['filmCollections','collection descriptions/orders','koleksiyon açıklaması/sırası'],['linkedMediaAssets','linked file records','bağlı dosya kaydı'],['filmAlternatives','alternative sources (may need relinking)','alternatif kaynak (yeniden bağlama gerekebilir)'],['titleRelationAliases','verified relationship aliases','doğrulanmış ilişki bağı']])if(scope[key])parts.push(`${scope[key]} ${english()?en:tr}`);
         if(scope.shelfRecords)parts.push(`${scope.shelfRecords} ${english()?'media shelf records':'medya rafı kaydı'}`);
         if(scope.assistantArtifacts)parts.push(scope.assistantArtifacts+' '+(english()?'saved assistant outputs (includes revisions)':'kayıtlı asistan çıktısı (sürümler dahil)'));
@@ -696,10 +698,13 @@
         const acts = $('div', 'mc-card-actions');
         acts.append(button(english() ? 'Resume' : 'Sürdür', async () => {
           if (typeof window.openMediaCatalogPlayback !== 'function') { feedback('Oynatma köprüsü kullanılamıyor.', true); return; }
+          const intent=state.resumeIntent=(state.resumeIntent||0)+1,session=state.session,preparation=window.openMediaCatalogPlayback.prepare?.(),owner=window.AssistantAppActions?.snapshot?.();
+          const current=()=>dialog.open&&session===state.session&&intent===state.resumeIntent&&(!preparation||preparation.current())&&(!owner||window.AssistantAppActions.current(owner));
           const auth = await window.api.authorizeWatchItem?.(item.key).catch(() => null);
+          if(!current())return;
           if (auth && !auth.ok) { feedback(english() ? (auth.error || 'File is not accessible.') : (auth.error || 'Dosyaya erişilemiyor.'), true); return; }
-          try { await window.openMediaCatalogPlayback(item); if (dialog.open) close(); }
-          catch (error) { feedback(String(error?.message || error), true); }
+          try { const result=await window.openMediaCatalogPlayback(item,preparation?.intent); if (dialog.open&&session===state.session&&intent===state.resumeIntent&&!result?.stale) close(); }
+          catch (error) { if(current())feedback(String(error?.message || error), true); }
         }));
         card.append(acts); grid.append(card);
       }

@@ -7528,3 +7528,13 @@ dialog.research-draft-dialog[open] { position:fixed; inset:0; margin:auto; trans
 
 .research-evidence-status[data-state=stale] { padding:12px 14px; border-left:3px solid var(--accent); background:var(--bg-2); color:var(--text); }
 .research-evidence-open { margin:12px 0; font-weight:600; }
+
+.cue-issue-tools{display:grid;gap:7px;padding:8px 12px;min-width:0;border-bottom:1px solid var(--border)}.cue-issue-tools label{display:flex;align-items:center;gap:8px;font-size:12px}.cue-issue-tools select{flex:1;min-width:0;max-width:100%;background:var(--bg-2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px}.cue-issue-tools small{color:var(--text-muted);font-size:11px;line-height:1.5}.cue-issue-tools button{white-space:normal;text-align:left}
+
+#browserSyncEffect{white-space:pre-line;line-height:1.6}
+
+.subtitle-work-summary{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px}.subtitle-work-summary summary{cursor:pointer;color:var(--accent)}#subtitleWorkState{white-space:pre-line;line-height:1.7;color:var(--text-muted);overflow-wrap:anywhere}
+
+.subtitle-owner-card{font-size:11px;line-height:1.6;color:var(--text-muted);white-space:pre-line;overflow-wrap:anywhere;padding:8px 10px;border-left:2px solid var(--accent)}
+
+.subtitle-profile-card{padding:10px 0;border-top:1px solid var(--border)}.subtitle-profile-card p{white-space:pre-line;overflow-wrap:anywhere;line-height:1.6}

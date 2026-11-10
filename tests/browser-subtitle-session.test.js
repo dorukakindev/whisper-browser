@@ -89,7 +89,7 @@ assert.deepEqual(selectState({ subtitleSelectionExplicit: true }, { subPath: man
   const ctx = { player: { browserActiveTabId: 'a', browserTracks: [] }, currentGeneration: () => 1,
     staleGeneration: () => false, $: id => controls[id], addSubtitleOption() {},
     setSubtitleMode: mode => { assert.equal(mode, 'both'); }, saveActiveBrowserTabWorkspace() {},
-    loadSubtitle: async (file, secondary) => { loads.push(file); ctx.player[secondary ? 'sub2Path' : 'subPath'] = file; } };
+    loadSubtitle: async (file, secondary) => { loads.push(file); ctx.player[secondary ? 'sub2Path' : 'subPath'] = file; return {ok:true,loaded:true}; } };
   vm.createContext(ctx);
   vm.runInContext(renderer.slice(renderer.indexOf('async function restoreBrowserSubtitleSelection('), renderer.indexOf('async function loadPersistedBrowserTranslation(')), ctx);
   await ctx.restoreBrowserSubtitleSelection(tab);

@@ -2,6 +2,15 @@
 'use strict';
 function context(value){const result={};for(const [key,max] of [['summary',2000],['terms',1500],['characters',1500]])result[key]=String(value?.[key]||'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').trim().slice(0,max);return result;}
 function signature(cues){return JSON.stringify(cues.map(c=>[c.start,c.end,c.text,!!c.timingLocked]));}
+// Read-only endpoint comparison. Transform functions may represent local offset or Browser scale/offset.
+function effect(changes, toMedia = value => value) {
+ const rows=changes.filter(c=>[c.before?.start,c.before?.end,c.after?.start,c.after?.end].every(Number.isFinite));
+ if(!rows.length)return null;
+ const first=rows.reduce((a,b)=>a.before.start<=b.before.start?a:b),last=rows.reduce((a,b)=>a.before.end>=b.before.end?a:b);
+ const point=(row,edge)=>{const before=toMedia(row.before[edge]),after=toMedia(row.after[edge]);return {before,after,delta:after-before};};
+ const start=point(first,'start'),end=point(last,'end');
+ return [start.before,start.after,end.before,end.after].every(Number.isFinite)?{count:rows.length,start,end}:null;
+}
 function propose(cues,{shots=[],fps=24,lo=0,hi=Infinity}={}){
  const frame=1/([24,25,30,50,60].includes(Number(fps))?Number(fps):24),gap=2*frame;
  const next=cues.map(c=>({...c})),changes=[];
@@ -44,4 +53,4 @@ function proposeSilence(cues,{silences=[],lo=0,hi=Infinity,maxShift=.25,gap=.04}
  }
  return {base:signature(cues),cues:next,changes};
 }
-return{context,signature,propose,silenceIntervals,proposeSilence};});
+return{context,signature,effect,propose,silenceIntervals,proposeSilence};});

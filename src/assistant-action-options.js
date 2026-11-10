@@ -23,7 +23,7 @@ function readiness(entry,owner,available){
 }
 function getActionOptions(owner,args={}){
  const {domain,query,offset}=argumentsOf(args),known=owner&&typeof owner==='object'&&!Array.isArray(owner)&&KINDS.has(owner.kind);
- const context=known?Object.fromEntries(['kind','hasFeedSources','hasFeedEntries','hasSubtitles','hasMedia','voiceStudio'].filter(key=>Object.hasOwn(owner,key)).map(key=>[key,owner[key]])):null;
+ const context=known?Object.fromEntries(['kind','hasFeedSources','hasFeedEntries','hasSubtitles','hasMedia','hasBrowserAudio','voiceStudio'].filter(key=>Object.hasOwn(owner,key)).map(key=>[key,owner[key]])):null;
  const available=context?registry.list(context):[],names=new Set(available.map(entry=>entry.name)),counts=new Map();
  for(const entry of available)counts.set(entry.domain,(counts.get(entry.domain)||0)+1);
  const terms=fold(query).split(/\s+/).filter(Boolean),matching=available.filter(entry=>(domain==='all'||entry.domain===domain)&&terms.every(term=>fold([entry.name,entry.domain,entry.label,entry.description].join(' ')).includes(term)));

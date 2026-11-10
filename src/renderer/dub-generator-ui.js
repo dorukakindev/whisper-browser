@@ -1157,6 +1157,13 @@
     if(obsolete()||current||referenceBusy||planning||choosing||workspaceBusy)return {ok:false};
     let range;
     try { range = resume ? resume.request.range : positionRange || selectedRange(); } catch (error) { status(error.message); return; }
+    let rehearsalId=null;
+    if(!retry&&!resume&&output?.sample===true&&output.id&&!(job.sample??el('dubSampleOnly').checked)){
+      const draft={profile:el('dubProfile').value,grouping:el('dubGrouping').value,verification:el('dubVerification').value,timingMode:el('dubTimingMode').value,concurrency:Number(el('dubConcurrency').value),autoFit:el('dubAutoFit').checked,naturalSpeech:el('dubNaturalSpeech').checked,followDelivery:el('dubFollowDelivery').checked,expression:el('dubExpression').value,deliveryStrength:el('dubDeliveryStrength').value};
+      const comparison=window.DubIntegrity?.preview(lastRequest,draft),sampleOutput=output;
+      const approved=await openAppDialog({title:phaseCopy('Provadan tam üretime','From rehearsal to full production'),description:phaseCopy('Tam üretim seçili ayarları kullanır. Prova yalnız kısa kapsamı kanıtlar; tüm çıktının kalitesi değildir. Değişen seçili ayarlar: ','Full production uses the selected settings. A rehearsal covers only its short scope, not the quality of the full output. Changed selected controls: ')+(comparison?.changed?.join(', ')||phaseCopy('yok veya bilinmiyor','none or unknown'))+phaseCopy('. Nihai kaynak, ses ve tarif kimliği üretim makbuzunda ayrıca karşılaştırılır.','. Final source, voice and recipe identities are compared separately in the production receipt.'),confirmLabel:phaseCopy('Tam üretimi başlat','Start full production'),intent:'primary'});
+      if(!approved||obsolete()||output!==sampleOutput)return {ok:false,cancelled:true};rehearsalId=sampleOutput.id;
+    }
     current = { id: crypto.randomUUID(), owner:sourceBefore, qualityKey:retry?el('dubQualityGroup').value:'', voice:{reference:cfg.reference,transcript:cfg.transcript,engine:cfg.engine}, context: window.BrowserDubAudioUI?.context(), sample: resume ? resume.request.sample : retry ? recipe?.sample : job.sample ?? el('dubSampleOnly').checked };
     const pending = current;
     pending.fallback=output?.url?{output,rows:[...results.values()],media:mediaIdentity(),srt,sample:el('dubGeneratorUse').classList.contains('hidden')}:null;
@@ -1202,6 +1209,7 @@
       else if (pending.context?.mode === 'browser' && typeof youtubeVideoId === 'function' && youtubeVideoId(payload.source)) payload.sourceRef = { kind: 'youtube', videoId: youtubeVideoId(payload.source) };
       if(Number.isFinite(pending.context?.duration)&&pending.context.duration>0&&pending.context.duration<=86400)payload.sourceDuration=pending.context.duration;
     }
+    if(rehearsalId)payload.rehearsalId=rehearsalId;
     pending.request=JSON.parse(JSON.stringify(payload));
     pending.settings={...payload};refreshOverview();
     window.MediaExperience?.trackVoice?.(pending.id,pending.context);

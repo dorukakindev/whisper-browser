@@ -25,6 +25,7 @@
   const scrim=document.createElement('button');scrim.type='button';scrim.className='pw-panel-scrim';scrim.hidden=true;host.append(scrim);
   host.append(advanced); body.append(host);
   let mounted = false, tab = 'transcript', query = '', follow = true, scope = 'watched';
+  let issueFilter = 'all', reviewStamp = '', reviewKinds = [];
   let selection = null, evidence = null, owner = '', rows = [], indexedRows = [], rowStamp = '', structural = '';
   let page = 0, lastActive = '', bridge = null, lastRefresh = 0, panelOpen=false,panelReturnFocus=null,idleTimer=null,ambient=null;
   let podcastMode=false;const subscribers=new Set();
@@ -199,8 +200,13 @@
     const audio=player.workspaceAudio?.mediaKey===snap.mediaKey&&player.workspaceAudio?.generation===snap.generation?player.workspaceAudio:null;
     const at = PlayerTranscriptModel.activeRowIndex(rows, snap.time);
     const send = (type, args = {}, bound = false) => bridge.dispatch({type,mediaKey:snap.mediaKey,generation:snap.generation,...(bound?{trackId:source.id,trackRevision:source.revision}:{}),...args});
-    const visible = query ? [...cueTextSearchIndex(indexedRows, []).query(foldQuery(query))].sort((a,b)=>a-b).map(i=>rows[i]) : rows;
-    if (!query && follow && at >= 0) page = Math.floor(at / 500);
+    const reviewKey = JSON.stringify([rowStamp,document.getElementById('maxCps')?.value,document.getElementById('maxLineWidth')?.value,document.getElementById('timelineQcProfile')?.value,document.getElementById('timelineQcFps')?.value]);
+    if(reviewKey!==reviewStamp){reviewStamp=reviewKey;reviewKinds=PlayerTranscriptModel.reviewKinds(rows,window.TimelineIssueScan?.scan(source.cues,{cpsLimit:Number(document.getElementById('maxCps')?.value)||20,lineLimit:Number(document.getElementById('maxLineWidth')?.value)||80,profile:document.getElementById('timelineQcProfile')?.value||'custom',fps:Number(document.getElementById('timelineQcFps')?.value)||24})||[],secondary.cues.length>0);}
+    const matched = query ? cueTextSearchIndex(indexedRows, []).query(foldQuery(query)) : null;
+    const issueCounts={};for(const kinds of reviewKinds)for(const kind of kinds)issueCounts[kind]=(issueCounts[kind]||0)+1;
+    const visible = rows.filter((row,i)=>(!matched||matched.has(i))&&(issueFilter==='all'||reviewKinds[i]?.has(issueFilter)));
+    page=Math.min(page,Math.max(0,Math.ceil(visible.length/500)-1));
+    if (!query && issueFilter==='all' && follow && at >= 0) page = Math.floor(at / 500);
     const shown = visible.slice(page * 500, (page + 1) * 500);
     syncChromeTitle();
     const originalName = player.localPath ? player.localPath.split(/[\\/]/).pop() : null;
@@ -211,13 +217,16 @@
     const markers=player.cues.filter(cue=>player.savedCues.includes(cueSignature(cue))).map(cue=>({time:cue.start+(Number(player.offset)||0),label:text('Kaydedilen konum','Saved position')}));
     const result = PlayerWorkspaceUI.renderPlayerWorkspace(view, { locale: locale(), media: { title: originalName ? PlayerUiKit.displayTitle(originalName) : snap.title, originalName, metadata, kind: audio?'audio':'video' },
       transcriptState:audio?.transcriptState||'timed',snapshot: { ...snap, duration: snap.duration || 0 }, rows: shown, activeKey: at >= 0 ? rows[at].key : null,
-      tab, query, follow, scope, selection, evidence, hasSecondary: secondary.cues.length > 0, stageMode: 'slot',panelOpen,markers,hasMoreRows:(page+1)*500<visible.length,sourceLang:source.id.startsWith('primary:')?player.subLang:player.sub2Lang,secondaryLang:secondary.id.startsWith('primary:')?player.subLang:player.sub2Lang,
+      tab, query, follow, scope, selection, issueFilter, issueCounts, matchedCount:visible.length, totalRows:rows.length, activeOutside:at>=0&&!visible.includes(rows[at]), evidence, hasSecondary: secondary.cues.length > 0, stageMode: 'slot',panelOpen,markers,hasMoreRows:(page+1)*500<visible.length,sourceLang:source.id.startsWith('primary:')?player.subLang:player.sub2Lang,secondaryLang:secondary.id.startsWith('primary:')?player.subLang:player.sub2Lang,
       subtitleMode: currentSubtitleMode() === 'translation' ? 'secondary' : currentSubtitleMode(),
       ab: player.abA !== null && player.abB !== null ? { a: player.abA, b: player.abB } : null,
       nextQueueIndex:Math.max(0,player.playlistIndex+1),queue: (player.playlist || []).map((file, index) => ({ itemId: String(index), title: String(file).split(/[\\/]/).pop(), file })) }, {
       onBack: () => document.getElementById('playerBack')?.click(),
+      onIssueFilter:value=>{issueFilter=value;page=0;draw();},onRevealActive:()=>{query='';issueFilter='all';page=0;follow=true;draw();},
       onTab: setTab, onQuery: value => { query = value; page = 0; draw(); },
       onFollow: value => { follow = value; draw(); },
+      onEditCandidate:(row,candidate)=>{if(player.mediaKey!==snap.mediaKey||player.generation!==snap.generation||!rows.includes(row))return;const [currentSource,currentSecondary]=tracks();if(currentSource.id!==source.id||currentSource.revision!==source.revision||currentSecondary.id!==secondary.id||currentSecondary.revision!==secondary.revision)return;const index=currentSecondary.cues.findIndex(c=>c.id===candidate.cueId);if(index>=0)openCueEditor(currentSecondary.id.startsWith('secondary:'),{index});},
+      onPairCandidate:async(row,candidate)=>{const captured=tracks().map(t=>[t.id,t.revision]),generation=snap.generation,mediaKey=snap.mediaKey;const yes=await openAppDialog({title:text('Eşleşmeyi incele','Review pairing'),description:row.sourceText+'\n\n'+candidate.text+'\n'+text('Yalnız bu oturum ve kaynak revizyonu; dosya veya kalıcı bağlantı değişmez.','This session and source revision only; no file or permanent link changes.'),confirmLabel:text('Oturum için seç','Choose for session'),cancelLabel:text('Vazgeç','Cancel')});if(!yes)return;if(player.mediaKey!==mediaKey||player.generation!==generation||JSON.stringify(tracks().map(t=>[t.id,t.revision]))!==JSON.stringify(captured)||!rows.includes(row))return;rows=PlayerTranscriptModel.chooseCandidate(rows,row.key,candidate.cueId,{mediaKey,generation,trackRevision:row.trackRevision});indexedRows=rows.map(r=>({start:r.videoStart,end:r.videoEnd,text:r.sourceText+'\n'+r.secondaryText}));reviewStamp='';selection=null;evidence=null;draw();},
       onSeekRow: row => void send('seekCue', { cueId: row.cueId }, true),
       onSeekRatio: ratio => { if (snap.duration) void send('seek', { time: ratio * snap.duration }); },
       onTogglePlay: () => void send('togglePlay'), onPrevCue: () => step(-1,snap), onNextCue: () => step(1,snap),
@@ -308,10 +317,10 @@
     if (!eligible) { unmount(); return; }
     if (!mounted) mount();
     const nextOwner = `${player.mediaKey}:${player.generation}`;
-    if (nextOwner !== owner) { ambient?.dispose();ambient=null;owner = nextOwner; query = ''; selection = null; evidence = null; page = 0; tab = 'transcript'; follow = true;panelOpen=false; }
+    if (nextOwner !== owner) { ambient?.dispose();ambient=null;owner = nextOwner; query = ''; issueFilter='all'; selection = null; evidence = null; page = 0; tab = 'transcript'; follow = true;panelOpen=false; }
     const [source, secondary] = tracks(); const stamp = `${player.workspaceAudio?.transcriptState||''}:${owner}:${source.id}:${source.revision}:${source.offsetSeconds}:${secondary.id}:${secondary.revision}:${secondary.offsetSeconds}`;
-    if (rowStamp !== stamp) { rowStamp = stamp; rows = player.workspaceAudio?.transcriptState==='untimed'?[]:PlayerTranscriptModel.buildTranscriptRows({ sourceTrack: source, secondaryTrack: secondary, mediaKey: player.mediaKey, generation: player.generation }); indexedRows=rows.map(row=>({start:row.videoStart,end:row.videoEnd,text:row.sourceText+'\n'+row.secondaryText})); if (selection) { selection = null; evidence = null; } }
-    const key = `${stamp}:${locale()}:${video.paused}:${video.duration}:${video.playbackRate}:${currentSubtitleMode()}:${player.abA}:${player.abB}:${player.savedCues.join('|')}:${player.subLang}:${player.sub2Lang}:${video.videoWidth}:${video.videoHeight}:${window.NativePlayerUI?.active()}:${document.getElementById('playerTitle')?.textContent}`;
+    if (rowStamp !== stamp) { rowStamp = stamp; issueFilter='all'; page=0; rows = player.workspaceAudio?.transcriptState==='untimed'?[]:PlayerTranscriptModel.buildTranscriptRows({ sourceTrack: source, secondaryTrack: secondary, mediaKey: player.mediaKey, generation: player.generation }); indexedRows=rows.map(row=>({start:row.videoStart,end:row.videoEnd,text:row.sourceText+'\n'+row.secondaryText})); if (selection) { selection = null; evidence = null; } }
+    const key = `${stamp}:${document.getElementById('maxCps')?.value}:${document.getElementById('maxLineWidth')?.value}:${document.getElementById('timelineQcProfile')?.value}:${document.getElementById('timelineQcFps')?.value}:${locale()}:${video.paused}:${video.duration}:${video.playbackRate}:${currentSubtitleMode()}:${player.abA}:${player.abB}:${player.savedCues.join('|')}:${player.subLang}:${player.sub2Lang}:${video.videoWidth}:${video.videoHeight}:${window.NativePlayerUI?.active()}:${document.getElementById('playerTitle')?.textContent}`;
     if (force || structural !== key) { structural = key; draw(); }
     ambient?.sync();if(video.paused)revealControls();
     const time = Number(video.currentTime) || 0, duration = Number(video.duration) || 0;
@@ -322,6 +331,7 @@
     const index = PlayerTranscriptModel.activeRowIndex(rows, time), active = index >= 0 ? rows[index].key : '';
     if (lastActive !== active) {
       lastActive = active;
+      if(issueFilter!=='all'||query){draw();return;}
       for (const node of view.querySelectorAll('.pw-cue')) { if (node.dataset.key === active) { node.setAttribute('aria-current','true'); if (follow) { const list = node.closest('.pw-transcript'); list.scrollTop += node.getBoundingClientRect().top - list.getBoundingClientRect().top - (list.clientHeight - node.clientHeight) / 2; } } else node.removeAttribute('aria-current'); }
       if (follow && index >= 0 && Math.floor(index / 500) !== page) draw();
     }

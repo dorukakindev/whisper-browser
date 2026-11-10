@@ -322,8 +322,8 @@ contextBridge.exposeInMainWorld('api', {
   stopBrowserLiveAsr: (sessionId) => ipcRenderer.invoke('browser:liveAsr:stop', { sessionId }),
   openBrowserAdapterFolder: () => ipcRenderer.invoke('browser:adapters:openFolder'),
   exportBrowserSubtitle: (payload) => ipcRenderer.invoke('browser:subtitle:export', payload),
-  captureFullBrowserSubtitle: (tabId, action = 'start') =>
-    ipcRenderer.invoke('browser:subtitle:captureFull', { tabId, action }),
+  captureFullBrowserSubtitle: (tabId, action = 'start', reviewId = '') =>
+    ipcRenderer.invoke('browser:subtitle:captureFull', { tabId, action, reviewId }),
   previewBrowserDiagnostics: () => ipcRenderer.invoke('browser:diagnostics:preview'),
   exportBrowserDiagnostics: (json) => ipcRenderer.invoke('browser:diagnostics:export', { json }),
   exportBrowserClip: (payload) => ipcRenderer.invoke('browser:clip:export', payload),

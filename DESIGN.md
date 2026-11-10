@@ -34,6 +34,10 @@ components:
 
 # Whisper Browser tasarım kaydı
 
+## Browser kaynak ve durum incelemesi — 2026-11-10 22:09
+
+Altyazı araçları içinde “Sekmeler ve altyazı durumu” tek açılır yüzeydir. Üstte kaynak/iş/onay/hata taşıyan sekme satırları, altta yalnız etkin kaynağın saat kanıtı, eksik aktarım aralıkları ve iki kanalın restore/köken özeti vardır. Saat yazısı güncellenirken odaktaki kontroller korunur; aralık listesi sınırlı ve kendi içinde kaydırılır. Grafit/amber tokenları, üst medya menüsü ve mevcut altyazı/ileri kontroller korunur. Kanal retry ve kaynak bağlı eksik aktarım birbirinden ayrıdır; okunamayan dosya için otomatik seçici veya yeni çeviri açılmaz. Gerçek Windows/ASUS görsel kabulü bu tur yapılmadı; DOM kontrolü estetik kabul değildir.
+
 ## Kapaklı arşiv, takvim ve gerekçeli öneriler — 2026-11-10
 
 Kişisel arşiv Kayıtlarım / Takvim / Zevkime göre çalışma alanlarına ayrılır; tek alan görünürdür. Tür havuzu seçimi korunur. Kapak yüklenirken tür kimliği kalır, gerçek görsel geldikten sonra kapak görünür; harici resim hatası boş siyah kutuya dönüşmez. İş ilerlemesi gerçek done/total oranıdır ve durdurulabilir. Takvim aylık 7 sütun ve gün ajandasıdır; darda ajanda alta geçer. Ay atlama ve son tarihli kayda doğrudan erişim vardır. Kaynak bitiş tarihi ile uygulama işaretleme tarihi ayrıdır. Öneri kartında kaynak kapak, destek/karşıt puan, gizlenebilir dayanak/sınır ayrıntıları ve yerel sıraya ekleme bulunur; yüzdeyle beğeni iddiası yoktur. Genişte iki, darda tek sütun; mevcut grafit/amber ve tipografi tokenları kullanılır. Ayrıntı: [araştırma/uyarlama](docs/research/2026-11-10-recommendation-repositories.md).

@@ -138,8 +138,23 @@
     return { index: at, visible: visibleKeys instanceof Set ? visibleKeys.has(rows[at].key) : true };
   }
 
+  function chooseCandidate(rows,key,candidateId,owner){
+    const row=rows.find(r=>r.key===key);if(!row||row.pairing!=='uncertain'||row.mediaKey!==owner.mediaKey||row.generation!==owner.generation||row.trackRevision!==owner.trackRevision)throw Error('Pairing source changed / Eşleşme kaynağı değişti.');
+    const candidate=row.secondaryCandidates.find(c=>c.cueId===candidateId);if(!candidate)throw Error('Candidate unavailable / Aday yok.');
+    return rows.map(r=>r!==row?r:{...r,pairing:'human-selected',secondaryText:candidate.text,secondaryCueIds:[candidate.cueId],humanSelection:true});
+  }
+  // Reuse the existing timing scan and pairing result; filtering never repairs a match.
+  function reviewKinds(rows, timingIssues = [], hasSecondary = false) {
+    const kinds = rows.map(row => new Set([
+      ...(row.pairing === 'uncertain' ? ['uncertain'] : []),
+      ...(hasSecondary && row.pairing !== 'uncertain' && !String(row.secondaryText || '').trim() ? ['missing'] : []),
+    ]));
+    for (const issue of timingIssues) if (kinds[issue.i]) kinds[issue.i].add(issue.kind);
+    return kinds;
+  }
+
   return Object.freeze({
     rowKey, resolveSourceRole, explainSourceRole, buildTranscriptRows, activeRowIndex, rowIndexByCueId, activeRowVisibility,
-    activeCueIdAt, landingTime, LANDING_SECONDS, OVERLAP_CAP_SECONDS, OVERLAP_FRACTION,
+    activeCueIdAt, landingTime, LANDING_SECONDS, OVERLAP_CAP_SECONDS, OVERLAP_FRACTION, reviewKinds, chooseCandidate,
   });
 });

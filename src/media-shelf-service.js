@@ -214,6 +214,9 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
   const recommendationHub=require('./recommendation-hub').create({root:userData,catalog:catalogStore,discovery:discoveryRequest,fetchImpl,animeMetadata:collectionMetadata});
   const tasteCatalog=()=>catalogView?catalogView():catalogStore?.().list()||[];
   const libraryGroups=require('./personal-library-groups').create({root:userData,rows:planningRows,catalog:catalogStore});
+  const repeatSessions=require('./personal-repeat-sessions').create({root:userData,rows:planningRows});
+  const libraryWorkspace=require('./library-workspace').create({root:userData,books:()=>load().books||[],catalog:()=>catalogStore?.().list()||[]});
+  const adaptationLinks=require('./adaptation-links').create({root:userData,rows:planningRows,graphs:()=>franchiseTracker.list().entries});
   const tasteOf=(data,domain='film')=>require('./media-domain-profile').profileFor(data,tasteCatalog(),require('./personal-collection').read(userData()).rows,domain);
   function collectionSources(data){const rows=[];for(const b of data.books||[])rows.push({id:'shelf:book:'+b.id,title:b.title,domain:'book',kind:'book',status:b.completed?'completed':b.page>0||b.chapter>0||b.scroll>0?'watching':'planned',progress:b.page||b.chapter||0,total:b.pages||0,progressUnit:b.page>0||b.pages>0?'pages':b.chapter>0?'chapters':'unknown',source:'library'});for(const p of data.podcasts||[])for(const e of p.episodes||[])if(e.position>0)rows.push({id:'shelf:podcast:'+p.id+':'+require('./media-source-mechanisms').hash(e.guid||e.url),title:e.title,domain:'podcast',kind:'podcast',status:e.duration>0&&e.position>=e.duration*.95?'completed':'watching',progress:Math.floor(e.position),total:Math.floor(e.duration||0),source:'library'});return rows;}
   function planningRows(){const map=new Map(collectionSources(load()).map(r=>[r.id,{...r,origin:'source'}]));for(const r of require('./personal-collection').read(userData()).rows)map.set(r.id,{...r,...map.get(r.id),origin:r.id.startsWith('shelf:')?'source':'collection'});return [...map.values(),...tasteCatalog().map(r=>({...r,origin:'catalog'}))];}
@@ -312,7 +315,23 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           return readPodcastSearch(userData(),input);
         }
         case 'recommendation-search': return {ok:true,...await recommendationHub.search(event,input)};
+        case 'workspace-list': return {ok:true,...libraryWorkspace.list()};
+        case 'workspace-reading-start': return {ok:true,...libraryWorkspace.start(input)};
+        case 'workspace-reading-finish': return {ok:true,...libraryWorkspace.finish(input)};
+        case 'workspace-preferences': return {ok:true,...libraryWorkspace.preferences(input)};
+        case 'workspace-notes': return {ok:true,...libraryWorkspace.notes(input.query)};
         case 'recommendation-run': return {ok:true,...await recommendationHub.run(event,input)};
+        case 'collection-rating-history': {const row=planningRows().find(r=>r.origin===input.ref?.origin&&r.id===input.ref?.id);if(!row)throw Error('Rating owner unavailable. / Puan kaydı yok.');return {ok:true,...require('./personal-history').ratings(row)};}
+        case 'collection-repeat-list': return {ok:true,...repeatSessions.list(input.ref)};
+        case 'collection-repeat-start': return {ok:true,...repeatSessions.start(input)};
+        case 'collection-repeat-save': return {ok:true,...repeatSessions.save(input)};
+        case 'recommendation-comparison-sample': return {ok:true,...recommendationHub.comparisonSample(event,input)};
+        case 'recommendation-model-compare': return {ok:true,...recommendationHub.compareModel(event,input)};
+        case 'recommendation-experiment': return {ok:true,...recommendationHub.experiment(event,input)};
+        case 'recommendation-history': return {ok:true,...recommendationHub.controls.list()};
+        case 'recommendation-shown': return {ok:true,...recommendationHub.shown(event,input)};
+        case 'recommendation-feedback': return {ok:true,...recommendationHub.controls.feedback(input)};
+        case 'recommendation-defer': return {ok:true,...recommendationHub.controls.defer(input)};
         case 'collection-groups-list': return {ok:true,...libraryGroups.list()};
         case 'collection-group-save': return {ok:true,...libraryGroups.save(input)};
         case 'collection-group-remove': return {ok:true,...libraryGroups.remove(input)};
@@ -334,6 +353,11 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'collection-release-refresh': return {ok:true,calendar:await releaseCalendar.refresh(input)};
         case 'collection-release-export': return {ok:true,...releaseCalendar.exportSelected(input)};
         case 'collection-portrait': {const domain=input.domain||'film';return {ok:true,domain,...tasteOf(load(),domain).portrait};}
+        case 'collection-distribution': return {ok:true,...require('./library-insights').distribution(planningRows(),input)};
+        case 'collection-rating-periods': return {ok:true,...require('./library-insights').periods(planningRows(),{domain:input.domain,years:input.years})};
+        case 'adaptation-list': return {ok:true,...adaptationLinks.list(input)};
+        case 'adaptation-save': return {ok:true,...adaptationLinks.save(input)};
+        case 'adaptation-remove': return {ok:true,...adaptationLinks.remove(input)};
         case 'collection-franchise-list': return {ok:true,...franchiseTracker.list()};
         case 'collection-franchise-refresh': return {ok:true,entry:await franchiseTracker.refresh(input)};
         case 'collection-franchise-follow': return {ok:true,entry:franchiseTracker.follow(input)};
@@ -465,6 +489,7 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           if (input.kind === 'podcasts') { row = row.episodes.find(row => row.url === input.url); if (!row) throw Error('Episode not found.'); }
           if (!Number.isFinite(input.position) || input.position < 0 || input.position > 31_536_000 || !Number.isFinite(input.duration) || input.duration < 0 || input.duration > 31_536_000) throw Error('Invalid listening position.');
           if(input.kind==='podcasts'&&input.sourceVersion&&input.sourceVersion!==row.sourceVersion)throw Error('Podcast source changed.');
+          if(input.kind==='podcasts'&&input.played===true&&input.sourceVersion&&input.sourceVersion===row.sourceVersion)row.lastListenedAt=Date.now();
           row.position = input.position; if(input.kind==='podcasts')row.positionState='observed'; if (input.duration) row.duration = input.duration;
           if(input.kind==='podcasts'){const rate=Number.isFinite(input.rate)&&input.rate>=.25&&input.rate<=4?input.rate:1;row.podcastWorkspace={...(row.podcastWorkspace?.sourceVersion===row.sourceVersion?row.podcastWorkspace:{}),sourceVersion:row.sourceVersion,position:input.position,rate};}
           save(data); return { ok: true };
@@ -647,7 +672,8 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'taste-profile':return {ok:true,taste:tasteOf(load(),input.domain||'film')};
         case 'taste-recommendations':{
           if(input.kind!==undefined&&!['film','series'].includes(input.kind)||input.maxDuration!==undefined&&(!Number.isFinite(input.maxDuration)||input.maxDuration<=0||input.maxDuration>1440)||input.limit!==undefined&&(!Number.isInteger(input.limit)||input.limit<1||input.limit>12)||input.exploration!==undefined&&typeof input.exploration!=='boolean')throw Error('Invalid recommendation conditions / Geçersiz öneri koşulları.');
-          const data=load(),items=tasteCatalog().filter(r=>require('./media-domains').domainOf(r)===(input.domain||'film')),taste=tasteOf(data,input.domain||'film'),recommendations=require('./media-taste').recommend(items,taste,{kind:input.kind,maxDuration:input.maxDuration,limit:input.limit??6,exploration:input.exploration});
+          const domain=input.domain||input.kind||'film';if(!require('./media-domains').DOMAINS.includes(domain)||input.kind&&input.kind!==domain)throw Error('Recommendation domain does not match the selected kind / Öneri alanı seçili türle uyuşmuyor.');
+          const data=load(),items=tasteCatalog().filter(r=>require('./media-domains').domainOf(r)===domain),taste=tasteOf(data,domain),recommendations=require('./media-taste').recommend(items,taste,{kind:input.kind,maxDuration:input.maxDuration,limit:input.limit??6,exploration:input.exploration});
           return {ok:true,recommendations,evidenceRevision:taste.evidenceRevision,preferencesRevision:taste.preferencesRevision,coverage:taste.coverage,preferencesConfigured:taste.preferencesConfigured};
         }
         case 'taste-preferences': { const data=load();updateTastePreferences(data,input);save(data);return {ok:true,taste:tasteOf(data,input.domain||'film')}; }

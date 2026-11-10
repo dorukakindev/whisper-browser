@@ -21,7 +21,9 @@ function registerRecall({app,ipcMain,authorized,userData=()=>app.getPath('userDa
  function listSources(options={}){const refs=[...(listExternalSources?.()||[]),...(ownerFile('personal-collection.json').rows||[]).map(r=>({kind:'collection',id:r.id}))];for(const item of catalog()?.list()||[])refs.push({kind:'catalog',id:item.id});for(const e of feeds().entries||[])refs.push({kind:'feed',id:e.id});const shelf=ownerFile('media-shelf.json'),seen=new Set();for(const row of [...(shelf.reviews||[]),...(shelf.diary||[])]){const id=row.recordId||require('./media-taste').reviewId(row);if(row.review&&!seen.has(id)){seen.add(id);refs.push({kind:'shelf-review',id});}}for(const b of shelf.books||[])refs.push({kind:'book',id:b.id});for(const p of shelf.podcasts||[])for(const e of p.episodes)refs.push({kind:'podcast',id:p.id+':'+hash(e.guid||e.url)});return refs.map(resolve).filter(Boolean).filter(s=>(!options.kind||s.ref.kind===options.kind)&&(!options.domain||s.domain===options.domain)&&(!options.query||fold(s.title).includes(fold(options.query))));}
  const store=createRecallNetwork(path.join(root(),'recall-network.json'),{resolve,listSources,now}),tokens=new Map();
  let collectionSync=null;
+ const recovering=()=>require('./workspace-restore-journal').list(root()).some(r=>!['committed','rolled-back'].includes(r.state));
  function syncCollection(){
+  if(recovering())throw Error('Review restore recovery in Backup before syncing the Content Network. / İçerik Ağını eşitlemeden önce Yedekleme alanında kurtarmayı incele.');
   const previousCache=ownerCache;ownerCache=new Map();
   try{
    const rows=require('./personal-collection').read(root()).rows,refs=store.snapshot().refs,existing=new Map(refs.map(r=>[r.id,r])),seen=new Set(),pending=[];
@@ -41,12 +43,12 @@ function registerRecall({app,ipcMain,authorized,userData=()=>app.getPath('userDa
    collectionSync=report;return {...report};
   }finally{ownerCache=previousCache;}
  }
- syncCollection();
+ if(recovering())collectionSync={added:0,deferred:'restore-recovery'};else syncCollection();
  const owner=e=>String(e?.sender?.id||'main');
  function issue(event,kind,value){const token=randomUUID();tokens.set(token,{kind,owner:owner(event),value,expires:now()+600000});while(tokens.size>30)tokens.delete(tokens.keys().next().value);return token;}
  function take(event,id,kind){const p=tokens.get(id);if(!p||p.kind!==kind||p.owner!==owner(event)||p.expires<now())throw Error('Network preview expired.');tokens.delete(id);return p.value;}
  const schema={entities:[{key:'entity-key',label:'Theme name',kind:'theme|person|form'}],assertions:[{from:'provided nodeId or entity key',to:'provided nodeId or entity key',predicate:'about|supports|contradicts|mentions|related|same-form',sourceId:'provided R ID',quote:'exact source substring',start:'optional UTF-16 offset',end:'optional UTF-16 offset',unit:'utf16',reason:'bounded source-specific reason'}],hypotheses:[{text:'tentative explicit-like hypothesis; no sensitive personal attributes',support:[{sourceId:'provided R ID',quote:'exact source substring'}],counter:[]}]};
- const handle=async(event,input={})=>{if(!authorized(event))return {ok:false,error:'Unauthorized Content Network request.'};try{ownerCache=new Map();if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid Content Network request.');let result;switch(input.action){
+ const handle=async(event,input={})=>{if(!authorized(event))return {ok:false,error:'Unauthorized Content Network request.'};try{if(recovering())throw Error('Review recovery in Backup before using the Content Network. / İçerik Ağını kullanmadan önce Yedekleme alanında kurtarmayı incele.');ownerCache=new Map();if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid Content Network request.');let result;switch(input.action){
   case 'catalog':{const page=store.availablePage(input);result={...page,rows:page.rows.map(({text,...s})=>s)};break;}
   case 'collection-sync':result={sync:syncCollection()};break;
   case 'add':result=store.add(input.refs);break;

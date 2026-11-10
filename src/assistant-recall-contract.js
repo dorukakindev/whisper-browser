@@ -1,6 +1,6 @@
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.AssistantRecallContract=factory();})(typeof globalThis!=='undefined'?globalThis:this,()=>{
  'use strict';
- const domains=new Set(['screen','youtube','reading','books','audio']),predicates=new Set(['about','supports','contradicts','mentions','related','same-form']);
+ const domains=new Set(['screen','youtube','reading','books','audio','film','series','documentary','anime','manga','podcast','book']),predicates=new Set(['about','supports','contradicts','mentions','related','same-form']);
  const text=(value,max)=>typeof value==='string'?value.replace(/\0/g,'').slice(0,max):'';
  function normalize(raw){
   if(typeof raw==='string'){if(raw.length>24000)throw Error('Recall evidence exceeds the analysis budget.');raw=JSON.parse(raw);}

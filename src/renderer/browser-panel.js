@@ -160,7 +160,7 @@
     filterSummary.setAttribute('aria-label', filterSummary.title); filterSummary.append(icon('settings'));
     filters.append(filterSummary); const filterBody = node('div', 'bp-utilities-body'); filters.append(filterBody);
     for (const id of ['savedOnlyBtn','qualityOnlyBtn','untranslatedOnlyBtn','subtitleFindReplaceToggle','toggleSettings']) take(byId(id), filterBody);
-    search.append(filters); flow.append(search);
+    search.append(filters); flow.append(search);take(byId('subtitleWorkSummary'),flow);take(byId('cueIssueTools'),flow);
     take(byId('subtitleFindReplacePanel'), flow);
     sub.append(flow); take(byId('cueList'), sub); sub.append(disclosures);
     for (const id of ['browserQuickEdit','aiAnswer','wordInspector']) take(byId(id), sub);

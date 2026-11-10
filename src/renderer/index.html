@@ -67,6 +67,7 @@
 <link rel="stylesheet" href="claude-cinema-v2.css">
 <link rel="stylesheet" href="web-history-v2.css">
 <link rel="stylesheet" href="panel-system.css">
+<link rel="stylesheet" href="library-workspace.css">
 </head>
 <body>
   <section id="mediaHome" class="media-home hidden" data-ui-untranslated aria-label="Media home"></section>
@@ -1291,7 +1292,7 @@
           <span class="player-series-chip hidden" id="playerSeriesChip" title=""></span>
           <span class="player-chapter-now hidden" id="playerChapterNow" title=""></span>
           <div class="player-meta" id="playerMeta">Bilingual viewing workspace</div>
-          <button type="button" class="tool-button hidden" id="playerPlaybackRecovery" data-ui-untranslated></button>
+          <button type="button" class="tool-button hidden" id="playerPlaybackRecovery" data-ui-untranslated>Playback recovery</button>
         </div>
         <div class="player-workspace-switch" role="tablist" aria-label="İzleme modu">
           <button class="workspace-mode active" id="workspacePlayerMode" type="button" role="tab"
@@ -1850,6 +1851,11 @@
                   title="Bu çeviri hata bildirimini temizle">Temizle</button>
               </div>
             </div>
+            <details id="browserWorkInspector" class="browser-work-inspector" data-ui-untranslated>
+              <summary id="browserWorkInspectorLabel">Sekmeler ve altyazı durumu</summary>
+              <div id="browserWorkTabs" class="browser-work-tabs"></div>
+              <section id="browserWorkDetail" class="browser-work-detail"></section>
+            </details>
             <details id="browserVideoSubtitles" class="browser-video-subtitles">
               <summary>Bu videonun altyazıları</summary>
               <p id="browserPreferenceNotice" role="status"></p>
@@ -2384,7 +2390,7 @@
             <textarea id="subtitleEditBox" class="resize-none" rows="2" spellcheck="false" aria-label="Altyazı metnini düzenle"></textarea>
             <details><summary>Önce / sonra</summary><p>Önce</p><p id="subtitleEditBefore" data-ui-untranslated></p><p>Sonra</p><p id="subtitleEditAfter" data-ui-untranslated></p></details>
             <div class="subtitle-edit-actions">
-              <span class="subtitle-edit-hint" id="subtitleEditHint"></span>
+              <span class="subtitle-edit-hint" id="subtitleEditHint"></span><p id="subtitleEditOwner" class="subtitle-owner-card" data-ui-untranslated></p>
               <button class="btn btn-ghost btn-sm hidden" id="subtitleEditRevertModel" type="button">Model çevirisine dön</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditUndo" type="button" disabled>Geri al</button>
               <button class="btn btn-secondary btn-sm" id="subtitleEditRedo" type="button" disabled>Yinele</button>
@@ -2602,6 +2608,7 @@
           <div class="resume-chip hidden" id="resumeChip">
             <span id="resumeChipText"></span>
             <button class="btn btn-primary btn-sm" id="resumeGo">Devam et</button>
+            <button class="btn btn-secondary btn-sm hidden" id="resumeRestart" data-tr="Baştan başlat" data-en="Restart">Baştan başlat</button>
             <button class="btn-icon" id="resumeDismiss" title="Kapat" aria-label="Devam et önerisini kapat">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
@@ -2773,7 +2780,7 @@
               <button id="browserQuickSyncSave" type="button" class="btn btn-secondary btn-sm">Senkronu kaydet</button>
               <button id="browserQuickSyncCancel" type="button" class="btn btn-ghost btn-sm">Senkron önizlemesinden vazgeç</button>
             </div>
-            <p id="browserQuickEditStatus" role="status" aria-live="polite"></p>
+            <p id="browserQuickEditOwner" class="subtitle-owner-card" data-ui-untranslated></p><p id="browserQuickEditStatus" role="status" aria-live="polite"></p>
             <div class="browser-quick-edit-actions">
               <button id="browserQuickEditUndo" type="button" class="btn btn-secondary btn-sm">Geri al</button>
               <button id="browserQuickEditRedo" type="button" class="btn btn-secondary btn-sm">Yinele</button>
@@ -2916,6 +2923,12 @@
             <div class="transcript-progress" aria-hidden="true"><span id="cueProgressFill"></span></div>
           </div>
 
+          <details id="subtitleWorkSummary" class="subtitle-work-summary" data-ui-untranslated><summary data-en="Two-channel save status" data-tr="İki kanal kayıt durumu">İki kanal kayıt durumu</summary><p id="subtitleWorkState" role="status"></p><details><summary data-en="Undo / redo scope" data-tr="Geri al / yinele kapsamı">Geri al / yinele kapsamı</summary><p id="subtitleHistoryScope" role="status"></p></details><button id="subtitleProfilesCompare" class="tool-button" type="button" data-en="Compare audio & sync profiles" data-tr="Ses ve senkron profillerini karşılaştır">Ses ve senkron profillerini karşılaştır</button><div id="subtitleProfileList"></div></details>
+          <div id="cueIssueTools" class="cue-issue-tools" data-ui-untranslated>
+            <label><span data-en="Issue type" data-tr="Sorun türü">Sorun türü</span><select id="cueIssueFilter" aria-label="Issue type / Sorun türü">
+              <option value="all" data-en="All cues" data-tr="Tüm satırlar">Tüm satırlar</option><option value="missing" data-en="Missing counterpart" data-tr="Eksik karşı kanal">Eksik karşı kanal</option><option value="uncertain" data-en="Uncertain pairing" data-tr="Belirsiz eşleşme">Belirsiz eşleşme</option><option value="empty" data-en="Empty text" data-tr="Boş metin">Boş metin</option><option value="fast" data-en="Fast reading" data-tr="Hızlı okuma">Hızlı okuma</option><option value="overlap" data-en="Overlap" data-tr="Çakışma">Çakışma</option><option value="short" data-en="Short duration" data-tr="Kısa süre">Kısa süre</option><option value="lines" data-en="Line length" data-tr="Satır uzunluğu">Satır uzunluğu</option><option value="invalid" data-en="Invalid timing" data-tr="Geçersiz zaman">Geçersiz zaman</option>
+            </select></label><button id="subtitlePairReview" class="link-btn" type="button" data-en="Inspect active cue pairing" data-tr="Aktif satır eşleşmesini incele">Aktif satır eşleşmesini incele</button><div id="subtitlePairCandidates"></div><small id="cueIssueSummary" role="status"></small><button id="cueIssueReset" class="link-btn" type="button" hidden></button>
+          </div>
           <!-- ORTA: akan altyazi (kaynak + ceviri ayni kartta) -->
           <section class="browser-panel-tracks hidden" id="browserPanelTracks" aria-label="Altyazı izleri">
             <div class="browser-panel-track-scroll" id="browserPanelTrackScroll"></div>
@@ -3506,6 +3519,7 @@
                   <button class="btn btn-ghost btn-sm" id="browserSyncClearPoints" type="button">Noktaları temizle</button>
                 </div>
                 <div class="browser-sync-point-list" id="browserSyncPointList"></div>
+                <p id="browserSyncEffect" class="browser-manga-hint" data-ui-untranslated hidden></p>
                 <p class="browser-sync-confidence hidden" id="browserSyncConfidence" role="status" aria-live="polite"></p>
               </div>
               <label class="field browser-export-timing"><span class="field-label">Dışa aktarma zamanları</span>
@@ -3528,7 +3542,7 @@
         <header class="timeline-head">
           <div>
             <strong>Zamanlama masası</strong>
-            <span id="timelineStatus">Bir altyazı seçerek zamanını düzenleyin</span>
+            <p id="timelineOwner" class="subtitle-owner-card" data-ui-untranslated></p><span id="timelineStatus">Bir altyazı seçerek zamanını düzenleyin</span>
           </div>
           <button class="btn-icon" id="timelineClose" title="Zamanlama masasını kapat" aria-label="Zamanlama masasını kapat">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
@@ -4040,6 +4054,8 @@
 <script src="ui-locale.js"></script>
 <script src="status-copy.js"></script>
 <script src="timeline-issue-scan.js"></script>
+<script src="subtitle-work-status.js"></script>
+<script src="browser-work-inspector.js"></script>
 <script src="renderer-helpers.js"></script>
 <script src="../assistant-source-context.js"></script>
 <script src="../catalog-conditions.js"></script>
@@ -4056,6 +4072,7 @@
 <script src="../translation-review-summary.js"></script>
 <script src="job-summary.js"></script>
 <script src="renderer.js"></script>
+<script src="browser-work-inspector-ui.js"></script>
 <script src="browser-panel-tools.js"></script>
 <script src="browser-panel.js"></script>
 <script src="browser-study.js"></script>
@@ -4067,6 +4084,7 @@
 <script src="dub-workspace-ui.js"></script>
 <script src="../dub-pronunciation.js"></script>
 <script src="dub-run-info.js"></script>
+<script src="../dub-integrity.js"></script>
 <script src="dub-studio-layout.js"></script>
 <script src="dub-generator-ui.js"></script>
 <script src="dub-source-return.js"></script>
@@ -4137,6 +4155,7 @@
 <script src="userscript-manager-ui.js"></script>
 <script src="application-updates-ui.js"></script>
 <script src="web-history-v2.js"></script>
+<script src="library-insights-ui.js"></script>
 <script src="personal-library-ui.js"></script>
 <script src="recommendation-hub-ui.js"></script>
 <script src="media-home.js"></script>
@@ -4156,6 +4175,7 @@
 <script src="../assistant-playback-math.js"></script>
 <script src="assistant-app-actions.js"></script>
 <script src="../assistant-run-steps.js"></script>
+<script src="assistant-safety-ui.js"></script>
 <script src="assistant-agent-ui.js"></script>
 <script src="assistant-jobs-ui.js"></script>
 <script src="assistant-video-commands.js"></script>
@@ -4209,5 +4229,7 @@
 <script src="podcast-task-scope.js"></script>
   <script src="sahne.js"></script>
 <script src="cinema-sahne.js"></script>
+<script src="library-workspace-ui.js"></script>
+<script src="translation-repair-desk.js"></script>
 </body>
 </html>

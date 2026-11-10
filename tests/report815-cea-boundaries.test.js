@@ -17,7 +17,7 @@ function env(label){
  ceaCheckpointId:K.checkpointId,app:{getPath:()=>path.join(out,label),getVersion:()=> 'fixture-build'},randomUUID:()=>crypto.randomUUID(),
  browserHlsCeaFullCaptureJob:null,browserHlsCeaActive:null,browserActiveTabId:tab.id,browserStateGeneration:1,
  browserTrackBuffers:new Map(),browserTrackPublications:new Map(),browserTrackPendingPublications:new Map(),browserTrackPublicationTimers:new Map(),
- browserHlsCeaDecoders:new Map(),browserHlsCeaDecodeQueues:new Map(),browserHlsCeaFetchedSegments:new Set(),browserHlsCeaArrivals:new Map(),browserHlsCeaInitializations:new Map(),browserPendingResponses:new Map(),
+ browserHlsCeaDecoders:new Map(),browserHlsCeaDecoderRevisions:new WeakMap(),browserHlsCeaDecodeQueues:new Map(),browserHlsCeaFetchedSegments:new Set(),browserHlsCeaArrivals:new Map(),browserHlsCeaInitializations:new Map(),browserPendingResponses:new Map(),
  browserDiagnostics:null,BROWSER_CAPTURE_BODY_LIMIT:12*1024*1024,
  browserTextStability:{observe:()=>({state:'duplicate'}),cancelScope:()=>{}},
  browserTrackStreamKey:(source,lang)=>`${source}|${lang}`,isCurrentBrowserContext:()=>true,browserTabById:()=>tab,activeBrowserTab:()=>tab,
@@ -34,7 +34,7 @@ function env(label){
  jobResourceScheduler:{enqueue:()=> 'admitted'},
  };vm.createContext(s);vm.runInContext(code,s,{filename:'actual-main-cea-extract.js'});return {s,tab,publications,progress};
 }
-function job(s,tab,segments,complete=true){const j={id:'fixture-job',tab,context:{tabId:tab.id},sourceUrl:url,playlistUrl:url,tracks:[{...track}],segments,completed:new Set(),failures:[],expectedDuration:segments.reduce((a,x)=>a+x.duration,0),playlistComplete:complete,resume:false,retryRound:0};j.total=segments.length;s.browserHlsCeaFullCaptureJob=j;return j;}
+function job(s,tab,segments,complete=true){const j={id:'fixture-job',tab,context:{tabId:tab.id},sourceUrl:url,playlistUrl:url,tracks:[{...track}],segments,completed:new Set(),decoderProof:new Map(),failures:[],expectedDuration:segments.reduce((a,x)=>a+x.duration,0),playlistComplete:complete,resume:false,retryRound:0};j.total=segments.length;s.browserHlsCeaFullCaptureJob=j;return j;}
 function playlist(sequence,count,end=true){return '#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-TARGETDURATION:120\n#EXT-X-MEDIA-SEQUENCE:'+sequence+'\n#EXT-X-DISCONTINUITY-SEQUENCE:'+sequence+'\n#EXT-X-MAP:URI="init.mp4"\n'+Array.from({length:count},(_,i)=>(i?'#EXT-X-DISCONTINUITY\n':'')+'#EXTINF:120,\nseg-'+(sequence+i)+'.m4s\n').join('')+(end?'#EXT-X-ENDLIST\n':'');}
 (async()=>{
  const results={head:readHead(),node:process.version,sourceSha256,fixtureSha256:Object.fromEntries(Object.entries(fixtures).map(([p,b])=>[p,crypto.createHash('sha256').update(b).digest('hex')])),tests:{}};

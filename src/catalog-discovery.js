@@ -51,7 +51,7 @@ async function readTextLimited(response, maxBytes) {
   return (await readLimitedBytes(response, maxBytes, 'TMDB yanıtı')).toString('utf8').replace(/^\uFEFF/, '');
 }
 
-function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
+function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR',now=Date.now}={}) {
   async function request(route, token, params = {}, signal) {
     if (typeof token !== 'string' || token.length < 20 || token.length > 4096 || /[\r\n]/.test(token)) throw new Error('TMDB API okuma erişim belirtecini girin. Ayarlar → Film bilgileri ve afişler bölümünden kaydedebilirsiniz.');
     const url = new URL('https://api.themoviedb.org/3/' + route);
@@ -65,9 +65,10 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
   }
   const extraCache=new Map();
   const identity=item=>{const kind=item.kind==='series'?'tv':'movie',match=new RegExp('^'+kind+':(\\d+)$').exec(item.tmdbId||'');if(!match||!Number.isSafeInteger(Number(match[1]))||Number(match[1])<1)throw new Error('Önce yapımı TMDB ile eşleştirin.');return {kind,id:Number(match[1])};};
-  async function cached(route,token,params={},signal){
-    const key=hash(JSON.stringify([route,token,language(),params]));const old=extraCache.get(key);if(old&&Date.now()-old.time<600000)return structuredClone(old.value);
-    const value=await request(route,token,params,signal);if(extraCache.size>=100)extraCache.delete(extraCache.keys().next().value);extraCache.set(key,{time:Date.now(),value});return structuredClone(value);
+  async function cached(route,token,params={},signal,{receipt=false,refresh=false}={}){
+    const key=hash(JSON.stringify([route,token,language(),params])),old=extraCache.get(key);
+    if(!refresh&&old&&now()-old.time<600000){const value=structuredClone(old.value);return receipt?{value,checkedAt:old.time,cacheHit:true}:value;}
+    const value=await request(route,token,params,signal),time=now();if(extraCache.size>=100)extraCache.delete(extraCache.keys().next().value);extraCache.set(key,{time,value});return receipt?{value:structuredClone(value),checkedAt:time,cacheHit:false}:structuredClone(value);
   }
   return {
     async filmExtras(item,token,signal){
@@ -101,13 +102,13 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
       }
       return {rows,attribution:'TMDB'};
     },
-    async watchProviders(item,token,region='TR',signal){
+    async watchProviders(item,token,region='TR',signal,{refresh=false}={}){
       if(!/^[A-Z]{2}$/.test(region))throw new Error('İzleme ülkesi geçersiz.');
-      const {kind,id}=identity(item),data=await cached(`${kind}/${id}/watch/providers`,token,{},signal),country=data.results?.[region];
+      const {kind,id}=identity(item),receipt=await cached(`${kind}/${id}/watch/providers`,token,{},signal,{receipt:true,refresh}),country=receipt.value.results?.[region];
       const groups={};for(const mode of ['flatrate','free','ads','rent','buy']){
         const seen=new Set();groups[mode]=(Array.isArray(country?.[mode])?country[mode]:[]).filter(p=>Number.isSafeInteger(p.provider_id)&&p.provider_id>0&&typeof p.provider_name==='string'&&p.provider_name.trim()&&!seen.has(p.provider_id)&&seen.add(p.provider_id)).slice(0,40).map(p=>({id:p.provider_id,name:p.provider_name.trim().slice(0,100)}));
       }
-      return {region,groups,url:`https://www.themoviedb.org/${kind}/${id}/watch?locale=${region}`,attribution:'JustWatch via TMDB'};
+      return {region,groups,checkedAt:receipt.checkedAt,cacheHit:receipt.cacheHit,cacheTtlMs:600000,priceAmountsAvailable:false,url:`https://www.themoviedb.org/${kind}/${id}/watch?locale=${region}`,attribution:'JustWatch via TMDB'};
     },
     async recommendations(item,token,page=1,signal){
       if(!Number.isInteger(page)||page<1||page>10)throw new Error('Öneri sayfası geçersiz.');
@@ -181,7 +182,7 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
       if (!match || !Number.isSafeInteger(number) || number < 0 || number > 1000) throw new Error('Önce diziyi TMDB ile eşleştirin ve geçerli sezon seçin.');
       const data = await request(`tv/${match[1]}/season/${number}`, token);
       return (data.episodes || []).slice(0, 1000).map(ep => ({ id: `s${number}e${ep.episode_number}`, season: number, number: ep.episode_number,
-        title: ep.name || '', airDate: ep.air_date || '', watchStatus: 'planned' }));
+        title: ep.name || '', airDate: ep.air_date || '', runtime:Number.isFinite(Number(ep.runtime))&&Number(ep.runtime)>0&&Number(ep.runtime)<=10000?Number(ep.runtime):null, watchStatus: 'planned' }));
     },
   };
 }

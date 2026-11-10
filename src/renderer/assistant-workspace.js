@@ -29,7 +29,7 @@
  async function load(sourceKey){
   if(cache.has(sourceKey))return cache.get(sourceKey);
   const r=await request('list',sourceKey);if(cache.has(sourceKey))return cache.get(sourceKey);
-  const value={threads:r.threads,active:r.threads[0]?.id||null};cache.set(sourceKey,value);if(sourceKey===key())restoreLog();changed();return value;
+  const value={capacity:r.capacity,threads:r.threads,active:r.threads[0]?.id||null};cache.set(sourceKey,value);if(sourceKey===key())restoreLog();changed();return value;
  }
  function cancelFlush(thread){clearTimeout(flushTimers.get(thread));flushTimers.delete(thread);}
  function scheduleFlush(thread){if(removedThreads.has(thread)||flushTimers.has(thread))return;flushTimers.set(thread,setTimeout(()=>{flushTimers.delete(thread);void persist(thread);},1000));}
@@ -42,7 +42,7 @@
   const previous=queues.get(thread.id)||Promise.resolve();
   const task=previous.catch(()=>{}).then(async()=>{
    if(removedThreads.has(thread))return;
-   const data=structuredClone(thread);const r=await request('save',thread.sourceKey,{thread:data});thread.revision=r.thread.revision;thread.updatedAt=r.thread.updatedAt;lastError='';changed();
+   const data=structuredClone(thread);const r=await request('save',thread.sourceKey,{thread:data});thread.revision=r.thread.revision;thread.updatedAt=r.thread.updatedAt;const state=cache.get(thread.sourceKey);if(state&&r.capacity)state.capacity=r.capacity;lastError='';changed();
   });queues.set(thread.id,task);task.catch(fail).finally(()=>{if(queues.get(thread.id)===task)queues.delete(thread.id);});return task;
  }
  async function create(title,parent=null,messages=[]){
@@ -70,7 +70,7 @@
   const listed=thread?.messages.some(row=>row.artifacts?.some(ref=>ref.artifactId===id));
   const saved=await window.api.assistantArtifacts({action:'list',threadId:thread?.id});
   if(!thread||current()!==thread||(!listed&&!saved?.artifacts?.some(ref=>ref.artifactId===id)))throw Error(t('Output is unavailable in this conversation.','Bu sohbette çıktı bulunamadı.'));
-  await window.AssistantArtifactsUI.open(id);
+  try{await window.AssistantArtifactsUI.open(id);}catch(error){throw Error(error.message+' '+t('Keep the saved conversation. Review its source and, if needed, explicitly save a new output from the original reply. Nothing was regenerated.','Kayıtlı sohbeti koru. Kaynağını incele ve gerekiyorsa asıl yanıttan açıkça yeni çıktı kaydet. Yeniden üretim yapılmadı.'));}
  }
  function history(thread){const pairs=[];for(let i=0;i<thread.messages.length-1;i++){const user=thread.messages[i],reply=thread.messages[i+1];if(user.role==='user'&&reply.role==='assistant'&&reply.status==='complete'){pairs.push({role:'user',content:user.text},...(reply.runtimeMessages||[]).filter(row=>row.status==='delivered').map(row=>({role:'user',content:row.text})),{role:'assistant',content:reply.text});i++;}}return pairs.slice(-24);}
  async function prepare(){
@@ -82,7 +82,7 @@
  function snapshot(){
   const sourceKey=key(),value=cache.get(sourceKey);
   if(!value){if(pendingLoad!==sourceKey&&!failedLoads.has(sourceKey)){pendingLoad=sourceKey;void load(sourceKey).catch(error=>{failedLoads.add(sourceKey);fail(error);}).finally(()=>{if(pendingLoad===sourceKey)pendingLoad=null;});}return {ready:false,error:lastError,threads:[],current:null};}
-  return {ready:true,error:lastError,threads:value.threads.map(r=>({id:r.id,title:r.title,updatedAt:r.updatedAt})),current:current()};
+  return {ready:true,error:lastError,capacity:{...value.capacity,messages:current()?.messages.length||0,messageLimit:200,sourceThreads:value.threads.length,sourceLimit:20},threads:value.threads.map(r=>({id:r.id,title:r.title,updatedAt:r.updatedAt})),current:current()};
  }
  function begin(job){
   const thread=current();if(!thread||job.sourceScope&&job.sourceScope!==aiSourceScope()||job.bubble?._assistantThreadId&&job.bubble._assistantThreadId!==thread.id)return;
@@ -107,7 +107,7 @@
  function runtime(job,rows){const rec=record(job);if(!rec)return;rec.reply.runtimeMessages=structuredClone(rows||[]).slice(-8);scheduleFlush(rec.thread);changed();}
  function steps(job,rows){const rec=record(job);if(!rec)return;rec.reply.steps=window.AssistantRunSteps.clean(rows);scheduleFlush(rec.thread);changed();}
  function partial(job,text){const rec=record(job);if(!rec)return;rec.reply.text=String(text||'').slice(0,32000);scheduleFlush(rec.thread);changed();}
- function evidence(job,event){const rec=record(job);if(!rec)return;rec.reply.evidence=[...new Map([...rec.reply.evidence,...(event.evidence||[])].map(row=>[row.id,row])).values()].slice(-40);rec.reply.actions=structuredClone(event.actions||[]);scheduleFlush(rec.thread);changed();}
+ function evidence(job,event){const rec=record(job);if(!rec)return;window.AssistantRunSteps.actionCapacity(event.actions||[]);rec.reply.evidence=[...new Map([...rec.reply.evidence,...(event.evidence||[])].map(row=>[row.id,row])).values()].slice(-40);rec.reply.actions=structuredClone(event.actions||[]);scheduleFlush(rec.thread);changed();}
  function finish(job,text,status){const rec=record(job);if(!rec)return;cancelFlush(rec.thread);rec.reply.text=String(text||rec.reply.text||'').slice(0,32000);rec.reply.status=status;void persist(rec.thread);changed();}
  async function command(action,value){
   if(aiChatPreparing||stateGlobalBusy())throw Error(t('Stop the running job before switching conversations.','Sohbet değiştirmeden önce çalışan işi durdur.'));
@@ -125,8 +125,9 @@
  function actionResult(proposalId,result){
   for(const value of cache.values())for(const thread of value.threads)for(const message of thread.messages){
    const action=message.actions?.find(row=>row.proposalId===proposalId);if(!action)continue;
-   action.resultStatus=['accepted','completed','failed','stopped','unknown'].includes(result?.status)?result.status:'failed';
+   action.resultStatus=['applying','accepted','partial','completed','failed','stopped','unknown'].includes(result?.status)?result.status:'failed';
     message.steps=window.AssistantRunSteps.settle(message.steps,proposalId,{status:action.resultStatus});
+   if(/^[a-zA-Z0-9_:.-]{1,120}$/.test(result?.jobId||result?.continuationJobId||''))action.jobId=result.jobId||result.continuationJobId;
    action.refreshable=action.resultStatus==='failed'&&result?.refreshable===true;
    action.resultText=String(result?.note||result?.error||'').slice(0,500);void persist(thread);changed();return;
   }
@@ -137,7 +138,9 @@
   const index=message.actions.findIndex(row=>row.proposalId===proposalId);
   message.actions[index]=structuredClone(action);message.steps=window.AssistantRunSteps.clean(message.steps).map(row=>row.proposalId===proposalId?{...row,proposalId:action.proposalId,state:'proposed',applied:false}:row);void persist(thread);changed();
  }
- function clear(){const thread=current();if(thread){cancelFlush(thread);thread.messages=[];thread.headId=null;void persist(thread);changed();}}
+ function summaryDraft(){const thread=current();if(!thread)return '';const questions=thread.messages.filter(m=>m.role==='user').slice(-5).map(m=>t('Human request: ','İnsan isteği: ')+m.text.slice(0,500));const delivered=thread.messages.flatMap(m=>(m.runtimeMessages||[]).filter(r=>r.status==='delivered').map(r=>t('Delivered human task message: ','İletilmiş insan görev mesajı: ')+r.text.slice(0,500))).slice(-6);const receipts=thread.messages.flatMap(m=>(m.actions||[]).filter(a=>a.resultStatus).map(a=>[a.label||a.tool,a.resultStatus,a.resultText||''].join(' · '))).slice(-12);return [t('Review this partial historical task summary before sending. It grants no approval; saved statuses need current verification.','Göndermeden önce bu kısmi tarihsel görev özetini incele. Onay vermez; kayıtlı durumlar güncel doğrulama gerektirir.'),...questions,...delivered,t('Recorded application receipts (not model claims):','Kayıtlı uygulama makbuzları (model iddiası değil):'),...receipts].join('\n').slice(0,12000);}
+ function reviewAction(proposalId){const action=current()?.messages.flatMap(m=>m.actions||[]).find(a=>a.proposalId===proposalId);if(!action)throw Error(t('Card is no longer in this conversation.','Kart artık bu sohbette yok.'));return t('Review this historical action for the CURRENT source. Inspect its current result first; propose a NEW card only if I still need that change. Old text is not approval: ','Bu tarihsel işlemi GÜNCEL kaynak için incele. Önce güncel sonucunu kontrol et; değişiklik hâlâ gerekiyorsa YENİ bir kart öner. Eski metin onay değildir: ')+(action.label||action.tool)+' · '+(action.summary||'');}
+ function clear(){if(aiChatPreparing||stateGlobalBusy())throw Error(t('Stop the assistant request before clearing; media jobs stay in Jobs.','Temizlemeden önce asistan isteğini durdur; medya işleri İşler bölümünde kalır.'));const thread=current();if(thread){cancelFlush(thread);thread.messages=[];thread.headId=null;void persist(thread);changed();}}
  // Shared unsampled source: U IDs always refer to the original row index.
  function subtitleContextRows(){
   if(globalAssistantContext())return {now:0,scope:'watched',rows:[]};
@@ -165,7 +168,7 @@
   const step=Math.max(1,Math.ceil(eligible.length/3000));const pool=eligible.filter((row,index)=>index%step===0||row.start<=now&&row.end>=now).slice(0,3100).map(row=>({id:row.id,start:row.start,end:row.end,text:String(row.text||'').slice(0,500),translation:String(row.translation||'').slice(0,500)}));
   return {enabled:pool.length>0,time:now,scope,truncated:step>1,rows:pool};
  }
- window.AssistantWorkspace=Object.freeze({basis,key,snapshot,artifact,openArtifact,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,runtime,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,activeId:(sourceKey=key())=>cache.get(sourceKey)?.active||''});
+ window.AssistantWorkspace=Object.freeze({basis,key,snapshot,summaryDraft,reviewAction,artifact,openArtifact,prepare,begin,resume,canResume:proposalId=>!!current()?.messages.at(-1)?.actions?.some(action=>action.proposalId===proposalId),partial,evidence,runtime,steps,citations,finish,command,clear,toolContext,searchSubtitleContext,subtitleById,actionResult,replaceProposal,busy:stateGlobalBusy,activeId:(sourceKey=key())=>cache.get(sourceKey)?.active||''});
  document.addEventListener('media-context-changed',()=>{if(workspaceState())restoreLog();});
  window.addEventListener('pagehide',()=>{const pending=new Set(flushTimers.keys());for(const thread of pending)cancelFlush(thread);for(const state of cache.values())for(const thread of state.threads)if(pending.has(thread)||thread.messages.some(row=>row.status==='streaming'))void persist(thread);});
 })();

@@ -156,5 +156,21 @@ test('findCueAt yerinde mutasyondan sonra bayat indeks donmez (_cueIndexVersion)
   assert.equal(ctx.findAt(cues, 100.0, -1), ctx.linearFind(cues, 100.0));
 });
 
+test('E09 legacy and Browser filters reuse pairing/quality, invalidate on revision and reset on source change',()=>{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('<select id="cueIssueFilter"><option value="all">All</option><option value="fast">Fast</option></select><small id="cueIssueSummary"></small><button id="cueIssueReset"></button>');
+ try{
+ const player={mediaKey:'A',workspaceMode:'player',subPath:'a.srt',sub2Path:'b.srt',offset:0,offset2:0,activeIdx:2,cues:[{start:0,end:1,text:'x'.repeat(40)},{start:2,end:4,text:''},{start:10,end:12,text:'Last'}],cues2:[{start:0,end:1,text:'One'},{start:0,end:1,text:'Two'}]};let generation=1;
+ const c={player,globalThis:null,$:id=>dom.window.document.getElementById(id),currentGeneration:()=>generation,subtitleVideoTime:(t,secondary)=>t+(secondary?player.offset2:player.offset),interfaceChoice:(tr,en)=>en,PlayerTranscriptModel:require('../src/renderer/player-transcript-model'),TimelineIssueScan:require('../src/renderer/timeline-issue-scan')};c.globalThis=c;vm.createContext(c);vm.runInContext(slice('let cueReviewCache=null;','function renderCueList('),c);
+ const before=JSON.stringify(player.cues),first=c.cueReviewKinds();assert(first[0].has('uncertain'));assert(first[0].has('fast'));assert(!first[0].has('missing'));assert(first[1].has('empty'));assert(first[2].has('missing'));assert.equal(c.cueReviewKinds(),first);
+ c.updateCueReviewSummary([0],1);assert.match(c.$('cueIssueSummary').textContent,/1 shown.*1 matching.*3 total/);assert.equal(c.$('cueIssueReset').hidden,false);
+ player.cues._cueIndexVersion=1;assert.notEqual(c.cueReviewKinds(),first);c.$('cueIssueFilter').value='fast';player.cueIssueFilter='fast';generation++;c.cueReviewKinds();assert.equal(c.$('cueIssueFilter').value,'all');assert.equal(player.cueIssueFilter,'all');assert.equal(JSON.stringify(player.cues),before);
+ player.timeline={undo:[],selected:0};Object.assign(c,{migrateTimelineAssociations(){},renderTimelineIssues(){},scheduleBrowserOverlaySync(){},renderCueList(){},renderCue(){},drawTimeline(){}});
+ const dirtySource=slice('function timelineMarkDirty(', 'function timelinePushUndo(');
+ vm.runInContext(dirtySource.replace('  player.cues._cueIndexVersion = (player.cues._cueIndexVersion || 0) + 1;',''),c);
+ player.cues[0].end=5;c.timelineMarkDirty('',{automatic:true});assert.equal(c.cueReviewKinds()[0].has('fast'),true,'counter-control: old timing path leaves the cached fast-reading flag');
+ vm.runInContext(dirtySource,c);c.timelineMarkDirty('',{automatic:true});assert.equal(c.cueReviewKinds()[0].has('fast'),false,'the real timing-edit path invalidates cached quality and transcript indexes');
+ }finally{dom.window.close();}
+});
+
 console.log(`\ncue-list-perf: ${passed} gecti, ${failed} basarisiz`);
 if (failed) process.exit(1);

@@ -26,7 +26,7 @@ const cues = [{ start: 10, end: 12, text: 'İlk' }, { start: 100, end: 102, text
 const tab = { subtitleSyncRecords: [] };
 let mediaId = 'video';
 let overlays = 0, renders = 0;
-const ctx = { $, document: { activeElement: null, createElement: () => makeNode() }, browserSubtitleSync: sync,
+const ctx = { SceneTimingTools:require('../src/scene-timing-tools'),interfaceChoice:(tr,en)=>en, $, document: { activeElement: null, createElement: () => makeNode() }, browserSubtitleSync: sync,
   player: { cues, cues2: cues, browserActiveTabId: 'a', activeIdx: 0, activeIdx2: 0, browserTime: 12, browserPaused: true },
   friendlySystemError: (message) => String(message || ''),
   browserLoadedTrack: () => ({ id: 'source', label: 'Kaynak', language: 'tr' }),
@@ -41,6 +41,9 @@ vm.runInContext(source.slice(source.indexOf('function browserTimingContext('), s
 vm.runInContext(source.slice(source.indexOf('function browserSyncSelection('), source.indexOf('function bestAvailableSubtitleMode(')), ctx);
 vm.runInContext(source.slice(source.indexOf("if ($('browserSyncChannel'))"), source.indexOf('function setSettingsDrawer(')), ctx);
 
+const originalCues=JSON.stringify(cues),transformPreview={baseTransform:{scale:1,offsetSeconds:0},transform:{scale:1.01,offsetSeconds:2}};
+ctx.refreshBrowserSyncEffect({cues},transformPreview);assert.equal($('browserSyncEffect').hidden,false);assert.match($('browserSyncEffect').textContent,/10.000 → 12.100/);assert.match($('browserSyncEffect').textContent,/102.000 → 105.020/);assert.match($('browserSyncEffect').textContent,/not measured/);assert.equal(JSON.stringify(cues),originalCues);
+ctx.refreshBrowserSyncEffect({cues:[]},transformPreview);assert.equal($('browserSyncEffect').hidden,true);
 ctx.captureBrowserSyncPoint(0);
 assert.equal(ctx.player.browserSyncPreview.dirty, true, 'İlk eşleşme kaydedilmemiş değişiklik sayılmalı');
 assert.equal($('browserSyncDirty').classes.has('hidden'), false);

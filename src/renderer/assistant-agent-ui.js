@@ -1,7 +1,7 @@
 (() => {
  'use strict';
  if(!window.api?.assistantAgentRun||!window.api.onAssistantAgentEvent)return;
- let pending=null,retryPacket=null,applying=null;const proposalTasks=new Map(),continuations=new Map(),actionCalls=new Map();
+ let pending=null,retryPacket=null,applying=null,previewing=false;const proposalTasks=new Map(),continuations=new Map(),actionCalls=new Map();
  const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const activity=task=>{
   if(task?.cancelled)return t('Stopping the assistant request; media jobs are managed in Jobs…','Asistan isteği durduruluyor; medya işleri İşler bölümünden yönetilir…');
@@ -19,19 +19,28 @@
  const status=()=>{const task=pending||applying;return task&&window.AssistantAppActions.current(task.owner)?{...task,activity:activity(task)}:null;};
  async function send(question,context,history,scope,resume,options={}){
   const requestOptions={responseContract:options.responseContract};
-  if(pending||applying)return;retryPacket=null;
+  if(pending||applying||previewing)return;
+  let outbound={question,context:window.AssistantContextManifest.sourceText(context),pool:window.AssistantContextManifest.pool(context.assistant_tools?.rows),history:JSON.parse(JSON.stringify(history||[]))};
+  const previewOwner=frozenOwner(context);
+  const omitHistory=['review-analysis','recall-analysis'].includes(options.responseContract)||(previewOwner.kind==='video'||['studio','page','video'].includes(previewOwner.kind)&&context?.workspace==='podcast')&&soFarQuestion(question);
+  const historyScope=window.AssistantRunSteps?.providerHistory?.(omitHistory?[]:outbound.history)||{messages:(omitHistory?[]:outbound.history).filter(r=>['user','assistant'].includes(r?.role)&&typeof r.content==='string').slice(-12).map(r=>({role:r.role,content:r.content.slice(0,5000)}))};
+  outbound={...outbound,question:String(question).slice(0,16000),history:historyScope.messages,historyScope:{...historyScope,messages:undefined,excludedForScope:omitHistory,threadMessages:window.AssistantWorkspace.snapshot?.().current?.messages?.length??null}};
+  const previewValid=()=>window.AssistantAppActions.current(previewOwner)&&['subtitleKey','audioKey'].every(k=>(previewOwner[k]||'')===(window.AssistantAppActions.snapshot()?.[k]||''));
+  if(window.AssistantSendPreview){previewing=true;try{outbound=await window.AssistantSendPreview.review({packet:outbound,owner:previewOwner,isCurrent:previewValid});}finally{previewing=false;}if(!outbound){const draft=document.getElementById('aiChatText');if(previewValid()&&draft&&!draft.value){draft.value=question;autoGrowChatBox();}return {ok:false,cancelled:true,previewCancelled:true};}}
+  if(!previewValid())return {ok:false,cancelled:true};retryPacket=null;
+  if(resume){const row=window.AssistantWorkspace.snapshot?.().current?.messages.find(m=>m.actions?.some(a=>a.proposalId===resume.proposalId));if(row)window.AssistantRunSteps.actionCapacity(row.actions,8);}
   const previous=resume?window.AssistantWorkspace.resume(resume.proposalId,context):null;
   const prefix=previous?.text?(previous.text.length>16000?t('Earlier flow text was shortened.\n','Önceki akış metni kısaltıldı.\n'):'')+previous.text.slice(-16000)+'\n\n':'';
-  const task={id:crypto.randomUUID(),scope,question,history,context,owner:frozenOwner(context),text:prefix,prefix,actions:previous?.actions||[],evidence:previous?.evidence||[],trace:previous?.steps||[],citations:previous?.citations||[],runtimeMessages:previous?.runtimeMessages||[]};
+  const task={id:crypto.randomUUID(),scope,question,history,context,owner:previewOwner,text:prefix,prefix,actions:previous?.actions||[],evidence:previous?.evidence||[],trace:previous?.steps||[],citations:previous?.citations||[],runtimeMessages:previous?.runtimeMessages||[]};
   if(previous)task.job=previous.job;else{aiChatAdd('user',question);task.job={chatQuestion:question,chatContext:context,sourceScope:scope,bubble:aiChatAdd('ai',t('Connecting to your assistant…','Asistana bağlanılıyor…'),'is-loading')};window.AssistantWorkspace?.begin(task.job);}
   pending=task;changed();
   document.getElementById('aiChatText').value='';autoGrowChatBox();
   let result;
   try{
    if(!await saveAppSettings())throw Error(t('Provider settings could not be saved securely.','Sağlayıcı ayarları güvenli kaydedilemedi.'));
-   if(task.cancelled||!window.AssistantAppActions.current(task.owner))throw Error(t('The source changed.','Kaynak değişti.'));
-   result=await window.api.assistantAgentRun({requestId:task.id,question,responseContract:requestOptions.responseContract,continuationId:resume?.token,owner:task.owner,context:window.AssistantContextManifest.sourceText(context),
-    pool:window.AssistantContextManifest.pool(context.assistant_tools?.rows),history,locale:window.UiLocale?.get?.()||'en'});
+   if(task.cancelled||!previewValid())throw Error(t('The source changed.','Kaynak değişti.'));
+   result=await window.api.assistantAgentRun({requestId:task.id,question:outbound.question,responseContract:requestOptions.responseContract,continuationId:resume?.token,owner:task.owner,context:outbound.context,
+    pool:outbound.pool,history:outbound.history,locale:window.UiLocale?.get?.()||'en'});
   }catch(error){result={ok:false,cancelled:!!task.cancelled,error:String(error.message)};}
   if(result?.ok&&(task.cancelled||result.cancelled))result={...result,ok:false,cancelled:true};
   const current=window.AssistantAppActions.current(task.owner),state=result?.ok&&current?'complete':task.cancelled||result?.cancelled||!current?'stopped':'failed';
@@ -40,7 +49,7 @@
   if(result?.ok&&current){
    for(const action of result.actions||[]){
     if(action?.kind!=='app_action'||typeof action.proposalId!=='string'||!action.proposalId||task.actions.some(row=>row.proposalId===action.proposalId))continue;
-    task.actions.push(action);proposalTasks.set(action.proposalId,{question:task.question,history:(task.history||[]).slice(-12).map(row=>({role:row.role,content:String(row.content||'').slice(0,5000)})),frozen:soFarQuestion(task.question)?task.context:null});
+    task.actions.push(action);proposalTasks.set(action.proposalId,{question:task.question,owner:task.owner,history:(task.history||[]).slice(-12).map(row=>({role:row.role,content:String(row.content||'').slice(0,5000)})),frozen:soFarQuestion(task.question)?task.context:null});
    }
    while(proposalTasks.size>50)proposalTasks.delete(proposalTasks.keys().next().value);
    if(result.actions?.length)window.AssistantWorkspace?.evidence?.(task.job,{evidence:task.evidence,actions:task.actions});
@@ -85,7 +94,7 @@
   }else if(packet.type==='delta'){
    task.text=(task.text+String(packet.text||'')).slice(0,32000);task.job.bubble.textContent=task.text;window.AssistantWorkspace?.partial(task.job,task.text);
   }else if(packet.type==='proposal'||packet.type==='evidence'){
-   if(packet.type==='proposal'){if(!task.actions.some(row=>row.proposalId===packet.action.proposalId))task.actions.push(packet.action);proposalTasks.set(packet.action.proposalId,{question:task.question,history:(task.history||[]).slice(-12).map(row=>({role:row.role,content:String(row.content||'').slice(0,5000)})),frozen:soFarQuestion(task.question)?task.context:null});while(proposalTasks.size>50)proposalTasks.delete(proposalTasks.keys().next().value);}else task.evidence=packet.evidence||[];
+   if(packet.type==='proposal'){if(!task.actions.some(row=>row.proposalId===packet.action.proposalId))task.actions.push(packet.action);proposalTasks.set(packet.action.proposalId,{question:task.question,owner:task.owner,history:(task.history||[]).slice(-12).map(row=>({role:row.role,content:String(row.content||'').slice(0,5000)})),frozen:soFarQuestion(task.question)?task.context:null});while(proposalTasks.size>50)proposalTasks.delete(proposalTasks.keys().next().value);}else task.evidence=packet.evidence||[];
    task.job.chatContext.assistant_tool_evidence=task.evidence.map(row=>({id:row.id,baslangic:row.start,bitis:row.end,metin:row.text,ceviri:row.translation}));
    task.job.bubble._chatContext=task.job.chatContext;
    task.job.bubble._transcriptEvidence=task.job.chatContext.assistant_tool_evidence;
@@ -111,16 +120,17 @@
   const task={id:proposal.proposalId,owner:window.AssistantAppActions.snapshot(),phase:'applying'};applying=task;changed();let result;
   try{const response=await window.api.assistantAgentApply({proposalId:proposal.proposalId,owner:task.owner});
    // The same approval is still running: keep the card as it is; nothing is marked failed or applied.
-   if(response?.pending)throw Error(errorText(response.error)||t('This action is still running.','Bu işlem hâlâ sürüyor.'));
+   if(response?.pending){result={status:'applying',note:errorText(response.error)||t('This action is still running.','Bu işlem hâlâ sürüyor.')};window.AssistantActionReceipts?.record(proposal,result);throw Error(result.note);}
    result=response?.ok?response.result:response?.uncertain||response?.unconfirmed?{status:'unknown',error:response.error}:{status:task.cancelled?'stopped':'failed',refreshable:response?.refreshable===true,error:response?.error||t('Action failed.','İşlem başarısız oldu.')};
    if(response?.ok&&response.replayed)result={...result,note:[result.note,t('This approval was already applied; it was not applied again.','Bu onay zaten uygulanmıştı; yeniden uygulanmadı.')].filter(Boolean).join(' ')};if(typeof result.error==='string')result.error=errorText(result.error);
    if(result.continuationState==='unverified')result.note=(result.note||'')+' '+t('Follow this job in Jobs; its completion cannot be linked to an automatic next step.','Bu işi İşler bölümünden takip et; tamamlanması sonraki adıma güvenle bağlanamıyor.');
    if(result.continuationState==='limit')result.note=(result.note||'')+' '+t('Eight applied steps reached. Ask a new question to continue.','Sekiz uygulanan adıma ulaşıldı. Devam etmek için yeni bir soru sor.');
+   window.AssistantActionReceipts?.record(proposal,result);
    window.AssistantWorkspace?.actionResult(proposal.proposalId,result);
    for(const id of result.invalidatedProposalIds||[])window.AssistantWorkspace?.actionResult(id,{status:'stopped',note:t('Previous results changed. Continue the latest applied step to plan again.','Önceki sonuçlar değişti. Yeniden planlamak için uygulanan son adımdan devam et.')});
    const origin=proposalTasks.get(proposal.proposalId);if(result.continuationId&&origin&&window.AssistantAppActions.current(task.owner))continuations.set(proposal.proposalId,{token:result.continuationId,proposalId:proposal.proposalId,owner:task.owner,origin,expires:Date.now()+600000,maxExpires:Date.now()+86400000,waiting:result.continuationState==='waiting',jobId:result.continuationJobId||null});while(continuations.size>50)continuations.delete(continuations.keys().next().value);
    if(['failed','stopped','unknown'].includes(result.status))throw Error(result.error||t('Action stopped. A started media job remains separately controlled in Jobs.','Asistan işlemi durdu. Başlamış medya işi İşler bölümünden ayrıca yönetilir.'));return result;
-  }finally{if(applying===task)applying=null;changed();}
+  }catch(error){if(!result)window.AssistantActionReceipts?.record(proposal,{status:task.cancelled?'stopped':'unknown',error:error.message});throw error;}finally{if(applying===task)applying=null;changed();}
  }
  async function refresh(proposal){
   if(pending||applying)throw Error(t('Wait for the current assistant action.','Geçerli asistan işlemini bekle.'));
@@ -156,7 +166,14 @@
  }
  const canRetry=()=>!!retryPacket&&window.AssistantAppActions.current(retryPacket.owner);
  async function retry(){if(!canRetry()||pending||applying)return;const row=retryPacket;await send(row.question,row.context,row.history,row.scope,undefined,row.options);}
- window.AssistantAgentUI=Object.freeze({send,message,status,busy:()=>!!pending||!!applying,applyingId:()=>applying?.id||null,cancel,apply,refresh,flowInfo,continueAction,canRetry,retry,bookPreparation});
+ // Read-only per-tab summary. Historical cards are review candidates, never new approval authority.
+ function tabStatus(tabId,generation,pageKey){
+  const matches=owner=>owner?.tabId===tabId&&owner.generation===generation&&owner.pageKey===pageKey;
+  const receipts=new Map((window.AssistantActionReceipts?.snapshot?.()||[]).map(row=>[row.id,row.status]));
+  let review=0;for(const [id,origin] of proposalTasks)if(matches(origin.owner)&&!receipts.has(id))review++;
+  return {review,applying:matches(applying?.owner)||[...proposalTasks].some(([id,origin])=>matches(origin.owner)&&receipts.get(id)==='applying'),running:matches(pending?.owner)};
+ }
+ window.AssistantAgentUI=Object.freeze({send,message,status,tabStatus,busy:()=>!!pending||!!applying||previewing,applyingId:()=>applying?.id||null,cancel,apply,refresh,flowInfo,continueAction,canRetry,retry,bookPreparation,proposalLive:proposal=>{const origin=proposalTasks.get(proposal.proposalId);return !!origin&&window.AssistantAppActions.current(origin.owner);}});
  document.addEventListener('media-context-changed',()=>{const task=pending||applying;
   if(task===applying&&task&&!task.cancelled&&task.bookHandoff&&window.globalAssistantContext?.()?.id===task.bookHandoff){
    const next=window.AssistantAppActions.snapshot();

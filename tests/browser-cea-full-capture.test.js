@@ -232,3 +232,27 @@ const {
   console.error(error);
   process.exitCode = 1;
 });
+
+
+require('node:test')('B02 exposes only missing transfer times and binds retry to the live decoder owner',()=>{
+ const {reviewCeaCaptureRanges,canRetryCeaCapture}=require('../src/browser-cea-full-capture');
+ const segments=[{url:'https://cdn.test/1?secret=PRIVATE',sequence:1,start:0,duration:5},{url:'https://cdn.test/2',sequence:2,start:5,duration:5},{url:'https://cdn.test/3',sequence:3,start:10,duration:5,gap:true},{url:'https://cdn.test/4',sequence:4,start:15,duration:5}];
+ const done=new Set(['seq:1']),review=reviewCeaCaptureRanges(segments,done);
+ assert.deepEqual(review.missingRanges,[{start:5,end:10},{start:15,end:20}]);assert.deepEqual(review.unavailableRanges,[{start:10,end:15}]);assert(!JSON.stringify(review).includes('PRIVATE'));
+ const tab={id:'a'},active={sourceUrl:'same'},job={id:'capture',tab,sourceUrl:'same',state:'partial',segments,completed:done};
+ assert.equal(canRetryCeaCapture(job,tab,active,true),true);assert.equal(canRetryCeaCapture({...job,consuming:true},tab,active,true),false);assert.equal(canRetryCeaCapture(job,{id:'b'},active,true),false);assert.equal(canRetryCeaCapture(job,tab,{sourceUrl:'changed'},true),false);assert.equal(canRetryCeaCapture(job,tab,active,false),false);assert.equal(canRetryCeaCapture({...job,completed:new Set()},tab,active,true),false);
+});
+
+require('node:test')('B02 decoder eviction, advancement or reset invalidates a previous missing-only promise',()=>{
+ const {ceaDecoderProofCurrent}=require('../src/browser-cea-full-capture'),decoder={},decoders=new Map([['stream',decoder]]),revisions=new WeakMap([[decoder,2]]),proof=new Map([['stream',{decoder,revision:2}]]);
+ assert.equal(ceaDecoderProofCurrent(proof,decoders,revisions),true);assert.equal(ceaDecoderProofCurrent(proof,decoders,revisions,new Map([['stream',Promise.resolve()]])),false);revisions.set(decoder,3);assert.equal(ceaDecoderProofCurrent(proof,decoders,revisions),false);revisions.set(decoder,2);decoders.set('stream',{});assert.equal(ceaDecoderProofCurrent(proof,decoders,revisions),false);assert.equal(ceaDecoderProofCurrent(new Map(),decoders,revisions),false);
+});
+
+require('node:test')('B02 actual main start refuses an expired review before scheduling or fetching',()=>{
+ const vm=require('vm'),main=fs.readFileSync(path.join(__dirname,'../src/main.js'),'utf8'),helpers=require('../src/browser-cea-full-capture');
+ const tab={id:'a'},decoder={},context={...helpers,browserActiveTabId:'a',browserHlsCeaActive:{sourceUrl:'same',segments:[{}],tracks:[{}]},browserHlsCeaFullCaptureJob:{id:'capture-A',tab,context:{},sourceUrl:'same',state:'partial',segments:[{}],completed:new Set(['seq:1']),decoderProof:new Map([['stream',{decoder,revision:1}]])},browserHlsCeaDecoders:new Map([['stream',decoder]]),browserHlsCeaDecodeQueues:new Map(),browserHlsCeaDecoderRevisions:new WeakMap([[decoder,2]]),browserEventContext:()=>({}),browserStateGeneration:1,isCurrentBrowserContext:()=>true};
+ vm.createContext(context);vm.runInContext(main.slice(main.indexOf('function startBrowserHlsCeaFullCapture('),main.indexOf('async function prepareBrowserHlsCeaCapture(')),context);
+ assert.equal(context.startBrowserHlsCeaFullCapture(tab,'capture-A').ok,false,'advanced decoder must invalidate same-source review');
+ context.browserHlsCeaDecoderRevisions.set(decoder,1);assert.equal(context.startBrowserHlsCeaFullCapture(tab,'capture-OLD').ok,false);
+ context.isCurrentBrowserContext=()=>false;assert.equal(context.startBrowserHlsCeaFullCapture(tab,'capture-A').ok,false);
+});

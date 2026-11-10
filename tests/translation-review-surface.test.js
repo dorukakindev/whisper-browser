@@ -23,8 +23,7 @@ function slice(from, to) {
 }
 
 // --- Kesitler --------------------------------------------------------------
-const glossarySlice = slice('let projectGlossaries = {};', 'function renderGlossary()')
-  + slice('function glossaryCombined()', 'function renderGlossary()');
+const glossarySlice = slice('let projectGlossaries = {};', 'function renderGlossary()');
 const qualitySlice = slice('const QUALITY_ISSUE_KINDS', 'function reviewItems()');
 const rangeSlice = slice('function timelineRangeIndices(', 'async function startRangeRetranslate(');
 const costSlice = slice('function translateCostEstimate(', 'function renderTranslateCost()');
@@ -88,10 +87,10 @@ function glossaryCtx(extra = {}) {
   return ctx;
 }
 
-test('glossaryCombined: proje terimi önce, küçük-harf dedupe sonrası genel', () => {
+test('glossaryCombined: aynı terimde proje yazımı kazanır, genel benzersiz terimler korunur', () => {
   const ctx = glossaryCtx();
   ctx.setProject({ 'media-1': ['Beta', 'Gamma'] });
-  assert.deepEqual([...ctx.combined()], ['Beta', 'Gamma', 'Alpha']);
+  assert.deepEqual([...ctx.combined()].sort(), ['Alpha', 'Beta', 'Gamma']);
 });
 
 test('glossaryCombined: proje sözlüğü boşken yalnız genel döner', () => {

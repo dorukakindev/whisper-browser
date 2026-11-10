@@ -9,6 +9,7 @@ const isAborted = vm.runInNewContext(classifier + '\nisAbortedBrowserNavigation'
 for (const error of [{ errno: -3 }, { code: 'ERR_ABORTED' }, { code: 'net::ERR_ABORTED' }]) assert.ok(isAborted(error));
 for (const error of [{ errno: -105 }, { code: 'ERR_CERT_AUTHORITY_INVALID' }, {}, null]) assert.ok(!isAborted(error));
 
+const releaseSourceReturnHold = vm.runInNewContext(main.slice(main.indexOf('function releaseSourceReturnHold('), main.indexOf('function releaseSourceReturnHold(')+main.slice(main.indexOf('function releaseSourceReturnHold(')).indexOf('\n}')+2)+'\nreleaseSourceReturnHold');
 const watchdog = setTimeout(() => { console.error('Navigation abort tests did not finish'); process.exit(1); }, 5000);
 (async () => {
   // Run both loadURL entry points. No actual website, cookies, DRM or user data.
@@ -24,7 +25,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       browserLoadError: (_, message) => ({ message, messageKey: 'generic' }), waitForProtectedPlayback: async () => {},
       setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },
       browserCompatibilityModeForUrl: () => false,
-      suspendBrowserInstrumentationForNavigation() {},
+      releaseSourceReturnHold, suspendBrowserInstrumentationForNavigation() {},
       ensureBrowserView: () => { tab.view = view; return view; }, browserActiveTabId: tab.id, browserVisible: true, browserModalOccluded: false,
       setBrowserViewShown: (_t, v, shown) => v.setVisible(shown),
       scheduleBrowserSessionSave() {},
@@ -100,7 +101,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       sendBrowserEvent() {},
       setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },
       browserCompatibilityModeForUrl: () => false,
-      suspendBrowserInstrumentationForNavigation() {},
+      releaseSourceReturnHold, suspendBrowserInstrumentationForNavigation() {},
       waitForBrowserAdblockReady: async () => {},
       waitForProtectedPlayback: async () => { markProtectedStarted(); await protectedGate; },
       scheduleBrowserSessionSave() {},
@@ -135,7 +136,7 @@ const watchdog = setTimeout(() => { console.error('Navigation abort tests did no
       normalizeBrowserUrl: url => url,
       setBrowserTabCompatibilityMode: async (item, enabled) => { item.compatibilityMode = enabled; return true; },
       browserCompatibilityModeForUrl: () => false,
-      suspendBrowserInstrumentationForNavigation() {},
+      releaseSourceReturnHold, suspendBrowserInstrumentationForNavigation() {},
       waitForBrowserAdblockReady: async () => {},
       waitForProtectedPlayback: async url => {
         if (url.includes('protected')) { markProtectedStarted(); await protectedGate; }

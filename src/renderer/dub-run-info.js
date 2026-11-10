@@ -38,6 +38,12 @@
     const s=output.settings,rows=[],add=(label,value)=>{if(value)rows.push([label,value]);};
     add(en?'Audio':'Ses',basename(output.name));
     add(en?'Subtitle':'Altyazı',basename(output.subtitle));
+    const integrity=output.integrity;
+    add(en?'Subtitle identity':'Altyazı kimliği',integrity?.subtitleHash||(en?'Not recorded':'Kaydedilmemiş'));
+    add(en?'Media identity':'Medya kimliği',integrity?.sourceHash||(en?'Unknown':'Bilinmiyor'));
+    add(en?'Voice identity':'Ses kimliği',integrity?.referenceHash||(en?'Unknown':'Bilinmiyor'));
+    add(en?'Frozen recipe':'Donmuş tarif',integrity?.recipeHash||(en?'Unknown':'Bilinmiyor'));
+    if(integrity?.rehearsal)add(en?'Rehearsal link':'Prova bağlantısı',integrity.rehearsal.status==='matching'?(en?'Same source, voice and preparation settings; sample scope only':'Aynı kaynak, ses ve hazırlık ayarları; yalnız örnek kapsamı'):integrity.rehearsal.status==='changed'?(en?'Changed since sample; inspect differences':'Örnekten sonra değişti; farkları incele'):(en?'Sample relation could not be verified':'Örnek ilişkisi doğrulanamadı'));
     add(en?'Reference':'Referans',basename(s?.referenceName)||(en?'Not recorded for this output':'Bu çıktı için kaydedilmemiş'));
     // Never substitute current UI controls for an older output's settings.
     if(!s){add(en?'Settings':'Ayarlar',en?'No saved production settings':'Kayıtlı üretim ayarı yok');return rows;}

@@ -59,7 +59,7 @@
       try{s.rows=Mix.groups(file.rows||[]);}catch(_){s.rows=[];}
       s.baseRate = Math.max(.25, Math.min(4, Number(priorRate) || 1));
       s.ratePromise = Promise.resolve(); s.rateAt = -Infinity;
-      this.session = s; this.sample = null; this.offset = 0;
+      this.lastFailure = null; this.session = s; this.sample = null; this.offset = 0;
       this.timer = setInterval(() => this.tick(), 200);
       this.changed(s, '');
       s.desiredMuted = s.range ? !!priorMuted : true;
@@ -118,7 +118,7 @@
       });
       return this.cleanup;
     }
-    async fail(message) { await this.remove(); this.error(message); }
+    async fail(message) { const owner=this.session;if(owner)this.lastFailure={owner,message};await this.remove(); this.error(message); }
     pauseAll() {
       if (this.session) {
         const s = this.session;
@@ -223,6 +223,11 @@
       if(s?.sync&&media.ended&&!previous?.ended&&previous&&!previous.paused&&s.voiceWanted&&!s.playPending&&!this.audio.paused)
         s.finishTailUntil=this.now()+500;
       this.sample = { ...media, at: this.now() }; this.tick();
+    }
+    status() {
+      const s=this.session,m=this.sample,a=this.audio;
+      const state=!s?(this.lastFailure&&this.owns(this.lastFailure.owner)?'dub-error':'none'):!this.owns()?'source-changed':!this.matches()?'hidden':!s.url||a.error?'file-error':!m||!Number.isFinite(m.currentTime)||this.now()-m.at>2200?'stale':m.adPlaying?'ad':m.spinnerVisible||(m.readyState!==undefined&&m.readyState<3)?'buffering':m.paused?'paused':s.ended||a.ended?'ended':s.range&&(m.currentTime-this.offset<s.range.start||m.currentTime-this.offset>=s.range.end)?'outside':a.readyState<3?'buffering':a.paused?'waiting':'playing';
+      return {state,originalMuted:s?!!s.muted:null,ratePending:!!s?.ratePending,mutePending:!!s?.mutePending,adaptive:!!s?.sync,layerFailed:!!(s?.backgroundFailed||s?.musicFailed||s?.ambienceFailed)};
     }
     tick() {
       const s = this.session;

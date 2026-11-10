@@ -46,9 +46,9 @@ async function main() {
         } } }), restart: () => { restarted = true; } });
       const event = { sender: { id: 1 } };
       const preview = await handler(event, { action: 'package-preview' });
-      const apply = handler(event, { action: 'package-apply', token: preview.token });
+      const apply = handler(event, { action: 'package-apply', token: preview.token, replaceConflicts: true });
       if (failure === 'success') {
-        await apply; assert(restarted); assert(!storage.has('browser-source-edits-v1'));
+        await apply; assert(restarted); assert.equal(storage.get('browser-source-edits-v1'), '{"old":true}', 'A package without this preference must preserve the current value');
         await assert.rejects(handler(event, { action: 'package-apply', token: preview.token }),
           /Önizleme sona erdi/, 'Tüketilmiş paket önizlemesi yeniden uygulandı');
       } else {
@@ -163,7 +163,7 @@ async function main() {
     assert.equal(reloaded.source.imported, true, 'sourceOf drops imported flag');
     // Servis katmanındaki seçim/iptal/grant davranışı media-catalog-service.test.js
     // tarafından handler çalıştırılarak sınanır; burada paket ve mağaza sınırı kilitlenir.
-    console.log('workspace restore regressions: non-cascading paths, absent draft clearing, capture/backup/restore/rollback failure cleanup, crafted-session grant denial, imported-catalog marker round-trip passed');
+    console.log('workspace restore regressions: non-cascading paths, absent preference preservation, capture/backup/restore/rollback failure cleanup, crafted-session grant denial, imported-catalog marker round-trip passed');
   } finally {
     videos.read = original.read; videos.extract = original.extract; packages.exportPackage = original.export; packages.restorePackage = original.restore;
     if (path.dirname(root) !== path.resolve(os.tmpdir()) || !path.basename(root).startsWith('whisper-restore-regression-')) throw Error('Invalid cleanup root');

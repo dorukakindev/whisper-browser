@@ -233,6 +233,7 @@
     if (event.type === 'media' && event.media) controller.update(event.media);
   });
   window.BrowserDubAudioUI = {
+    status: () => controller.status(),
     master: () => controller.session?.mode==='player'&&controller.matches() ? {...controller.session.master} : null,
     setMaster: value => {const changed=controller.setMaster(value);if(changed){if(Number.isFinite(value.volume))video.volume=controller.session.master.volume;window.dispatchEvent(new CustomEvent('dub-master:changed'));document.dispatchEvent(new CustomEvent('media-playback-preferences-changed'));}return changed;},
     snapshot,

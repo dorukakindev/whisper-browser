@@ -18,6 +18,45 @@ function fixture(){
  w.eval(fs.readFileSync(require.resolve('../src/renderer/assistant-agent-ui'),'utf8'));
  return {w,ui:w.AssistantAgentUI,event:value=>onEvent(value),settle:value=>settle(value),requests:()=>requests,runs,locale:value=>locale=value,close:()=>w.close()};
 }
+
+test('send review uses the actual provider history bounds and excludes watched-only history',async()=>{
+ const h=fixture();try{
+  h.w.AssistantRunSteps=require('../src/assistant-run-steps');let preview;
+  h.w.AssistantSendPreview={review:async({packet})=>{preview=packet;return packet;}};
+  const history=Array.from({length:15},(_,i)=>({role:i%2?'assistant':'user',content:String(i).padEnd(6000,'x')}));
+  let run=h.ui.send('q'.repeat(17000),{},history,'scope');await new Promise(setImmediate);
+  assert.equal(preview.question.length,16000);assert.equal(preview.history.length,12);assert.equal(preview.history[0].content,history[3].content.slice(0,5000));
+  assert.equal(preview.historyScope.omitted,3);assert.equal(preview.historyScope.shortened,12);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.runs[0].history)),JSON.parse(JSON.stringify(preview.history)));
+  h.settle({ok:true,text:'Done'});await run;
+  h.w.AssistantAppActions.snapshot=()=>({kind:'video',owner:'source-A',thread:'thread-A',time:10});
+  run=h.ui.send('Explain so far',{},history,'scope');await new Promise(setImmediate);
+  assert.equal(preview.history.length,0);assert.equal(preview.historyScope.excludedForScope,true);
+  h.settle({ok:true,text:'Done'});await run;
+ }finally{h.close();}
+});
+
+test('reopened receipts never gain live authority from a matching job ID and result counts deduplicate failures',()=>{
+ const steps=require('../src/assistant-run-steps'),jobs=[{id:'job1',state:'completed'}];
+ assert.equal(steps.actionState({jobId:'job1',resultStatus:'accepted'},jobs,false).state,'unverified');
+ assert.equal(steps.actionState({jobId:'job1',resultStatus:'failed'},jobs,false).state,'failed');
+ assert.equal(steps.actionState({jobId:'job1',resultStatus:'accepted'},jobs,true).state,'completed');
+ assert.equal(steps.actionState({proposalId:'old'},jobs,false).requiresReview,true);
+ const result=steps.review([{proposalId:'p1',state:'failed'},{proposalId:'p2',state:'accepted'}],[{id:'s1',name:'translate',state:'failed',proposalId:'p1'},{id:'s2',name:'app_help',state:'completed'}]);
+ assert.equal(result.failed,1);assert.equal(result.accepted,1);assert.equal(result.completed,0);assert.equal(result.reads,1);assert.equal(steps.review([],[{id:'old-read',name:'search_library',state:'unknown'}]).unverified,1);
+});
+
+test('continuation capacity rejects before resuming, saving or calling the provider',async()=>{
+ const h=fixture();try{let resumed=0;h.w.AssistantRunSteps=require('../src/assistant-run-steps');
+  h.w.AssistantWorkspace.snapshot=()=>({current:{messages:[{actions:Array.from({length:57},(_,i)=>({proposalId:'p'+i}))}]}});
+  h.w.AssistantWorkspace.resume=()=>{resumed++;throw Error('Must not resume');};
+  await assert.rejects(h.ui.send('Continue',{},[],'scope',{proposalId:'p56',token:'old-flow'}),/capacity reached/);
+  assert.equal(resumed,0);assert.equal(h.requests(),0);assert.equal(h.ui.busy(),false);
+ }finally{h.close();}
+});
+test('approved send preview keeps its attachment and click-time clock through the real send bridge',async()=>{
+ const h=fixture();try{let clock=10,approve;h.w.AssistantAppActions.snapshot=()=>({kind:'video',owner:'source-A',thread:'thread-A',time:clock,subtitleKey:'captions-1'});h.w.AssistantSendPreview={review:({packet})=>new Promise(resolve=>{approve=()=>resolve(packet);})};const context={excerpt:'Frozen passage'},run=h.ui.send('Summarize so far',context,[],'scope');assert.equal(h.requests(),0);clock=30;context.excerpt='Changed after review';approve();await new Promise(setImmediate);assert.equal(h.runs[0].owner.time,10);assert.equal(h.runs[0].context.excerpt,'Frozen passage');h.settle({ok:true,text:'Answer'});await run;h.w.document.getElementById('aiChatText').value='';h.w.AssistantSendPreview={review:async()=>null};const cancelled=await h.ui.send('Keep this draft',{},[],'scope');assert.equal(cancelled.previewCancelled,true);assert.equal(h.requests(),1);assert.equal(h.w.document.getElementById('aiChatText').value,'Keep this draft');}finally{h.close();}
+});
 test('Timeout retains partial reply, releases busy state and permits a deliberate retry',async()=>{
  const h=fixture();try{const run=h.ui.send('Explain',{},[],'scope');await new Promise(setImmediate);const id=h.ui.status().id;
  h.event({type:'delta',requestId:id,text:'Received partial answer'});h.event({type:'progress',requestId:id,phase:'tool',domain:'library'});
@@ -125,5 +164,51 @@ test('Approval UI marks an unconfirmed card unknown and shows the card that is a
   let release;h.w.api.assistantAgentApply=()=>new Promise(resolve=>{release=resolve;});
   const running=h.ui.apply(proposal).catch(()=>{});assert.equal(h.ui.applyingId(),'p','the card being applied is known while it runs');
   release({ok:true,result:{status:'completed'}});await running;assert.equal(h.ui.applyingId(),null);
+ }finally{h.close();}
+});
+
+test('connected workspace note, source focus, assistant preview and action receipt retain one owner and never replay work',async()=>{const h=fixture(),os=require('node:os'),path=require('node:path'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'connected-workspace-'));try{h.locale('en');const w=h.w,books=[{id:'book',title:'Saved book',path:'/synthetic/book',format:'epub',chapter:3,bookmarks:[{chapter:2,scroll:.4,quote:'A saved source passage',at:123}]}],before=JSON.stringify(books),backend=require('../src/library-workspace').create({root:dir,books:()=>books});let owner={kind:'book',owner:'book-A',thread:'thread-A',id:'book:2',title:'Saved book',chapter:2},opened=0,focus=0,applies=0;w.AssistantAppActions={snapshot:()=>({...owner}),current:s=>s.owner===owner.owner&&s.id===owner.id};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};w.document.body.insertAdjacentHTML('beforeend','<div class="header-actions"></div>');w.api.mediaShelf=async q=>({ok:true,...(q.action==='workspace-notes'?backend.notes(q.query):backend.list())});w.MediaShelfUI={openBook:async(id,pos)=>{assert.equal(id,'book');assert.equal(pos.index,2);assert.equal(pos.scroll,.4);opened++;}};w.MediaExperience={context:()=>({id:'book:2',type:'book-chapter',title:'Saved book'}),revealContext:()=>{focus++;return true;},taskRows:()=>[]};w.api.assistantAgentApply=async()=>{applies++;return {ok:true,result:{status:'accepted',jobId:'existing-job'}};};w.AssistantWorkspace.actionResult=()=>{};for(const file of ['assistant-safety-ui','library-workspace-ui'])w.eval(fs.readFileSync(require.resolve('../src/renderer/'+file),'utf8'));const tick=async()=>{for(let i=0;i<4;i++)await new Promise(setImmediate);},click=async label=>{const b=[...w.document.querySelectorAll('dialog button')].find(b=>b.textContent===label);assert(b,label);b.click();await tick();};await w.LibraryWorkspaceUI.open('notes');await click('Open saved source');assert.equal(opened,1);const note=backend.notes().rows[0],run=h.ui.send('Explain this saved passage',{excerpt:note.text,chapter:String(note.locator.chapter+1)},[],'book:2');assert.equal(h.requests(),0);assert.match(w.document.querySelector('dialog pre').textContent,/A saved source passage/);await click('Send this request');assert.equal(h.requests(),1);assert.equal(h.runs[0].context.chapter,'3');h.settle({ok:true,text:'Controlled answer'});await run;await h.ui.apply({proposalId:'confirmed-step',tool:'start_whisper',summary:'Approved existing job'});await w.LibraryWorkspaceUI.open('receipts');assert.match(w.document.querySelector('dialog').textContent,/accepted|Accepted/);assert.equal(applies,1);await w.LibraryWorkspaceUI.open('resume');await click('Return to open reading / title');assert.equal(focus,1);await w.LibraryWorkspaceUI.open('resume');owner={...owner,owner:'book-B',id:'book:3'};await click('Return to open reading / title');assert.equal(focus,1);assert.equal(applies,1);assert.equal(JSON.stringify(books),before);assert.equal(fs.existsSync(path.join(dir,'library-workspace.json')),false);}finally{h.close();fs.rmSync(dir,{recursive:true,force:true});}});
+
+test('R32 an in-progress approval receipt remains applying until the exact completed replay arrives',async()=>{
+ const h=fixture();try{const w=h.w;w.eval(fs.readFileSync('src/renderer/assistant-safety-ui.js','utf8'));w.AssistantWorkspace.actionResult=()=>{};const p={proposalId:'in-progress',tool:'navigate_workspace',label:'Open library'};w.api.assistantAgentApply=async()=>({ok:false,pending:true,error:'Still applying'});await assert.rejects(h.ui.apply(p),/applying|running/);assert.equal(w.AssistantActionReceipts.snapshot()[0].status,'applying');w.api.assistantAgentApply=async()=>({ok:true,replayed:true,result:{status:'completed'}});await h.ui.apply(p);assert.equal(w.AssistantActionReceipts.snapshot()[0].status,'completed');
+ }finally{h.close();}
+});
+
+
+test('R31 actual AgentUI continuation through Workspace and disk retains the newest ninth card',async()=>{
+const os=require('node:os'),path=require('node:path');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'r853-assistant-cards-'));
+const tick=()=>new Promise(r=>setImmediate(r));const initial=8;
+let dom;try{
+ const service=require('../src/assistant-thread-store').registerAssistantThreads({app:{getPath:()=>root},ipcMain:{handle(){}},authorized:()=>true});
+ dom=new JSDOM('<body><div id="aiChatLog"></div><div id="aiChatEmpty"></div><textarea id="aiChatText"></textarea></body>',{runScripts:'outside-only'});const w=dom.window;
+ const M=require('../src/assistant-context-manifest'),card=i=>({kind:'app_action',proposalId:'card-'+i,tool:'navigate_workspace',label:'Open page '+i,summary:'Synthetic review card'});
+ let runs=0;Object.assign(w,{structuredClone,player:{source:'source-A',chatHistory:[],cues:[],cues2:[]},globalAssistantContext:()=>null,aiSourceScope:()=> 'scope-A',aiChatPreparing:null,subtitleSourceTime:v=>v,browserSubtitleRoleCues:()=>({source:[],translation:[]}),
+  UiLocale:{get:()=> 'en'},AssistantSourceContext:{conversation:p=>p.source},AssistantContextManifest:M,AssistantRunSteps:require('../src/assistant-run-steps'),AssistantFlowState:require('../src/assistant-flow-state'),
+  updateAiChatActions(){},autoGrowChatBox(){},saveAppSettings:async()=>true,renderAiText:(node,text)=>node.textContent=text,aiChatContext:()=>({})});
+ w.AssistantAppActions={snapshot:()=>M.clean({kind:'studio',owner:'source-A',thread:w.AssistantWorkspace?.activeId()||''}),current:o=>M.same(o,w.AssistantAppActions.snapshot())};
+ w.aiChatAdd=(role,text)=>{const n=w.document.createElement('div');n.className='ai-msg ai-msg-'+(role==='user'?'user':'ai');n._sourceScope=w.aiSourceScope();n._assistantThreadId=w.AssistantWorkspace.activeId();n.textContent=text;w.document.getElementById('aiChatLog').append(n);return n;};
+ w.api={assistantThreads:input=>service.handle({},input),onAssistantAgentEvent:()=>()=>{},assistantAgentCancel:async()=>({ok:true}),
+  assistantAgentRun:async()=>({ok:true,text:++runs===1?'Review the cards.':'A new card is ready.',actions:runs===1?Array.from({length:initial},(_,i)=>card(i+1)):[card(initial+1)]}),
+  assistantAgentApply:async()=>({ok:true,result:{status:'completed',continuationId:'flow-one',continuationState:'ready',invalidatedProposalIds:Array.from({length:initial-1},(_,i)=>'card-'+(i+2))}})};
+ w.eval(fs.readFileSync('src/renderer/assistant-workspace.js','utf8'));w.eval(fs.readFileSync('src/renderer/assistant-agent-ui.js','utf8'));
+ await w.AssistantWorkspace.prepare();await w.AssistantAgentUI.send('Open these pages',{},[],'scope-A');await tick();
+ await w.AssistantAgentUI.apply(card(1));await tick();await w.AssistantAgentUI.continueAction(card(1));await tick();
+ const memory=w.AssistantWorkspace.snapshot().current,listed=await service.handle({},{action:'list',sourceKey:'source-A'}),disk=listed.threads.find(t=>t.id===memory.id);
+ const live=memory.messages.at(-1).actions,stored=disk.messages.at(-1).actions;
+ assert.equal(live.length,initial+1);assert.equal(live.at(-1).proposalId,'card-'+(initial+1));assert.equal(stored.length,initial+1);assert.equal(stored.at(-1).proposalId,'card-'+(initial+1));assert.equal(live.filter(a=>a.resultStatus==='completed').length,1);assert.equal(stored.filter(a=>a.resultStatus==='stopped').length,7);
+ assert.equal(stored.at(-1).resultStatus,'');assert.equal(w.AssistantAgentUI.proposalLive(card(initial+1)),true);
+}finally{dom?.window.close();const rel=path.relative(os.tmpdir(),root);if(rel.startsWith('..')||path.isAbsolute(rel)||!path.basename(root).startsWith('r853-assistant-cards-'))throw Error('Unsafe cleanup');fs.rmSync(root,{recursive:true,force:true});}
+});
+
+
+test('B01 pending assistant cards are scoped to exact tab/generation/page and settled cards are excluded',async()=>{
+ const h=fixture();try{
+ h.w.AssistantAppActions.snapshot=()=>({owner:'scope',thread:'thread-A',tabId:'a',generation:3,pageKey:'page-A'});
+ const run=h.ui.send('Inspect',{},[],'scope');await new Promise(setImmediate);
+ assert.equal(h.ui.tabStatus('a',3,'page-A').running,true);assert.equal(h.ui.tabStatus('b',3,'page-A').running,false);
+ h.settle({ok:true,text:'Review',actions:[{kind:'app_action',proposalId:'one',tool:'open_saved_podcast_passage',label:'Review',summary:'Fixture'}]});await run;
+ assert.equal(h.ui.tabStatus('a',3,'page-A').review,1);assert.equal(h.ui.tabStatus('a',4,'page-A').review,0);assert.equal(h.ui.tabStatus('a',3,'other-page').review,0);
+ h.w.AssistantActionReceipts={snapshot:()=>[{id:'one',status:'accepted'}]};assert.equal(h.ui.tabStatus('a',3,'page-A').review,0);
  }finally{h.close();}
 });

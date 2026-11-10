@@ -125,6 +125,40 @@ function shouldAutoRetryCeaCapture(summary, retryRound = 0, maxRetryRounds = 2) 
     && Math.max(0, Number(retryRound) || 0) < Math.max(0, Number(maxRetryRounds) || 0);
 }
 
+// Only segment transfer gaps are retriable. Silence between subtitle cues is
+// not proof of a failed capture. Never expose signed segment URLs to the UI.
+function reviewCeaCaptureRanges(segments, completed) {
+  const done = completed instanceof Set ? completed : new Set(completed || []);
+  const plan = normalizeCeaCaptureSegments(segments);
+  const merge = items => {
+    const out = [];
+    for (const item of items.map(row => ({ start: Number(row.start), end: Number(row.start) + Number(row.duration) }))
+      .filter(row => Number.isFinite(row.start) && row.start >= 0 && Number.isFinite(row.end) && row.end > row.start)
+      .sort((a, b) => a.start - b.start)) {
+      const last = out.at(-1);
+      if (last && item.start <= last.end + .05) last.end = Math.max(last.end, item.end);
+      else out.push(item);
+    }
+    return out;
+  };
+  const missing = merge(plan.filter(row => !row.gap && !done.has(ceaCaptureSegmentIdentity(row))));
+  return { missingRanges: missing.slice(0, 100), missingRangeCount: missing.length,
+    unavailableRanges: merge(plan.filter(row => row.gap)).slice(0, 100) };
+}
+
+function canRetryCeaCapture(job, tab, active, current) {
+  return !!job && job.tab === tab && current === true && job.sourceUrl === active?.sourceUrl
+    && job.consuming !== true
+    && ['partial', 'error', 'cancelled'].includes(job.state) && !!job.segments?.length
+    && job.completed instanceof Set && job.completed.size > 0;
+}
+
+function ceaDecoderProofCurrent(proof, decoders, revisions, pending) {
+  return !!proof?.size && [...proof].every(([key, saved]) => decoders.get(key) === saved.decoder
+    && !pending?.has(key)
+    && Number.isSafeInteger(saved.revision) && saved.revision > 0 && revisions.get(saved.decoder) === saved.revision);
+}
+
 async function runOrderedCeaCapture(options = {}) {
   const items = normalizeCeaCaptureSegments(options.segments)
     .filter((segment) => !segment.gap);
@@ -188,6 +222,9 @@ async function runOrderedCeaCapture(options = {}) {
 }
 
 module.exports = {
+  reviewCeaCaptureRanges,
+  canRetryCeaCapture,
+  ceaDecoderProofCurrent,
   ceaCaptureSegmentIdentity,
   mergeCeaCaptureSegments,
   normalizeCeaCaptureSegments,

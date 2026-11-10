@@ -13,6 +13,29 @@ function harness(){
  const begin=()=>{const user=w.document.createElement('div');user.className='ai-msg ai-msg-user';user._sourceScope=w.aiSourceScope();user._assistantThreadId=api.activeId();w.document.getElementById('aiChatLog').append(user);const bubble=w.document.createElement('div');bubble.className='ai-msg ai-msg-ai';bubble._sourceScope=w.aiSourceScope();w.document.getElementById('aiChatLog').append(bubble);const job={chatQuestion:'Question '+w.player.source,sourceScope:w.aiSourceScope(),bubble};api.begin(job);return job;};
  return {w,api,disk,calls,timers,settle,begin,flush:async()=>{for(const [id,fn] of [...timers]){timers.delete(id);fn();}await settle();},close:()=>w.close()};
 }
+
+test('capacity and historical summary are read-only; busy clear preserves receipts and human task messages',async()=>{const h=harness();try{
+ await h.api.prepare();const job=h.begin();h.api.evidence(job,{actions:[{proposalId:'p1',kind:'app_action',tool:'translate',label:'Translate',summary:'Saved source'}]});
+ h.api.runtime(job,[{id:1,runId:'run',mode:'steer',text:'Keep the original language',status:'delivered',intentRevision:1},{id:2,runId:'run',mode:'followup',text:'UNDELIVERED',status:'not-delivered',intentRevision:1}]);
+ h.api.actionResult('p1',{status:'accepted',jobId:'job1',note:'Queued'});h.api.finish(job,'MODEL CLAIM ALL COMPLETE','complete');await h.flush();
+ const before=JSON.stringify([...h.disk]),calls=h.calls.length,draft=h.api.summaryDraft();
+ assert.match(draft,/partial|kısmi/);assert.match(draft,/Keep the original language/);assert.match(draft,/accepted/);assert.doesNotMatch(draft,/MODEL CLAIM|UNDELIVERED/);
+ assert.match(h.api.reviewAction('p1'),/CURRENT|GÜNCEL/);assert.equal(h.calls.length,calls);assert.equal(JSON.stringify([...h.disk]),before);
+ assert.equal(h.api.snapshot().capacity.messageLimit,200);assert.equal(h.api.snapshot().capacity.sourceLimit,20);assert.equal(h.api.snapshot().capacity.messages,2);
+ h.w.AssistantAgentUI={busy:()=>true};assert.throws(()=>h.api.clear(),/Stop|durdur/);await h.flush();assert.equal(JSON.stringify([...h.disk]),before);
+ assert.equal(h.api.snapshot().current.messages.at(-1).actions[0].jobId,'job1');
+ h.w.player.source='B';await h.api.prepare();assert.throws(()=>h.api.reviewAction('p1'),/no longer|artık/);
+ }finally{h.close();}});
+
+test('missing saved outputs preserve the conversation and explain explicit recovery without generation',async()=>{const h=harness();try{
+ await h.api.prepare();const job=h.begin();h.api.finish(job,'Saved answer','complete');await h.flush();
+ job.assistantRecord.reply.artifacts=[{artifactId:'output1',title:'Output'}];
+ const before=JSON.stringify(h.api.snapshot().current),calls=[];
+ h.w.api.assistantArtifacts=async request=>{calls.push(request);return {ok:true,artifacts:[]};};
+ h.w.AssistantArtifactsUI={open:async()=>{throw Error('Saved output is missing');}};
+ await assert.rejects(h.api.openArtifact('output1'),/Nothing was regenerated|Yeniden üretim yapılmadı/);
+ assert.equal(JSON.stringify(h.api.snapshot().current),before);assert.deepEqual(calls.map(c=>c.action),['list']);
+ }finally{h.close();}});
 test('overlapping source streams flush independently and finishing B preserves the pending A save',async()=>{const h=harness();try{await h.api.prepare();const a=h.begin();await h.settle();h.api.partial(a,'A partial');h.w.player.source='B';await h.api.prepare();const b=h.begin();await h.settle();h.api.partial(b,'B partial');h.api.finish(b,'B final','complete');await h.flush();assert.equal(h.disk.get(a.assistantRecord.thread.id).messages.at(-1).text,'A partial');assert.equal(h.disk.get(b.assistantRecord.thread.id).messages.at(-1).text,'B final');}finally{h.close();}});
 test('deleted conversations stay deleted after a pending flush and late results',async()=>{const h=harness();try{await h.api.prepare();const job=h.begin();await h.settle();h.api.partial(job,'pending');await h.api.command('delete-thread');await h.flush();assert.equal(h.disk.size,0);h.api.partial(job,'late');h.api.finish(job,'late final','complete');await h.flush();assert.equal(h.disk.size,0);assert.equal(h.api.snapshot().current,null);}finally{h.close();}});
 test('clearing discards detached records and their timers, including metadata-only late events',async()=>{const h=harness();try{await h.api.prepare();const job=h.begin();await h.settle();h.api.partial(job,'pending');h.api.clear();await h.settle();const saves=h.calls.filter(c=>c.action==='save').length;h.api.partial(job,'late');h.api.steps(job,[{id:'late'}]);h.api.evidence(job,{actions:[{proposalId:'late'}]});h.api.citations(job,[{id:'late'}]);h.api.finish(job,'late final','complete');await h.flush();assert.equal(h.calls.filter(c=>c.action==='save').length,saves);assert.equal(h.disk.get(job.assistantRecord.thread.id).messages.length,0);}finally{h.close();}});

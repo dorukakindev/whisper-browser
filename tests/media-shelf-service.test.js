@@ -87,3 +87,9 @@ test('shelf main boundary, book progress, shared catalog import, podcast refresh
     assert.equal(fs.readFileSync(path.join(dir, 'media-shelf.json'), 'utf8'), '{broken');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('G04 shelf progress records listening only for observed playback of the exact revision',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'shelf-listening-'));try{const handlers=new Map();fs.writeFileSync(path.join(dir,'media-shelf.json'),JSON.stringify({version:1,books:[],music:[],stations:[],playlists:[],diary:[],podcasts:[{id:'p',title:'Program',episodes:[{url:'https://pod.example/a.mp3',title:'Episode',sourceVersion:'v1',position:0}]}]}));registerMediaShelf({ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},authorized:()=>true,userData:()=>dir});const api=values=>handlers.get('media-shelf:request')({}, {action:'listen-progress',kind:'podcasts',id:'p',url:'https://pod.example/a.mp3',position:5,duration:100,...values});
+ const listed=await handlers.get('media-shelf:request')({}, {action:'list'}),version=listed.podcasts[0].episodes[0].sourceVersion;const first=await api({sourceVersion:version});assert.equal(first.ok,true,first.error);let row=JSON.parse(fs.readFileSync(path.join(dir,'media-shelf.json'))).podcasts[0].episodes[0];assert.equal(row.lastListenedAt,undefined);assert.equal((await api({sourceVersion:'old',played:true})).ok,false);assert.equal((await api({sourceVersion:version,played:true})).ok,true);row=JSON.parse(fs.readFileSync(path.join(dir,'media-shelf.json'))).podcasts[0].episodes[0];assert(row.lastListenedAt>0);assert.equal(row.listened,undefined);assert.equal(row.rating,undefined);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
