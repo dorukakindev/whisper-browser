@@ -90,6 +90,7 @@ const inWatchlist = status => status === 'planned' || status === 'watching';
 
 function stampWatchlist(item, old) {
   if (inWatchlist(item.watchStatus) && !inWatchlist(old?.watchStatus)) item.watchlistAddedAt = Date.now();
+  if(item.watchStatus!==old?.watchStatus){item.statusMarkedAt=Date.now();item.activity=require('./personal-history').append(item.activity,'status',old?.watchStatus,item.watchStatus,item.statusMarkedAt);if(item.watchStatus==='completed')item.completedMarkedAt=item.statusMarkedAt;}
   return item;
 }
 
@@ -133,6 +134,10 @@ function itemOf(raw, old = null) {
     synopsisTrSource: /^[a-f0-9]{64}$/.test(raw.synopsisTrSource ?? old?.synopsisTrSource ?? '') ? (raw.synopsisTrSource ?? old.synopsisTrSource) : '',
     synopsis: text(raw.synopsis ?? old?.synopsis, 4000),
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),
+    tasteDomain: require('./media-domains').DOMAINS.includes(raw.tasteDomain??old?.tasteDomain)?(raw.tasteDomain??old.tasteDomain):null,
+    activity: require('./personal-history').clean((old||raw).activity),
+    statusMarkedAt: Number.isSafeInteger((old||raw).statusMarkedAt)?(old||raw).statusMarkedAt:null,
+    completedMarkedAt: Number.isSafeInteger((old||raw).completedMarkedAt)?(old||raw).completedMarkedAt:null,
     watchStatus: STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus || 'unspecified',
     watchlistAddedAt: Number.isSafeInteger((old || raw).watchlistAddedAt) && (old || raw).watchlistAddedAt > 0
       && inWatchlist(STATUSES.has(raw.watchStatus) ? raw.watchStatus : old?.watchStatus)

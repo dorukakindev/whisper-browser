@@ -1,6 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{JSDOM}=require('jsdom');
 function fixture(t){const dom=new JSDOM(fs.readFileSync(path.join(__dirname,'../src/renderer/assistant-overlay.html'),'utf8'),{runScripts:'outside-only',url:'https://fixture.invalid'}),w=dom.window,commands=[];let publish;w.assistant={subscribe:fn=>publish=fn,action:(...args)=>commands.push(args)};w.eval(fs.readFileSync(path.join(__dirname,'../src/renderer/assistant-overlay.js'),'utf8'));t.after(()=>w.close());const base={opened:true,locale:'en',sourceToken:'source-A',conversation:'thread-A',pinScope:'film-A',messages:[{id:'answer',role:'ai',text:'Source answer\n\n```js\nconst value = 1;\n```'}],transcriptScope:false};return {w,commands,$:id=>w.document.getElementById(id),publish:value=>publish({...base,...value})};}
+test('assistant keeps one primary suggestion and all other suggestions behind the existing disclosure',t=>{
+ const h=fixture(t),suggestions=[{id:'one',label:'Summarize',direct:true},{id:'two',label:'Explain',direct:true},{id:'three',label:'Save note',review:'Review note'}];h.publish({suggestions});
+ assert.equal(h.$('primarySuggestion').children.length,1);assert.equal(h.$('suggestionOptions').children.length,2);assert.equal(h.$('suggestionMenu').hidden,false);assert.equal(h.commands.filter(([action])=>action==='suggestion').length,0);
+ h.$('suggestionMenu').open=true;h.$('suggestionOptions').firstElementChild.click();assert.equal(h.commands.at(-1)[0],'suggestion');assert.equal(h.commands.at(-1)[1],'two');assert.equal(h.$('suggestionMenu').open,false);
+ h.publish({suggestions:[suggestions[0]]});assert.equal(h.$('suggestionMenu').hidden,true);h.publish({suggestions,busy:true});assert.equal(h.$('suggestions').hidden,true);
+});
 test('one direct Copy and a native SVG disclosure retain every secondary action and source callback',t=>{
  const h=fixture(t);h.publish({});const group=h.w.document.querySelector('.message-actions'),more=group.querySelector('details'),summary=more.querySelector('summary');assert.equal(group.querySelectorAll(':scope>button').length,1);assert.equal(group.firstElementChild.textContent,'Copy');assert(!more.open);assert.equal(summary.getAttribute('aria-label'),'More message actions');assert.equal(summary.querySelectorAll('svg circle').length,3);
  group.firstElementChild.click();assert.deepEqual(JSON.parse(JSON.stringify(h.commands.at(-1))),['copy','Source answer\n\n```js\nconst value = 1;\n```',{sourceToken:'source-A'}]);

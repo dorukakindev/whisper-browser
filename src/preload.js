@@ -170,8 +170,9 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('youtube:event', wrapped);
     return () => ipcRenderer.removeListener('youtube:event', wrapped);
   },
-  readSubtitle: (p) => ipcRenderer.invoke('media:readSubtitle', p),
+  readSubtitle: (p, expectedHash) => ipcRenderer.invoke('media:readSubtitle', p, expectedHash),
   repairSubtitleTranslation: request => ipcRenderer.invoke('media:repairTranslation', request),
+  verifyRepairResult: request => ipcRenderer.invoke('media:verifyRepairResult', request),
   writeSubtitle: (path, text, change, expect) => ipcRenderer.invoke('media:writeSubtitle', { path, text, change, expect }),
   saveSubtitleCopy: (sourcePath, text) => ipcRenderer.invoke('media:saveSubtitleCopy', { sourcePath, text }),
   webResearch: query => ipcRenderer.invoke('assistant:webResearch', query),

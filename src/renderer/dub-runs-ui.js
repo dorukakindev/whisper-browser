@@ -36,6 +36,37 @@
  const messages=new Map(),previews={pinned:null,current:null},pending=new Set(),sourceNotes=new Map();
  const call=async request=>{try{return await window.api.dubRuns(request);}catch(_){return {ok:false,code:'transport'};}};
  const guard=(ep,seq,counter,id)=>ep===epoch&&(counter===undefined||seq===counter())&&(id===undefined||selected===id);
+ let temporarySeq=0,temporaryState={open:false,loading:false,data:null,error:false};
+ const temporaryBox=node('div','dub-run-note'),temporaryToggle=button('',()=>{
+  if(temporaryState.open){temporarySeq++;temporaryState.open=false;temporaryState.loading=false;renderTemporary();}
+  else void loadTemporary();
+ }),temporaryContent=node('div','dub-run-note');temporaryToggle.setAttribute('aria-controls','dubTemporaryFiles');temporaryContent.id='dubTemporaryFiles';
+ temporaryBox.append(temporaryToggle,temporaryContent);list.before(temporaryBox);
+ async function loadTemporary(){
+  const ep=epoch,seq=++temporarySeq;temporaryState.open=true;temporaryState.loading=true;temporaryState.error=false;renderTemporary();
+  const result=await call({action:'output-restore-files'});
+  if(ep!==epoch||seq!==temporarySeq||!temporaryState.open)return;
+  temporaryState.loading=false;temporaryState.error=!result?.ok;if(result?.ok)temporaryState.data=result;renderTemporary();
+ }
+ function renderTemporary(){
+  temporaryBox.hidden=!temporaryState.open&&!extra.temporaryCopies?.active&&!extra.temporaryCopies?.untracked;
+  temporaryToggle.textContent=temporaryState.open?L('Geçici dosya ayrıntılarını kapat','Close temporary file details'):L('Geçici dosya ayrıntıları','Temporary file details');
+  temporaryToggle.setAttribute('aria-expanded',String(temporaryState.open));temporaryContent.hidden=!temporaryState.open;temporaryContent.replaceChildren();
+  if(!temporaryState.open)return;
+  temporaryContent.setAttribute('aria-busy',String(temporaryState.loading));
+  if(temporaryState.loading)temporaryContent.append(node('p','',L('Dosya ayrıntıları okunuyor…','Reading file details…')));
+  if(temporaryState.error){const message=node('p','',L('Ayrıntılar yenilenemedi. Varsa son geçerli liste korunuyor.','Details could not be refreshed. The last valid list, if any, is kept.'));message.setAttribute('role','status');temporaryContent.append(message);}
+  const data=temporaryState.data;
+  if(data){
+   const folder=node('p','',L('Konum: ','Location: ')+data.folder);folder.dataset.uiUntranslated='';temporaryContent.append(folder);
+   temporaryContent.append(node('p','',L('Bu alan salt okunur. Etkin onayı olmayan dosyaların sahipliği veya tamamlandığı kanıtlanmış değildir.','This area is read-only. Files without an active approval have no proven ownership or completion.')));
+   const files=node('ul','');
+   for(const file of data.files||[]){const item=node('li','');const name=node('span','',file.name);name.dataset.uiUntranslated='';item.append(name,document.createTextNode(' · '+Math.ceil(file.size/1024)+' KiB · '+new Date(file.modifiedAt).toLocaleString(window.UiLocale?.get?.()==='en'?'en-GB':'tr-TR')+' · '+(file.active?L('Onay bekliyor','Awaiting approval'):L('Etkin onay yok','No active approval'))));files.append(item);}
+   temporaryContent.append(files);if(!data.files?.length)temporaryContent.append(node('p','',L('Bu adlandırmada geçici dosya bulunamadı.','No temporary files with this naming pattern were found.')));
+   if(data.truncated)temporaryContent.append(node('p','',L('İlk 100 dosya gösteriliyor.','Showing the first 100 files.')));
+  }
+  const refresh=button(L('Ayrıntıları yenile','Refresh details'),()=>void loadTemporary());refresh.disabled=temporaryState.loading;temporaryContent.append(refresh);
+ }
 
  function stopAudio(){if(audio){audio.pause();audio.removeAttribute('src');audio.load?.();}audio=null;}
  function say(text){notice.textContent=text||'';notice.hidden=!text;}
@@ -51,11 +82,31 @@
    // A failed load never erases the last valid list.
    listError=true;render();return;
   }
-  listError=false;loaded=true;runs=result.runs||[];active=result.active||null;extra={unreadable:result.unreadable||[],orphans:result.orphans||[],orphanNote:result.orphanNote||null};
+  listError=false;loaded=true;runs=result.runs||[];active=result.active||null;extra={unreadable:result.unreadable||[],orphans:result.orphans||[],orphanNote:result.orphanNote||null,temporaryCopies:result.temporaryCopies};
   if(selected&&!runs.some(row=>row.id===selected))closeDetail();
   busyEvent();render();
  }
- function closeDetail(){selected=null;detail=null;detailState='idle';loadable=null;loadCheck='idle';renderedDetail=null;previews.pinned=previews.current=null;stopAudio();detailSeq++;}
+ let outputRestore=null;
+ function cancelOutputRestore(){const saved=outputRestore;outputRestore=null;if(saved?.token)void call({action:'output-restore-cancel',token:saved.token});}
+ function closeDetail(){cancelOutputRestore();selected=null;detail=null;detailState='idle';loadable=null;loadCheck='idle';renderedDetail=null;previews.pinned=previews.current=null;stopAudio();detailSeq++;}
+ async function locateOutput(id){
+  if(pending.has('locate:'+id)||active)return;
+  cancelOutputRestore();pending.add('locate:'+id);render();const ep=epoch,seq=detailSeq;
+  const result=await call({action:'output-restore-preview',runId:id});pending.delete('locate:'+id);
+  if(!guard(ep,seq,()=>detailSeq,id)){if(result?.token)void call({action:'output-restore-cancel',token:result.token});return;}
+  if(result?.ok&&!result.cancelled)outputRestore=result;
+  else if(!result?.cancelled)messages.set(id,{tone:'bad',text:part(result?.error||L('Dosya doğrulanamadı.','Could not verify the file.'))});
+  render();
+ }
+ async function approveOutputRestore(id){
+  const saved=outputRestore;if(!saved||pending.has('restore:'+id)||active)return;
+  pending.add('restore:'+id);render();const ep=epoch,seq=detailSeq;
+  const result=await call({action:'output-restore-approve',token:saved.token});pending.delete('restore:'+id);
+  if(!guard(ep,seq,()=>detailSeq,id))return;
+  outputRestore=null;messages.set(id,{tone:result?.ok?'ok':'bad',text:result?.ok?L('WAV geri yüklendi. Kaynak dosya korundu; ses çalınmadı veya medyaya bağlanmadı.','WAV restored. The source file was kept; no audio was played or attached.'):part(result?.error||L('Geri yükleme doğrulanamadı; kaydı yeniden açın.','Restore could not be confirmed; reopen the record.'))});
+  const checked=await call({action:'detail',runId:id});if(!guard(ep,seq,()=>detailSeq,id))return;
+  if(checked?.ok)detail=checked;await refresh();
+ }
  async function select(id){
   if(selected===id){closeDetail();render();focusRow(id);return;}
   closeDetail();selected=id;detailState='loading';render();
@@ -230,9 +281,17 @@
   const actions=node('div','dub-run-actions');
   if(['running','running-elsewhere'].includes(row.state))box.append(node('p','dub-run-note',row.state==='running'?L('Bu üretim şu an çalışıyor; ilerleme ana üretim çubuğunda.','This generation is running now; progress is in the main production bar.'):L('Başka bir uygulama örneğinde çalışıyor; buradan dokunulmaz.','It is running in another app instance; it is not touched from here.')));
   if(row.recoverable)actions.append(button(L('Çıktıyı kurtar','Recover the output'),()=>recover(row.id),'btn btn-secondary btn-sm'));
+  if(row.restorable&&!outputRestore){const locate=button(pending.has('locate:'+row.id)?L('Dosya bekleniyor…','Waiting for file…'):L('WAV dosyasını bul','Locate WAV file'),()=>locateOutput(row.id),'btn btn-secondary btn-sm');locate.disabled=!!active||pending.has('locate:'+row.id);actions.append(locate);}
+  if(outputRestore?.runId===row.id){
+   const preview=node('div','dub-run-note');preview.setAttribute('role','status');
+   preview.append(node('p','',L('Seçilen dosya kayıtlı içerik kimliğiyle eşleşiyor. Kaynak dosya korunarak eksik konuma kopyalanacak.','The selected file matches the recorded content identity. It will be copied to the missing location; the source file is kept.')),
+    node('p','',L('Kaynak: ','Source: ')+outputRestore.sourceName),node('p','',L('Hedef: ','Target: ')+outputRestore.targetName));box.append(preview);
+   const approve=button(L('Kopyalayarak geri yükle','Copy and restore'),()=>approveOutputRestore(row.id),'btn btn-secondary btn-sm');approve.disabled=!!active||pending.has('restore:'+row.id);actions.append(approve);
+   const cancel=button(L('Vazgeç','Cancel'),()=>{cancelOutputRestore();render();});cancel.disabled=pending.has('restore:'+row.id);actions.append(cancel);
+  }
   if(row.output.state==='valid'&&!['running','running-elsewhere'].includes(row.state))actions.append(button(L('Dinle (yalnız inceleme)','Listen (review only)'),()=>listen(row.id)));
   if(loadable===true){const busy=pending.has('load:'+row.id),load=button(busy?L('Yükleniyor…','Loading…'):L('Bu bölüme yükle','Load into this section'),()=>loadIntoSection(row.id),'btn btn-secondary btn-sm');load.dataset.runAction='load';load.disabled=busy;load.setAttribute('aria-busy',String(busy));actions.append(load);}
-  if(loadable===false)box.append(node('p','dub-run-note',L('Bu sonuç şu anki altyazı/aralık/kaynakla eşleşmiyor; yalnız dinlenebilir.','This result does not match the current subtitle/range/source; it can only be listened to.')));
+  if(loadable===false&&row.output.state==='valid')box.append(node('p','dub-run-note',L('Bu sonuç şu anki altyazı/aralık/kaynakla eşleşmiyor; yalnız dinlenebilir.','This result does not match the current subtitle/range/source; it can only be listened to.')));
   if(loadCheck==='checking'){const checking=node('p','dub-run-note',L('Kaynak, altyazı ve aralık eşleşmesi denetleniyor…','Checking source, subtitle and range match…'));checking.setAttribute('role','status');box.append(checking);}
   if(loadCheck==='error'){
    const warning=node('p','dub-run-note',L('Sonucun kaynak ve aralık eşleşmesi denetlenemedi. Kayıtlı ses korunuyor.','The result’s source and range match could not be checked. The saved audio is kept.'));warning.setAttribute('role','status');box.append(warning);
@@ -264,6 +323,8 @@
   add(L('Ses','Voice'),(plan.voice?.name||L('kayıtlı referans','saved reference'))+(plan.voice?.state==='changed'?' · '+L('değişti','changed'):' · '+L('aynı','same')));
   add(L('Profil','Profile'),(plan.mode==='current'?plan.current:plan.pinned)?.profile?valueText((plan.mode==='current'?plan.current:plan.pinned).profile):'');
   add(L('Sözlük','Dictionary'),plan.dictionary?plan.dictionary+L(' kayıt',' entries'):'');
+  if(plan.reviewedText)add(L('Dublaj metni','Dubbing text'),L(plan.reviewedText+' grup düzenlemesi korunacak',plan.reviewedText+' edited groups will be kept'));
+  panel.append(node('p','dub-run-note',L('Önbellekteki uyumlu hazır gruplar yeniden kullanılır. Eksik veya ayarı değişmiş gruplar üretilir.','Compatible finished groups are reused from the cache. Missing groups or groups with changed settings are generated.')));
   panel.append(facts);
   if(plan.differences?.length){const diff=node('ul','dub-run-diff');for(const item of plan.differences){const used=mode==='current'?item.current:item.pinned,other=mode==='current'?item.pinned:item.current;diff.append(node('li','',item.field==='voice'?fieldName('voice')+': '+L('referans değişti','reference changed'):fieldName(item.field)+': '+valueText(used)+' '+L('(kullanılacak)','(will be used)')+' · '+valueText(other)+' '+(mode==='current'?L('(özgün)','(original)'):L('(güncel)','(today)'))));}panel.append(node('p','dub-run-note',L('Özgün iş ile güncel ayarlar arasındaki anlamlı farklar:','Meaningful differences between the original run and today\'s settings:')),diff);}
   else panel.append(node('p','dub-run-note',L('Özgün seçenekler ile güncel ayarlar arasında anlamlı fark yok.','No meaningful difference between the original options and today\'s settings.')));
@@ -288,6 +349,7 @@
   return panel;
  }
  function render(){
+  renderTemporary();
   const focused=document.activeElement,oldRow=list.contains(focused)?focused.closest('.dub-run'):null;
   const focus=oldRow?{id:oldRow.dataset.run,action:focused.dataset.runAction,label:focused.textContent,main:focused.classList.contains('dub-run-main'),index:[...list.children].indexOf(oldRow)}:null;
   const attention=runs.filter(row=>['interrupted','uncertain','running','running-elsewhere','failed','partial','output-missing'].includes(row.state)).length;
@@ -298,6 +360,8 @@
   if(listError)parts.push(loaded?L('Liste yenilenemedi; son geçerli liste gösteriliyor.','The list could not be refreshed; showing the last valid list.'):L('Çalışmalar okunamadı. Yenile’ye bas.','Runs could not be read. Press Refresh.'));
   if(extra.unreadable.length)parts.push(extra.unreadable.length+L(' kayıt okunamadı; dosyalar korunuyor, diğer çalışmalar kullanılabilir.',' record(s) could not be read; the files are kept and other runs stay usable.'));
   if(extra.orphans.length)parts.push(extra.orphans.length+L(' ses dosyasının iş kaydı yok; kaynakları ve zaman eksenleri bilinmediği için hiçbir şeye bağlanmaz.',' audio file(s) have no run record; their source and timeline are unknown, so nothing is attached.'));
+  if(extra.temporaryCopies?.active)parts.push(extra.temporaryCopies.active+L(' geri yükleme kopyası açık onayı bekliyor.',' restore copy/copies await explicit approval.'));
+  if(extra.temporaryCopies?.untracked)parts.push(extra.temporaryCopies.untracked+L(' dosya geri yükleme geçici adı taşıyor fakat etkin onaya bağlı değil. Dosyalar korunuyor; normal sonuç sayılmaz ve otomatik silinmez.',' file(s) have restore temporary names but no active approval. They are kept, are not normal results, and are not automatically deleted.'));
   if(active)parts.push(L('Bir üretim çalışıyor; bitene kadar yeni üretim başlatılamaz.','A production is running; no new one can start until it finishes.'));
   say(parts.join(' '));
   const summary=section.querySelector('#dubRunsSummary');summary.textContent=attention?attention+L(' dikkat gerektiriyor',' need attention'):'';summary.hidden=!attention;
@@ -310,7 +374,7 @@
  // ---------- lifecycle ----------
  section.querySelector('#dubRunsRefresh').addEventListener('click',event=>{event.preventDefault();event.stopPropagation();void refresh();});
  section.addEventListener('toggle',()=>{if(section.open&&!loaded&&!loading)void refresh();});
- const reset=()=>{epoch++;listSeq++;detailSeq++;closeDetail();for(const key of Object.keys(previews))previews[key]=null;pending.clear();messages.clear();sourceNotes.clear();render();};
+ const reset=()=>{epoch++;listSeq++;detailSeq++;temporarySeq++;temporaryState={open:false,loading:false,data:null,error:false};closeDetail();for(const key of Object.keys(previews))previews[key]=null;pending.clear();messages.clear();sourceNotes.clear();render();};
  if(dialog){
   new MutationObserver(()=>{
    if(dialog.open){epoch++;void refresh();}      // a newly opened panel always shows the service's current truth
@@ -327,6 +391,7 @@
  // Used by the assistant's "open this run": it only selects, lists or previews; it never approves, recovers or plays.
  async function focusRun(id,target){
   if(!dialog?.open)return {ok:false,code:'closed'};
+  window.DubStudioLayout?.reveal(section);
   section.open=true;await refresh();
   if(!runs.some(row=>row.id===id))return {ok:false,code:'unknown-run'};
   if(selected!==id)await select(id);else await reloadDetail(id);

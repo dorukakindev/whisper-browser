@@ -373,3 +373,6 @@ test('Implausible future review dates are not shown as verified publication date
  const parsed=reviews.parseLetterboxdReviews(html.replace('<li>','<li><time datetime="2565-08-18"></time>'));
  assert.equal(parsed.reviews.length,1);assert.equal(Object.hasOwn(parsed.reviews[0],'date'),false);const valid=reviews.parseLetterboxdReviews(html.replace('<li>','<li><time datetime="2018-08-18"></time>'));assert.equal(valid.reviews[0].date,'2018-08-18');
 });
+test('review workflow modes preserve manual evidence and never fetch or analyze on navigation',async()=>{
+ const draft={reviews:'A source review with exact punctuation.',attempt:{state:'analyzing'}},u=ui(draft);try{const source=u.w.document.querySelector('.mrv-control-room'),raw=source.querySelector('[name=review-text]'),before=raw.value;assert.equal(source.dataset.sourceView,'sample');assert.equal(source.querySelector('[data-review-action=preview]').hidden,true);u.click('Load from a source');await u.wait();assert.equal(source.dataset.sourceView,'sources');u.click('Text & advanced options');await u.wait();assert.equal(source.dataset.sourceView,'raw');assert.equal(raw.value,before);u.click('Sample & analysis');await u.wait();assert.equal(source.dataset.sourceView,'sample');assert.equal(u.calls.filter(p=>p&&typeof p==='object').length,0);}finally{u.w.close();}
+});

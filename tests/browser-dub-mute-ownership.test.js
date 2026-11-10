@@ -21,12 +21,38 @@ test('an owned mute is released across navigation without stranding the tab mute
  h.tab.generation=2;h.tab.mediaId='video-B';assert.equal(h.call(false,h.meta('owner','release')).ok,true);assert.equal(h.read(),false);assert.equal(h.tab.dubAudioMute,null);
 });
 test('a manual idempotent mute wins over old dubbing release',()=>{
- const h=harness();h.call(true,h.meta('owner','acquire'));h.call(true);assert.equal(h.read(),true);
+ const h=harness();h.call(true,h.meta('owner','acquire'));assert.equal(h.events.at(-1).manual,false);
+ h.call(true);assert.equal(h.read(),true);assert.equal(h.events.at(-1).manual,true);
  assert.equal(h.call(false,h.meta('owner','release')).skipped,true);assert.equal(h.read(),true);
 });
 test('manual unmute revokes queued dubbing updates too',()=>{
  const h=harness();h.call(true,h.meta('owner','acquire'));h.call(false);
  assert.equal(h.call(true,h.meta('owner','update')).skipped,true);assert.equal(h.read(),false);
+});
+test('restoring a dub before Play takes over the startup hold and preserves the original mute',()=>{
+ const h=harness(true);
+ h.tab.sourceReturnHold={wc:h.wc,priorMuted:false};
+ assert.equal(h.call(true,h.meta('restored','acquire')).priorMuted,false);
+ assert.equal(h.tab.sourceReturnHold,null);
+ assert.equal(h.read(),true);
+ assert.equal(h.call(false,h.meta('restored','release')).ok,true);
+ assert.equal(h.read(),false);
+});
+test('a late buffering unmute acknowledgement retains the dub, while a manual unmute removes it',()=>{
+ const ui=fs.readFileSync(require.resolve('../src/renderer/browser-dub-ui'),'utf8');
+ const listener=ui.slice(ui.indexOf('  window.api.onBrowserEvent?.('),ui.indexOf('  window.BrowserDubAudioUI = {'));
+ let handle,removed=0;
+ const session={tabId:'tab',generation:1,desiredMuted:true,playbackAsset:{id:'voice'}};
+ vm.runInNewContext(listener,{
+  window:{api:{onBrowserEvent:fn=>{handle=fn;}}},controller:{session,remove:()=>{removed++;}},
+  audioPreferenceRevision:0,tabDubs:new Map(),remembered:new Map(),remember(){}
+ });
+ const event={type:'tab-audio',tabId:'tab',generation:1,tabMuted:false};
+ handle({...event,manual:false});
+ assert.equal(removed,0);assert.equal(session.playbackAsset.id,'voice');
+ session.desiredMuted=false;
+ handle({...event,manual:true});
+ assert.equal(removed,1);assert.equal(session.playbackAsset,null);
 });
 test('replacement attachment inherits original human mute and old release cannot undo it',()=>{
  const h=harness();h.call(true,h.meta('old','acquire'));assert.equal(h.call(true,h.meta('new','acquire')).priorMuted,false);

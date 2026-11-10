@@ -92,11 +92,12 @@
       actions:[{label:t('Stop','Durdur'),kind:'stop',run:()=>window.api.cancelYoutubeDownload()}] });
     return rows;
   }
-  async function openVoice({receipt=false}={}) {
+  async function openVoice({receipt=false,isCancelled=()=>false}={}) {
     // Opens the existing source/reference/range review, never starts generation.
     try {
+      if(isCancelled())return false;
       const scene=window.CinemaSahne?.current;
-        if(scene?.a?.caps?.queue&&window.MediaShelfUI?.isPodcastMode?.()) {const result=await scene.a.cmd('dub');if(!result?.ok)throw Error(result?.message||t('Voice window could not be opened.','Ses penceresi açılamadı.'));return receipt?result:true;}
+        if(scene?.a?.caps?.queue&&window.MediaShelfUI?.isPodcastMode?.()) {const result=await scene.a.cmd('dub',{isCancelled});if(isCancelled())return false;if(!result?.ok)throw Error(result?.message||t('Voice window could not be opened.','Ses penceresi açılamadı.'));return receipt?result:true;}
         if (window.DubGeneratorUI?.prepareCurrent) return await window.DubGeneratorUI.prepareCurrent();
       $('dubMainOpen')?.click();
     } catch (error) {
@@ -123,6 +124,6 @@
   document.addEventListener('keydown', event => {
     if (event.ctrlKey && event.shiftKey && !event.altKey && !event.repeat && event.key.toLowerCase() === 'j' && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) && !event.target.isContentEditable) { event.preventDefault(); openTasks(); }
   });
-  window.MediaExperience = Object.freeze({ setContext, context, bindPassage, openTasks, taskRows, openVoice, trackVoice });
+  window.MediaExperience = Object.freeze({ setContext, context, bindPassage, openTasks, refreshTasks:()=>{if(taskDialog?.open)drawTasks();}, taskRows, openVoice, trackVoice });
   $('mediaCatalogDialog')?.classList.add('media-surface');
 })();

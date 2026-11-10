@@ -145,7 +145,7 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
           controller.signal.throwIfAborted();const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');if(action==='reviews-analyze'){
             if(result.match?.state!=='matched')throw Error('The review source did not match this film.');
             if(!getReviewConfig)throw Error('Review analysis provider unavailable.');
-            const model=require('./renderer/media-tools-model'),{evidence,sample}=model.decisionEvidence(item,result.reviews||[],await getReviewTaste());
+            const model=require('./renderer/media-tools-model'),{evidence,sample}=model.decisionEvidence(item,result.reviews||[],await getReviewTaste(item));
             if(!sample.reviews.length)throw Error('No usable reviews to analyze.');
             const answer=await require('./assistant-provider').run({question:model.reviewAnalysisPrompt(),responseContract:'review-analysis',context:{kind:'library',title:item.title,reviewAnalysis:JSON.stringify(evidence)},config:getReviewConfig(),locale:input.locale==='en'?'en':'tr',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(240000)]),fetchImpl});
             controller.signal.throwIfAborted();const latest=await reviewItem(event,input);if(JSON.stringify([latest.kind,latest.title,latest.year,latest.tmdbId,latest.imdbId])!==snapshot)throw Error('The film match changed during analysis.');

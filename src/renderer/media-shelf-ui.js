@@ -3,6 +3,7 @@
   const english = () => window.UiLocale?.get?.() !== 'tr';
   const t = (en, tr) => english() ? en : tr;
   const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = text; return node; };
+  let statusTimer = null, statusRevision = 0;
   let view = null, generation = 0, snapshot = null, current = null, queue = [], queueIndex = 0, hls = null;
   const selected = new Set(),order=window.MusicQueue.create();let musicFilter='all',musicSort='title',queueDialog=null;const musicCovers=new Map();
   let queuePlayIntent=0,queueRevision=0,queueRestored=false,queueSave=Promise.resolve(),playerQueueOwner=null;
@@ -249,7 +250,7 @@
 
   function syncQueue(persist=true){if(persist){queueRestored=true;queueRevision++;persistListeningQueue();}const save=queueDialog?.querySelector('.ms-save-queue');if(save)save.disabled=!order.snapshot().rows.length||order.snapshot().rows.some(r=>!queueIdentity(r));const state=order.snapshot();queue=state.rows;queueIndex=state.index;shuffleButton.setAttribute('aria-pressed',String(state.shuffled));repeatButton.textContent=state.repeat==='one'?t('Repeat one','Tek parça tekrar'):state.repeat==='all'?t('Repeat all','Liste tekrarı'):t('Repeat off','Tekrar kapalı');repeatButton.dataset.mode=state.repeat;queueButton.textContent=t('Queue','Kuyruk')+' · '+queue.length;paintQueue();paintPlaying();for(const listener of queueSubscribers)listener();}
   function paintPlaying(){document.querySelectorAll('.ms-track[data-music-id]').forEach(line=>{const playing=current?.id===line.dataset.musicId&&!audio.paused;line.classList.toggle('is-playing',playing);if(playing)line.setAttribute('aria-current','true');else line.removeAttribute('aria-current');});}
-  function appendQueue(row,next=false){order.append([row],next);syncQueue();status(t('Added to queue','Kuyruğa eklendi')+' · '+row.title);}
+  function appendQueue(row,next=false){order.append([row],next);syncQueue();status(t('Added to queue','Kuyruğa eklendi')+' · '+row.title,false,{transient:true});}
   function queueIdentity(row){return row.kind==='music'?{kind:'music',id:row.id}:row.kind==='spotify'?{kind:'spotify',id:row.id,playlistId:row.playlistId}:null;}
   async function saveQueue(){
     const rows=order.snapshot().rows,entries=rows.map(queueIdentity);
@@ -307,10 +308,16 @@
   function spotifyTrackMenu(row){const menu=el('details','ms-track-menu'),label=el('summary','', '⋯');label.setAttribute('aria-label',t('Track actions: ','Parça işlemleri: ')+row.title);const panel=el('div','ms-track-menu-panel');for(const [next,text] of [[true,t('Play next','Sıradaki çal')],[false,t('Add to queue','Kuyruğa ekle')]])panel.append(btn(text,()=>{appendQueue(row,next);menu.open=false;},'mh-text-button '+(next?'ms-spotify-next':'ms-spotify-enqueue')));panel.append(btn(t('Change YouTube version','YouTube sürümünü değiştir'),()=>{menu.open=false;window.SpotifyImportUI.open({rematch:{playlistId:row.playlistId,id:row.id},saved:reload});},'mh-text-button ms-spotify-rematch'));menu.append(label,panel);menu.addEventListener('toggle',()=>{if(menu.open)document.querySelectorAll('.ms-track-menu[open]').forEach(other=>{if(other!==menu)other.open=false;});});return menu;}
   function favoriteButton(row){const b=btn(row.favorite?t('Liked','Beğenildi'):t('Like','Beğen'),()=>favorite(row,b),'mh-text-button ms-like');b.setAttribute('aria-pressed',String(!!row.favorite));b.setAttribute('aria-label',t('Like ','Beğen ')+row.title);return b;}
 
-  function status(message = '', error = false) {
-    const node = (podcastMode?podcastPanel?.querySelector('.ms-podcast-message'):null)||view?.root?.querySelector('.ms-status');
-    if (node) { node.textContent = message; node.classList.toggle('mh-error', error); }
-    else dockStatus.textContent = message;
+  function status(message = '', error = false, {transient = false} = {}) {
+    clearTimeout(statusTimer);statusTimer=null;const revision=++statusRevision;
+    const node = (podcastMode?podcastPanel?.querySelector('.ms-podcast-message'):null)
+      ||view?.root?.querySelector('.ms-status')||dockStatus;
+    node.textContent=message;node.classList.toggle('mh-error',error);
+    if(transient&&!error&&message)statusTimer=setTimeout(()=>{
+      if(revision!==statusRevision)return;
+      if(node.textContent===message)node.textContent='';
+      statusTimer=null;
+    },4000);
   }
   async function api(action, payload = {}) {
     const result = await window.api.mediaShelf({ action, locale:window.UiLocale?.get?.(), ...payload });

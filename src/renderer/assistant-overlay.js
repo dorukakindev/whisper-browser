@@ -163,7 +163,7 @@
     $('suggestionMenuLabel').textContent=t('More suggestions','Diğer öneriler');
     const nextSuggestions = JSON.stringify(value.suggestions || []);
     if (nextSuggestions !== suggestionKey) {
-      suggestionKey = nextSuggestions; $('primarySuggestion').replaceChildren();$('suggestionOptions').replaceChildren();$('suggestionMenu').open=false;const many=(value.suggestions||[]).length>4;$('suggestionMenu').hidden=!many; closeReview(false);
+      suggestionKey = nextSuggestions; $('primarySuggestion').replaceChildren();$('suggestionOptions').replaceChildren();$('suggestionMenu').open=false;const many=(value.suggestions||[]).length>1;$('suggestionMenu').hidden=!many; closeReview(false);
       for (const [index,row] of (value.suggestions || []).entries()) {
         const button = document.createElement('button'); button.type = 'button'; button.textContent = row.label;button.title=row.label;
         button.onclick = () => { $('suggestionMenu').open=false;if(index)$('suggestionMenuLabel').focus();if(row.direct){if(!busy&&!snapshot.blocked)action('suggestion',row.id);return;} openReview({action:'suggestion',id:row.id},row.review,button); };

@@ -12,6 +12,27 @@ function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false,prefs});
  t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setCanSeek:value=>canSeek=value,setRevision:value=>revision=value};
 }
+test('task categories preserve controls, active category and field focus through refresh',t=>{
+ let merged=false;
+ const sections=[{id:'captions',title:'Subtitles',items:[{id:'load',label:'Load'}]},{id:'fine',title:'Fine settings',items:[{id:'merge',type:'checkbox',label:'Merge sentences',value:false,onChange:value=>{merged=value;sections[1].items[0].value=value;}}]}];
+ const f=mount(t,{sections});f.sh.togglePanel();const box=f.sh.q('[data-r=panel]');
+ assert.equal(box.querySelectorAll('[role=tabpanel]:not([hidden])').length,1);
+ assert.equal(box.querySelectorAll('[data-pid]').length,2,'all controls remain present');
+ let tab=box.querySelectorAll('[role=tab]')[0];tab.focus();tab.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'End',bubbles:true,cancelable:true}));
+ assert.equal(f.w.document.activeElement.textContent.trim(),'Fine settings');
+ let input=box.querySelector('[data-pid=merge]');input.focus();input.click();assert.equal(merged,true);input=box.querySelector('[data-pid=merge]');assert.equal(f.w.document.activeElement,input);assert(input.checked);assert.equal(input.closest('[role=tabpanel]').hidden,false);
+ f.sh.drawPanel(true);assert.equal(box.querySelector('[role=tab][aria-selected=true]').textContent.trim(),'Fine settings');
+ f.sh.q('[data-pclose]').click();f.sh.togglePanel();assert.equal(box.querySelector('[role=tab][aria-selected=true]').textContent.trim(),'Fine settings');
+ const caption=f.w.document.createElement('button');caption.dataset.captionEntry='';f.sh.q('[data-pclose]').click();f.sh.togglePanel(caption);assert.equal(box.querySelector('[role=tab][aria-selected=true]').textContent.trim(),'Subtitles');assert.equal(f.w.document.activeElement.dataset.pid,'action:load');
+ assert.equal(f.commands.length,0,'navigation starts no media or production');
+});
+test('cinema and podcast progress expose measured and unknown progress without a false percentage',t=>{
+ for(const cinema of [false,true]){const f=mount(t,{cinema}),bar=f.sh.q('[data-r=jobbar]');
+  f.sh.drawJob({state:'running',progress:.4});assert.equal(bar.getAttribute('role'),'progressbar');assert.equal(bar.getAttribute('aria-valuenow'),'40');assert.equal(bar.firstElementChild.style.width,'40%');assert.equal(f.sh.q('[data-r=jobpercent]').textContent,'40%');assert.equal(f.sh.q('[data-r=jobpercent]').hidden,false);
+  f.sh.drawJob({state:'running'});assert.equal(bar.hasAttribute('aria-valuenow'),false);assert.match(bar.getAttribute('aria-valuetext'),/bilinmiyor/);assert(bar.classList.contains('ind'));
+  f.sh.drawJob({state:'done'});assert(bar.hidden);
+ }
+});
 test('the next sentence button stays available for a cue starting less than ten milliseconds later', t => {
  const f = mount(t, {study:true});
  Object.assign(f.rows[0], {start:2, end:2.004});

@@ -313,7 +313,7 @@
     personalActions?.toolbar(state.root.querySelector('.md-personal-slot'));
     for (const row of state.rows) {
       const key=row.kind+':'+row.providerId,signature=JSON.stringify([row,personalActions?.isSelecting(),personalActions?.isSelected(row)]),prior=existing.get(key);
-      if(prior?._discoverySignature===signature){nodes.push(prior);continue;}
+      if(prior?._discoverySignature===signature){nodes.push(prior.closest('.cn-discover-entry')||prior);continue;}
       const card = btn('', () => personalActions?.isSelecting()?personalActions.toggleRow(row):details(row), 'cn-poster'); card.dataset.discoveryId = row.providerId;card.setAttribute('aria-haspopup','menu');card.addEventListener('contextmenu',event=>cardMenu(event,card,row));card.addEventListener('keydown',event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10')cardMenu(event,card,row);});
       card.dataset.discoveryKey=key;card._discoverySignature=signature;
       const poster = image(row.poster, 'cn-poster-art');if(personalActions?.isSelecting()){card.setAttribute('aria-pressed',String(personalActions.isSelected(row)));card.classList.toggle('md-card-selected',personalActions.isSelected(row));poster.append(el('span','md-card-selector',personalActions.isSelected(row)?'✓':''));}const badge=personalActions?.badge(row);if(badge)poster.append(badge);if(row.catalogId&&!poster.querySelector('img')&&window.api.mediaCatalog)void window.api.mediaCatalog({action:'poster',id:row.catalogId}).then(r=>{if(poster.isConnected&&r?.ok&&/^data:image\/png;base64,/.test(r.image||'')){const img=el('img');img.src=r.image;img.alt='';poster.prepend(img);poster.classList.remove('md-art-empty');}}).catch(()=>{});
@@ -326,7 +326,7 @@
       if(row.because||row.profileBecause||row.directorBecause){const basis=recommendationReason(row);card.append(el('span','md-reason',basis.label+' · '+basis.text));}
       if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
       if(row.personalMedia&&(row.personalMedia.reaction||row.personalMedia.manualResume||row.personalMedia.effectiveResume||row.personalMedia.note))card.append(el('span','pm-card-summary',window.PersonalMediaUI?.summary(row.personalMedia)||''));
-      nodes.push(card);
+      if(row.kind==='film'&&window.RecommendationHubUI){const entry=el('article','cn-discover-entry'),recommend=btn(t('Recommend films','Film öner'),()=>window.RecommendationHubUI.open(row),'mh-action md-recommend-button');entry.append(card,recommend);nodes.push(entry);}else nodes.push(card);
     }
     if (!state.rows.length && !state.busy && !state.loadError){
       const text=state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'

@@ -55,3 +55,10 @@ test('late model analysis cannot override newer explicit priorities',async t=>{
  await h.api({action:'taste-preferences',expectedPreferencesRevision:first.preferencesRevision,patch:{note:'A new manual preference'}});
  const before=fs.readFileSync(h.file,'utf8'),r=await h.api({action:'taste-analysis',expectedEvidenceRevision:first.evidenceRevision,expectedPreferencesRevision:first.preferencesRevision,analysis:{version:1,summary:'Old',insights:[]}});assert.equal(r.stale,true);assert.equal(fs.readFileSync(h.file,'utf8'),before);
 });
+
+test('Domain preferences persist separately and imported ratings enter only their own profile',async t=>{
+ const h=fixture(t),C=require('../src/personal-collection'),dir=path.dirname(h.file);C.merge(dir,[{id:'mal:anime:1',title:'Anime',kind:'anime',domain:'anime',rating:2,status:'completed'}]);
+ const film=await h.api({action:'taste-profile'}),anime=await h.api({action:'taste-profile',domain:'anime'});assert.equal(anime.taste.rated,1);assert.equal(anime.taste.average,1);assert.equal(film.taste.average,4);
+ const saved=await h.api({action:'taste-preferences',domain:'anime',patch:{weights:{story:1},note:'Anime only'},expectedPreferencesRevision:anime.taste.preferencesRevision});assert.equal(saved.ok,true);assert.equal(saved.taste.domain,'anime');assert.equal(saved.taste.preferences.note,'Anime only');const unchanged=await h.api({action:'taste-profile'});assert.equal(unchanged.taste.preferences.note,'Keep my note');assert.equal((await h.api({action:'taste-profile',domain:'not-real'})).ok,false);
+ assert.equal((await h.unauthorized({action:'collection-list'})).ok,false);const listed=await h.api({action:'collection-list'});assert.equal(listed.rows[0].variants,undefined);const row=listed.rows[0];assert.equal((await h.api({action:'collection-save',id:row.id,revision:row.revision,patch:{rating:9}})).ok,true);assert.equal((await h.api({action:'collection-save',id:row.id,revision:row.revision,patch:{rating:1}})).ok,false);
+});

@@ -103,3 +103,12 @@ test('voice preparation accepts only a verified shelf handoff and still rejects 
  const next=h.actions.snapshot();h.sandbox.window.MediaExperience.openVoice=async()=>{h.sandbox.window.AssistantWorkspace.activeId=()=> 'another-thread';return {ok:true,from:{mediaKey:'shelf:A',generation:4},handoff:{entryId:'A',mediaKey:'copy:A',generation:8}};};
  await assert.rejects(h.actions.execute('open_voice_preparation',{},next),/changed/);
 });
+
+test('voice preparation approval cannot open a replacement subtitle on the same media',async()=>{
+ const h=setup();h.player.sub2Path='approved.srt';
+ const owner=h.actions.snapshot();h.player.sub2Path='replacement.srt';
+ let calls=0;
+ h.sandbox.window.MediaExperience={openVoice:async()=>{calls++;return true;}};
+ await assert.rejects(h.actions.execute('open_voice_preparation',{},owner),/subtitle track changed/i);
+ assert.equal(calls,0);
+});

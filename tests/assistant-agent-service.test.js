@@ -179,6 +179,30 @@ test('Model proposals do not execute until the same source applies; stale, forei
  assert.equal((await apply).result.status,'accepted');const replay=await h.call('agentApply',{proposalId:action.proposalId,owner:h.owner});assert.deepEqual([replay.ok,replay.replayed,replay.result.status],[true,true,'accepted']);assert.equal(h.events.filter(row=>row.value.type==='action').length,1,'a repeated approval replays the real result and is never dispatched again');
  h.app.emit('will-quit');
 });
+test('voice preparation approval stays bound to the proposed subtitle revision across IPC',async()=>{
+ let turn=0;
+ const h=fixture(async()=>++turn===1
+  ? reply({role:'assistant',tool_calls:[{id:'prepare',type:'function',function:{name:'open_voice_preparation',arguments:'{}'}}]})
+  : reply({role:'assistant',content:'Review the card.'}));
+ const owner={...h.owner,kind:'studio',hasMedia:true,hasSubtitles:true,subtitleKey:'revision-A'};
+ const send=h.sender.send;
+ h.sender.send=(channel,packet)=>{
+  send(channel,packet);
+  if(packet.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:packet.callId,result:{status:'completed'}}));
+ };
+ try{
+  const run=await h.call('agentRun',{requestId:'prepare-dub',question:'Dublaja hazırla.',owner});
+  assert.equal(run.ok,true,run.error);
+  const proposalId=h.events.find(row=>row.value.type==='proposal').value.action.proposalId;
+  const stale=await h.call('agentApply',{proposalId,owner:{...owner,subtitleKey:'revision-B'}});
+  assert.equal(stale.ok,false);
+  assert.match(stale.error,/subtitle track changed/i);
+  assert.equal(h.events.filter(row=>row.value.type==='action').length,0);
+  const applied=await h.call('agentApply',{proposalId,owner:{...owner,time:5}});
+  assert.equal(applied.result?.status,'completed');
+  assert.equal(h.events.filter(row=>row.value.type==='action').length,1);
+ }finally{h.app.emit('will-quit');}
+});
 test('Cancellation affects only the matching request and clears the active session',async()=>{
  let aborts=0;
  const h=fixture(async(_,options)=>new Promise((_,reject)=>options.signal.addEventListener('abort',()=>{aborts++;reject(Error('aborted'));},{once:true})));

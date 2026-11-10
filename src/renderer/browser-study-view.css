@@ -434,8 +434,8 @@ html[data-theme=light] .sh-browser-study .sh-cover-art{box-shadow:0 16px 34px -1
 .sh-browser-study .sh-wave .tip:empty{display:none}
 
 /* Task and note surfaces share Stage spacing and keep their exit within reach. */
-.sh-browser-study .sh-panel{padding:0 0 12px;gap:0;border-radius:12px;background:var(--bg-1);backdrop-filter:none}
-.sh-browser-study .sh-panel-h{position:sticky;top:0;z-index:2;padding:12px 16px;background:var(--bg-1);border-bottom:1px solid var(--border)}
+.sh-browser-study .sh-panel{padding:0;gap:0;border-radius:20px;background:var(--bg-1);backdrop-filter:none}
+.sh-browser-study .sh-panel-h{position:sticky;top:0;z-index:2;padding:20px 24px;background:linear-gradient(110deg,color-mix(in srgb,var(--accent) 9%,var(--bg-1)),var(--bg-1));border-bottom:1px solid var(--border)}
 .sh-browser-study .sh-psec{padding:16px;gap:10px;border-bottom:1px solid var(--border)}
 .sh-browser-study .sh-psec:last-child{border-bottom:0}
 .sh-browser-study .sh-psec h3{font-size:12px;letter-spacing:.03em;text-transform:none;color:var(--text-dim)}
@@ -651,3 +651,19 @@ html[data-theme=light] .sh-browser-study .sh-cover-art{box-shadow:0 16px 34px -1
 .sh-existing-tools #playerSide .side-tabbar{width:100%;flex-direction:row;align-items:center;gap:12px}
 .sh-existing-tools #playerSide .side-tabs{container-type:normal;flex:1 1 auto;min-width:0}
 .sh-existing-tools #playerSide .side-tab{width:auto;flex:1 1 auto;padding:0 12px;gap:7px}
+
+/* Media-first composition: a listening salon rather than a form workspace. */
+.sh-browser-study .browser-study-media{position:relative;isolation:isolate;background:radial-gradient(ellipse at 20% 32%,color-mix(in srgb,var(--accent) 11%,transparent),transparent 62%),linear-gradient(160deg,var(--bg-0),var(--bg-1))}
+.sh-browser-study.sh-audio .sh-audio-summary{flex-direction:row;text-align:start;gap:clamp(28px,4vw,60px);padding:30px clamp(12px,3vw,48px);width:100%;max-width:1120px;margin:auto;box-sizing:border-box}
+.sh-browser-study.sh-audio .sh-audio-summary .sh-cover{width:clamp(190px,26vh,285px);transform:perspective(1100px) rotateY(7deg);box-shadow:-8px 18px 60px color-mix(in srgb,var(--accent) 16%,transparent),0 28px 50px #0005;transition:transform .5s var(--sh-ease),box-shadow .5s}
+.sh-browser-study.sh-audio .sh-audio-summary .sh-cover:hover{transform:perspective(1100px) rotateY(0) translateY(-4px);box-shadow:0 24px 65px color-mix(in srgb,var(--accent) 24%,transparent)}
+.sh-browser-study.sh-audio .sh-audio-summary .sh-meta{flex:1;max-width:650px}
+.sh-browser-study.sh-audio .sh-audio-summary .sh-title{font-family:var(--sh-display);font-size:clamp(25px,2.3vw,40px);line-height:1.22;letter-spacing:-.035em;text-wrap:balance}
+.sh-browser-study .browser-study-transport{border:1px solid color-mix(in srgb,var(--accent) 20%,var(--border));background:linear-gradient(160deg,color-mix(in srgb,var(--bg-2) 65%,transparent),var(--bg-1));box-shadow:0 18px 50px -26px #0008,inset 0 1px color-mix(in srgb,var(--text) 5%,transparent);border-radius:16px;padding:18px 20px}
+.sh-browser-study .sh-live-speech{padding:18px 22px;border-radius:12px;border-inline-start:3px solid var(--accent);background:linear-gradient(110deg,color-mix(in srgb,var(--accent) 9%,var(--bg-1)),var(--bg-1));box-shadow:0 8px 28px -20px var(--accent)}
+.sh-browser-study .sh-live-speech p{font-size:clamp(16px,1.25vw,21px);line-height:1.5}
+.sh-browser-study .sh-card.on{background:linear-gradient(110deg,color-mix(in srgb,var(--accent) 15%,var(--bg-1)),var(--bg-1));box-shadow:inset 3px 0 var(--accent),0 8px 26px -20px var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+.sh-browser-study .sh-subs{background:linear-gradient(130deg,color-mix(in srgb,var(--accent) 7%,var(--bg-1)),var(--bg-1));border-color:color-mix(in srgb,var(--accent) 20%,var(--border));border-radius:14px;box-shadow:inset 0 1px color-mix(in srgb,var(--text) 5%,transparent)}
+.sh-browser-study .sh-tbtn.play{box-shadow:0 0 0 7px color-mix(in srgb,var(--accent) 9%,transparent),0 7px 25px -10px var(--accent)}
+@media(max-width:1099px){.sh-browser-study.sh-audio .sh-audio-summary{gap:24px;padding:24px 12px}.sh-browser-study.sh-audio .sh-audio-summary .sh-cover{width:clamp(150px,23vh,230px)}}
+@media(max-width:760px){.sh-browser-study.sh-audio .sh-audio-summary{flex-direction:column;text-align:center;gap:18px}.sh-browser-study.sh-audio .sh-audio-summary .sh-cover{width:160px}.sh-browser-study.sh-audio .sh-audio-summary .sh-title{font-size:24px}.sh-browser-study .browser-study-transport{padding:14px}.sh-browser-study .sh-live-speech{padding:12px 16px}}

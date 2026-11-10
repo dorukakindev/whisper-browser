@@ -1,0 +1,66 @@
+/* Dubbing is a workspace with distinct sections, not a single expanding form. */
+#dubGeneratorDialog.dub-workspace{width:min(1100px,calc(100vw - 48px));height:min(820px,calc(100dvh - 64px));max-height:calc(100dvh - 32px)}
+#dubGeneratorDialog.dub-workspace[open]{grid-template-rows:auto auto minmax(0,1fr) auto}
+#dubGeneratorDialog.dub-workspace .dub-studio-header{padding:24px 30px 18px}
+#dubGeneratorDialog.dub-workspace .dub-studio-header h2{font-size:25px}
+#dubGeneratorDialog .dub-workspace-nav{display:flex;gap:30px;min-width:0;padding:0 30px;border-bottom:1px solid var(--border);overflow-x:auto}
+#dubGeneratorDialog .dub-workspace-nav button{position:relative;flex:0 0 auto;min-height:51px;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--text-dim);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+#dubGeneratorDialog .dub-workspace-nav button[aria-selected=true]{color:var(--text)}
+#dubGeneratorDialog .dub-workspace-nav button[aria-selected=true]::after{content:'';position:absolute;bottom:0;inset-inline:0;height:3px;border-radius:2px 2px 0 0;background:var(--accent)}
+#dubGeneratorDialog .dub-workspace-nav button:hover{color:var(--text)}
+#dubGeneratorDialog.dub-workspace .dub-studio-scroll{padding:26px 30px;scrollbar-gutter:stable}
+#dubGeneratorDialog .dub-workspace-view{min-width:0;outline:none}
+#dubGeneratorDialog .dub-workspace-view[hidden]{display:none!important}
+#dubGeneratorDialog .dub-view-heading{font-size:20px;letter-spacing:-.02em;margin:0 0 24px;font-weight:650;color:var(--text)}
+#dubGeneratorDialog #dubView-prepare>.dub-view-heading,#dubGeneratorDialog #dubView-result>.dub-view-heading{display:none}
+#dubGeneratorDialog.dub-workspace .dub-setup{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px;border:0;background:none}
+#dubGeneratorDialog.dub-workspace .dub-readiness-action{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px;min-height:94px;padding:17px 20px;border:1px solid var(--border);border-radius:12px;background:var(--bg-2);overflow:hidden}
+#dubGeneratorDialog.dub-workspace .dub-readiness-action::after{display:none}
+#dubGeneratorDialog.dub-workspace .dub-readiness-action[aria-expanded=true]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--bg-1))}
+#dubGeneratorDialog.dub-workspace .dub-choice-label{font-size:12px;line-height:1.4}
+#dubGeneratorDialog.dub-workspace .dub-choice-value{width:100%;min-width:0}
+#dubGeneratorDialog.dub-workspace .dub-choice-value strong{font-size:16px;line-height:1.4}
+#dubGeneratorDialog .dub-preparation-content{margin-top:22px}
+#dubGeneratorDialog.dub-workspace .dub-preparation-content>.dub-choice-panel{min-height:230px;margin:0;padding:26px 28px;border:1px solid var(--border);border-radius:14px;background:var(--bg-0)}
+#dubGeneratorDialog .dub-preparation-title{margin:0 0 8px;font-size:20px;font-weight:600;color:var(--text)}
+#dubGeneratorDialog.dub-workspace .dub-preparation-hint{max-width:72ch;margin:0 0 22px;font-size:14px;line-height:1.6;color:var(--text-dim)}
+#dubGeneratorDialog .dub-preparation-guide{margin:20px 0 0;font-size:13px;line-height:1.65;color:var(--text-dim)}
+#dubGeneratorDialog.dub-workspace :is(#dubManualSettings,#dubReviewTools,#dubRuns){margin:0;padding:0;border:0}
+#dubGeneratorDialog.dub-workspace :is(#dubManualSettings,#dubReviewTools,#dubRuns)>summary{display:none}
+#dubGeneratorDialog.dub-workspace .dub-tool-body{padding:0}
+#dubGeneratorDialog.dub-workspace #dubManualSettings>.dub-tool-body{display:block}
+#dubGeneratorDialog.dub-workspace #dubNaturalTitle,#dubGeneratorDialog.dub-workspace #dubNaturalSummary,#dubGeneratorDialog.dub-workspace #dubNaturalState{display:none}
+#dubGeneratorDialog.dub-workspace .dub-natural-heading{margin:0 0 12px}
+#dubGeneratorDialog.dub-workspace .dub-natural-heading:has(#dubNaturalRecommend[hidden]){display:none}
+#dubGeneratorDialog.dub-workspace .dub-presets{width:100%;grid-template-columns:repeat(3,minmax(0,1fr));margin:0}
+#dubGeneratorDialog .dub-timing-choice{margin:20px 0;padding:18px 20px;border:1px solid var(--border);border-radius:12px;background:var(--bg-0)}
+#dubGeneratorDialog .dub-timing-choice>label{display:block;margin:0 0 10px!important;font-weight:600;color:var(--text)}
+#dubGeneratorDialog .dub-settings-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;align-items:start}
+#dubGeneratorDialog .dub-settings-groups>details{padding:0 18px;margin:0;border:1px solid var(--border);border-radius:10px;background:var(--bg-0)}
+#dubGeneratorDialog .dub-settings-groups>details>summary{min-height:50px;font-size:14px}
+#dubGeneratorDialog .dub-settings-groups>details[open]{padding-bottom:18px;grid-column:1/-1}
+#dubGeneratorDialog .dub-text-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:18px 0}
+#dubGeneratorDialog .dub-text-columns label{display:block;margin-bottom:10px;font-weight:600;color:var(--text)}
+#dubGeneratorDialog .dub-text-columns textarea{min-height:150px}
+#dubGeneratorDialog .dub-studio-footer[data-duplicate-reason=true] #dubStartRequirement{display:none}
+#dubGeneratorDialog.dub-workspace #dubReviewToolsBody>details,#dubGeneratorDialog.dub-workspace #dubWorkspacePanel{border-top:1px solid var(--border);padding:4px 0 16px}
+#dubGeneratorDialog .dub-result-empty{padding:48px 28px;border:1px dashed var(--border-strong);border-radius:14px;background:var(--bg-0)}
+#dubGeneratorDialog .dub-result-empty h3{margin:0 0 10px;font-size:22px;color:var(--text)}
+#dubGeneratorDialog .dub-result-empty p{max-width:65ch;margin:0;font-size:14px;line-height:1.65;color:var(--text-dim)}
+#dubGeneratorDialog.dub-workspace .dub-studio-footer{padding:18px 30px}
+#dubGeneratorDialog.dub-workspace .dub-run-main{gap:24px}
+#dubGeneratorDialog.dub-workspace #dubGeneratorStart{min-width:180px}
+#dubGeneratorDialog.dub-workspace #dubView-history{overflow-wrap:anywhere}
+@media(max-width:760px){
+ #dubGeneratorDialog.dub-workspace{width:calc(100vw - 20px);height:calc(100dvh - 24px)}
+ #dubGeneratorDialog.dub-workspace .dub-studio-header{padding:18px 18px 12px}
+ #dubGeneratorDialog .dub-workspace-nav{gap:24px;padding:0 18px}
+ #dubGeneratorDialog.dub-workspace .dub-studio-scroll{padding:18px}
+ #dubGeneratorDialog.dub-workspace .dub-setup{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ #dubGeneratorDialog.dub-workspace .dub-readiness-action{min-height:92px;padding:12px}
+ #dubGeneratorDialog.dub-workspace .dub-choice-value strong{font-size:13px}
+ #dubGeneratorDialog.dub-workspace .dub-preparation-content>.dub-choice-panel{padding:20px}
+ #dubGeneratorDialog.dub-workspace #dubManualSettings>.dub-tool-body{display:block}
+ #dubGeneratorDialog .dub-settings-groups,#dubGeneratorDialog .dub-text-columns{grid-template-columns:minmax(0,1fr)}
+ #dubGeneratorDialog.dub-workspace .dub-studio-footer{padding:14px 18px}
+}

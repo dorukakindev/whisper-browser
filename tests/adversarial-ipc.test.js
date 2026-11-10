@@ -96,7 +96,7 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       const original = Buffer.from('1\r\n00:00:01,000 --> 00:00:02,000\r\n\xdeimdi\r\n', 'latin1');
       fs.writeFileSync(file, original);
       const access = new SubtitleFileAccess(); access.grant(file);
-      const context = vm.createContext({ fs, path, Buffer, MAX_SUBTITLE_BYTES,
+      const context = vm.createContext({ fs, path, Buffer, MAX_SUBTITLE_BYTES, createHash:require('node:crypto').createHash,
         decodeSubtitleBuffer, renameSyncResilient, atomicWriteFileSync: require('../src/fsync-utils').atomicWriteFileSync, markOwnSubtitleWrite: () => {},
         require: require('node:module').createRequire(require.resolve('../src/main.js')), loadHistory:()=>[], authorizedBrowserSender: auth, subtitleFileAccess: access,
         dialog: { showMessageBox: async () => ({ response: 0 }) }, mainWindow: {} });
@@ -111,12 +111,18 @@ async function test(name, fn) { await fn(); passed++; console.log(`  PASS  ${nam
       for (const channel of ['media:readSubtitle', 'media:writeSubtitle', 'subs:shift']) vm.runInContext(handlers.get(channel), context);
       const read = await registered['media:readSubtitle'](authorized, file);
       assert.equal(read.ok, true); assert.match(read.text, /Şimdi/); assert.equal(read.note, 'cp1254');
+      const digest = context.createHash('sha256').update(original).digest('hex');
+      assert.equal((await registered['media:readSubtitle'](authorized,file,digest)).ok,true);
       for (const offset of [1, 2]) assert.equal((await registered['subs:shift'](authorized, file, offset)).ok, true);
       assert.match(fs.readFileSync(file, 'utf8'), /00:00:04,000 --> 00:00:05,000\r\nŞimdi/);
       assert.equal((await registered['media:writeSubtitle'](authorized, { path: file, text: 'Yeni çeviri' })).ok, true);
       assert.equal(fs.readFileSync(file, 'utf8'), '\uFEFFYeni çeviri');
+      assert.equal((await registered['media:readSubtitle'](authorized,file,digest)).code,'subtitle-changed');
       assert.deepEqual(fs.readFileSync(file + '.bak'), original);
       const unknown = path.join(dir, 'başka.srt'); fs.writeFileSync(unknown, 'dokunma');
+      context.dialog.showMessageBox = async()=>{throw Error('permission dialog attempted');};
+      assert.match((await registered['media:readSubtitle'](authorized,unknown,digest)).error,/access expired/i);
+      context.dialog.showMessageBox = async()=>({response:0});
       assert.equal((await registered['media:writeSubtitle'](authorized, { path: unknown, text: 'overwrite' })).ok, false);
       assert.equal(fs.readFileSync(unknown, 'utf8'), 'dokunma');
       assert.equal(fs.existsSync(unknown + '.bak'), false);

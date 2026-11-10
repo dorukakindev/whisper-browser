@@ -186,3 +186,54 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) .cv2-review-item 
 .media-title-page .mrv-control-room .mrv-job { padding:14px 0;margin:0;border-bottom:1px solid var(--border); }
 .media-title-page .mrv-control-room .mrv-loaded-reader > summary { padding:10px 0;font-weight:600; }
 @media(max-width:700px){.media-title-page .mrv-control-room .mrv-sample-overview{grid-template-columns:1fr;}.media-title-page .mrv-control-room .mrv-sample-overview>button{grid-column:1;grid-row:auto;justify-self:start;}}
+/* Review desk: acquisition, interpretation and original evidence remain distinct. */
+.mrv-control-room .mrv-workspace-nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--bg-0)}
+.mrv-control-room .mrv-workspace-nav button{min-height:40px;border:0;border-radius:8px;padding:10px 16px;color:var(--text-dim);background:transparent}
+.mrv-control-room .mrv-workspace-nav button[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 15%,var(--bg-1));color:var(--accent);box-shadow:inset 0 -2px var(--accent)}
+.mrv-control-room[data-source-view=sample]>.mrv-manual,.mrv-control-room:not([data-source-view=sample])>:is(.mrv-loaded-sample,.mrv-sample-options,.mrv-sampling,[data-review-action=preview]){display:none}
+.mrv-control-room:not([data-source-view=sample])>.mrv-manual>summary{display:none}
+.mrv-control-room[data-source-view=sources] .mrv-manual>:is(.mrv-raw-field,.mrv-spoiler-field){display:none}
+.mrv-control-room[data-source-view=raw] .mrv-manual>:is(.mrv-source-address,.mtx-actions,.mrv-append-field){display:none}
+.media-title-page .mrv-control-room .mrv-job,.mrv-control-room .mrv-job{padding:20px 22px;margin:0 0 18px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(110deg,color-mix(in srgb,var(--accent) 9%,var(--bg-1)),var(--bg-1));gap:16px}
+.mrv-control-room .mrv-job[aria-busy=true]{border-color:color-mix(in srgb,var(--accent) 45%,var(--border));position:relative;overflow:hidden;padding-bottom:26px}
+.mrv-control-room .mrv-job[aria-busy=true]::after{content:'';position:absolute;bottom:0;left:0;width:30%;height:4px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:review-desk-busy 1.8s ease-in-out infinite}
+@keyframes review-desk-busy{from{transform:translateX(-100%)}to{transform:translateX(430%)}}
+.mrv-control-room .mrv-job-copy strong{font-size:16px;line-height:1.5}
+.mrv-control-room .mrv-job-copy p{font-size:13px;line-height:1.65;max-width:72ch}
+.media-title-page .mrv-control-room .mrv-loaded-sample{padding:20px 24px;border:1px solid var(--border);border-radius:14px;background:var(--bg-1);margin-block:16px}
+.media-title-page .mrv-control-room .mrv-sample-overview{padding:0 0 14px}
+.mrv-control-room .mrv-provenance{display:flex;flex-wrap:wrap;gap:8px 18px;padding:12px 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg-0);margin:12px 0}
+.mrv-control-room .mrv-provenance:empty{display:none}
+.media-title-page .mrv-control-room .mrv-manual{padding:22px;border:1px solid var(--border);border-radius:14px;background:var(--bg-1);margin-top:0}
+.mrv-control-room .mrv-manual .mtx-actions{gap:8px;flex-wrap:wrap;margin-block:14px}
+.mrv-control-room .mrv-raw-field textarea{min-height:240px;font-family:var(--font-mono,Consolas,monospace);font-size:12px;line-height:1.7;resize:vertical}
+.mrv-control-room .mrv-auto-controls{display:flex;flex-wrap:wrap;gap:16px;align-items:end}
+.mrv-control-room .mrv-sample-options{padding:16px 20px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1)}
+.mrv-control-room .mrv-sample-options>summary{font-size:14px;font-weight:600;cursor:pointer}
+.cv2-review-analysis .mrv-analysis-overview,.media-title-page .film-dossier .cv2-review-analysis .film-analysis-scene{align-items:start;gap:28px}
+.media-title-page .film-dossier .cv2-review-analysis .film-analysis-scene>.mrv-fit{align-self:start;height:auto;min-height:0;padding:24px}
+.media-title-page .film-dossier .cv2-review-analysis .film-analysis-scene .mrv-summary>p{font-size:17px;line-height:1.8;max-width:72ch}
+.cv2-review-analysis .mrv-scope-line{padding:10px 14px;border-inline-start:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--bg-1));border-radius:0 8px 8px 0;font-size:12px!important;line-height:1.6!important;margin-bottom:18px!important}
+.cv2-topic-chart{padding:18px 20px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1);max-width:650px}
+.cv2-topic-bars{max-width:360px}
+.media-title-page .cv2-review-analysis .mrv-opinions .mrv-point,.cv2-review-analysis .mrv-opinions .mrv-point{padding:20px 22px;margin:0 0 14px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(115deg,var(--bg-1),var(--bg-0));gap:12px 24px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.cv2-review-analysis .mrv-point-heading{grid-column:1/-1;grid-row:1;font-size:15px;margin:0 0 2px;color:var(--accent)}
+.cv2-review-analysis .cv2-source-quote{grid-column:1;grid-row:2}
+.cv2-review-analysis .cv2-model-insight{grid-column:2;grid-row:2}
+.cv2-review-analysis .cv2-source-quote blockquote{font-size:15px;line-height:1.75;font-style:normal}
+.cv2-review-analysis .cv2-model-insight p{font-size:14px;line-height:1.75;padding:12px 14px;border:0;border-radius:8px;background:var(--bg-2)}
+.media-title-page .cv2-review-analysis .mrv-point>.mrv-evidence,.cv2-review-analysis .mrv-point>.mrv-evidence{grid-column:1;grid-row:3;margin:0;font-size:12px}
+.cv2-review-analysis .mrv-point>.mrv-source-jump{grid-column:2;grid-row:3;justify-self:start;margin:0;min-height:32px;font-size:12px}
+.cv2-review-analysis .mrv-point>.mrv-support{grid-column:1/-1;grid-row:4;margin:0;padding-top:10px;border-top:1px solid var(--border);font-size:11px}
+@media(max-width:800px){.media-title-page .cv2-review-analysis .mrv-opinions .mrv-point,.cv2-review-analysis .mrv-opinions .mrv-point{display:flex;flex-direction:column;padding:18px}.cv2-topic-row{grid-template-columns:120px minmax(0,1fr);gap:10px}}
+html[data-cinema-motion=off] .mrv-job::after,html[data-cinema-motion=reduced] .mrv-job::after,html[data-media-window-inactive=true] .mrv-job::after{animation:none;left:0;width:100%}
+@media(prefers-reduced-motion:reduce){.mrv-job::after{animation:none!important;left:0;width:100%}}
+.mrv-control-room [hidden]{display:none!important}
+
+/* Keep the saved analysis mounted while its reader hides it. */
+.film-review-section > .film-review-content[hidden],.film-review-collapse[hidden]{display:none!important;}
+.film-review-heading .film-review-collapse{flex:none;margin-left:8px;}
+.film-review-section[data-reviews-collapsed="true"] > .film-review-status{margin-bottom:0;}
+
+.film-review-section > .film-review-heading{flex-wrap:wrap;}
+.film-review-heading .film-review-title-block{flex:1;min-width:min(260px,100%);}

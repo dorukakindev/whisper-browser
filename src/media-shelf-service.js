@@ -178,14 +178,14 @@ function readPodcastSearch(directory,input,limit=100){
   const rows=searchPodcastTranscripts(data,feeds,input.query,{...scope,offset,limit:limit+1});
   return {ok:true,rows:rows.slice(0,limit),nextOffset:rows.length>limit?offset+limit:null,limit,mode:'literal'};
 }
-function readReviewTaste(userData,catalog=[]) {
+function readReviewTaste(userData,catalog=[],domain='film') {
   const data=loadShelfFile(path.join(userData,'media-shelf.json'));
-  return require('./media-taste').profile(data.diary,catalog,data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]);
+  return require('./media-domain-profile').profileFor(data,catalog,require('./personal-collection').read(userData).rows,domain);
 }
-function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, catalogView, fetchImpl = fetch, musicRun = run, podcastRegistryBinding, transcriptFetcher = (descriptor, options) => require('./podcast-transcript-service').fetchPodcastTranscript(descriptor, {...options, ...require('./feed-service')}) }) {
+function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, catalogView, discoveryRequest, fetchImpl = fetch, musicRun = run, podcastRegistryBinding, transcriptFetcher = (descriptor, options) => require('./podcast-transcript-service').fetchPodcastTranscript(descriptor, {...options, ...require('./feed-service')}) }) {
   const requestTranscript=require('./podcast-transcript-service').createTranscriptRequester(transcriptFetcher);
   let active = null;
-  const imports = new Map(), tasteCorrections = new Map();
+  const imports = new Map(), tasteCorrections = new Map(), collectionImports = new Map();
   const stateFile = () => path.join(userData(), 'media-shelf.json');
   const load=()=>loadShelfFile(stateFile());
   function save(data) {
@@ -207,10 +207,13 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
     const { diary, reviews:privateReviews, ...rest } = data;
     return { ...rest, taste: tasteOf(data) };
   }
+  const collectionMetadata=require('./collection-metadata').create({root:userData,fetchImpl});
+  const recommendationHub=require('./recommendation-hub').create({root:userData,catalog:catalogStore,discovery:discoveryRequest,fetchImpl,animeMetadata:collectionMetadata});
   const tasteCatalog=()=>catalogView?catalogView():catalogStore?.().list()||[];
-  const tasteOf=data=>require('./media-taste').profile(data.diary,tasteCatalog(),data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]);
+  const tasteOf=(data,domain='film')=>require('./media-domain-profile').profileFor(data,tasteCatalog(),require('./personal-collection').read(userData()).rows,domain);
+  function collectionSources(data){const rows=[];for(const b of data.books||[])rows.push({id:'shelf:book:'+b.id,title:b.title,domain:'book',kind:'book',status:b.completed?'completed':b.page>0||b.chapter>0||b.scroll>0?'watching':'planned',progress:b.page||b.chapter||0,total:b.pages||0,source:'library'});for(const p of data.podcasts||[])for(const e of p.episodes||[])if(e.position>0)rows.push({id:'shelf:podcast:'+p.id+':'+require('./media-source-mechanisms').hash(e.guid||e.url),title:e.title,domain:'podcast',kind:'podcast',status:e.duration>0&&e.position>=e.duration*.95?'completed':'watching',progress:Math.floor(e.position),total:Math.floor(e.duration||0),source:'library'});return rows;}
   function updateTastePreferences(data,input){
-    const taste=require('./media-taste'),saved=data.tasteProfile||{};
+    const taste=require('./media-taste'),domain=input.domain||'film';if(!require('./media-domains').DOMAINS.includes(domain))throw Error('Unknown taste domain.');const saved=domain==='film'?data.tasteProfile||{}:data.tasteDomains?.[domain]||{};
     if(input.expectedPreferencesRevision!==undefined&&input.expectedPreferencesRevision!==taste.preferencesRevision(saved))throw Object.assign(Error('Taste preferences changed; review the current profile / Zevk tercihleri değişti; güncel profili inceleyin.'),{stale:true});
     const patch=input.patch??input.preferences;
     if(!patch||typeof patch!=='object'||Array.isArray(patch)||Object.keys(patch).some(key=>!['weights','avoid','note'].includes(key))||!Object.keys(patch).length)throw Error('Invalid taste preferences / Geçersiz zevk tercihleri.');
@@ -218,10 +221,9 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
     if(patch.weights!==undefined){if(!patch.weights||typeof patch.weights!=='object'||Array.isArray(patch.weights)||Object.entries(patch.weights).some(([key,value])=>!taste.ASPECTS.includes(key)||!Number.isFinite(value)||value<0||value>5))throw Error('Invalid preference weights / Geçersiz tercih ağırlıkları.');next.weights={...next.weights,...patch.weights};}
     if(patch.avoid!==undefined){if(!Array.isArray(patch.avoid)||patch.avoid.length>taste.ASPECTS.length||patch.avoid.some(value=>!taste.ASPECTS.includes(value)))throw Error('Invalid avoidance preferences / Geçersiz kaçınma tercihleri.');next.avoid=[...new Set(patch.avoid)];}
     if(patch.note!==undefined){if(typeof patch.note!=='string'||patch.note.length>2000)throw Error('Invalid preference note / Geçersiz tercih notu.');next.note=patch.note;}
-    data.tasteProfile={...saved,...taste.preferences(next)};
-    // A note/avoid-only edit does not turn displayed default priorities into
-    // priorities the person explicitly chose.
-    if(patch.weights===undefined&&!Object.keys(saved.weights||{}).length){if(Object.prototype.hasOwnProperty.call(saved,'weights'))data.tasteProfile.weights=saved.weights;else delete data.tasteProfile.weights;}
+    const target={...saved,...taste.preferences(next)};
+    if(patch.weights===undefined&&!Object.keys(saved.weights||{}).length){if(Object.prototype.hasOwnProperty.call(saved,'weights'))target.weights=saved.weights;else delete target.weights;}
+    if(domain==='film')data.tasteProfile=target;else data.tasteDomains={...data.tasteDomains,[domain]:target};
   }
   async function importMusic(input) {
     if (active) throw Error('An import is already running.');
@@ -304,6 +306,21 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'podcast-search-resolve': {
           return readPodcastSearch(userData(),input);
         }
+        case 'recommendation-search': return {ok:true,...await recommendationHub.search(event,input)};
+        case 'recommendation-run': return {ok:true,...await recommendationHub.run(event,input)};
+        case 'collection-metadata-start': return {ok:true,...collectionMetadata.start({domain:input.domain,limit:input.limit??400,refresh:input.refresh===true})};
+        case 'collection-metadata-status': return {ok:true,...collectionMetadata.snapshot()};
+        case 'collection-metadata-stop': return {ok:true,...collectionMetadata.cancel()};
+        case 'collection-candidates-refresh': return {ok:true,...await collectionMetadata.candidates({domain:input.domain,limit:input.limit??8})};
+        case 'collection-activity': return {ok:true,...require('./personal-history').activity(catalogStore?.().list()||[],require('./personal-collection').read(userData()).rows)};
+        case 'collection-candidate-save': {const C=require('./personal-collection'),file=path.join(userData(),'personal-candidates.json');if(!fs.existsSync(file)||fs.statSync(file).size>8000000)throw Error('Reload recommendation candidates.');const row=(JSON.parse(fs.readFileSync(file,'utf8')).rows||[]).find(r=>r.id===input.id);if(!row||!['anime','manga'].includes(row.domain)||row.id!=='mal:'+row.domain+':'+row.providerId)throw Error('Choose a verified candidate.');const old=C.read(userData()).rows.find(r=>r.id===row.id);if(old)return {ok:true,id:old.id,status:old.status};const at=Date.now();C.merge(userData(),[{...row,status:'planned',rating:null,progress:0,total:row.metadata?.total||0,statusMarkedAt:at,activity:require('./personal-history').append([],'status',null,'planned',at),source:'anilist-recommendations'}],at);return {ok:true,id:row.id,status:'planned'};}
+        case 'collection-recommendations': {const file=path.join(userData(),'personal-candidates.json');let candidates=[];if(fs.existsSync(file)){if(fs.statSync(file).size>8000000)throw Error('Candidate cache exceeds 8 MB.');candidates=JSON.parse(fs.readFileSync(file,'utf8')).rows||[];}const rows=[...(catalogStore?.().list()||[]),...require('./personal-collection').read(userData()).rows];return {ok:true,...require('./personal-recommendations').recommend(rows,candidates,{domain:input.domain||'film',limit:input.limit??12,exploration:input.exploration===true,maxMinutes:Number(input.maxMinutes)||0})};}
+        case 'collection-list': {const C=require('./personal-collection'),d=C.read(userData()),rows=new Map(collectionSources(load()).map(r=>[r.id,r]));for(const r of d.rows){const source=rows.get(r.id);rows.set(r.id,{...r,...source,rating:r.rating,importedAt:r.importedAt,ratedAt:r.ratedAt,variants:undefined,revision:C.hash(r),variantCount:r.variants?.length||0});}return {ok:true,rows:[...rows.values()],catalog:(catalogStore?.().list()||[]).map(r=>({id:r.id,title:r.title,kind:r.kind,year:r.year,imdbId:r.imdbId,watchStatus:r.watchStatus,ratings:r.ratings,genres:r.genres,directors:r.directors,hasPoster:!!r.posterPath,tasteDomain:require('./media-domains').domainOf(r),statusMarkedAt:r.statusMarkedAt,completedMarkedAt:r.completedMarkedAt,revision:C.hash(r)}))};}
+        case 'collection-catalog-save': {const C=require('./personal-collection'),store=catalogStore(),old=store.get(input.id),p=input.patch;if(!old||input.revision!==C.hash(old))throw Error('Title changed; reload before saving.');if(!p||Object.keys(p).some(k=>!['rating','status','domain'].includes(k)))throw Error('Invalid personal patch.');const patch={id:old.id};if(Object.hasOwn(p,'rating')){if(p.rating!==null&&(!Number.isFinite(p.rating)||p.rating<0||p.rating>10))throw Error('Choose a rating from 0 to 10.');patch.ratings={personal:p.rating};}if(p.status!==undefined){if(!['completed','watching','planned','unspecified'].includes(p.status))throw Error('Invalid status.');patch.watchStatus=p.status;}if(p.domain!==undefined){if(!['film','series','anime','documentary'].includes(p.domain))throw Error('Choose a screen category.');patch.tasteDomain=p.domain;}return {ok:true,item:store.upsert(patch)};}
+        case 'collection-source-save': {const C=require('./personal-collection'),source=collectionSources(load()).find(r=>r.id===input.id);if(input.rating!==null&&(!Number.isFinite(input.rating)||input.rating<0||input.rating>10))throw Error('Choose a rating from 0 to 10.');if(!source)throw Error('Source no longer exists.');let old=C.read(userData()).rows.find(r=>r.id===source.id);if(!old){if(input.revision)throw Error('Source changed; reload before saving.');C.merge(userData(),[source]);old=C.read(userData()).rows.find(r=>r.id===source.id);}return {ok:true,row:C.save(userData(),{id:source.id,revision:input.revision||C.hash(old),patch:{rating:input.rating}})};}
+        case 'collection-save': {const C=require('./personal-collection');return {ok:true,row:C.save(userData(),input)};}
+        case 'collection-import-preview': {const C=require('./personal-collection');if(typeof input.xml!=='string')throw Error('Choose an XML export.');const rows=C.parseMal(input.xml,input.name),token=randomUUID();collectionImports.set(token,{rows,at:Date.now(),owner:event.sender?.id});while(collectionImports.size>5)collectionImports.delete(collectionImports.keys().next().value);return {ok:true,token,count:rows.length,anime:rows.filter(r=>r.domain==='anime').length,manga:rows.filter(r=>r.domain==='manga').length};}
+        case 'collection-import-apply': {const p=collectionImports.get(input.token);if(!p||p.owner!==event.sender?.id||Date.now()-p.at>600000)throw Error('Import preview expired.');const result=require('./personal-collection').merge(userData(),p.rows);collectionImports.delete(input.token);return {ok:true,...result,ids:[...new Set(p.rows.map(r=>r.id))]};}
         case 'list': return { ok: true, ...publicState(load()) };
         case 'listening-queue-save': {
           const q=input.queue;
@@ -541,33 +558,33 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
         case 'source-relink-confirm':{const p=imports.get(input.token);imports.delete(input.token);const item=p?.relink&&catalogStore().get(p.relink.catalogId);if(!p||p.expires<Date.now()||!item||M.hash([item.id,item.title,item.year,item.imdbId,item.tmdbId])!==p.relink.snapshot)throw Error('Relink preview expired or catalog identity changed.');const d=load(),row=d.sourceHistory.find(r=>r.recordId===p.relink.recordId&&r.recordState==='orphaned');if(!row)throw Error('Record changed.');row.linkedCatalogId=item.id;row.linkedAt=Date.now();save(d);return {ok:true};}
         case 'tag-query':{const rows=M.scopedTags(load(),catalogStore().list(),input.scope,input.name);return {ok:true,rows:rows.slice(0,500),total:rows.length,incomplete:rows.length>500};}
         case 'tag-save':{const d=load(),rows=M.scopedTags(d,catalogStore().list(),input.scope),row=rows.find(r=>r.id===input.recordId);if(!row&&input.scope!=='list')throw Error('Tagged record no longer exists.');if(!Array.isArray(input.tags)||input.tags.length>30)throw Error('Choose up to 30 tags.');const tags=[...new Set(input.tags.filter(v=>typeof v==='string').map(v=>text(v,100)).filter(Boolean))];if(input.scope==='film')catalogStore().upsert({id:row.id,collections:tags});else if(input.scope==='list'){if(!text(input.title,200))throw Error('Name the list.');d.listTags=[...(d.listTags||[]).filter(r=>r.id!==input.recordId),{id:input.recordId||randomUUID(),title:text(input.title,200),tags}].slice(-100);}else{const key=input.scope==='diary'?'diary':'reviews';const index=d[key].findIndex(r=>(r.recordId||M.hash([input.scope,r.title,r.year,r.watchedDate,r.review]))===row.id);d[key][index].tags=tags;}save(d);return {ok:true};}
-        case 'taste-quiz': {const data=load(),quiz=input.quiz===null?null:require('./taste-quiz').validate(input.quiz);data.tasteProfile={...data.tasteProfile,quiz};save(data);return {ok:true,taste:publicState(data).taste};}
+        case 'taste-quiz': {if(input.domain&&input.domain!=='film')throw Error('The film quiz belongs to the film profile.');const data=load(),quiz=input.quiz===null?null:require('./taste-quiz').validate(input.quiz);data.tasteProfile={...data.tasteProfile,quiz};save(data);return {ok:true,taste:publicState(data).taste};}
         case 'taste-source-preview': {
-          const data=load(),taste=tasteOf(data),model=require('./media-taste');
+          const data=load(),domain=input.domain||'film',taste=tasteOf(data,domain),model=require('./media-taste');
           if(input.expectedEvidenceRevision!==taste.evidenceRevision)throw Error('Evidence changed. Reopen the source. / Kanıtlar değişti. Kaynağı yeniden açın.');
           const rating=input.kind==='diary-rating',fieldName=rating?'rating':'review';
           if(input.kind!==undefined&&!rating)throw Error('Invalid correction kind. / Geçersiz düzeltme türü.');
-          const matches=(rating?['diary']:['diary','reviews']).flatMap(field=>(data[field]||[]).map((row,index)=>({field,index,row}))).filter(x=>(!x.row.recordState||x.row.recordState==='active')&&(rating?model.diaryRecordId(x.row)===input.recordId:model.reviewId(x.row)===input.reviewId));
+          const matches=(rating?['diary']:['diary','reviews']).flatMap(field=>(data[field]||[]).map((row,index)=>({field,index,row}))).filter(x=>require('./media-domains').domainOf(x.row)===domain&&(!x.row.recordState||x.row.recordState==='active')&&(rating?model.diaryRecordId(x.row)===input.recordId:model.reviewId(x.row)===input.reviewId));
           if(!matches.length)throw Error('Source missing. Reopen the evidence. / Kaynak bulunamadı. Dayanağı yeniden açın.');
           const value=input[fieldName];
           if(rating?value!==null&&(!Number.isFinite(value)||value<0||value>5||value*2%1!==0):typeof value!=='string'||value.length>12000)throw Error('Invalid correction. / Geçersiz düzeltme.');
-          const token=randomUUID();tasteCorrections.set(token,{revision:taste.evidenceRevision,matches,fieldName,value,at:Date.now()});while(tasteCorrections.size>20)tasteCorrections.delete(tasteCorrections.keys().next().value);
+          const token=randomUUID();tasteCorrections.set(token,{domain,revision:taste.evidenceRevision,matches,fieldName,value,at:Date.now()});while(tasteCorrections.size>20)tasteCorrections.delete(tasteCorrections.keys().next().value);
           return {ok:true,token,title:matches[0].row.title,before:matches[0].row[fieldName]??(rating?null:''),after:value};
         }
         case 'taste-source-apply': {
-          const plan=tasteCorrections.get(input.token),data=load();if(!plan||Date.now()-plan.at>300000||tasteOf(data).evidenceRevision!==plan.revision)throw Error('Source changed. Preview again. / Kaynak değişti. Yeniden önizleyin.');
+          const plan=tasteCorrections.get(input.token),data=load();if(!plan||Date.now()-plan.at>300000||tasteOf(data,plan.domain||'film').evidenceRevision!==plan.revision)throw Error('Source changed. Preview again. / Kaynak değişti. Yeniden önizleyin.');
           for(const x of plan.matches)if(JSON.stringify(data[x.field]?.[x.index])!==JSON.stringify(x.row))throw Error('Source changed. Preview again. / Kaynak değişti. Yeniden önizleyin.');
           for(const x of plan.matches)data[x.field][x.index]={...x.row,[plan.fieldName]:plan.value};
-          save(data);tasteCorrections.delete(input.token);return {ok:true,taste:tasteOf(data)};
+          save(data);tasteCorrections.delete(input.token);return {ok:true,taste:tasteOf(data,plan.domain||'film')};
         }
-        case 'taste-profile':return {ok:true,taste:tasteOf(load())};
+        case 'taste-profile':return {ok:true,taste:tasteOf(load(),input.domain||'film')};
         case 'taste-recommendations':{
           if(input.kind!==undefined&&!['film','series'].includes(input.kind)||input.maxDuration!==undefined&&(!Number.isFinite(input.maxDuration)||input.maxDuration<=0||input.maxDuration>1440)||input.limit!==undefined&&(!Number.isInteger(input.limit)||input.limit<1||input.limit>12)||input.exploration!==undefined&&typeof input.exploration!=='boolean')throw Error('Invalid recommendation conditions / Geçersiz öneri koşulları.');
-          const data=load(),items=tasteCatalog(),taste=require('./media-taste').profile(data.diary,items,data.tasteProfile||{},Array.isArray(data.reviews)?data.reviews:[]),recommendations=require('./media-taste').recommend(items,taste,{kind:input.kind,maxDuration:input.maxDuration,limit:input.limit??6,exploration:input.exploration});
+          const data=load(),items=tasteCatalog().filter(r=>require('./media-domains').domainOf(r)===(input.domain||'film')),taste=tasteOf(data,input.domain||'film'),recommendations=require('./media-taste').recommend(items,taste,{kind:input.kind,maxDuration:input.maxDuration,limit:input.limit??6,exploration:input.exploration});
           return {ok:true,recommendations,evidenceRevision:taste.evidenceRevision,preferencesRevision:taste.preferencesRevision,coverage:taste.coverage,preferencesConfigured:taste.preferencesConfigured};
         }
-        case 'taste-preferences': { const data=load();updateTastePreferences(data,input);save(data);return {ok:true,taste:tasteOf(data)}; }
-        case 'taste-analysis': { const data=load();if(input.expectedPreferencesRevision!==undefined&&input.expectedPreferencesRevision!==tasteOf(data).preferencesRevision)throw Object.assign(Error('Priorities changed. Review a new sample. / Öncelikler değişti. Yeni örneği inceleyin.'),{stale:true});if(input.expectedEvidenceRevision!==undefined&&input.expectedEvidenceRevision!==tasteOf(data).evidenceRevision)throw Object.assign(Error('Review evidence changed; prepare a new sample / Yorum kanıtları değişti; yeni bir örnek hazırlayın.'),{stale:true});const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])]);data.tasteProfile={...data.tasteProfile,analysis};save(data);return {ok:true,analysis,taste:tasteOf(data)}; }
+        case 'taste-preferences': { const data=load();updateTastePreferences(data,input);save(data);return {ok:true,taste:tasteOf(data,input.domain||'film')}; }
+        case 'taste-analysis': { const data=load(),domain=input.domain||'film';if(!require('./media-domains').DOMAINS.includes(domain))throw Error('Unknown taste domain.');if(input.expectedPreferencesRevision!==undefined&&input.expectedPreferencesRevision!==tasteOf(data,domain).preferencesRevision)throw Object.assign(Error('Priorities changed. Review a new sample. / Öncelikler değişti. Yeni örneği inceleyin.'),{stale:true});if(input.expectedEvidenceRevision!==undefined&&input.expectedEvidenceRevision!==tasteOf(data,domain).evidenceRevision)throw Object.assign(Error('Review evidence changed; prepare a new sample / Yorum kanıtları değişti; yeni bir örnek hazırlayın.'),{stale:true});const analysis=require('./media-taste').validateAnalysis(input.analysis,[...data.diary,...(Array.isArray(data.reviews)?data.reviews:[])].filter(r=>require('./media-domains').domainOf(r)===domain));if(domain==='film')data.tasteProfile={...data.tasteProfile,analysis};else data.tasteDomains={...data.tasteDomains,[domain]:{...data.tasteDomains?.[domain],analysis}};save(data);return {ok:true,analysis,taste:tasteOf(data,domain)}; }
         default: throw Error('Unsupported media shelf action.');
       }
     } catch (error) { const parts=String(error.message).split(' / ');return { ok: false,...(error.stale?{stale:true}:{}),...(error.sourceChanged?{sourceChanged:true}:{}), error:parts.length>1?(input.locale==='tr'?parts.slice(1).join(' / '):parts[0]):error.message }; }

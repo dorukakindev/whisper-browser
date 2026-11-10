@@ -28,7 +28,7 @@
  }
  async function execute(name,raw,owner,{deadline=Infinity,isCancelled=()=>false,expectedSettings}={}){
   if(!current(owner))throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
-  if(['seek_to_time','open_subtitle_editor','search_subtitles','get_current_subtitle'].includes(name)&&owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track changed. Ask for a new action.','Altyazı izi değişti. Yeni bir işlem isteyin.'));
+  if(['seek_to_time','open_subtitle_editor','search_subtitles','get_current_subtitle','open_voice_preparation'].includes(name)&&owner.subtitleKey!==snapshot().subtitleKey)throw Error(t('The subtitle track changed. Ask for a new action.','Altyazı izi değişti. Yeni bir işlem isteyin.'));
   if(isCancelled()||Date.now()>=deadline)throw Error(t('Application action expired.','Uygulama işleminin süresi doldu.'));
   if(name==='open_research_note'){const result=await window.AssistantResearchNotesUI.reveal(raw.source_id,owner);return result.ok?{status:'completed'}:{status:'failed',error:result.error};}
   if(name==='validate_research_owner')return {status:'completed'};
@@ -128,10 +128,12 @@
   }
   if(name==='open_voice_preparation'){
    const shelf=window.MediaShelfUI?.isPodcastMode?.()?window.MediaShelfUI.readSnapshot():null;
-   const opened=await window.MediaExperience.openVoice({receipt:true});
-   const handoff=opened?.handoff,audio=player.workspaceAudio;
-   const confirmedHandoff=shelf&&opened.from?.mediaKey===shelf.mediaKey&&opened.from?.generation===shelf.generation&&handoff&&audio?.entryId===handoff.entryId&&audio.mediaKey===handoff.mediaKey&&audio.generation===handoff.generation&&player.mediaKey===handoff.mediaKey&&player.generation===handoff.generation&&owner.thread===(window.AssistantWorkspace?.activeId()||'');
-   if(isCancelled()||Date.now()>=deadline||stale()&&!confirmedHandoff)throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
+   const conversation=window.AssistantWorkspace?.key();
+   const cancelled=()=>isCancelled()||Date.now()>=deadline||owner.thread!==(window.AssistantWorkspace?.activeId(conversation)||'');
+   const opened=await window.MediaExperience.openVoice({receipt:true,isCancelled:cancelled});
+   const handoff=opened?.handoff,from=opened?.from,audio=player.workspaceAudio;
+   const confirmedHandoff=shelf&&from&&from.mediaKey===shelf.mediaKey&&from.generation===shelf.generation&&handoff&&audio?.entryId===handoff.entryId&&audio.mediaKey===handoff.mediaKey&&audio.generation===handoff.generation&&player.mediaKey===handoff.mediaKey&&player.generation===handoff.generation&&owner.thread===(window.AssistantWorkspace?.activeId()||'');
+   if(cancelled()||stale()&&!confirmedHandoff)throw Error(t('The source or conversation changed.','Kaynak veya sohbet değişti.'));
    if(opened===false||!document.getElementById('dubGeneratorDialog')?.open)throw Error(t('Voice preparation could not open.','Ses hazırlığı açılamadı.'));
    return {status:'completed',note:t('Voice preparation is open. No audio was generated.','Ses hazırlığı açıldı. Ses üretilmedi.')};
   }

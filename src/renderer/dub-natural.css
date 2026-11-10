@@ -1,6 +1,6 @@
-/* Dublaj stüdyosu — kabuğun ve alt bileşenlerin tek stil sahibi.
+/* Dublaj stüdyosu — ortak kontrol ve alt bileşen stilleri.
    Renk, yazı tipi ve köşe değerleri theme-palette.css / styles.css değişkenlerinden gelir; yeni bağımsız token yoktur.
-   Kompozisyon: başlık + durum çipi → hazırlık şeridi (altyazı · ses · kapsam) → düz bölümler → çalıştırma çubuğu. */
+   Sekmeli çalışma alanı kompozisyonu dub-studio-layout.css tarafından düzenlenir. */
 
 #dubGeneratorDialog.dub-studio {
   --dub-row: color-mix(in srgb, var(--text) 6%, transparent);

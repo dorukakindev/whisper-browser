@@ -229,9 +229,31 @@
 .sh{display:flex;flex-direction:column}
 .sh-top{flex:none}.sh-main{min-height:0}
 /* işlemler çekmecesi */
-.sh-panel{position:absolute;z-index:20;top:62px;right:clamp(12px,2.4vw,40px);bottom:14px;width:min(400px,92%);overflow:auto;padding:16px;border-radius:24px;border:1px solid var(--sh-line2);background:var(--sh-glass2);backdrop-filter:blur(26px) saturate(1.5);box-shadow:0 40px 90px -30px #000;display:grid;align-content:start;gap:16px;animation:sh-in .45s var(--sh-ease) both}
+.sh-panel{position:absolute;z-index:20;top:76px;right:clamp(12px,2.4vw,40px);bottom:20px;width:min(760px,calc(100% - 32px));max-height:660px;overflow:hidden;padding:0;border-radius:20px;border:1px solid var(--sh-line2);background:var(--sh-glass2);backdrop-filter:blur(26px) saturate(1.5);box-shadow:0 40px 90px -30px #000;display:grid;grid-template-rows:auto minmax(0,1fr);align-content:start;gap:0;animation:sh-in .45s var(--sh-ease) both}
 .sh-panel[hidden]{display:none}
 .sh-panel-h{display:flex;align-items:center;justify-content:space-between;font:600 15px var(--sh-display)}
+.sh .sh-panel-h{padding:20px 24px;border-bottom:1px solid var(--sh-line);background:linear-gradient(110deg,color-mix(in srgb,var(--sh-amber) 9%,transparent),transparent 65%);font-size:19px}
+.sh-panel-workspace{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:0;overflow:hidden}
+.sh-panel-nav{display:flex;flex-direction:column;gap:6px;padding:18px 12px;border-inline-end:1px solid var(--sh-line);overflow:auto;background:color-mix(in srgb,var(--sh-bg) 65%,transparent)}
+.sh-panel-nav button{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 12px;border-radius:10px;text-align:start;color:var(--sh-dim);font:500 13px var(--sh-sans);line-height:1.5;transition:background .2s,color .2s,box-shadow .2s}
+.sh-panel-nav button .i{width:14px;flex:none;opacity:.5}
+.sh-panel-nav button:hover{background:color-mix(in srgb,var(--sh-amber) 8%,transparent);color:var(--sh-ink)}
+.sh-panel-nav button[aria-selected=true]{background:linear-gradient(100deg,color-mix(in srgb,var(--sh-amber) 18%,transparent),color-mix(in srgb,var(--sh-amber) 5%,transparent));color:var(--sh-amber);box-shadow:inset 3px 0 var(--sh-amber)}
+.sh-panel-content{overflow:auto;min-width:0;padding:26px;scrollbar-gutter:stable}
+.sh .sh-panel-content .sh-psec{align-content:start;gap:14px;animation:sh-in .25s var(--sh-ease) both}
+.sh .sh-panel-content .sh-psec[hidden]{display:none}
+.sh .sh-panel-content .sh-psec h3{font:600 20px var(--sh-display);letter-spacing:-.02em;text-transform:none;color:var(--sh-ink);margin-bottom:12px}
+.sh .sh-panel-content .sh-pbtn{padding:15px 16px;min-height:50px;border-radius:10px;background:color-mix(in srgb,var(--sh-ink) 4%,transparent)}
+.sh .sh-panel-content .sh-pbtn.pri{color:var(--sh-amber-ink);background:linear-gradient(135deg,color-mix(in srgb,var(--sh-amber) 92%,white),var(--sh-amber));box-shadow:0 8px 24px -16px var(--sh-amber)}
+.sh .sh-panel-content .sh-psec{padding:0;border-bottom:0}
+.sh .sh-panel-content .sh-pbtn small{font-size:12px;line-height:1.55}
+@media(max-width:760px){
+ .sh .sh-panel{top:70px;right:12px;bottom:12px;width:calc(100% - 24px);max-height:none}
+ .sh-panel-workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+ .sh-panel-nav{flex-direction:row;overflow-x:auto;border-inline-end:0;border-bottom:1px solid var(--sh-line);padding:10px;gap:8px}
+ .sh-panel-nav button{flex:0 0 auto;padding:10px 12px}.sh-panel-nav button .i{display:none}
+ .sh-panel-content{padding:20px}
+}
 .sh-psec{display:grid;gap:8px}.sh-psec h3{margin:0;font:600 11px var(--sh-sans);letter-spacing:.2em;text-transform:uppercase;color:var(--sh-mute)}
 .sh-psel{display:grid;gap:5px;font-size:12px;color:var(--sh-dim)}.sh-psel select{height:38px;padding:0 10px;border-radius:12px;border:1px solid var(--sh-line2);background:rgba(255,255,255,.05);color:var(--sh-ink);font:inherit}
 .sh-psel select option{background:#16181d;color:#f4f2ed}
@@ -455,3 +477,23 @@ html[data-cinema-motion=off] .sh-workbar .sh-btn[aria-busy=true]::after,html[dat
 /* The recovery message owns the row; a pending action stays readable and distinct from an unavailable control. */
 .sh .sh-recovery>span{flex:1;min-width:0;overflow-wrap:anywhere}
 .sh .sh-recovery[aria-busy=true] .sh-chip,.sh .sh-job .sh-chip[aria-busy=true]{opacity:1;color:var(--sh-amber);border-color:var(--sh-line2);cursor:progress}
+
+/* One truthful progress surface for all three player compositions. */
+.sh .sh-job[data-r=job]{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:10px 18px;padding:16px 20px;margin-block:10px;border-radius:14px;background:linear-gradient(115deg,color-mix(in srgb,var(--sh-amber) 12%,var(--sh-bg)),var(--sh-glass2) 70%);box-shadow:0 12px 30px -22px var(--sh-amber),inset 0 1px color-mix(in srgb,var(--sh-ink) 6%,transparent)}
+.sh .sh-job[data-r=job][hidden]{display:none}
+.sh .sh-job[data-r=job] .sh-job-t{grid-column:2;grid-row:1;font-size:14px}
+.sh .sh-job[data-r=job] .sh-job-state{grid-column:1;grid-row:1;border:0;padding:0;display:flex;align-items:center;gap:9px;font-size:13px}
+.sh .sh-job[data-state=running] .sh-job-state::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--sh-amber);box-shadow:0 0 14px var(--sh-amber);animation:sh-status-pulse 1.8s ease-in-out infinite}
+.sh .sh-job[data-r=job] .sh-job-percent{grid-column:3;grid-row:1;color:var(--sh-amber);font:600 24px var(--sh-display);font-variant-numeric:tabular-nums}
+.sh .sh-job[data-r=job] .sh-job-bar{grid-column:1/-1;grid-row:2;width:100%;height:7px;flex:auto;background:color-mix(in srgb,var(--sh-ink) 10%,transparent)}
+.sh .sh-job[data-r=job] .sh-job-bar i{position:relative;background:linear-gradient(90deg,var(--sh-amber),color-mix(in srgb,var(--sh-amber) 65%,white));box-shadow:0 0 16px color-mix(in srgb,var(--sh-amber) 65%,transparent)}
+.sh .sh-job[data-state=running] .sh-job-bar:not(.ind) i::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 10%,rgba(255,255,255,.6),transparent 85%);animation:sh-progress-sheen 2s ease-in-out infinite}
+.sh .sh-job[data-r=job] .sh-chip{grid-row:1;justify-self:end}
+.sh .sh-job[data-r=job] [data-a=jobcancel]{grid-column:4}
+.sh .sh-job[data-r=job] [data-a=jobretry]{grid-column:5}
+.sh .sh-job[data-state=failed]{background:color-mix(in srgb,var(--danger,#d06b63) 12%,var(--sh-bg))}
+@keyframes sh-progress-sheen{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+@keyframes sh-status-pulse{50%{opacity:.45;box-shadow:0 0 4px var(--sh-amber)}}
+@media(max-width:760px){.sh .sh-job[data-r=job]{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:12px}.sh .sh-job[data-r=job] .sh-job-state{grid-column:1/3}.sh .sh-job[data-r=job] .sh-job-t{grid-column:1/-1;grid-row:2}.sh .sh-job[data-r=job] .sh-job-bar{grid-row:3}.sh .sh-job[data-r=job] .sh-chip{grid-row:4}.sh .sh-job[data-r=job] [data-a=jobcancel]{grid-column:2}.sh .sh-job[data-r=job] [data-a=jobretry]{grid-column:3}.sh .sh-job[data-r=job] .sh-job-percent{grid-column:3;grid-row:1}}
+html[data-cinema-motion=off] .sh .sh-job ::before,html[data-cinema-motion=off] .sh .sh-job ::after,html[data-cinema-motion=reduced] .sh .sh-job ::before,html[data-cinema-motion=reduced] .sh .sh-job ::after,html[data-media-window-inactive=true] .sh .sh-job ::before,html[data-media-window-inactive=true] .sh .sh-job ::after{animation:none}
+@media(prefers-reduced-motion:reduce){.sh .sh-job ::before,.sh .sh-job ::after{animation:none}}

@@ -54,7 +54,7 @@ function panel(w,svc){
   dubRuns:async request=>clone(await svc.call('dub:runs',clone(request))),onDubEvent:callback=>svc.on(callback),startDub:async request=>svc.call('dub:start',clone(request)),cancelDub:async()=>({ok:true})};
  el('dubGeneratorDialog').showModal=()=>{el('dubGeneratorDialog').open=true;};
  win.DubRunInfo=require('../src/renderer/dub-run-info');
- win.eval(read('dub-generator-ui.js')+'\n;0');win.eval(read('dub-runs-ui.js')+'\n;0');win.eval(read('assistant-voice-runs.js')+'\n;0');
+ win.eval(read('dub-studio-layout.js'));win.eval(read('dub-generator-ui.js')+'\n;0');win.eval(read('dub-runs-ui.js')+'\n;0');win.eval(read('assistant-voice-runs.js')+'\n;0');
  const section=el('dubRuns');
  return {win,el,state,hold,section,
   open:async()=>{el('playerDubGenerate').click();await settle();section.open=true;section.dispatchEvent(new win.Event('toggle'));await settle();},
@@ -75,6 +75,8 @@ test('REAL BRIDGE: a bound completed run is loaded into the matching section thr
   assert.equal(p.shown(),false);await p.click('Bu bölüme yükle');
   assert.deepEqual(p.state.latest.at(-1).id,'run-a');assert.equal(p.state.latest.at(-1).source,'media-A');assert.equal(p.state.latest.at(-1).srt,w.srt);
   assert.equal(p.shown(),true,'the real generator shows the loaded output');assert.match(p.audio().getAttribute('src'),/run-a\.wav$/);
+  assert.equal(p.el('dubRepairNotice').hidden,false,'saved output explains why a single group cannot yet be regenerated in this session');
+  assert.match(p.el('dubEditSelected').textContent,/Metni düzenle/);
   assert.equal(p.audio().autoplay,false);assert.equal(p.audio().paused,true,'nothing plays');assert.equal(w.spawns.length,spawns,'loading starts no production');
   assert.match(p.text(),/çalmaya başlamadı/);
   // the loaded result is usable through the existing application path (the same button, the same attach function)
@@ -181,4 +183,20 @@ test('CHAIN B (real DOM → real generator + runs UI → real handlers): recent 
   assert.equal(p.row(retry.id).dataset.state,'completed','the real state moved from running to completed');assert.equal(p.row('run-fail').dataset.state,'failed','the earlier failed record is unchanged');
   p.close_();
  }finally{w.close();}
+});
+
+
+test('saved result prepares a real plan after restart and regenerates only the selected edited group',async()=>{
+ const w=world();let p;try{
+  const first=w.boot();await first.call('dub:start',{...w.request('edit-result'),source:'media-A',grouping:'satir'});
+  const worker=w.spawns.at(-1),file=outputOf(worker),row={key:'1',group:1,text:'Original sentence.',sourceStart:0,sourceEnd:2,audioStart:0,audioEnd:2,status:'ready',verification:{status:'not_checked'}};
+  fs.writeFileSync(file,wav(2));fs.writeFileSync(file.replace(/\.wav$/,'.quality.json'),JSON.stringify({version:1,groups:[row]}));worker.proc.exitCode=0;worker.proc.emit('close',0);
+  const svc=w.boot();p=panel(w,svc);p.state.source='media-A';await p.open();await p.chooseSubtitle();await p.select('edit-result');await p.click('Bu b\u00f6l\u00fcme y\u00fckle');
+  p.win.api.planDub=async request=>{const before=w.spawns.length,promise=svc.call('dub:plan',clone(request));for(let i=0;i<50&&w.spawns.length===before;i++)await tick(5);const planner=w.spawns.at(-1);planner.proc.stdout.emit('data',JSON.stringify({sourceHash:require('./dub-run-world').sha('fixture'),groups:[{key:'1',text:row.text,start:0,end:2000,seconds:2}]}));planner.proc.emit('close',0);return clone(await promise);};
+  const before=w.spawns.length;await tick(350);p.el('dubEditSelected').click();await settle();await settle();
+  assert.equal(p.win.DubGeneratorUI.takeContext().recipeReady,true,JSON.stringify({details:p.el('dubGeneratorDetails').textContent,status:p.el('dubGeneratorStatus').textContent,disabled:p.el('dubEditSelected').disabled,spawns:w.spawns.length}));assert.equal(p.el('dubPlanText').value,row.text);assert.equal(w.spawns.length,before+1,'preparation starts only the model-free planner');
+  p.el('dubPlanText').value='Edited sentence.';p.el('dubPlanText').dispatchEvent(new p.win.Event('input'));p.el('dubSaveRegenerate').click();await settle();
+  assert.equal(w.spawns.length,before+2);const retry=w.spawns.at(-1);assert.equal(retry.args[retry.args.indexOf('--force-groups')+1],'1');assert.deepEqual(JSON.parse(fs.readFileSync(retry.args[retry.args.indexOf('--dub-text')+1],'utf8')).edits,{'1':'Edited sentence.'});
+  retry.proc.exitCode=1;retry.proc.emit('close',1);await settle();assert.equal(fs.existsSync(file),true,'the saved output survives a failed correction');
+ }finally{p?.close_();w.close();}
 });
