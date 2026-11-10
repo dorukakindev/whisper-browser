@@ -20,16 +20,29 @@ function parseMal(buffer,source='XML'){
   rows.push({id:'mal:'+kind+':'+id,provider:'myanimelist',providerId:id,kind,domain:kind,title:title.slice(0,500),format:(row.series_type||'').slice(0,60),status:state,rating:score||null,progress:count(kind==='anime'?'my_watched_episodes':'my_read_chapters'),total:count(kind==='anime'?'series_episodes':'manga_chapters'),volumes:count('my_read_volumes'),totalVolumes:count('manga_volumes'),startDate:date(row.my_start_date),finishDate:date(row.my_finish_date),note:(row.my_comments||'').slice(0,4000),tags:(row.my_tags||'').slice(0,2000),source:String(source).slice(0,200)});row=null;
  }stack.pop();text='';});parser.write(xml).close();if(!root||!rows.length||rows.length>10000)throw Error('Empty or oversized MAL list.');return rows;
 }
+function ratingOf(row){const value=row.rating;if(value==null||typeof value!=='number'&&typeof value!=='string'||String(value).trim()==='')return null;const score=Number(value);if(!Number.isFinite(score)||score<0||score>10)return null;if(score===0&&!row.ratedAt&&(row.provider==='myanimelist'||String(row.id||'').startsWith('mal:')))return null;return score;}
 function read(root){const file=path.join(root,'personal-collection.json');if(!fs.existsSync(file))return {version:1,rows:[]};if(fs.statSync(file).size>16000000)throw Error('Personal collection exceeds 16 MB.');const d=JSON.parse(fs.readFileSync(file,'utf8'));if(d.version!==1||!Array.isArray(d.rows)||d.rows.length>10000)throw Error('Invalid personal collection; original preserved.');return d;}
-function write(root,data){const json=JSON.stringify(data);if(data.rows.length>10000||Buffer.byteLength(json)>16000000)throw Error('Personal collection limit exceeded.');fs.mkdirSync(root,{recursive:true});atomicWriteFileSync(path.join(root,'personal-collection.json'),json);}
+function stamp(data,previous){
+ const oldRows=new Map(previous.rows.map(r=>[r.id,r]));
+ for(const row of data.rows){const old=oldRows.get(row.id),versions={...(old?._fieldVersions||{}),...(row._fieldVersions||{})};for(const k of new Set([...Object.keys(old||{}),...Object.keys(row)])){if(k==='_fieldVersions')continue;if(hash([old?.[k]])!==hash([row[k]]))versions[k]=Math.max(versions[k]||0,(old?._fieldVersions?.[k]||0)+1);}row._fieldVersions=versions;}
+ return data;
+}
+function write(root,data){stamp(data,read(root));const json=JSON.stringify(data);if(data.rows.length>10000||Buffer.byteLength(json)>16000000)throw Error('Personal collection limit exceeded.');fs.mkdirSync(root,{recursive:true});atomicWriteFileSync(path.join(root,'personal-collection.json'),json);}
+function target(rows,r){return (Number(r.providerId)>0?rows.find(old=>old.domain===r.domain&&old.providerId===r.providerId):null)||rows.find(old=>old.id===r.id&&(!old.identityHistory?.length||old.providerId===r.providerId));}
+function merged(old,r,now){
+ const variant={...r};delete variant.variants;
+ if(!old)return {...r,importedAt:now,variants:[variant]};
+ const variants=[...(old.variants||[])];if(!variants.some(v=>hash(v)===hash(variant)))variants.push(variant);
+ return {...r,...old,rating:old.rating==null&&!old.ratedAt?r.rating:old.rating,total:old.total||r.total,totalVolumes:old.totalVolumes||r.totalVolumes,format:old.format||r.format,startDate:old.startDate||r.startDate,finishDate:old.finishDate||r.finishDate,variants:variants.slice(-12)};
+}
 function merge(root,incoming,now=Date.now()){
  const d=read(root),map=new Map(d.rows.map(r=>[r.id,r]));let added=0,updated=0,conflicts=0;
- for(const r of incoming){const old=map.get(r.id),variant={...r};delete variant.variants;
+ for(const r of incoming){const old=target([...map.values()],r),variant={...r};delete variant.variants;
+  if(!old&&map.has(r.id))throw Error('Source identity was corrected; review this import. / Kaynak kimliği düzeltildi; aktarımı incele.');
   if(!old){map.set(r.id,{...r,importedAt:now,variants:[variant]});added++;continue;}
-  const variants=[...(old.variants||[])];if(!variants.some(v=>hash(v)===hash(variant)))variants.push(variant);
   const mismatch=['rating','status','progress'].some(k=>old[k]!==r[k]);if(mismatch)conflicts++;
   // First source/current user edit owns conflicting values. Fill only absent metadata.
-  map.set(r.id,{...r,...old,rating:old.rating==null&&!old.ratedAt?r.rating:old.rating,total:old.total||r.total,totalVolumes:old.totalVolumes||r.totalVolumes,format:old.format||r.format,startDate:old.startDate||r.startDate,finishDate:old.finishDate||r.finishDate,variants:variants.slice(-12)});updated++;
+  map.set(old.id,merged(old,r,now));updated++;
  }
  d.rows=[...map.values()];write(root,d);return {added,updated,conflicts,total:d.rows.length};
 }
@@ -43,7 +56,31 @@ function save(root,input,now=Date.now()){
  for(const key of ['status','rating','progress'])if(Object.hasOwn(p,key))row.activity=require('./personal-history').append(row.activity,key,row[key],p[key],now);
  if(p.kind&&p.kind!==row.kind)row.kindEditedAt=now;
  if(p.status&&p.status!==row.status){row.statusMarkedAt=now;if(p.status==='completed')row.completedMarkedAt=now;}
- if(Object.hasOwn(p,'rating')&&p.rating!==row.rating)row.ratedAt=now;
+ if(Object.hasOwn(p,'rating')&&(p.rating!==row.rating||p.rating===0&&ratingOf(row)===null))row.ratedAt=now;
+ row._fieldVersions={...(row._fieldVersions||{})};for(const key of Object.keys(p))row._fieldVersions[key]=(row._fieldVersions[key]||0)+1;
  Object.assign(row,p,{updatedAt:now});write(root,d);return row;
 }
-module.exports={parseMal,read,write,merge,save,hash,STATUSES};
+// Personal identity is stable: correcting a provider link must not orphan notes/network refs.
+const identityKeys=['provider','providerId','metadata','metadataOverrides'];
+function relink(root,{id,revision,candidate,undo=false},now=Date.now()){
+ const d=read(root),row=d.rows.find(r=>r.id===id);
+ if(!row||hash(row)!==revision)throw Error('Title changed; reload. / Kayıt değişti; yenile.');
+ const history=row.identityHistory||[];
+ if(undo){
+  if(Object.values(row.metadataOverrides||{}).some(v=>!v.unlocked))throw Error('Personal metadata corrections exist; allow source replacement before undoing identity. / Kişisel metadata düzeltmeleri var; kimliği geri almadan önce kaynak değişimine izin ver.');
+  const last=history.at(-1);if(!last)throw Error('No identity change to undo. / Geri alınacak eşleşme yok.');
+  if(d.rows.some(r=>r.id!==id&&r.domain===row.domain&&r.providerId===last.before.providerId))throw Error('Identity already exists. / Kimlik zaten kayıtlı.');
+  for(const k of identityKeys){if(Object.hasOwn(last.before,k))row[k]=last.before[k];else delete row[k];}
+  row.identityHistory=history.slice(0,-1);
+ }else{
+  if(!candidate||candidate.domain!==row.domain||!['anime','manga'].includes(row.domain)||!/^\d{1,10}$/.test(candidate.providerId)||Number(candidate.providerId)<1||candidate.metadata?.malId!==candidate.providerId||candidate.metadata?.domain!==row.domain)throw Error('Choose a verified identity. / Doğrulanmış kimlik seç.');
+  if(d.rows.some(r=>r.id!==id&&r.domain===row.domain&&r.providerId===candidate.providerId))throw Error('Identity already exists; records were preserved. / Kimlik zaten kayıtlı; kayıtlar korundu.');
+  if(row.providerId===candidate.providerId)throw Error('Already linked. / Zaten eşleşmiş.');
+  if(history.length>=20)throw Error('Identity history limit. / Eşleşme geçmişi sınırı.');
+  const before=Object.fromEntries(identityKeys.filter(k=>Object.hasOwn(row,k)).map(k=>[k,row[k]]));
+  row.identityHistory=[...history,{before,after:candidate.providerId,at:now}];
+  row.provider='myanimelist';row.providerId=candidate.providerId;row.metadata=candidate.metadata;delete row.metadataOverrides;
+ }
+ write(root,d);return row;
+}
+module.exports={parseMal,read,write,merge,save,hash,STATUSES,ratingOf,relink,target,merged,stamp};

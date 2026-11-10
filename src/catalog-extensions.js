@@ -28,7 +28,8 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const providerId=await client.resolve(current,credential,{automatic:context.automatic===true,signal});
         if(JSON.stringify(item())!==JSON.stringify(current))throw new Error('Yapım bilgileri değişti; yeniden başlatın.');
         const preview=await handle(event,{action:'metadata-preview',id:current.id,providerId,credential},context);
-        const fields=['synopsis','genres','cast','runtime','originalTitle','originalLanguage','productionCountries','directorIds','directorPeople','directorsTruncated','year','imdbId','directors','tagline','backdrop','tmdbRating','tmdbVotes'].filter(key=>Array.isArray(current[key])?!current[key].length:!current[key]);if(!hasPoster)fields.push('poster');
+        const protectedFields=new Set(require('./metadata-evidence').fieldsOf(current,'catalog').filter(f=>f.protected).map(f=>f.key));
+        const fields=['synopsis','genres','cast','runtime','originalTitle','originalLanguage','productionCountries','directorIds','directorPeople','directorsTruncated','year','imdbId','directors','tagline','backdrop','tmdbRating','tmdbVotes'].filter(key=>Array.isArray(current[key])?!current[key].length:!current[key]);for(let i=fields.length-1;i>=0;i--)if(protectedFields.has(fields[i]))fields.splice(i,1);if(!hasPoster&&!protectedFields.has('posterPath'))fields.push('poster');
         return handle(event,{action:'metadata-apply',token:preview.token,fields},context);
       }
       case 'folder-preview': {
@@ -68,6 +69,15 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const data=await client.detail({kind:input.kind},input.providerId,metadataSettings().apiKey,signal);existing=find();
         return {ok:true,item:visible(existing||store().upsert({...data.patch,kind:input.kind,watchStatus:'planned'})),existing:!!existing};
       }
+      case 'metadata-evidence': return {ok:true,...require('./metadata-evidence').report(item(),'catalog')};
+      case 'metadata-refresh-preview': {
+        const current=item(),match=/^(movie|tv):([1-9]\d*)$/.exec(current.tmdbId||'');if(!match||match[1]!==(current.kind==='series'?'tv':'movie'))throw Error('Match a TMDB identity first. / Önce TMDB kimliği eşleştir.');
+        const data=await client.detail(current,Number(match[2]),metadataSettings().apiKey,signal),E=require('./metadata-evidence');
+        if(!data.identityConfirmed||data.patch.tmdbId!==current.tmdbId||current.imdbId&&data.patch.imdbId!==current.imdbId)throw Error('Provider identity mismatch. / Sağlayıcı kimliği uyuşmuyor.');
+        if(JSON.stringify(item())!==JSON.stringify(current))throw Error('Title changed; preview again. / Kayıt değişti; yeniden önizle.');
+        const fields=E.fieldsOf(current,'catalog').filter(f=>f.key!=='posterPath'&&Object.hasOwn(data.patch,f.key)&&E.digest(f.value)!==E.digest(data.patch[f.key]??null)).map(f=>({...f,incoming:data.patch[f.key]??null,defaultSource:!f.protected&&E.missing(f.value)}));
+        return {ok:true,fields,evidence:data.evidence,token:remember(event,{type:'metadata',id:current.id,before:JSON.stringify(current),...data,controlled:true,allowed:fields.filter(f=>!f.protected).map(f=>f.key)})};
+      }
       case 'metadata-search': return { ok: true, results: await client.search(item(), (input.credential||metadataSettings().apiKey), input.query) };
       case 'metadata-preview': {
         const current = item(), data = await client.detail(current, Number(input.providerId), (input.credential||metadataSettings().apiKey),signal);
@@ -77,6 +87,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         const data = take(event, input.token, 'metadata'), current = store().get(data.id);
         if (JSON.stringify(current) !== data.before) throw new Error('Eser önizleme sırasında değişti; yeniden eşleştirin.');
         const fields = Array.isArray(input.fields) ? input.fields : [];
+        if(data.controlled&&(!Array.isArray(input.fields)||new Set(fields).size!==fields.length||fields.some(k=>!data.allowed.includes(k))))throw Error('Choose unprotected preview fields. / Korunmayan önizleme alanlarını seç.');
         const patch = { id: current.id, tmdbId: data.patch.tmdbId };
         const locks = new Set(current.fieldLocks||[]);
         const replacing=!!current.tmdbId&&current.tmdbId!==data.patch.tmdbId;
@@ -100,6 +111,12 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           signal?.throwIfAborted();
           if (JSON.stringify(store().get(data.id)) !== data.before) throw new Error('Eser değişti; yeniden önizleyin.');
           const previousPoster = current.posterPath;
+          const E=require('./metadata-evidence'),evidence=E.clean(current.metadataEvidence);if(replacing)evidence.fields={};
+          if(data.controlled)for(const f of E.fieldsOf(current,'catalog'))if(!f.protected&&data.evidence?.fields?.[f.key]&&E.digest(current[f.key])===E.digest(data.patch[f.key]))evidence.fields[f.key]=data.evidence.fields[f.key];
+          for(const key of Object.keys(patch))if(E.catalogFields.includes(key)&&data.evidence?.fields?.[key])evidence.fields[key]=data.evidence.fields[key];
+          if(patch.posterPath)evidence.fields.posterPath={provider:'tmdb',identity:data.patch.tmdbId,at:Date.now(),valueHash:E.digest(patch.posterPath)};
+          if(data.evidence?.pair)evidence.pair=data.evidence.pair;else if(replacing)evidence.pair=null;
+          patch.metadataEvidence=evidence;
           const saved = store().upsert(patch);
           if ((patch.posterPath || replacing) && previousPoster && previousPoster !== patch.posterPath) removeOwnedPoster(previousPoster);
           previews.delete(input.token); return { ok: true, item: visible(saved) };
