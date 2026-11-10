@@ -101,6 +101,17 @@ function repairFile({file,bytes,directory,prepare=false,expectedHash,allowMixed=
   require('./fsync-utils').atomicWriteFileSync(result.translationPath+'.meta.json',JSON.stringify(staged)+'\n');
   result.forSpeech=raw.forSpeech;
  }
- return {...info,...result};
+ return {...info,...result,repairInputProof:{source:hash(fs.readFileSync(result.sourcePath)),translation:hash(fs.readFileSync(result.translationPath)),metadata:hash(fs.readFileSync(result.translationPath+'.meta.json'))}};
 }
-module.exports={readOutputRecovery,validate,coverage,recoveryInfo,materialize,repairFile};
+// Called only after both subtitle paths have been authorized by main.
+function verifyRepairInputs(options){
+ const proof=options.repairInputProof;
+ if(proof===undefined)return;
+ const invalid=()=>{throw Error('Approved repair files changed; review again / Onaylanan onarım dosyaları değişti; yeniden inceleyin.');};
+ if(options.translateOnly!==true||options.translateRetryOnly!==true||!proof||typeof proof!=='object'||Array.isArray(proof))invalid();
+ for(const [key,file]of [['source',options.input],['translation',options.translateExisting],['metadata',typeof options.translateExisting==='string'?options.translateExisting+'.meta.json':null]]){
+  if(typeof proof[key]!=='string'||!/^[a-f0-9]{64}$/.test(proof[key])||typeof file!=='string')invalid();
+  try{const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>32*1024*1024||hash(fs.readFileSync(file))!==proof[key])invalid();}catch{invalid();}
+ }
+}
+module.exports={readOutputRecovery,validate,coverage,recoveryInfo,materialize,repairFile,verifyRepairInputs};

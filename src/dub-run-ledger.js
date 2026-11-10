@@ -10,7 +10,7 @@
 const fs=require('node:fs'),path=require('node:path');
 const {randomBytes,createHash}=require('node:crypto');
 const {atomicWriteFileSync}=require('./fsync-utils');
-const {inspectVoiceOutput}=require('./voice-output');
+const {inspectVoiceOutput,voiceOutputIdentity,matchesVoiceOutput,voiceOutputIdentityAsync,matchesVoiceOutputAsync}=require('./voice-output');
 
 const ID=/^[a-zA-Z0-9-]{1,80}$/;
 const ENUMS={profile:['fast','quality'],verification:['fast','balanced','detailed'],timingMode:['clip','video'],grouping:['akici','anlatim','cumle','satir'],
@@ -59,6 +59,7 @@ function pinOptions(raw={}){
  // A versioned locator is kept only if it validates; an unusable one is dropped here, never repaired or guessed.
  if(raw.sourceLocator){const found=locators.clean(raw.sourceLocator);if(found.state==='ok')out.sourceLocator=found.locator;}
  if(/^[a-f0-9]{64}$/.test(raw.subtitleHash||''))out.subtitleHash=raw.subtitleHash;
+ if(/^[a-f0-9]{64}$/.test(raw.dubTextHash||''))out.dubTextHash=raw.dubTextHash;
  if(typeof raw.referenceFingerprint==='string'&&raw.referenceFingerprint.length<=200)out.referenceFingerprint=sha(raw.referenceFingerprint);
  if(typeof raw.referenceName==='string')out.referenceName=raw.referenceName.slice(0,120);
  if(Array.isArray(raw.pronunciations))out.pronunciations=raw.pronunciations.slice(0,200).filter(row=>row&&typeof row.from==='string'&&typeof row.to==='string').map(row=>({from:row.from.slice(0,120),to:row.to.slice(0,120)}));
@@ -116,9 +117,11 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
  }
 
  // ---- reading: classification never writes ----
- function outputInfo(id){
+ function outputInfo(id,expected=null){
   const file=path.join(outputDir,id+'.wav');
-  try{const stat=fs.lstatSync(file);if(!stat.isFile())return {state:'missing',file};const info=inspectVoiceOutput(file);return info?{state:'valid',file,seconds:Math.round(info.seconds*10)/10,size:stat.size}:{state:'invalid',file,size:stat.size};}
+  try{const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink())return {state:'invalid',file};const info=inspectVoiceOutput(file);
+    if(info&&expected&&(expected.version!==1||!/^[a-f0-9]{64}$/.test(expected.sha256||'')||((stat.size!==expected.size||stat.mtimeMs!==expected.mtimeMs)&&!matchesVoiceOutput(file,expected))))return {state:'changed',file,size:stat.size};
+    return info?{state:'valid',file,seconds:Math.round(info.seconds*10)/10,size:stat.size}:{state:'invalid',file,size:stat.size};}
   catch(_){return {state:'missing',file};}
  }
  function liveness(summary,activeRunId){
@@ -133,7 +136,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
   return {state:'uncertain',reason:'heartbeat-stale'};
  }
  function describe(summary,file,activeRunId){
-  const id=summary.id,out=outputInfo(id),pinned=summary.pinned||null;
+  const id=summary.id,out=outputInfo(id,summary.outputIdentity),pinned=summary.pinned||null;
   let state,reason=null,recoverable=false;
   const result=summary.result;
   if(result==='done'){
@@ -142,6 +145,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
    const exitError=(Number.isFinite(summary.exitCode)&&summary.exitCode!==0)||(typeof summary.exitSignal==='string'&&summary.exitSignal!=='');
    state=out.state!=='valid'?'output-missing':failed||summary.qualityIncomplete===true||exitError?'partial':'completed';
    if(state==='partial'&&exitError)reason='exit-after-complete';
+   if(out.state!=='valid')reason=out.state==='changed'?'output-changed':out.state==='invalid'?'invalid-audio':'output-missing';
   }else if(result==='cancelled')state='cancelled';
   else if(result==='error')state='failed';
   else if(result==='running'){const live=liveness(summary,activeRunId);state=live.state;reason=live.reason||null;}
@@ -156,6 +160,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
   return {id,label:typeof summary.label==='string'?summary.label:'',state,reason:reason?{code:reason}:null,startedAt:summary.startedAt||null,finishedAt:summary.finishedAt||null,
    elapsedSeconds:Number.isFinite(summary.elapsedSeconds)?summary.elapsedSeconds:null,sample:summary.sample===true,attempt:summary.attempt||1,retryOf:summary.retryOf||null,
    recovered:summary.recovered===true,output:{state:out.state,seconds:out.seconds??null,size:out.size??null},unconfirmedOutput:!recoverable&&out.state==='valid'&&['interrupted','uncertain'].includes(state),
+   restorable:result==='done'&&out.state==='missing'&&summary.outputIdentity?.version===1&&/^[a-f0-9]{64}$/.test(summary.outputIdentity.sha256||''),
    recoverable,retryable,pinned:safeView(pinned),legacy:!pinned,source:locators.view(pinned?.sourceLocator,typeof pinned?.sourceIdentity==='string'),error:result==='error'?String(summary.error||'').slice(0,300):null};
  }
  function list({activeRunId=null,limit=30}={}){
@@ -188,11 +193,13 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
  // ---- detail: everything the panel may say about one run, read-only ----
  function detail(id,{activeRunId=null}={}){
   const found=find(id);if(!found)return {ok:false,code:'unknown-run',error:REASONS['unknown-run']};
-  const row=describe(found.summary,found.file,activeRunId),s=found.summary,out=outputInfo(id),pinned=s.pinned||null;
+  const row=describe(found.summary,found.file,activeRunId),s=found.summary,out=outputInfo(id,s.outputIdentity),pinned=s.pinned||null;
   const why=[];
   if(row.recoverable)why.push({code:'completion-evidence',text:text('The worker reported that it finished, and the audio file passes the WAV check ('+(out.seconds??'?')+' s).','İşçi bittiğini bildirdi ve ses dosyası WAV denetimini geçiyor ('+(out.seconds??'?')+' sn).')});
   if(row.unconfirmedOutput)why.push({code:'no-evidence',text:text('An audio file exists, but nothing proves the worker finished writing it; it may be incomplete.','Bir ses dosyası var ama işçinin yazmayı bitirdiğini gösteren kanıt yok; yarım olabilir.')});
   if(out.state==='invalid')why.push({code:'invalid-audio',text:text('The audio file is truncated or not a valid WAV; it is not treated as a result.','Ses dosyası kesik veya geçerli WAV değil; sonuç sayılmaz.')});
+  if(out.state==='missing')why.push({code:'output-missing',text:text('The saved WAV is not at its recorded location. The production record is kept.','Kayıtlı WAV beklenen konumda yok. Üretim kaydı korunuyor.')});
+  if(out.state==='changed')why.push({code:'output-changed',text:text('The WAV differs from the saved output identity. It cannot be used as this production.','WAV kayıtlı çıktı kimliğinden farklı. Bu üretimin sonucu olarak kullanılamaz.')});
   if(row.reason?.code==='exit-after-complete')why.push({code:'exit-after-complete',text:text('The worker reported completion but then exited with an error code. The audio passes the WAV check and was kept; treat quality as unverified.','İşçi tamamlandığını bildirdi ama sonra hata koduyla kapandı. Ses WAV denetimini geçiyor ve korundu; kaliteyi doğrulanmamış say.')});
   if(row.reason?.code==='heartbeat-stale')why.push({code:'heartbeat',text:text('The app instance that started this run still has a process, but stopped reporting; it may be paused or the process id may belong to something else.','Bu işi başlatan uygulama örneğinin süreci var ama bildirim durdu; duraklatılmış olabilir veya süreç kimliği başka bir şeye ait olabilir.')});
   if(row.reason?.code==='legacy-record')why.push({code:'legacy',text:REASONS['legacy-record']});
@@ -206,7 +213,8 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
  // Re-verifies the file at the moment of opening (the list may be older): a changed or deleted file is an explicit, explained error.
  function review(id,{activeRunId=null}={}){
   const found=find(id);if(!found)return {ok:false,code:'unknown-run',error:REASONS['unknown-run']};
-  const row=describe(found.summary,found.file,activeRunId),out=outputInfo(id);
+  const row=describe(found.summary,found.file,activeRunId),out=outputInfo(id,found.summary.outputIdentity);
+  if(found.summary.outputIdentity&&!matchesVoiceOutput(out.file,found.summary.outputIdentity))return {ok:false,code:'output-changed',error:REASONS['output-changed'],next:NEXT['output-changed'],state:out.state};
   if(out.state!=='valid')return {ok:false,code:'output-changed',error:REASONS['output-changed'],next:NEXT['output-changed'],state:out.state};
   if(['running','running-elsewhere'].includes(row.state))return {ok:false,code:'not-retryable',error:text('The run is still active; its audio may still be written.','İş hâlâ etkin; ses hâlâ yazılıyor olabilir.')};
   const s=found.summary,bound=!!(s.pinned?.subtitleHash&&['completed','partial'].includes(row.state));
@@ -226,7 +234,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
   const s=found.summary;
   const recovered={...Object.fromEntries(['version','instanceId','pid','pinned','retryOf','attempt','startedAt','sample','label'].filter(key=>s[key]!==undefined).map(key=>[key,s[key]])),
    id,result:'done',recovered:true,finishedAt:new Date(now()).toISOString(),path:out.file,name:path.basename(out.file),sourceIdentity:s.pinned?.sourceIdentity||null,subtitleHash:s.pinned?.subtitleHash||null,
-   range:s.pinned?.range||null,settings:s.pinned?safeView(s.pinned):null,sync,qualityUnavailable:true,previousResult:s.result};
+   range:s.pinned?.range||null,settings:s.pinned?safeView(s.pinned):null,sync,qualityUnavailable:true,previousResult:s.result,outputIdentity:voiceOutputIdentity(out.file)};
   // Atomic replace of the one record; the previous terminal record (if any) is kept under previousResult only.
   writeJson(found.file,recovered);return {ok:true,id};
  }
@@ -237,11 +245,11 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
    if(names.length!==1)return null;const file=path.join(dir,names[0]);return fs.lstatSync(file).isFile()&&fs.realpathSync(file)===path.resolve(file)?file:null;}catch(_){return null;}
  }
  // Side-effect-free evaluation shared by the preview and by the approval boundary.
- function evaluate(id,{settings='pinned',current={},activeRunId=null}={}){
+ function evaluate(id,{settings='pinned',current={},activeRunId=null,allowCompleted=false}={}){
   const found=find(id);if(!found)return {ok:false,code:'unknown-run',reason:REASONS['unknown-run']};
   const row=describe(found.summary,found.file,activeRunId),pinned=found.summary.pinned;
   const refuse=(code,extra={})=>({ok:false,code,reason:REASONS[code]||code,next:NEXT[code]||null,...extra});
-  if(!row.retryable)return refuse('not-retryable');
+  if(!row.retryable&&!(allowCompleted&&row.state==='completed'))return refuse('not-retryable');
   if(activeRunId)return refuse('busy');
   if(!pinned)return refuse('legacy-record');
   if(pinned.narration)return refuse('chapter-run');
@@ -249,14 +257,27 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
   const copy=inputCopy(id);if(!copy)return refuse('source-missing');
   let bytes;try{bytes=fs.readFileSync(copy);}catch(_){return refuse('source-missing');}
   if(sha(bytes)!==pinned.subtitleHash)return refuse('source-changed');
+  let dubText=null;
+  if(pinned.dubTextHash){
+   try{
+    const file=path.join(inputDir,id,'dub-text.json');
+    if(!fs.lstatSync(file).isFile()||fs.realpathSync(file)!==path.resolve(file)||fs.statSync(file).size>24000000)return refuse('source-changed');
+    const bytes=fs.readFileSync(file);
+    if(sha(bytes)!==pinned.dubTextHash)return refuse('source-changed');
+    dubText=JSON.parse(bytes);
+   }catch(_){return refuse('source-changed');}
+  }else if(found.summary.settings?.reviewedText){
+   return refuse('selection-unrecoverable');
+  }
   const differences=COMPARE.filter(key=>pinned[key]!==undefined&&current[key]!==undefined&&JSON.stringify(pinned[key])!==JSON.stringify(current[key])).map(key=>({field:key,pinned:pinned[key],current:current[key]}));
+  if(dubText&&settings==='current'&&current.grouping!==undefined&&current.grouping!==pinned.grouping)return refuse('selection-unrecoverable',{differences});
   // A missing or unreadable reference is not "unchanged": nothing can be generated with it, in either mode.
   if(pinned.referenceFingerprint&&(current.referenceMissing||!current.referenceFingerprint))return refuse('voice-missing',{differences});
   const voiceChanged=!!(pinned.referenceFingerprint&&current.referenceFingerprint&&pinned.referenceFingerprint!==sha(current.referenceFingerprint));
   if(voiceChanged){differences.push({field:'voice',pinned:'pinned',current:'changed'});if(settings==='pinned')return refuse('voice-changed',{differences});}
   const use=settings==='current'?{...pinned,...Object.fromEntries(COMPARE.filter(key=>current[key]!==undefined).map(key=>[key,current[key]]))}:pinned;
   const digest=sha(JSON.stringify([id,settings,use.digest,pinned.subtitleHash,COMPARE.map(key=>current[key]),current.referenceFingerprint?sha(current.referenceFingerprint):null]));
-  return {ok:true,found,copy,use,pinned,differences,digest,attempt:(found.summary.attempt||1)+1,settings,voiceChanged};
+  return {ok:true,found,copy,use,pinned,dubText,differences,digest,attempt:(found.summary.attempt||1)+1,settings,voiceChanged};
  }
  // Everything the preview says; shared by the token-issuing plan (UI) and the token-free assistant preview.
  function planBody(view,options){
@@ -266,7 +287,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
   return {mode:settings,attempt:view.attempt,pinned:safeView(pinned),current:safeView(options.current||{}),differences:view.differences,
    source:{label:summary.label||'',range:pinned.range||null,trackVerified:true,sample:pinned.sample===true},
    voice:{name:pinned.referenceName||'',state:view.voiceChanged?'changed':'same',currentName:String(options.current?.referenceName||'')},
-   dictionary:Array.isArray(pinned.pronunciations)?pinned.pronunciations.length:0,unrebuildable,
+   dictionary:Array.isArray(pinned.pronunciations)?pinned.pronunciations.length:0,reviewedText:Object.keys(view.dubText?.edits||{}).length,unrebuildable,
    determinism:text('Using the same options does not guarantee identical audio; a new generation can sound different.','Aynı seçeneklerin kullanılması aynı sesin üretileceği anlamına gelmez; yeni üretim farklı duyulabilir.'),
    technical:{attempt:view.attempt,optionsVersion:String(pinned.digest||'').slice(0,8),trackVersion:String(pinned.subtitleHash||'').slice(0,8),previewMode:settings},
    note:settings==='current'?text('This starts a NEW generation with today\'s settings; the earlier result stays untouched.','Bu, bugünkü ayarlarla YENİ bir üretim başlatır; önceki sonuç olduğu gibi kalır.'):text('This starts a NEW generation with the options pinned to the original run; the earlier result stays untouched.','Bu, özgün işe sabitlenen seçeneklerle YENİ bir üretim başlatır; önceki sonuç olduğu gibi kalır.'),
@@ -311,7 +332,7 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
     followDelivery:use.followDelivery,deliveryStrength:use.deliveryStrength,resultMode:use.resultMode,autoFit:use.autoFit,naturalSpeech:use.naturalSpeech,forceAll:false,
     forceGroups:entry.pinned.forceGroups||[],sample:entry.pinned.sample===true,positionSample:entry.pinned.positionSample===true,range:entry.pinned.range,sourceDuration:entry.pinned.sourceDuration};
    for(const key of Object.keys(request))if(request[key]===undefined)delete request[key];
-   const result=await start(request,{srt:entry.copy,sourceIdentity:entry.pinned.sourceIdentity??null,sourceLocator:entry.pinned.sourceLocator??null,pronunciations:entry.pinned.pronunciations||[],retryOf:entry.runId,attempt:entry.attempt});
+   const result=await start(request,{srt:again.copy,dubText:again.dubText,sourceIdentity:entry.pinned.sourceIdentity??null,sourceLocator:entry.pinned.sourceLocator??null,pronunciations:entry.pinned.pronunciations||[],retryOf:entry.runId,attempt:entry.attempt});
    // A failed start may have left a partial run behind: the approval is consumed and a new preview is required.
    if(result?.ok===false){entry.state='failed';return {ok:false,code:'start-failed',error:String(result.error||'').slice(0,300)};}
    entry.state='settled';entry.result={ok:true,runId:newId,retryOf:entry.runId,attempt:entry.attempt};
@@ -323,6 +344,23 @@ function createRunLedger({logsDir,outputDir,inputDir,instanceId=randomBytes(12).
    return {ok:false,code:'start-failed',error:String(error?.message||error).slice(0,300)};
   }
  }
- return {instanceId,begin,heartbeat,end,settle,mark,list,find,detail,review,recover,plan,previewView,sourceIdentityOf,locatorOf,locatorFingerprint,approve,outputInfo,staleAfter,get active(){return active;}};
+ const prepareEdit=(id,options)=>evaluate(id,{...options,settings:'pinned',allowCompleted:true});
+ async function restoreOutput(id,candidate,expectedRecord){
+  const found=find(id);if(!found||sha(JSON.stringify(found.summary))!==expectedRecord)throw Error('Run record changed / Üretim kaydı değişti.');
+  if(found.summary.result!=='done'||outputInfo(id).state!=='missing'||!await matchesVoiceOutputAsync(candidate,found.summary.outputIdentity))throw Error('Restore no longer matches / Geri yükleme artık eşleşmiyor.');
+  const recordCurrent=()=>{const current=find(id);return current&&sha(JSON.stringify(current.summary))===expectedRecord;};
+  if(!recordCurrent()||outputInfo(id).state!=='missing')throw Error('Run or target changed / Üretim kaydı veya hedef değişti.');
+  const target=path.join(outputDir,id+'.wav');
+  try{await fs.promises.copyFile(candidate,target,fs.constants.COPYFILE_EXCL);}
+  catch(error){return {ok:false,code:error.code==='EEXIST'?'restore-target-exists':'restore-copy-failed',error:text('The WAV could not be copied. The source is kept; check the output location before retrying.','WAV kopyalanamadı. Kaynak korunuyor; yeniden denemeden önce çıktı konumunu kontrol edin.')};}
+  const identity=await voiceOutputIdentityAsync(target);
+  if(!identity||identity.sha256!==found.summary.outputIdentity.sha256||identity.size!==found.summary.outputIdentity.size)return {ok:false,code:'restore-verification-failed',error:text('The copied WAV could not be verified. The source and target were kept; inspect the output location before retrying.','Kopyalanan WAV doğrulanamadı. Kaynak ve hedef korundu; yeniden denemeden önce çıktı konumunu inceleyin.')};
+  if(!recordCurrent())return {ok:false,code:'restore-record-changed',outputPreserved:true,error:text('The WAV was copied and verified, but the run record changed. Both files are kept; reopen the run to review it.','WAV kopyalandı ve doğrulandı, ancak üretim kaydı değişti. İki dosya korunuyor; incelemek için kaydı yeniden açın.')};
+  // The original completion, options, source and reports remain the same record.
+  try{writeJson(found.file,{...found.summary,outputIdentity:identity,outputRestoredAt:new Date(now()).toISOString()});}
+  catch{return {ok:false,code:'restore-record-write-failed',outputPreserved:true,id,name:path.basename(target),error:text('The WAV was copied and verified, but the run record could not be updated. Both files are kept. Reopen the run and inspect the audio before retrying.','WAV kopyalandı ve doğrulandı, ancak üretim kaydı güncellenemedi. İki dosya da korunuyor. Yeniden denemeden önce kaydı açıp sesi inceleyin.')};}
+  return {ok:true,id,name:path.basename(target)};
+ }
+ return {instanceId,begin,heartbeat,end,settle,mark,list,find,detail,review,recover,restoreOutput,plan,previewView,prepareEdit,sourceIdentityOf,locatorOf,locatorFingerprint,approve,outputInfo,staleAfter,get active(){return active;}};
 }
 module.exports={createRunLedger,pinOptions,safeView,REASONS};

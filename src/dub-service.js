@@ -1,21 +1,21 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const {randomBytes,createHmac}=require('node:crypto');
+const {randomBytes,createHmac,createHash}=require('node:crypto');
 const { pathToFileURL } = require('node:url');
 const { voiceStorage, prepareVoiceStorage } = require('./voice-storage');
 const { performance } = require('node:perf_hooks');
 const { validate: validateSync } = require('./renderer/dub-sync-map');
 const { groups: validateGroups } = require('./renderer/dub-workspace-model');
 const { atomicWriteFileSync } = require('./fsync-utils');
-const { validVoiceOutput, inspectVoiceOutput } = require('./voice-output');
+const { validVoiceOutput, inspectVoiceOutput,voiceOutputIdentity,matchesVoiceOutput,matchesVoiceOutputAsync } = require('./voice-output');
 const {normalize: normalizePronunciations} = require('./dub-pronunciation');
 const {identity: sourceIdentity} = require('./dub-source-identity');
 const {createRunLedger} = require('./dub-run-ledger');
 
 function registerDubService({ app, ipcMain, dialog, owner, authorized, authorizeSubtitle,
   spawn, terminate, busy, grantMedia, environment, shorten, translateGroup, resolveSourceContext, editorIdentity = () => '', setRate, prepareBackground, prepareProsody, prepareReference, onOutput = output => output, observeJob = () => {}, sourceLocators = null }) {
-  let job = null, releasingEngine=false;
+  let job = null, releasingEngine=false,restoringOutput=false,pendingOutputRestore=null;
   // One persistent record per run (dub-logs/<id>-<ts>.json) plus an instance lease; see dub-run-ledger.js.
   const instanceId = randomBytes(12).toString('hex');
   let ledgerInstance = null;
@@ -152,7 +152,12 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     summary.sourceIdentity = s.sourceIdentity || null;
     summary.subtitleHash = s.subtitleHash || null;
     summary.settings = s.settings || null;
+    summary.savedAssets = s.savedAssets || {};
     summary.metrics = s.metrics || null;
+    if(type==='done'&&data.path){
+      summary.outputIdentity=voiceOutputIdentity(data.path);
+      if(!summary.outputIdentity){summary.qualityUnavailable=true;data={...data,qualityUnavailable:true};}
+    }
     if (type === 'error') summary.diagnostics = {
       stdoutTail: s.stdout || '', stderrTail: s.stderr || ''
     };
@@ -240,14 +245,14 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     }
   }
   ipcMain.handle('dub:referenceRename', guard(async (_e, request = {}) => {
-    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || restoringOutput || busy()) throw new Error('Wait for the current job to finish.');
     const name = referenceName(request.name), entry = referenceEntry(request.id), p = referencePaths(entry.id);
     const meta = JSON.parse(fs.readFileSync(p.metadata, 'utf8'));
     atomicWriteFileSync(p.metadata, JSON.stringify({ ...meta, name }), { encoding: 'utf8' });
     return { ok: true, name };
   }));
   ipcMain.handle('dub:referenceUse', guard(async (_e, request = {}) => {
-    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || restoringOutput || busy()) throw new Error('Wait for the current job to finish.');
     const entry = referenceEntry(request.id);
     const text = typeof request.text === 'string' ? request.text.trim() : entry.text.trim();
     if (!text || text.length > 8000) throw new Error('Check the reference transcript.');
@@ -259,7 +264,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return { ok: true, transcriptBaseline: entry.transcriptBaseline };
   }));
   ipcMain.handle('dub:referencePrepare', guard(async (e, request = {}) => {
-    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || restoringOutput || busy()) throw new Error('Wait for the current job to finish.');
     const name = referenceName(request.name, true);
     const range = rangeOption(request.range);
     if (!range || range.end - range.start < 3 || range.end - range.start > 30) throw new Error('Select 3–30 seconds.');
@@ -299,11 +304,11 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     } finally { if (job === s && !s.keepOwner) job = null; }
   }));
   ipcMain.handle('dub:referenceSource', guard(async () => {
-    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || restoringOutput || busy()) throw new Error('Wait for the current job to finish.');
     const selected = await dialog.showOpenDialog(owner(), { properties: ['openFile'],
       filters: [{ name: 'Audio', extensions: ['wav', 'mp3', 'flac', 'm4a', 'ogg', 'opus', 'aac', 'wma'] }] });
     if (selected.canceled || !selected.filePaths[0]) return { ok: true, cancelled: true };
-    if (job || textUI || releasingEngine || busy()) throw new Error('Wait for the current job to finish.');
+    if (job || textUI || releasingEngine || restoringOutput || busy()) throw new Error('Wait for the current job to finish.');
     const file = selected.filePaths[0];
     if (!fs.statSync(file).isFile()) throw new Error('Invalid reference file.');
     grantMedia(file);
@@ -394,7 +399,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     return {ok:true,text};
   }));
   require('./text-voice-studio').registerTextVoiceStudio({app,ipcMain,dialog,owner,guard,config,referenceEntry,
-    busy:()=>!!job||!!textUI||releasingEngine||busy(),reserve:ownJob,emit,releaseWarm:()=>warmEngine.release(),
+    busy:()=>!!job||!!textUI||releasingEngine||restoringOutput||busy(),reserve:ownJob,emit,releaseWarm:()=>warmEngine.release(),
     finish:(session,type,data)=>{try{finish(session,type,data);}finally{if(job===session)job=null;}},
     environment:voiceEnvironment,spawn,grantMedia,claimArtifacts,importReference});
   ipcMain.handle('dub:groupTakes',guard(async(e,request={})=>({ok:true,...await groupTakes.list(e.sender,request.id,request.key)})));
@@ -432,12 +437,20 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             || JSON.stringify(rangeOption(saved.range)) !== JSON.stringify(requestedRange))) continue;
         const output = path.join(root, `${saved.id}.wav`);
         if (![output, path.join(app.getPath('userData'), 'dub-output', `${saved.id}.wav`)].some(file => path.resolve(file) === path.resolve(saved.path || '')) || !validVoiceOutput(output)) continue;
+        if(saved.outputIdentity&&!matchesVoiceOutput(output,saved.outputIdentity))continue;
         grantMedia(output);
         let sync = null, syncInvalid = false;
-        try { sync = validateSync(saved.sync); if (saved.settings?.timingMode === 'video' && !sync) syncInvalid = true; } catch (_) { syncInvalid = true; }
-        let quality = null;
-        try { if(saved.quality?.version===1 && saved.quality.groups?.length) quality={...saved.quality,groups:validateGroups(saved.quality.groups)}; } catch (_) {}
-        if (quality?.groups?.every(row => row.status === 'failed')) continue;
+        try { sync = validateSync(saved.sync); if (saved.settings?.timingMode === 'video' && !sync) syncInvalid = true;
+          if(sync&&Math.abs(sync.audioDuration-inspectVoiceOutput(output).seconds)>.05){sync=null;syncInvalid=true;}
+        } catch (_) { syncInvalid = true; }
+        let quality = null,noSavedSpeech=false;
+        try { if(saved.quality?.version===1 && saved.quality.groups?.length){
+          const groups=validateGroups(saved.quality.groups),duration=inspectVoiceOutput(output).seconds;
+          noSavedSpeech=groups.every(row=>row.status==='failed');
+          if(groups.some(row=>row.audioEnd>duration+.05))throw Error('quality range exceeds audio');
+          quality={...saved.quality,groups};
+        } } catch (_) {}
+        if (noSavedSpeech) continue;
         return { ok: true, output: onOutput({ id: saved.id, path: output, url: pathToFileURL(output).href,
           name: saved.name || path.basename(output), elapsedSeconds: saved.elapsedSeconds,
           range: rangeOption(saved.range),
@@ -457,10 +470,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const bytes=fs.readFileSync(srt);if(bytes.length>4000000)throw Error('SRT too large.');
       const c=config(),key=pronunciationScope(entries.source,bytes);
       if(entries.action==='get')return {ok:true,...pronunciationStore().resolve(key,c.pronunciations)};
-      if(job||textUI||releasingEngine||busy())throw Error('Finish the active voice job before saving pronunciations.');
+      if(job||textUI||releasingEngine||restoringOutput||busy())throw Error('Finish the active voice job before saving pronunciations.');
       return {ok:true,...pronunciationStore().save(key,entries.entries,c.pronunciations)};
     }
-    if (job || textUI || releasingEngine || busy()) throw new Error('Finish the active voice job before saving pronunciations.');
+    if (job || textUI || releasingEngine || restoringOutput || busy()) throw new Error('Finish the active voice job before saving pronunciations.');
     const c=config(); c.pronunciations=pronunciationStore().validateGlobal(entries);
     atomicWriteFileSync(configPath(), JSON.stringify(c,null,2), {encoding:'utf8'});
     return {ok:true,pronunciations:c.pronunciations};
@@ -475,7 +488,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           extensions: [kind === 'reference' ? 'wav' : 'txt'] }],
       });
       if (!selected.canceled && selected.filePaths[0]) {
-        if (job || textUI || releasingEngine || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
+        if (job || textUI || releasingEngine || restoringOutput || busy()) throw new Error('Üretim sürerken ses ayarları değiştirilemez.');
         const c = config(); c[kind] = selected.filePaths[0];
         if(kind==='reference')c.transcript=selected.filePaths[0].replace(/\.wav$/i,'.txt');
         if (kind === 'engine') {
@@ -491,8 +504,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   // `trusted` is supplied only by in-process callers (an approved retry), never by IPC: it carries the stored
   // input copy and the pinned identity so the renderer cannot name a path or an identity.
   async function startGeneration(e, request = {}, trusted = null, resume = null) {
+    if(restoringOutput)throw Error('Wait for WAV restoration to finish / WAV geri yüklemesinin bitmesini bekleyin.');
     if (textUI) throw new Error('SRT üretimi için önce metin stüdyosunu kapatın.');
-    if (job || releasingEngine || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
+    if (job || releasingEngine || restoringOutput || busy()) throw new Error('Başka bir üretim çalışıyor; bitmesini bekleyin.');
     if (!/^[a-zA-Z0-9-]{1,80}$/.test(request.id || '')) throw new Error('Geçersiz iş kimliği.');
     const sourceDuration=request.narration===true?undefined:request.sourceDuration;
     if(sourceDuration!==undefined&&(typeof sourceDuration!=='number'||!Number.isFinite(sourceDuration)||sourceDuration<=0||sourceDuration>86400))throw Error('Invalid source video duration.');
@@ -502,6 +516,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
     try {
       const c = config();
       const defaultReference = { reference: c.reference, transcript: c.transcript };
+      const restoredEdit=request.recipeId&&referenceRecipes.get(e.sender.id+':'+request.recipeId);
+      const savedAssets=require('./dub-saved-assets').createSavedAssets(voiceStorage(app).output);
       if (request.referenceId) {
         const entry = referenceEntry(request.referenceId);
         if (!entry.text.trim() || entry.text.length > 8000) throw Error('Check the reference transcript.');
@@ -551,7 +567,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       s.settings.followDelivery = c.followDelivery; s.settings.deliveryStrength = c.deliveryStrength;
       s.settings.resultMode=c.resultMode;
       const automaticDelivery=c.resultMode==='natural'&&request.narration!==true&&!c.followDelivery
-        &&!!(request.prosodySource||request.backgroundTab?.tabId);
+        &&!!(request.prosodySource||request.backgroundTab?.tabId||restoredEdit?.assets?.delivery);
       s.settings.deliveryAutomatic=automaticDelivery;
       s.range = rangeOption(request.range); s.settings.range = s.range; s.settings.timingMode = timingMode;
       const positionSample = request.positionSample === true;
@@ -569,7 +585,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if(request.recipeId!==undefined){
         if(typeof request.recipeId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(request.recipeId))throw staleReferenceRecipe();
         const previous=referenceRecipes.get(e.sender.id+':'+request.recipeId);
-        if(!previous||previous!==referenceRecipe)throw staleReferenceRecipe();
+        if(!previous||(typeof previous==='string'?previous:previous.reference)!==referenceRecipe)throw staleReferenceRecipe();
       }
       emit(s, 'voice', {reference:c.reference,transcript:c.transcript,engine:c.engine});
       const srt = trusted ? trusted.srt : await authorizeSubtitle(request.srt);
@@ -579,6 +595,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       s.subtitleHash = require('node:crypto').createHash('sha256').update(sourceBytes).digest('hex');
       if (sourceBytes.length > 4000000) throw new Error('SRT çok büyük.');
       const effectivePronunciations=trusted?normalizePronunciations(trusted.pronunciations||[]):pronunciationStore().resolve(pronunciationScope(request.source,sourceBytes),c.pronunciations).pronunciations;
+      const savedEdit=request.recipeId&&referenceRecipes.get(e.sender.id+':'+request.recipeId);
+      const editScope=JSON.stringify([s.subtitleHash,s.sourceIdentity,s.range||null,c.grouping,c.expression,c.deliveryStrength,timingMode,c.followDelivery,automaticDelivery]);
+      if(savedEdit?.scope&&savedEdit.scope!==editScope)throw Error('Saved source scope changed / Kayıtlı kaynak kapsamı değişti.');
+      if(savedEdit?.pronunciations&&JSON.stringify(savedEdit.pronunciations)!==JSON.stringify(effectivePronunciations))throw Error('Pronunciations changed; reopen the result / Telaffuzlar değişti; sonucu yeniden açın.');
       const prepared = resume?.plan || (positionSample ? positionPlans : plans).get(e.sender.id);
       if(resume && (resume.subtitleHash!==s.subtitleHash || resume.srt!==srt || resume.reference!==referenceRecipe
           || JSON.stringify(resume.pronunciations)!==JSON.stringify(effectivePronunciations))) {
@@ -627,6 +647,19 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if(resume&&resume.editorVersion!==editorVersion)throw Error('The text editor changed / Metin düzenleyicisi değişti.');
       const selectedTakes=await groupTakes.resolve(e.sender,request.groupTakes,{subtitleHash:s.subtitleHash,sourceIdentity:s.sourceIdentity,range:s.range},forceGroups);
       if(forceAll&&Object.keys(selectedTakes).length)throw Error('Whole-plan regeneration cannot reuse selected recordings.');
+      let reviewedText=trusted?.dubText||null;
+      if(request.dubText){
+        if(!prepared||prepared.srt!==srt||prepared.grouping!==c.grouping||request.dubText.sourceHash!==prepared.sourceHash||JSON.stringify(prepared.range)!==JSON.stringify(s.range))throw Error('Dublaj planını yeniden hazırlayın.');
+        const edits=request.dubText.edits;
+        if(!edits||typeof edits!=='object'||Array.isArray(edits))throw Error('Geçersiz dublaj metni.');
+        const keys=new Set(prepared.groups.map(g=>g.key));
+        for(const [key,text] of Object.entries(edits)){
+          if(!keys.has(key)||typeof text!=='string'||!text.trim()||text.length>1000)throw Error('Geçersiz dublaj metni.');
+        }
+        reviewedText={sourceHash:prepared.sourceHash,edits};
+      }
+      const reviewedBytes=reviewedText?Buffer.from(JSON.stringify(reviewedText)):null;
+      if(reviewedText)s.settings.reviewedText=true;
       if (s.cancelled) { job = null; finish(s, 'cancelled'); return { ok: false, error: 'İptal edildi.' }; }
       const outputDir = voiceStorage(app).output;
       fs.mkdirSync(outputDir, { recursive: true });
@@ -646,6 +679,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             concurrency, autoFit: c.autoFit, naturalSpeech: c.naturalSpeech, followDelivery: c.followDelivery, deliveryAutomatic: s.settings.deliveryAutomatic, forceAll, forceGroups,
             narration: request.narration === true, sample: s.sample, positionSample, range: s.range, sourceDuration, sourceIdentity: s.sourceIdentity, sourceLocator: s.sourceLocator || undefined, subtitleHash: s.subtitleHash,
             referenceFingerprint: referenceRecipe, referenceName: s.settings.referenceName, pronunciations: effectivePronunciations,
+            dubTextHash: reviewedBytes?require('node:crypto').createHash('sha256').update(reviewedBytes).digest('hex'):undefined,
             groupTakesCount: Object.keys(selectedTakes || {}).length, speechSourceStatus: s.settings.speechSourceStatus } });
         s.ledgerRun = true;
         s.heartbeat = setInterval(() => { runLedger().heartbeat(s.id); }, 5000); s.heartbeat.unref?.();
@@ -701,29 +735,22 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if (c.naturalSpeech) args.push('--natural-speech');
       }
       if (s.range) args.push('--range-start', String(s.range.start), '--range-end', String(s.range.end));
-      if (request.dubText) {
-        const plan = prepared;
-        if (!plan || plan.srt !== srt || plan.grouping !== c.grouping || request.dubText.sourceHash !== plan.sourceHash || JSON.stringify(plan.range) !== JSON.stringify(s.range)) throw new Error('Dublaj planını yeniden hazırlayın.');
-        const edits = request.dubText.edits;
-        if (!edits || typeof edits !== 'object' || Array.isArray(edits)) throw new Error('Geçersiz dublaj metni.');
-        const keys = new Set(plan.groups.map(g => g.key));
-        for (const [key, text] of Object.entries(edits)) {
-          if (!keys.has(key) || typeof text !== 'string' || !text.trim() || text.length > 1000) throw new Error('Geçersiz dublaj metni.');
-        }
-        const textPath = path.join(outputDir, `${s.id}-dub-text.json`);
-        claimArtifacts(s, [textPath]);
-        fs.writeFileSync(textPath, JSON.stringify({ sourceHash: plan.sourceHash, edits }, null, 2), { encoding: 'utf8', flag: 'wx' });
+      if (reviewedBytes) {
+        const textPath = path.join(inputDir, 'dub-text.json');
+        if(fs.existsSync(textPath)){
+          if(!fs.lstatSync(textPath).isFile()||fs.realpathSync(textPath)!==path.resolve(textPath)||!fs.readFileSync(textPath).equals(reviewedBytes))throw Error('Saved text changed; prepare a new job / Kayıtlı metin değişti; yeni iş hazırlayın.');
+        }else fs.writeFileSync(textPath, reviewedBytes, { flag: 'wx' });
         args.push('--dub-text', textPath);
-        s.settings.reviewedText = true;
       }
       if (c.followDelivery || automaticDelivery) {
         const file = path.join(outputDir,`${s.id}-delivery.json`);
         const files = [file,file.replace(/\.json$/,'.partial.json')];
         claimArtifacts(s,files);
         try {
-          if (typeof prepareProsody !== 'function') throw new Error('Source delivery unavailable');
+          if (typeof prepareProsody !== 'function'&&!restoredEdit?.assets?.delivery) throw new Error('Source delivery unavailable');
           emit(s,'status',{stage:'delivery_analysis',text:'Özgün konuşmanın anlatımı analiz ediliyor…'});
-          await prepareProsody({request,srt:inputSrt,range:s.range,sample:s.sample&&!positionSample,grouping:c.grouping,
+          if(restoredEdit?.assets?.delivery)savedAssets.copy(restoredEdit.assets.delivery,s.id);
+          else await prepareProsody({request,srt:inputSrt,range:s.range,sample:s.sample&&!positionSample,grouping:c.grouping,
             strength:c.deliveryStrength,output:file,onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
             status:progress=>emit(s,'status',{stage:'delivery_analysis',text:progress==='stop_failed'
               ? 'Analiz durdurulamadı; Durdur düğmesiyle tekrar deneyin.' : `Özgün anlatım analiz ediliyor · ${progress}`})});
@@ -735,8 +762,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           s.settings.deliveryApplied = delivery.groups.filter(row=>row.delivery).length;
           if (!s.settings.deliveryApplied) emit(s,'warning',{text:'Özgün seste güvenilir anlatım bulunamadı; ek yönlendirme uygulanmıyor.'});
           args.push('--prosody-plan',file); s.settings.deliveryReport=path.basename(file);
+          s.savedAssets={...s.savedAssets,delivery:savedAssets.capture(s.id,'delivery')};
         } catch (error) {
           if (s.cancelled) throw error;
+          if(restoredEdit?.assets?.delivery)throw error;
           cleanupArtifacts(s,files); s.settings.deliveryFallback=true;
           emit(s,'warning',{text:'Özgün anlatım analiz edilemedi; referansın doğal tonuyla devam ediliyor.'});
           if (error.code==='MULTIPLE_AUDIO_TRACKS') emit(s,'warning',{text:'Videoda birden fazla ses dili var. Doğru konuşmayı analiz etmek için yerel analiz sesini seçin.'});
@@ -745,12 +774,13 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       let background = null;
       if (request.keepBackground === true && !s.sample) {
         try {
-          if (typeof prepareBackground !== 'function') throw new Error('Arka plan ayırma kullanılamıyor.');
+          if (typeof prepareBackground !== 'function'&&!restoredEdit?.assets?.background) throw new Error('Arka plan ayırma kullanılamıyor.');
           const file = path.join(outputDir,`${s.id}-background.wav`);
           const backgroundFiles = [file, file.replace(/\.wav$/i, '.partial.wav')];
           claimArtifacts(s, backgroundFiles);
           s.backgroundFiles = backgroundFiles;
-          await prepareBackground({request,srt:inputSrt,range:s.range,limit:s.sample ? 11 : 0,output:file,
+          if(restoredEdit?.assets?.background)savedAssets.copy(restoredEdit.assets.background,s.id);
+          else await prepareBackground({request,srt:inputSrt,range:s.range,limit:s.sample ? 11 : 0,output:file,
             onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
             status:stage=>{
               if (stage === 'separate_gpu' || stage === 'separate_cpu') s.settings.backgroundDevice = stage.slice(9);
@@ -761,8 +791,10 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             }});
           if (s.cancelled) throw new Error('İptal edildi.');
           grantMedia(file); background={path:file,url:pathToFileURL(file).href}; s.settings.keepBackground=true;
+          s.savedAssets={...s.savedAssets,background:savedAssets.capture(s.id,'background')};
         } catch (error) {
           if (s.cancelled) throw error;
+          if(restoredEdit?.assets?.background)throw error;
           cleanupArtifacts(s, s.backgroundFiles || []);
           s.proc=null; s.settings.backgroundError=String(error.message).slice(0,600);
           emit(s,'warning',{text:'Arka plan ayırma başarısız; yalnız dublaj üretilecek.'});
@@ -795,8 +827,17 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         if(value==='DUB_WARNING normalization_unavailable')emit(s,'warning',{text:'Ses dengeleme tamamlanamadı; üretilen konuşma korundu.'});
 
         if(value.startsWith('DUB_FAILURE ')){try{const failure=JSON.parse(value.slice(12));emit(s,'warning',{text:String(failure.message||failure.kind).slice(0,1500)});}catch(_){}return;}
+        if(value.startsWith('DUB_REFERENCE_ACTIVITY ')){
+          try{
+            const raw=JSON.parse(value.slice(23)),labels={reference_encode:['Referans ses kodlanıyor','Encoding the reference voice'],reference_prompt:['Referans konuşma örneği hazırlanıyor','Preparing the reference speech prompt'],reference_remove:['Önceki konuşma örneği bırakılıyor','Releasing the previous speech prompt']};
+            if(Object.hasOwn(labels,raw.stage)&&['start','waiting','finished','timeout','failed'].includes(raw.state)&&Number.isFinite(raw.elapsed)&&raw.elapsed>=0&&Number.isFinite(raw.limit)&&raw.limit>0){
+              emit(s,'reference_activity',{stage:raw.stage,state:raw.state,elapsed:raw.elapsed,limit:raw.limit});
+              if(['start','waiting'].includes(raw.state))emit(s,'status',{stage:raw.stage,text:labels[raw.stage][0]+' · '+Math.floor(raw.elapsed)+' / '+raw.limit+' sn',textEn:labels[raw.stage][1]+' · '+Math.floor(raw.elapsed)+' / '+raw.limit+' s'});
+            }
+          }catch(_){}return;
+        }
         if(value.startsWith('DUB_STAGE ')||value.startsWith('DUB_PHASES ')){
-          try{const raw=JSON.parse(value.slice(value.startsWith('DUB_STAGE ')?10:11));const phases=raw.stage?{[raw.stage+'_seconds']:raw.seconds}:raw;const allowed=['model_load','reference','synthesis','verification','text_edit','placement','normalization','file_write','wall'].map(key=>key+'_seconds');s.phases={...(s.phases||{}),...Object.fromEntries(Object.entries(phases).filter(([key,n])=>allowed.includes(key)&&Number.isFinite(n)&&n>=0))};emit(s,'phases',{phases:s.phases});}catch(_){}return;
+          try{const raw=JSON.parse(value.slice(value.startsWith('DUB_STAGE ')?10:11));const phases=raw.stage?{[raw.stage+'_seconds']:raw.seconds}:raw;const allowed=['model_load','reference','reference_encode','reference_prompt','reference_remove','synthesis','verification','text_edit','placement','normalization','file_write','wall'].map(key=>key+'_seconds');s.phases={...(s.phases||{}),...Object.fromEntries(Object.entries(phases).filter(([key,n])=>allowed.includes(key)&&Number.isFinite(n)&&n>=0))};emit(s,'phases',{phases:s.phases});}catch(_){}return;
         }
         if(value.startsWith('DUB_ENGINE ')||value.startsWith('DUB_REFERENCE_CACHE ')||value.startsWith('DUB_CAPACITY ')){
           try{const data=JSON.parse(value.slice(value.indexOf(' ')+1));emit(s,'engine',{kind:value.split(' ')[0],...data});}catch(_){}return;
@@ -915,7 +956,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
               const syncFile = output.replace(/\.wav$/i, '.sync.json');
               if (fs.statSync(syncFile).size > 2000000) throw new Error('map too large');
               sync = validateSync(JSON.parse(fs.readFileSync(syncFile, 'utf8')));
-              if (!sync) throw new Error('missing map');
+              if (!sync||Math.abs(sync.audioDuration-inspectVoiceOutput(output).seconds)>.05) throw new Error('map duration differs from audio');
             } catch (_) {
               // The WAV can still be recovered manually if only its sync map
               // failed validation. Do not discard successfully generated audio.
@@ -926,18 +967,19 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             }
           }
           grantMedia(output);
-          let quality = null;
+          let quality = null,noSpeechProduced=false;
           try {
             const qualityPath = output.replace(/\.wav$/i, '.quality.json');
             if (fs.statSync(qualityPath).size <= 16000000) {
               const raw = JSON.parse(fs.readFileSync(qualityPath, 'utf8'));
               if (raw.version === 1 && Array.isArray(raw.groups) && raw.groups.length && raw.groups.length <= 5000) {
                 const checked = validateGroups(raw.groups);
+                noSpeechProduced=checked.every(row=>row.status==='failed');
+                if(checked.some(row=>row.audioEnd>inspectVoiceOutput(output).seconds+.05))throw Error('quality range exceeds audio');
                 quality = {...raw, groups: raw.groups.map((row, i) => ({...row, ...checked[i],continuity:require('./renderer/dub-experience-model').continuity(row.continuity)}))};
               }
             }
           } catch (_) {}
-          const noSpeechProduced = quality?.groups?.length > 0 && quality.groups.every(row => row.status === 'failed');
           if (finishedBeforeExitFailure || noSpeechProduced) {
             s.settings.engineExitCode = code ?? null;
             for (const file of [output, output.replace(/\.wav$/i, '.sync.json'), output.replace(/\.wav$/i, '.quality.json')]) {
@@ -964,7 +1006,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       });
       // start() döndükten sonra gelen iptal: çalışan run'ı durdur (kapanış yukarıdaki close işleyicisinden 'cancelled' olur).
       // cancel() waits for startPhase and then terminates the assigned run.
-      referenceRecipes.set(e.sender.id+':'+s.id,referenceRecipe);
+      referenceRecipes.set(e.sender.id+':'+s.id,{reference:referenceRecipe,pronunciations:effectivePronunciations,
+        scope:editScope,assets:Object.fromEntries(Object.entries(s.savedAssets||{}).map(([kind,receipt])=>[kind,{id:s.id,kind,...receipt}]))});
       if(!trusted && request.narration!==true && !forceGroups.length && !Object.keys(selectedTakes).length) {
         const frozen={srt,range:s.range,sourceDuration,sample:s.sample,positionSample,profile,concurrency,timingMode,verification,
           grouping:c.grouping,expression:c.expression,followDelivery:c.followDelivery,deliveryStrength:c.deliveryStrength,
@@ -1013,10 +1056,82 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }
   // Run records: list / recover / retry-preview / retry-approve. Reading changes nothing; every other action is explicit,
   // validated and bound to a run id (never a path).
+  const outputRestores=new Map();
+  const settledRestores=new Map();
+  const discardRestore=token=>{const row=outputRestores.get(token);if(row?.state==='running')return;if(row?.staged){try{fs.unlinkSync(row.staged);}catch{}}if(row?.onDestroyed)row.sender.removeListener?.('destroyed',row.onDestroyed);outputRestores.delete(token);};
   ipcMain.handle('dub:runs', guard(async (e, request = {}) => {
     const ledger = runLedger(), runId = request?.runId, action = request?.action, active = job?.id || null;
     const safe = value => typeof value === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(value);
-    if (action === 'list') return { ok: true, active, ...ledger.list({ activeRunId: active, limit: Number.isSafeInteger(request.limit) ? request.limit : 30 }) };
+    for(const [token,row]of outputRestores)if(Date.now()>row.expires)discardRestore(token);
+    for(const [token,row]of settledRestores)if(Date.now()>row.expires)settledRestores.delete(token);
+    if(action==='output-restore-cancel'){
+      const row=outputRestores.get(request.token);if(row&&row.sender===e.sender)discardRestore(request.token);
+      return {ok:true};
+    }
+    if(action==='output-restore-preview'){
+      if(!safe(runId)||job||restoringOutput||busy())throw Error('Cannot restore while busy / Meşgulken geri yüklenemez.');
+      const found=ledger.find(runId),identity=found?.summary.outputIdentity;
+      if(found?.summary.result!=='done'||!identity||ledger.outputInfo(runId).state!=='missing')throw Error('A missing output with saved identity is required / Kayıtlı kimliği olan eksik çıktı gerekli.');
+      const fingerprint=createHash('sha256').update(JSON.stringify(found.summary)).digest('hex');
+      const choice=await dialog.showOpenDialog(owner(),{title:'Choose the original WAV / Özgün WAV dosyasını seç',properties:['openFile'],filters:[{name:'WAV',extensions:['wav']}]});
+      if(choice.canceled||!choice.filePaths?.[0])return {ok:true,cancelled:true};
+      if(e.sender.isDestroyed?.()||job||restoringOutput||busy()||createHash('sha256').update(JSON.stringify(ledger.find(runId)?.summary)).digest('hex')!==fingerprint||ledger.outputInfo(runId).state!=='missing')throw Error('Run changed while choosing / Seçim sırasında üretim kaydı değişti.');
+      const candidate=choice.filePaths[0];
+      const isCurrent=()=>!e.sender.isDestroyed?.()&&!job&&!restoringOutput&&!busy();
+      const recordCurrent=()=>isCurrent()&&createHash('sha256').update(JSON.stringify(ledger.find(runId)?.summary)||'').digest('hex')===fingerprint&&ledger.outputInfo(runId).state==='missing';
+      if(!await matchesVoiceOutputAsync(candidate,identity,{isCurrent}))throw Error('The selected WAV changed or is not the recorded output / Seçilen WAV değişti veya kayıtlı çıktıyla aynı değil.');
+      while(outputRestores.size>=16)discardRestore(outputRestores.keys().next().value);
+      const token=randomBytes(16).toString('hex'),staged=path.join(voiceStorage(app).output,'.restore-'+token+'.wav');
+      try{
+        if(!recordCurrent())throw Error('Run changed / Üretim kaydı değişti.');
+        await fs.promises.copyFile(candidate,staged,fs.constants.COPYFILE_EXCL);
+        if(!await matchesVoiceOutputAsync(staged,identity,{isCurrent})||!recordCurrent())throw Error('Selected WAV or run changed / Seçilen WAV veya üretim kaydı değişti.');
+      }
+      catch(error){try{await fs.promises.unlink(staged);}catch{}throw error;}
+      while(outputRestores.size>=16)discardRestore(outputRestores.keys().next().value);
+      const onDestroyed=()=>discardRestore(token);
+      outputRestores.set(token,{sender:e.sender,onDestroyed,runId,staged,fingerprint,expires:Date.now()+300000});e.sender.once?.('destroyed',onDestroyed);
+      return {ok:true,token,runId,sourceName:path.basename(candidate),targetName:runId+'.wav',seconds:inspectVoiceOutput(staged).seconds};
+    }
+    if(action==='output-restore-approve'){
+      const settled=settledRestores.get(request.token);
+      if(settled?.sender===e.sender)return {...settled.result,replayed:true};
+      const row=outputRestores.get(request.token);
+      if(!row||row.sender!==e.sender)throw Error('Restore approval expired / Geri yükleme onayı sona erdi.');
+      if(row.promise)return row.promise;
+      if(job||textUI||releasingEngine||restoringOutput||busy())throw Error('Another production or restore is running / Başka bir üretim veya geri yükleme çalışıyor.');
+      restoringOutput=true;row.state='running';
+      row.promise=(async()=>{
+        let result;
+        try{result=await ledger.restoreOutput(row.runId,row.staged,row.fingerprint);}
+        catch(error){result={ok:false,error:error.message};}
+        finally{restoringOutput=false;row.state='settled';discardRestore(request.token);pendingOutputRestore=null;}
+        while(settledRestores.size>=128)settledRestores.delete(settledRestores.keys().next().value);
+        settledRestores.set(request.token,{sender:e.sender,result,expires:Date.now()+300000});
+        return result;
+      })();
+      pendingOutputRestore=row.promise;return row.promise;
+    }
+    if(action==='output-restore-files'){
+      const folder=voiceStorage(app).output,owned=new Set([...outputRestores.values()].map(row=>path.basename(row.staged))),files=[];
+      const names=(await fs.promises.readdir(folder)).filter(name=>/^\.restore-[a-f0-9]{32}\.wav$/.test(name)).sort();
+      for(const name of names.slice(0,100)){
+        try{const stat=await fs.promises.lstat(path.join(folder,name));if(!stat.isFile()||stat.isSymbolicLink())continue;
+          files.push({name,size:stat.size,modifiedAt:stat.mtimeMs,ageSeconds:Math.max(0,Math.floor((Date.now()-stat.mtimeMs)/1000)),active:owned.has(name)});
+        }catch{}
+      }
+      return {ok:true,folder,files,truncated:names.length>100};
+    }
+    if (action === 'list') {
+      const owned=new Set([...outputRestores.values()].map(row=>path.basename(row.staged)));
+      let temporaryCopies={active:0,untracked:0};
+      try{for(const name of fs.readdirSync(voiceStorage(app).output)){
+        if(!/^\.restore-[a-f0-9]{32}\.wav$/.test(name))continue;
+        const stat=fs.lstatSync(path.join(voiceStorage(app).output,name));if(!stat.isFile()||stat.isSymbolicLink())continue;
+        temporaryCopies[owned.has(name)?'active':'untracked']++;
+      }}catch{temporaryCopies=null;}
+      return { ok: true, active,temporaryCopies, ...ledger.list({ activeRunId: active, limit: Number.isSafeInteger(request.limit) ? request.limit : 30 }) };
+    }
     if (action === 'detail') { if (!safe(runId)) throw Error('Invalid run identity.'); return ledger.detail(runId, { activeRunId: active }); }
     if (action === 'review') {
       if (!safe(runId)) throw Error('Invalid run identity.');
@@ -1046,10 +1161,39 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       if (!safe(runId) || !['pinned', 'current'].includes(request.settings ?? 'pinned')) throw Error('Invalid retry request.');
       return ledger.plan(runId, { settings: request.settings ?? 'pinned', current: currentRunSettings(), activeRunId: active });
     }
+    if (action === 'edit-prepare') {
+      if(!safe(runId))throw Error('Invalid run identity.');
+      if(job||textUI||releasingEngine||restoringOutput||busy())throw Error('Another production is running / Başka bir üretim çalışıyor.');
+      const view=ledger.prepareEdit(runId,{current:currentRunSettings(),activeRunId:active});
+      if(!view.ok)return {ok:false,error:view.reason,code:view.code};
+      const assets=require('./dub-saved-assets').createSavedAssets(voiceStorage(app).output).restore(view.found.summary);
+      if(view.pinned.sample)throw Error('Open the full production before editing / Düzenlemeden önce tam üretimi açın.');
+      const srt=await authorizeSubtitle(request.srt);
+      if(path.extname(srt).toLowerCase()!=='.srt'||fs.statSync(srt).size>4000000)throw Error('Invalid subtitle / Geçersiz altyazı.');
+      const bytes=fs.readFileSync(srt);
+      if(bytes.length>4000000||require('node:crypto').createHash('sha256').update(bytes).digest('hex')!==view.pinned.subtitleHash
+          ||sourceIdentity(request.source)!==(view.pinned.sourceIdentity||null)
+          ||JSON.stringify(rangeOption(request.range))!==JSON.stringify(view.pinned.range||null))throw Error('The subtitle, source or range changed / Altyazı, kaynak veya aralık değişti.');
+      // Recheck after file authorization before binding the saved recipe to this sender.
+      const checked=ledger.prepareEdit(runId,{current:currentRunSettings(),activeRunId:job?.id||null});
+      if(job||textUI||releasingEngine||restoringOutput||busy())throw Error('Another production is running / Başka bir üretim çalışıyor.');
+      if(!checked.ok||checked.digest!==view.digest)throw Error('Saved settings changed; reopen the result / Kayıtlı ayarlar değişti; sonucu yeniden açın.');
+      const recipe={id:runId,srt,source:request.source||'',sample:false,range:view.pinned.range||null,
+        sourceDuration:view.pinned.sourceDuration,dubText:view.dubText,keepBackground:!!assets.background};
+      for(const key of ['profile','concurrency','verification','timingMode','grouping','expression','followDelivery','deliveryStrength','resultMode','autoFit','naturalSpeech']){
+        if(view.pinned[key]!==undefined)recipe[key]=view.pinned[key];
+      }
+      const pronunciations=pronunciationStore().resolve(pronunciationScope(request.source,bytes),config().pronunciations).pronunciations;
+      if(JSON.stringify(pronunciations)!==JSON.stringify(view.pinned.pronunciations||[]))throw Error('Pronunciations changed; restore the original dictionary / Telaffuzlar değişti; özgün sözlüğü geri yükleyin.');
+      referenceRecipes.set(e.sender.id+':'+runId,{reference:referenceFingerprint(config()),pronunciations,assets,
+        scope:JSON.stringify([view.pinned.subtitleHash,view.pinned.sourceIdentity||null,view.pinned.range||null,view.pinned.grouping,view.pinned.expression,view.pinned.deliveryStrength,view.pinned.timingMode,view.pinned.followDelivery,view.pinned.deliveryAutomatic])});
+      while(referenceRecipes.size>128)referenceRecipes.delete(referenceRecipes.keys().next().value);
+      return {ok:true,recipe,subtitleHash:view.pinned.subtitleHash};
+    }
     if (action === 'retry-approve') {
       if (typeof request.token !== 'string' || !/^[a-f0-9]{64}$/.test(request.token)) throw Error('Invalid retry approval.');
       const newId = require('node:crypto').randomUUID();
-      return ledger.approve(request.token, { newId, current: currentRunSettings(), activeRunId: active, busy: () => !!(job || textUI || releasingEngine || busy()),
+      return ledger.approve(request.token, { newId, current: currentRunSettings(), activeRunId: active, busy: () => !!(job || textUI || releasingEngine || restoringOutput || busy()),
         start: (retryRequest, trusted) => startGeneration(e, retryRequest, trusted) });
     }
     throw Error('Invalid run action.');
@@ -1086,6 +1230,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   }));
   let quitting = false;
   app.on('before-quit', event => {
+    if(restoringOutput&&pendingOutputRestore){event?.preventDefault?.();if(quitting)return;quitting=true;void pendingOutputRestore.then(()=>{quitting=false;app.quit?.();});return;}
     if (!job) { if(warmEngine.running()){event?.preventDefault?.();if(quitting)return;quitting=true;void warmEngine.release().then(()=>{quitting=false;app.quit?.();}).catch(()=>{quitting=false;});}return; }
     event?.preventDefault?.();
     if (quitting) return;
@@ -1098,6 +1243,6 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   });
   const voiceRunsApi = () => require('./assistant-voice-runs').createVoiceRunsApi({ ledger: runLedger(), current: currentRunSettings, active: () => job?.id || null, identity: sourceIdentity, locators });
   return { runs: { list: o => voiceRunsApi().list(o), detail: (id, o) => voiceRunsApi().detail(id, o), preview: (id, mode) => voiceRunsApi().preview(id, mode), sourceMatch: (id, source) => voiceRunsApi().sourceMatch(id, source), sourceNavigation: (id, source) => voiceRunsApi().sourceNavigation(id, source), exists: id => voiceRunsApi().exists(id) },
-    running: () => !!job || !!textUI || releasingEngine, cancel, releaseIdle:async()=>{if(job||textUI||releasingEngine)throw Error('Voice generation is active.');releasingEngine=true;try{return await warmEngine.release();}finally{releasingEngine=false;}} };
+    running: () => !!job || !!textUI || releasingEngine || restoringOutput, cancel, releaseIdle:async()=>{if(job||textUI||releasingEngine||restoringOutput)throw Error('Voice generation or restoration is active.');releasingEngine=true;try{return await warmEngine.release();}finally{releasingEngine=false;}} };
 }
 module.exports = { registerDubService };

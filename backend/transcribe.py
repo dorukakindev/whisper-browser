@@ -1912,14 +1912,15 @@ def serialize_srt_strict(entries):
 
 
 def write_srt(entries, output_path, max_line_width=42, max_lines=2, language="tr", wrap_mode="sentence",
-              decorations=None):
+              decorations=None, preserve_indices=()):
     # utf-8-sig (BOM): Windows oynatıcıları (WMP, bazı TV'ler) BOM'suz SRT'de
     # Türkçe karakterleri yanlış kodlamayla açabiliyor
     # decorations: sarmadan SONRA eklenen (ön ek, son ek) — ör. ASS kaynağından
     # gelen {\an8} ve <i>…</i>; satır genişliği hesabına girmez.
     rendered = [
-        (start, end, _decorate(wrap_text(text, max_line_width, max_lines,
-                                         language=language, wrap_mode=wrap_mode), decorations, index))
+        (start, end, text if index in preserve_indices else
+         _decorate(wrap_text(text, max_line_width, max_lines,
+                             language=language, wrap_mode=wrap_mode), decorations, index))
         for index, (start, end, text) in enumerate(entries)
     ]
     payload = serialize_srt_strict(rendered)
@@ -9306,6 +9307,7 @@ def translate_existing_subtitle(args):
     # bloklar yeniden cevirilir; aralik disi bloklar mevcut ceviriyle — o da
     # yoksa kaynak metinle — precompleted isaretlenir, boylece cikti dosyasi
     # tam kalir ve model baglama tum dosyayi gorur.
+    deferred_retry_indices = set()
     _cue_interval = translation_cue_interval(args)
     if _cue_interval:
         _range_lo, _range_hi = _cue_interval
@@ -9320,8 +9322,14 @@ def translate_existing_subtitle(args):
             if index in _range_mask:
                 continue
             if index not in precompleted:
-                precompleted[index] = existing_for(entry, index) or entry[2]
-        if not getattr(args, 'translate_retry_only', False):
+                precompleted[index] = (old_entries[index][2] if getattr(args, 'translate_retry_only', False)
+                                       else existing_for(entry, index) or entry[2])
+        if getattr(args, 'translate_retry_only', False):
+            deferred_retry_indices = {
+                index for index, row in enumerate(existing_meta['cues'])
+                if index not in _range_mask and row['status'] == 'failed'
+            }
+        else:
             precompleted = {
                 index: text for index, text in precompleted.items()
                 if index not in _range_mask
@@ -9374,13 +9382,16 @@ def translate_existing_subtitle(args):
         translated = [(entries[index][0], entries[index][1],
                        translated_pending[index][2])
                       for index in range(len(entries))]
+    preserved_retry = precompleted if getattr(args, 'translate_retry_only', False) else {}
     if translated:
         # Model girdisinden çıkarılan satır içi SDH işaretleri çeviri
         # metninde kaybolmasın: eksik olanlar cue başına geri konur.
-        translated = [(start, end,
-                       restore_sdh_markers(orig_text, translated_text))
-                      for (start, end, orig_text), (_s, _e, translated_text)
-                      in zip(entries, translated)]
+        translated = [
+            (start, end, preserved_retry[index] if index in preserved_retry
+             else restore_sdh_markers(orig_text, translated_text))
+            for index, ((start, end, orig_text), (_s, _e, translated_text))
+            in enumerate(zip(entries, translated))
+        ]
     # Var olan altyazı çevirisinde cue sınırları ve zamanları varsayılan olarak
     # birebir korunur; birleştirme yalnızca "Cümleleri birleştir" seçeneği
     # açıkken, dosya parse edildikten hemen sonra uygulanır.
@@ -9411,7 +9422,7 @@ def translate_existing_subtitle(args):
         - set(translation_status.get("unchanged") or ())
         - set(translation_status.get("precompleted") or ())
         - set(precompleted))
-    completed_source_indices = provisional_completed - quality_failed_indices
+    completed_source_indices = provisional_completed - quality_failed_indices - deferred_retry_indices
     completed_count = len(completed_source_indices)
     failed_count = max(0, len(entries) - completed_count)
     translation_report["translation_failed"] = failed_count
@@ -9483,7 +9494,8 @@ def translate_existing_subtitle(args):
             stage_required_output(out_path, lambda staged: write_srt(
                 translated, staged, args.max_line_width, args.max_lines,
                 language=target, wrap_mode=args.wrap_mode,
-                decorations=cue_format_decorations(cue_formats, "srt")))
+                decorations=cue_format_decorations(cue_formats, "srt"),
+                preserve_indices=preserved_retry))
         elif fmt == "vtt":
             stage_required_output(out_path, lambda staged: write_vtt(
                 translated, staged, args.max_line_width, args.max_lines,
@@ -9504,6 +9516,13 @@ def translate_existing_subtitle(args):
             total=len(entries), completed=completed_count, failed=failed_count,
             last_error=quality_last_error,
         ))
+        if fmt == "srt" and getattr(args, "translate_retry_only", False):
+            try:
+                outputs[-1]["subtitleHash"] = hashlib.sha256(
+                    staged_output_paths[str(out_path)].read_bytes()).hexdigest()
+            except OSError:
+                output_tx.rollback()
+                raise
         log(
             f"{'Kısmi çeviri kurtarma dosyası' if partial_result else 'Çeviri'} "
             f"yazıldı: {out_path}",

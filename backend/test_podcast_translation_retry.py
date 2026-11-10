@@ -22,6 +22,47 @@ class PodcastTranslationRetryTests(unittest.TestCase):
         Path(str(translation)+'.meta.json').write_text(json.dumps(metadata), encoding='utf-8')
         return source, translation, args, metadata
 
+    def test_strict_retry_keeps_reviewed_line_breaks_and_text(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1] / 'tmp') as directory:
+            source, translation, args, metadata = self.fixture(Path(directory))
+            reviewed = '<i>Merhaba</i>\ndostum.'
+            translation.write_text(translation.read_text(encoding='utf-8-sig').replace(
+                'Merhaba dostum.', reviewed), encoding='utf-8-sig')
+            metadata['subtitleHash'] = hashlib.sha256(translation.read_bytes()).hexdigest()
+            metadata['cues'][0]['text'] = reviewed
+            Path(str(translation)+'.meta.json').write_text(json.dumps(metadata), encoding='utf-8')
+
+            def translate(rows, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
+                self.assertEqual(precompleted, {0: reviewed})
+                status_out.update(completed=[1], failed=[])
+                return [(s, e, ['Unexpected replacement.', 'Bugün nasılsın?'][i])
+                        for i, (s, e, _) in enumerate(rows)]
+
+            with patch.object(T, 'llm_translate', side_effect=translate), patch.object(T, 'emit') as events, redirect_stdout(io.StringIO()):
+                T.translate_existing_subtitle(args)
+            saved = T.parse_subtitle_entries(translation.read_text(encoding='utf-8-sig'), '.srt')
+            self.assertEqual(saved, [(12.0, 14.0, reviewed), (14.0, 16.0, 'Bugün nasılsın?')])
+            done = next(call.kwargs for call in events.call_args_list if call.args[0] == 'done')
+            self.assertEqual(done['outputs'][0]['subtitleHash'], hashlib.sha256(translation.read_bytes()).hexdigest())
+
+    def test_strict_range_does_not_mark_missing_cues_outside_range_completed(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1] / 'tmp') as directory:
+            root = Path(directory)
+            _, translation, args, metadata = self.fixture(root)
+            previous = 'Nasıl hissediyorsun?'
+            translation.write_text(translation.read_text(encoding='utf-8-sig').replace(
+                'How are you today?', previous), encoding='utf-8-sig')
+            metadata['subtitleHash'] = hashlib.sha256(translation.read_bytes()).hexdigest()
+            metadata['cues'][1]['text'] = previous
+            Path(str(translation)+'.meta.json').write_text(json.dumps(metadata), encoding='utf-8')
+            args.translate_cue_range = '12:13'
+            with patch.object(T, 'llm_translate') as provider, patch.object(T, 'emit'), redirect_stdout(io.StringIO()):
+                T.translate_existing_subtitle(args)
+            provider.assert_not_called()
+            result = json.loads(next(root.glob('*.partial.srt.meta.json')).read_text(encoding='utf-8'))
+            self.assertEqual([cue['status'] for cue in result['cues']], ['completed', 'failed'])
+            self.assertEqual(result['cues'][1]['text'], previous)
+
     def test_strict_retry_preserves_completed_cue_even_inside_original_range(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1] / 'tmp') as directory:
             source, translation, args, metadata = self.fixture(Path(directory))

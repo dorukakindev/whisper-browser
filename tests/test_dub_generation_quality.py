@@ -420,6 +420,28 @@ class GenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'wrong reference'):
             scope['generate_with_fallback'](args,[],['original'],'',invalid)
 
+    def test_oom_preserves_completed_speech_and_retry_generates_only_missing_groups(self):
+        class MemoryLimited(Server):
+            async def generate(self, text, **kwargs):
+                if text == 'Missing.':
+                    await asyncio.sleep(.1)
+                    raise RuntimeError('CUDA out of memory')
+                async for part in super().generate(text, **kwargs):
+                    yield part
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            server = MemoryLimited()
+            rate, args, paths = self.run_generation(folder, server, ['Good.', 'Missing.'], fallback=True)
+            self.assertEqual(rate, 8000)
+            self.assertEqual(args.eszamanli, 1)
+            self.assertEqual([row['status'] for row in args.group_results], ['ready', 'failed'])
+            ready = (folder/'0.wav').read_bytes()
+            retry = Server()
+            _, retried, _ = self.run_generation(folder, retry, ['Good.', 'Missing.'])
+            self.assertEqual(retry.calls, ['Missing.'])
+            self.assertEqual((folder/'0.wav').read_bytes(), ready)
+            self.assertTrue(all(row['status'] == 'ready' for row in retried.group_results))
+
     def test_metadata_write_failure_cannot_attach_old_ready_to_new_wave(self):
         from dub_quality import cached_record
         class Different(Server):

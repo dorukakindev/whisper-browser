@@ -1,13 +1,35 @@
 """Pure runtime scheduling, cached-reference and phase measurements."""
 import asyncio
+import contextlib
+import io
+import json
 from pathlib import Path
 import sys
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools/voxcpm2'))
-from dub_runtime import capacity, EngineSession, Phases
+from dub_runtime import capacity, EngineSession, Phases, reference_call
 class RuntimeTests(unittest.TestCase):
+    def test_reference_timeout_names_the_rpc_and_never_caches_incomplete_reference(self):
+        from dub_lifecycle import EngineStalled
+        class Server:
+            async def encode_latents(self, wav, fmt): await asyncio.Event().wait()
+            async def add_prompt(self, *args): raise AssertionError('prompt must not start')
+            async def stop(self): pass
+        session=EngineSession();session.server=Server()
+        args=SimpleNamespace(ready_timeout=.05,phases=Phases())
+        output=io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output), self.assertRaisesRegex(EngineStalled,'Reference encoding') as raised:
+                session.run(session.prepare_reference(args,b'voice','prompt'))
+            self.assertEqual(raised.exception.stage,'reference_encode')
+            rows=[json.loads(line.split(' ',1)[1]) for line in output.getvalue().splitlines() if line.startswith('DUB_REFERENCE_ACTIVITY ')]
+            self.assertEqual([r['state'] for r in rows],['start','timeout'])
+            self.assertTrue(all(r['stage']=='reference_encode' for r in rows))
+            self.assertIsNone(session.reference)
+            self.assertGreater(args.phases.seconds['reference_encode'],0)
+        finally:session.close()
     def test_capacity_is_bounded_by_free_memory_and_request(self):
         g=1024**3
         self.assertEqual(capacity(11*g,12*g,8)[0],8)

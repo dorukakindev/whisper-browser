@@ -30,6 +30,12 @@ test('file repair is read-only until approval, rejects stale approval and preser
   const meta=JSON.parse(fs.readFileSync(result.translationPath+'.meta.json'));
   assert.deepEqual(meta.cues.map(r=>r.status),['completed','failed']);assert.equal(meta.cues[0].text,'Merhaba.');
   assert.equal(meta.originalCues[0].startMs,12000);
+  const options={translateOnly:true,translateRetryOnly:true,input:result.sourcePath,translateExisting:result.translationPath,repairInputProof:JSON.parse(JSON.stringify(result.repairInputProof))};
+  recovery.verifyRepairInputs(options);
+  for(const file of [result.sourcePath,result.translationPath,result.translationPath+'.meta.json']){const old=fs.readFileSync(file);fs.appendFileSync(file,'changed after approval');assert.throws(()=>recovery.verifyRepairInputs(options),/repair files changed/);fs.writeFileSync(file,old);}
+  recovery.verifyRepairInputs(options);assert.throws(()=>recovery.verifyRepairInputs({...options,translateRetryOnly:false}),/repair files changed/);
+  recovery.verifyRepairInputs({translateOnly:true});
+
   fs.writeFileSync(f.file+'.meta.json',JSON.stringify({...f.metadata,model:'changed'}));
   assert.throws(()=>recovery.repairFile({...input,prepare:true,expectedHash:info.fingerprint}));
  }finally{f.close();}
@@ -71,11 +77,12 @@ test('an English paragraph marked completed is offered for repair without rewrit
 
 test('repair IPC refuses ungranted files without opening a permission dialog and grants only staged copies',async()=>{
  const vm=require('node:vm'),source=fs.readFileSync(require.resolve('../src/main'),'utf8'),begin=source.indexOf("ipcMain.handle('media:repairTranslation'"),end=source.indexOf("ipcMain.handle('media:readSubtitle'",begin),handlers={},f=fixture(),grants=[];let allowed=false;
+ const media=path.join(f.dir,'clip.mp4');fs.writeFileSync(media,'media fixture');const local=require('../src/local-subtitle-context');const history=[{subtitleContexts:local.build({source:'local',input:media,clipStart:12,clipEnd:16},{outputs:[{path:f.file}]})}];
  const event={},access={inspect:value=>value,has:()=>allowed,grant:file=>grants.push(file)};
- const ctx={ipcMain:{handle:(name,handler)=>handlers[name]=handler},authorizedBrowserSender:e=>e===event,subtitleFileAccess:access,fs,path,app:{getPath:()=>f.dir},require:name=>{assert.equal(name,'./podcast-translation-recovery');return recovery;}};
+ const ctx={ipcMain:{handle:(name,handler)=>handlers[name]=handler},authorizedBrowserSender:e=>e===event,subtitleFileAccess:access,fs,path,app:{getPath:()=>f.dir},loadHistory:()=>history,require:name=>name==='./local-subtitle-context'?require('../src/local-subtitle-context'):recovery};
  try{vm.runInNewContext(source.slice(begin,end),ctx);const handle=handlers['media:repairTranslation'];assert.equal((await handle({},{})).ok,false);assert.equal((await handle(event,{path:f.file})).ok,false);assert.equal(grants.length,0);
   allowed=true;const info=await handle(event,{path:f.file});assert.equal(info.canRepair,true);assert.equal(grants.length,0);
-  const result=await handle(event,{path:f.file,prepare:true,expectedHash:info.fingerprint});assert.equal(result.ok,true);assert.deepEqual(grants,[result.sourcePath,result.translationPath]);
+  const result=await handle(event,{path:f.file,prepare:true,expectedHash:info.fingerprint});assert.equal(result.ok,true);assert.deepEqual(grants,[result.sourcePath,result.translationPath]);assert.equal(result.playbackContext.mediaPath,media);assert.deepEqual(result.playbackContext.range,{start:12,end:16});assert.deepEqual(result.playbackContext.mediaStat,local.snapshot(media));
  }finally{f.close();}
 });
 test('authorized sidecar yields only bounded recovery data tied to actual output and per-cue statuses',()=>{const f=fixture();try{const result=recovery.readOutputRecovery(f.file,f.bytes);assert.equal(result.targetLanguage,'tr');assert.deepEqual(result.completed,[true,false]);assert.equal(result.sourceCues.length,2);assert.equal(result.sourceId,undefined);assert.equal(result.provider,undefined);assert.equal(result.translationTextHash,hash(f.translation));fs.writeFileSync(f.file+'.meta.json',JSON.stringify({...f.metadata,subtitleHash:'0'.repeat(64)}));assert.equal(recovery.readOutputRecovery(f.file,f.bytes),null);}finally{f.close();}});

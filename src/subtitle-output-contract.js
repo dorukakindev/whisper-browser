@@ -44,6 +44,7 @@
       completed,
       failed,
       lastError: typeof value.lastError === 'string' ? value.lastError : '',
+      ...(/^[a-f0-9]{64}$/.test(value.subtitleHash || '') ? {subtitleHash:value.subtitleHash} : {}),
     };
   }
 
@@ -96,6 +97,19 @@
     return `${role}${language}${progress}${failure}`;
   }
 
+  function selectRepairOutput(outputs, files, targetLanguage) {
+    if (!Array.isArray(outputs) || !Array.isArray(files) || typeof targetLanguage !== 'string'
+        || !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(targetLanguage)) return null;
+    const matches = outputDescriptors({ outputs }).filter(item => item.role === 'translation'
+      && /^(?:[a-z]:[\\/]|[\\/])/i.test(item.path) && /\.srt$/i.test(item.path)
+      && item.path.length <= 8000 && !item.path.includes('\0')
+      && item.language.toLowerCase() === targetLanguage.toLowerCase() && files.includes(item.path));
+    if (matches.length !== 1) return null;
+    const { path, role, status, total, completed, failed, subtitleHash } = matches[0];
+    return { path, role, language: targetLanguage.toLowerCase(), status, total, completed, failed,
+      ...(subtitleHash ? {subtitleHash} : {}) };
+  }
+
   function errorLabel(code) {
     return ({
       quota: 'kota dolu', authentication: 'API anahtarı/izin hatası', rate_limit: 'hız sınırı',
@@ -109,5 +123,5 @@
     })[code] || 'çeviri hatası';
   }
 
-  return { outputDescriptors, selectOutputs, outputLabel, errorLabel };
+  return { outputDescriptors, selectOutputs, selectRepairOutput, outputLabel, errorLabel };
 });
