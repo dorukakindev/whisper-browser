@@ -1,6 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {recipe,counts}=require('../src/renderer/dub-run-info'),{inspectVoiceOutput}=require('../src/voice-output');
+test('integrity receipts pin source, subtitle, voice and recipe without exposing paths; rehearsal differences stay explicit',()=>{
+ const I=require('../src/dub-integrity'),sample=I.make({sourceIdentity:'file:C:/private/video.mp4',subtitleHash:'a'.repeat(64),referenceFingerprint:'b'.repeat(64),settings:{profile:'balanced',grouping:'akici',timingMode:'video',verification:'balanced'},range:{start:30,end:50},sample:true});assert(!JSON.stringify(sample).includes('private'));assert.equal(sample.subtitleHash,'a'.repeat(64));const full=I.make({sourceIdentity:'file:C:/private/video.mp4',subtitleHash:'a'.repeat(64),referenceFingerprint:'b'.repeat(64),settings:{profile:'balanced',grouping:'akici',timingMode:'video',verification:'balanced'},sample:false});assert.equal(I.compare(sample,full).status,'matching');assert.equal(I.compare(sample,{...full,subtitleHash:'c'.repeat(64)}).status,'changed');assert.equal(I.compare(null,full).status,'unavailable');const rows=Object.fromEntries(recipe({url:'fixture',integrity:full,settings:{}},true));assert.equal(rows['Subtitle identity'],'a'.repeat(64));
+});
+test('changed speech edits cannot be described as the same rehearsal recipe',()=>{
+ const I=require('../src/dub-integrity'),base={sourceIdentity:'owner',subtitleHash:'a'.repeat(64),referenceFingerprint:'voice',settings:{profile:'balanced'}},sample=I.make({...base,sample:true,textEdits:{one:'Old spoken text'}}),full=I.make({...base,textEdits:{one:'New spoken text'}});assert.equal(I.compare(sample,full).status,'changed');assert(I.compare(sample,full).changed.includes('editsHash'));
+});
 
 test('verification activity labels distinguish queue elapsed time from the request timeout',()=>{
  const {activityLabel}=require('../src/renderer/dub-run-info'),row={group:71,attempt:1,elapsed:140,limit:120,stage:'verification'};

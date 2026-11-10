@@ -11,7 +11,7 @@ function createGroupTakes({app,grantMedia}){
  const root=()=>voiceStorage(app).output,logs=()=>path.join(app.getPath('userData'),'dub-logs');
  async function receipt(name){
   const doc=await json(path.join(logs(),name));
-  if(doc.result!=='done'||! /^[a-zA-Z0-9-]{1,80}$/.test(doc.id||'')||doc.sample===true)throw Error('A completed full production is required.');
+  if(doc.result!=='done'||! /^[a-zA-Z0-9-]{1,80}$/.test(doc.id||''))throw Error('A completed production is required.');
   const file=path.join(root(),doc.id+'.wav');if(path.resolve(doc.path||'')!==path.resolve(file))throw Error('Invalid recording output.');
   const manifest=await json(file.replace(/\.wav$/i,'.zamanlama.json'));
   if(!Array.isArray(manifest.segments)||manifest.segments.length>5000)throw Error('Group recording metadata is unavailable.');
@@ -35,12 +35,14 @@ function createGroupTakes({app,grantMedia}){
   for(const name of [...new Set([baseName,...names])].slice(0,200)){
    try{
     const data=await receipt(name),s=segment(data,key);
-    if(data.doc.subtitleHash!==base.doc.subtitleHash||data.doc.sourceIdentity!==base.doc.sourceIdentity||JSON.stringify(data.doc.range??null)!==JSON.stringify(base.doc.range??null)||!hex.test(s?.cache_key||'')||!hex.test(s?.sha256||'')||seen.has(s.sha256))continue;
+    if((data.doc.sample===true)!==(base.doc.sample===true)||data.doc.subtitleHash!==base.doc.subtitleHash||data.doc.sourceIdentity!==base.doc.sourceIdentity||JSON.stringify(data.doc.range??null)!==JSON.stringify(base.doc.range??null)||!hex.test(s?.cache_key||'')||!hex.test(s?.sha256||'')||seen.has(s.sha256))continue;
     const row=data.doc.quality?.groups?.find(g=>g.key===key);if(!row||row.text!==s.text||row.status==='failed')continue;
     const record=groups([row])[0],file=await verified(s.sha256);grantMedia(file);
-    const token=crypto.randomUUID();tokens.set(token,{sender,key,subtitleHash:base.doc.subtitleHash,sourceIdentity:base.doc.sourceIdentity,range:base.doc.range??null,file,cache_key:s.cache_key,sha256:s.sha256,record,applyAllowed:s.cache_key===original.cache_key});
+    const token=crypto.randomUUID();tokens.set(token,{sender,key,sample:base.doc.sample===true,subtitleHash:base.doc.subtitleHash,sourceIdentity:base.doc.sourceIdentity,range:base.doc.range??null,file,cache_key:s.cache_key,sha256:s.sha256,record,applyAllowed:s.cache_key===original.cache_key});
     while(tokens.size>2000)tokens.delete(tokens.keys().next().value);
-    choices.push({token,compareOnly:s.cache_key!==original.cache_key,sha256:s.sha256,current:s.sha256===original.sha256,recordedAt:data.doc.finishedAt||'',status:record.status,text:record.text,levelDb:record.continuity?.levelDb??null,url:pathToFileURL(file).href});seen.add(s.sha256);
+    const referenceHash=data.doc.integrity?.referenceHash,baseReference=base.doc.integrity?.referenceHash;
+    const metrics={scope:data.doc.sample===true?'sample':data.doc.range?'range':'full',sourceSeconds:record.sourceEnd-record.sourceStart,renderedSeconds:record.audioEnd-record.audioStart,stretch:Number.isFinite(row.stretch)?row.stretch:null,verification:record.verification.status,referenceMatch:hex.test(referenceHash||'')&&hex.test(baseReference||'')?(referenceHash===baseReference?'same':'different'):'unavailable',recipeMatch:s.cache_key===original.cache_key};
+    choices.push({token,metrics,compareOnly:s.cache_key!==original.cache_key,sha256:s.sha256,current:s.sha256===original.sha256,recordedAt:data.doc.finishedAt||'',status:record.status,text:record.text,levelDb:record.continuity?.levelDb??null,url:pathToFileURL(file).href});seen.add(s.sha256);
     if(choices.length>=20)break;
    }catch{}
   }
@@ -52,7 +54,7 @@ function createGroupTakes({app,grantMedia}){
   const selected={};
   for(const [key,token]of Object.entries(value)){
    const row=tokens.get(token);
-   if(!row||row.applyAllowed===false||row.sender!==sender||row.key!==key||row.subtitleHash!==scope.subtitleHash||row.sourceIdentity!==scope.sourceIdentity||JSON.stringify(row.range)!==JSON.stringify(scope.range??null)||force.includes(key))throw Error('Selected recordings no longer match this job; refresh the recording list.');
+   if(!row||row.applyAllowed===false||row.sender!==sender||row.sample!==(scope.sample===true)||row.key!==key||row.subtitleHash!==scope.subtitleHash||row.sourceIdentity!==scope.sourceIdentity||JSON.stringify(row.range)!==JSON.stringify(scope.range??null)||force.includes(key))throw Error('Selected recordings no longer match this job; refresh the recording list.');
    await verified(row.sha256);
    selected[key]={cache_key:row.cache_key,sha256:row.sha256,record:row.record};
   }

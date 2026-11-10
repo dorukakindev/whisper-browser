@@ -5,9 +5,11 @@ const { randomUUID } = require('node:crypto');
 const { scanFolder, createMetadataClient, readLimitedBytes } = require('./catalog-discovery');
 const { atomicWriteFileSync } = require('./fsync-utils');
 const { metadataComplete } = require('./catalog-metadata-completeness');
-function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText, metadataSettings = () => ({}) }) {
+function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, visible, nativeImage, restart, canRestore = () => true, removeOwnedPoster = () => false, dialogText, metadataSettings = () => ({}), modelRoots }) {
   const dl = dialogText || ((tr) => tr);
   const client = createMetadataClient(undefined,{language:()=>metadataSettings().language||'tr-TR'}), previews = new Map();
+  let restoring=false;
+  const maintenance=require('./workspace-maintenance').create({root:userData,modelRoots});
   function remember(event, data) {
     for (const [key, row] of previews) if (Date.now() - row.created > 900000) previews.delete(key);
     if (previews.size >= 4) previews.delete(previews.keys().next().value);
@@ -22,6 +24,11 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
     const signal=context.signal;signal?.throwIfAborted();
     const item = () => { const value = store().get(input.id); if (!value) throw new Error('Eser bulunamadı.'); return value; };
     switch (input.action) {
+      case 'maintenance-inspect': return {ok:true,...maintenance.inspect(),recoveries:require('./workspace-restore-journal').list(userData())};
+      case 'maintenance-preview': {const plan=maintenance.preview(input.scopes);return {ok:true,token:remember(event,{type:'cleanup',plan}),bytes:plan.bytes,count:plan.files.length};}
+      case 'maintenance-apply': {const {plan}=take(event,input.token,'cleanup');if(!canRestore()||restoring)throw Error(dl('Önce çalışan işleri bitir.','Finish running jobs first.'));const result=maintenance.clean(plan);previews.delete(input.token);return {ok:true,...result};}
+      case 'recovery-preview': {const plan=require('./workspace-restore-journal').preview(userData(),input.id);return {ok:true,token:remember(event,{type:'recovery',plan}),id:plan.id,state:plan.state,files:plan.files.map(({name,state})=>({name,state}))};}
+      case 'recovery-apply': {const {plan}=take(event,input.token,'recovery');if(!canRestore()||restoring)throw Error(dl('Önce çalışan işleri bitir.','Finish running jobs first.'));const result=require('./workspace-restore-journal').recover(userData(),plan.id,plan.revision);previews.delete(input.token);restart();return {ok:true,...result};}
       case 'metadata-complete-missing':{
         const current=item(),hasPoster=!!current.posterPath&&fs.existsSync(current.posterPath);if(metadataComplete(current))return {ok:true,skipped:true,item:visible(current)};
         const credential=metadataSettings().apiKey;if(!credential)throw new Error('Önce Ayarlar → Film bilgileri ve afişler bölümüne TMDB anahtarını kaydedin.');
@@ -59,7 +66,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         if(!extras.people.some(p=>p.id===input.personId))throw Error('Person does not belong to this film.');
         const person=await client.person(input.personId,metadataSettings().apiKey,signal);guard();return {ok:true,person};
       }
-      case 'metadata-watch': return {ok:true,watch:await client.watchProviders(item(),metadataSettings().apiKey,input.region||metadataSettings().watchRegion||'TR',signal)};
+      case 'metadata-watch': return {ok:true,watch:await client.watchProviders(item(),metadataSettings().apiKey,input.region||metadataSettings().watchRegion||'TR',signal,{refresh:input.refresh===true})};
       case 'metadata-images': return {ok:true,...await client.images(item(),metadataSettings().apiKey,signal)};
       case 'metadata-recommendations': return {ok:true,...await client.recommendations(item(),metadataSettings().apiKey,input.page??1,signal)};
       case 'metadata-add-recommendation':{
@@ -133,7 +140,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
         for (const next of data.episodes) {
           const index = episodes.findIndex(ep => ep.season === next.season && ep.number === next.number);
           if (index < 0) episodes.push(next); else episodes[index] = { ...episodes[index],
-            airDate: next.airDate || episodes[index].airDate, title: episodes[index].title || next.title };
+            airDate: next.airDate || episodes[index].airDate, title: episodes[index].title || next.title, runtime:episodes[index].runtime||next.runtime||null };
         }
         store().upsert({ id: current.id, episodes }); previews.delete(input.token); return { ok: true };
       }
@@ -162,10 +169,14 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
       }
       case 'package-apply': {
         const { data, snapshot } = take(event, input.token, 'package');
+        if(restoring)throw Error(dl('Geri yükleme sürüyor.','A restore is already running.'));
+        restoring=true;
+        try {
         const replace = input.replaceConflicts === true;
         const names = snapshot.filter(row => row.state === 'new' || replace).map(row => row.name);
         const review = { snapshot, names };
         if (!canRestore()) throw new Error('Çalışan medya işlemini bitirin veya durdurun; ardından yeniden geri yükleyin.');
+        if(require('./workspace-restore-journal').list(userData()).some(r=>!['committed','rolled-back'].includes(r.state)))throw Error(dl('Önce yarım geri yüklemeyi Yedekleme alanından incele.','Review the unfinished restore in Backup first.'));
         // Kullanıcının önizlemede seçtiği ortam-kökü eşlemeleri. Yalnız
         // mutlak yollar kabul edilir ve hedefin gerçekten var olan bir
         // klasör olması gerekir — yazım hatası kayıtları ölü yola bağlardı.
@@ -198,8 +209,6 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           live = await owner().webContents.executeJavaScript(`Object.fromEntries(${JSON.stringify(packages.STORAGE_KEYS)}.map(key => [key, localStorage.getItem(key)]))`);
           const backup = path.join(userData(), 'before-restore-complete-' + Date.now() + '.wbp');
           packages.exportPackage(userData(), backup, live);
-          const backups = fs.readdirSync(userData()).filter(name => /^before-restore-complete-\d+\.wbp$/.test(name)).sort().reverse();
-          for (const name of backups.slice(3)) { try { fs.unlinkSync(path.join(userData(), name)); } catch {} }
           const restored = packages.remapRendererValues(userData(), data, videoMappings);
           // The package can omit keys. Only explicit incoming values replace
           // live preferences or locally saved source edits.
@@ -214,6 +223,7 @@ function createCatalogExtensions({ store, userData, pythonPath, dialog, owner, v
           throw error;
         }
         previews.delete(input.token); restart(); return { ok: true };
+        } finally {restoring=false;}
       }
       case 'choose-directory': {
         const pick = await dialog.showOpenDialog(owner(), { title: dl('Ortam klasörünü seç', 'Choose the media folder'), properties: ['openDirectory'] });

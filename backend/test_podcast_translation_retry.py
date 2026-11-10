@@ -45,6 +45,30 @@ class PodcastTranslationRetryTests(unittest.TestCase):
             done = next(call.kwargs for call in events.call_args_list if call.args[0] == 'done')
             self.assertEqual(done['outputs'][0]['subtitleHash'], hashlib.sha256(translation.read_bytes()).hexdigest())
 
+    def test_selected_touching_cue_does_not_retry_its_unselected_neighbour(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1] / 'tmp') as directory:
+            _, translation, args, metadata = self.fixture(Path(directory))
+            metadata.update(completed=0, failed=2)
+            metadata['cues'][0]['status'] = 'failed'
+            Path(str(translation)+'.meta.json').write_text(json.dumps(metadata), encoding='utf-8')
+            args.translate_cue_range = '14.002:15.998'
+
+            def translate(rows, _args, _warnings, source_lang=None, status_out=None, precompleted=None):
+                self.assertEqual(precompleted, {0: 'Merhaba dostum.'})
+                status_out.update(completed=[1], failed=[])
+                return [(s, e, ['Must stay unchanged.', 'Bugün nasılsın?'][i])
+                        for i, (s, e, _) in enumerate(rows)]
+
+            with patch.object(T, 'llm_translate', side_effect=translate), patch.object(T, 'emit'), redirect_stdout(io.StringIO()):
+                T.translate_existing_subtitle(args)
+            output = next(Path(directory).glob('*.partial.srt'))
+            saved = T.parse_subtitle_entries(output.read_text(encoding='utf-8-sig'), '.srt')
+            self.assertEqual(saved, [(12.0, 14.0, 'Merhaba dostum.'), (14.0, 16.0, 'Bugün nasılsın?')])
+            self.assertIn('How are you today?', translation.read_text(encoding='utf-8-sig'))
+            output_meta = json.loads(Path(str(output)+'.meta.json').read_text(encoding='utf-8'))
+            self.assertEqual(output_meta['cues'][0]['status'], 'failed')
+            self.assertEqual(output_meta['cues'][1]['status'], 'completed')
+
     def test_strict_range_does_not_mark_missing_cues_outside_range_completed(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1] / 'tmp') as directory:
             root = Path(directory)

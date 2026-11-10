@@ -64,6 +64,7 @@
       let farthest=null;
       for(const {cue,index} of ordered){
         const duration=cue.end-cue.start, reasons=[];
+        if(cue.qualityWarning||cue.qualityIssues?.length)reasons.push('quality-warning');
         const cps=Array.from(String(cue.text||'').replace(/\s/g,'')).length/Math.max(.001,duration);
         if(duration<=0)reasons.push('Geçersiz süre');
         else if(cps>limit)reasons.push(`Hızlı okuma · ${Math.round(cps)} karakter/sn`);

@@ -246,7 +246,17 @@
     };
   }
 
+  function podcastBindingForDisk(raw) {
+    if(!raw||typeof raw!=='object'||typeof raw.entryId!=='string'||!raw.entryId||raw.entryId.length>240||!/^[a-f0-9]{64}$/.test(raw.sourceVersion||''))return null;
+    const b={entryId:raw.entryId,sourceVersion:raw.sourceVersion,playbackOwner:'detached',released:true,restored:true,outputRole:raw.outputRole==='translation'?'translation':'source',expectedTranslation:raw.expectedTranslation===true,retryOnly:raw.retryOnly===true};
+    if(raw.episodeIdentity!==undefined){if(!/^[a-f0-9]{64}$/.test(raw.episodeIdentity))return null;b.episodeIdentity=raw.episodeIdentity;}
+    if(raw.coverage!=null){const {start,end}=raw.coverage;if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end>31536000)return null;b.coverage={start,end};}else b.coverage=null;
+    if(raw.targetLanguage!==undefined){if(typeof raw.targetLanguage!=='string'||!/^[-a-zA-Z0-9]{1,24}$/.test(raw.targetLanguage))return null;b.targetLanguage=raw.targetLanguage;}
+    if(b.outputRole==='translation'&&raw.sourceTranscriptText!==undefined){if(typeof raw.sourceTranscriptText!=='string'||raw.sourceTranscriptText.length>500000)return null;b.sourceTranscriptText=raw.sourceTranscriptText;}
+    return b;
+  }
   return {
+    podcastBindingForDisk,
     applyQueueRunEvent,
     assertQueueInvariants,
     beginQueueRun,

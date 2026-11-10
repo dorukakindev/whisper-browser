@@ -6,6 +6,7 @@ const { randomUUID, createHash } = require('node:crypto');
 const { renameSyncResilient } = require('./fsync-utils');
 const { canonicalWatchKey } = require('./watch-library-store');
 const personalMedia=require('./workspace-personal-media');
+const {safeTarget}=require('./workspace-safe-path');
 function remapFileWatchKey(value, mappings) {
   if (typeof value !== 'string' || !value.startsWith('file:')) return value;
   const key = canonicalWatchKey(value);
@@ -38,7 +39,7 @@ function storageValues(values) {
   return result;
 }
 function allowed(name) {
-  return typeof name === 'string' && !name.includes('\\') && !name.includes(':') && !name.split('/').some(p => !p || p === '.' || p === '..') &&
+  return typeof name === 'string' && !/[\\:\x00-\x1f<>"|?*]/.test(name) && !name.split('/').some(p => !p || p === '.' || p === '..' || /[. ]$/.test(p) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(p)) &&
     (ROOTS.has(name) || (DIRS.has(name.split('/')[0]) && /\.(srt|vtt|ass|ssa|jsonl?|png|jpg|jpeg|webp|ttf|otf|woff2?|mhtml)$/i.test(name)));
 }
 function rewrite(value, mappings) {
@@ -78,6 +79,8 @@ function rewrite(value, mappings) {
   return visit(value);
 }
 function exportPackage(root, output, rendererValues = {}, externalAliases = null, { portable = false } = {}) {
+  safeTarget(root);
+  if(require('./workspace-restore-journal').list(root).some(r=>!['committed','rolled-back'].includes(r.state)))throw Error('Review the unfinished restore before exporting. / Dışa aktarmadan önce yarım geri yüklemeyi incele.');
   const files = [], mappings = [], seen = new Set(),originalJson=new Map(); let total = 0;
   function add(file, name) {
     if (seen.has(name)) return;
@@ -225,9 +228,9 @@ function validate(data) {
 }
 function targetSnapshot(root, data) {
   validate(data);
-  const base = path.resolve(root);
+  const base = safeTarget(root);
   return data.files.map(file => {
-    const target = path.join(base, file.name);
+    const target = safeTarget(base, file.name);
     let current;
     try {
       let node = base;
@@ -251,7 +254,7 @@ function restorePackage(root, data, videoMappings = [], review = null) {
     throw Error('The destination changed. Preview the package again.');
   }
   const changes = data.files.map(file => {
-    const destination = path.resolve(root, file.name);
+    const destination = safeTarget(root, file.name);
     if (!destination.startsWith(path.resolve(root) + path.sep)) throw new Error('Paket yolu geçersiz.');
     let parent = path.dirname(destination);
     while (parent !== path.resolve(root)) { if (fs.existsSync(parent) && fs.lstatSync(parent).isSymbolicLink()) throw new Error('Yedek hedefi bağlantı içeriyor.'); parent = path.dirname(parent); }
@@ -308,19 +311,8 @@ function restorePackage(root, data, videoMappings = [], review = null) {
   if (!selected.length) return 0;
   // A durable pre-restore copy lets the user reverse an intentional replacement.
   exportPackage(root, path.join(root, 'before-restore-' + Date.now() + '.wbp'));
-  const applied = [];
-  try {
-    for (const change of selected) {
-      fs.mkdirSync(path.dirname(change.destination), { recursive: true });
-      const temp = change.destination + '.' + randomUUID() + '.tmp';
-      try { fs.writeFileSync(temp, change.bytes, { flag: 'wx', mode: 0o600 }); renameSyncResilient(fs, temp, change.destination); applied.push(change); }
-      finally { try { fs.unlinkSync(temp); } catch {} }
-    }
-  } catch (error) {
-    for (const change of applied.reverse()) { if (change.previous) fs.writeFileSync(change.destination, change.previous); else fs.unlinkSync(change.destination); }
-    throw error;
-  }
-  return selected.length;
+  const journal=require('./workspace-restore-journal'),tx=journal.prepare(root,selected);
+  return journal.apply(root,tx,selected.map(c=>c.bytes));
 }
 function remapRendererValues(root, data, videoMappings = []) {
   const maps = [...videoMappings, ...data.mappings.map(([from, relative]) => [from, path.join(root, relative)]), [data.sourceRoot, root]];
@@ -377,12 +369,13 @@ function describePackage(data, root = null) {
   const daily=json('media-daily.json');if(daily){summary.dailyJournalEntries=daily.journal?.length||0;summary.watchlistSections=Object.keys(daily.queue||{}).length;summary.linkedMediaAssets=daily.assets?.length||0;}
   const film=json('film-watch.json');if(film){summary.filmCollections=Object.keys(film.collections||{}).length;summary.filmAlternatives=film.alternatives?.length||0;}
   const relations=json('media-title-relations.json');if(relations)summary.titleRelationAliases=Object.keys(relations.bindings||{}).length;
+  Object.assign(summary, require('./workspace-library-data').describe(json));
   const enriched=json('media-enrichment.json');if(enriched?.titles)summary.titleDecisions=Object.keys(enriched.titles).length;
   const artifacts=json('assistant-artifacts.json');if(Array.isArray(artifacts?.documents))summary.assistantArtifacts=artifacts.documents.length;
   const chats=json('assistant-conversations.json');if(Array.isArray(chats?.threads))summary.assistantConversations=chats.threads.length;
   const folders=json('media-folder-watches.json');if(Array.isArray(folders))summary.watchedFolders=folders.length;
   const torrents=json('torrent-library.json');if(Array.isArray(torrents))summary.torrents=torrents.length;
-  if(root){summary.changes={added:0,changed:0,unchanged:0};for(const file of files){const target=path.join(root,file.name);let same=false;if(fs.existsSync(target)&&!fs.lstatSync(target).isSymbolicLink()&&fs.statSync(target).size<(file.name==='media-shelf.json'?require('./media-shelf-limits').MAX_BYTES:16e6))same=fs.readFileSync(target).equals(Buffer.from(file.data,'base64'));summary.changes[!fs.existsSync(target)?'added':same?'unchanged':'changed']++;}}
+  if(root){summary.changes={added:0,changed:0,unchanged:0};for(const row of targetSnapshot(root,data))summary.changes[{new:'added',conflict:'changed',same:'unchanged'}[row.state]]++;}
   return summary;
 }
 

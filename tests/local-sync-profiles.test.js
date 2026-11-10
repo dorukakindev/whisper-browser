@@ -156,5 +156,13 @@ test('prefs/snapshot geri yükleme kod yolları kaynakta var', () => {
   assert.match(renderer, /player\.offsetProfiles = \{\};/); // yeni medyada sıfırlanır
 });
 
+test('R30 confirmed HLS audio applies both channels and separates same-language variants',()=>{
+ const ctx=mkCtx({player:{subPath:'A.srt',sub2Path:'A.tr.srt',offset:2,offset2:4,offsetProfiles:{'p|tr|A.srt':-3,'s|tr|A.tr.srt':-4}}});let switched;const hls={audioTrack:0,audioTracks:[{id:0,lang:'en',name:'English'},{id:1,lang:'tr',name:'Turkish'},{id:2,lang:'tr',name:'Commentary'}],on:(_event,fn)=>switched=fn};ctx.player.hls=hls;Object.assign(ctx,{hls,Hls:{Events:{AUDIO_TRACK_SWITCHED:'switched'}},normalizeAudioLang:x=>x,updateAudioLockStatus(){}});const start=renderer.indexOf('  hls.on(Hls.Events.AUDIO_TRACK_SWITCHED,'),end=renderer.indexOf('  hls.on(Hls.Events.MEDIA_ATTACHED,',start);vm.runInContext(renderer.slice(start,end),ctx);switched();hls.audioTrack=1;switched();assert.equal(ctx.player.offset,0,'ambiguous legacy TR profile does not identify a variant');assert.equal(ctx.player.offset2,0);ctx.player.offset=-3;ctx.player.offset2=-4;ctx.set(false);ctx.set(true);const key=ctx.key(false);hls.audioTrack=2;switched();assert.notEqual(ctx.key(false),key);assert.equal(ctx.player.offset,0);assert.equal(ctx.player.offset2,0);hls.audioTrack=1;switched();assert.equal(ctx.player.offset,-3);assert.equal(ctx.player.offset2,-4);ctx.player.offsetProfiles={'p|tr|A.srt':-7,'s|tr|A.tr.srt':-8};hls.audioTracks=hls.audioTracks.slice(0,2);hls.audioTrack=0;switched();hls.audioTrack=1;switched();assert.equal(ctx.player.offset,-7,'unique-language legacy profile remains compatible');assert.equal(ctx.player.offset2,-8);ctx.player.hls={audioTrack:0};hls.audioTrack=0;switched();assert.equal(ctx.player.offset,-7,'event from retired HLS owner is ignored');
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
+
+{
+ const m=require('../src/renderer/subtitle-work-status'),saved={'p|hls:main-en|primary.srt':1.2,'s|hls:main-en|translation.srt':1.4,'p|hls:commentary-en|primary.srt':3.5,'s|hls:commentary-en|translation.srt':4,'p|hls:main-en|other.srt':9},before=JSON.stringify(saved),rows=m.profiles(saved,'primary.srt','translation.srt','hls:main-en');assert.equal(rows.length,2);assert.equal(rows[0].current,true);assert.equal(rows[0].secondary,1.4);assert.equal(rows[1].current,false);assert.equal(rows[1].primary,3.5);assert.equal(JSON.stringify(saved),before);
+}

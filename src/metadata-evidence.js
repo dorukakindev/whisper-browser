@@ -1,6 +1,6 @@
 'use strict';
 const {hash}=require('./personal-collection');
-const animeFields=['title','aliases','cover','genres','themes','studios','country','format','total','volumes','duration','year','adult'];
+const animeFields=['title','aliases','cover','genres','themes','studios','country','format','status','total','volumes','duration','year','adult'];
 const catalogFields=['title','originalTitle','originalLanguage','productionCountries','directorIds','directorPeople','directorsTruncated','year','synopsis','imdbId','genres','cast','runtime','directors','tagline','backdrop','tmdbRating','tmdbVotes','posterPath'];
 const missing=v=>v==null||v===''||Array.isArray(v)&&!v.length;
 const digest=v=>hash([v]);

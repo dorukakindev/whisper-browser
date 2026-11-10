@@ -24,6 +24,7 @@
     }
     return null;
   }
+  function revealContext(expected){for(const [owner,row]of [...contexts].reverse())if(owner.isConnected&&owner.open&&row.id===expected.id&&row.type===expected.type){owner.querySelector('textarea,article,button,input')?.focus({preventScroll:true});owner.scrollIntoView?.({block:'nearest'});return true;}return false;}
   function bindPassage(element, onChange) {
     const update = () => {
       if (!element.isConnected) return;
@@ -124,6 +125,6 @@
   document.addEventListener('keydown', event => {
     if (event.ctrlKey && event.shiftKey && !event.altKey && !event.repeat && event.key.toLowerCase() === 'j' && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) && !event.target.isContentEditable) { event.preventDefault(); openTasks(); }
   });
-  window.MediaExperience = Object.freeze({ setContext, context, bindPassage, openTasks, refreshTasks:()=>{if(taskDialog?.open)drawTasks();}, taskRows, openVoice, trackVoice });
+  window.MediaExperience = Object.freeze({ setContext, context, revealContext, bindPassage, openTasks, refreshTasks:()=>{if(taskDialog?.open)drawTasks();}, taskRows, openVoice, trackVoice });
   $('mediaCatalogDialog')?.classList.add('media-surface');
 })();

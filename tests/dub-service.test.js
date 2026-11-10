@@ -601,6 +601,13 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal((await call('dub:start',{id:'custom-delivery-off',srt,timingMode:'clip',resultMode:'custom',followDelivery:false,
       backgroundTab:{tabId:'video',generation:1}})).ok,true);
     assert.equal(prosodyOptions,null,'Saved custom delivery-off choice remains respected');child.emit('close',1);
+    const proofOptions={srt,resultMode:'custom',followDelivery:false,timingMode:'clip',source:'https://example.test/media.mp4'};
+    assert.equal((await call('dub:start',{...proofOptions,id:'proof-sample',sample:true})).ok,true);
+    let proofWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];fs.writeFileSync(proofWav,wav);child.emit('close',0);
+    assert.equal(events.at(-1).integrity.subtitleHash,fixtureHash);assert.equal(events.at(-1).integrity.scope,'sample');
+    assert.equal((await call('dub:start',{...proofOptions,id:'proof-full',rehearsalId:'proof-sample'})).ok,true);
+    proofWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];fs.writeFileSync(proofWav,wav);child.emit('close',0);
+    assert.equal(events.at(-1).integrity.rehearsal.status,'matching');assert.equal((await call('dub:latest')).output.integrity.rehearsal.id,'proof-sample');
     console.log('dub-service: authorization, single job, safe output, progress, cancellation, source ownership and natural/custom policy passed');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 })().catch(e=>{console.error(e);process.exitCode=1;});

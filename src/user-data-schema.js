@@ -3,6 +3,7 @@
 // Container contracts shared by read-only health checks and portable backups.
 // Keep legacy shapes accepted by normal readers; reject unusable JSON roots.
 function validateStoreShape(name, value) {
+  require('./workspace-library-data').validate(name, value);
   const object = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
   const rows = (v) => Array.isArray(v) && v.every(object);
   let valid = true;

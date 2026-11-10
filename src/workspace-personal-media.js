@@ -1,6 +1,7 @@
 'use strict';
 const path=require('node:path');
-const NAMES=new Set(['media-daily.json','film-watch.json','media-title-relations.json']);
+const library=require('./workspace-library-data');
+const NAMES=new Set(['media-daily.json','film-watch.json','media-title-relations.json',...library.NAMES]);
 const object=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const str=(v,n=500,empty=false)=>typeof v==='string'&&v.length<=n&&!v.includes('\0')&&(empty||!!v.length);
 const number=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
@@ -21,6 +22,7 @@ function localPath(value,extension){
  check(path.isAbsolute(value)||path.win32.isAbsolute(value)||value.startsWith('{{ROOT}}/')||value.startsWith('{{VIDEO}}/'));
 }
 function validate(name,data){
+ if(library.NAMES.has(name))return library.validate(name,data);
  if(!NAMES.has(name))return;
  check(object(data)&&data.version===1);
  check(Buffer.byteLength(JSON.stringify(data))<=(name==='media-title-relations.json'?16_000_000:8_000_000));

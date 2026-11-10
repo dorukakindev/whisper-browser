@@ -10,7 +10,7 @@
   const hub=input=>call(window.api.mediaHub,input);
   const buildRoute=(rows,budgetMinutes,breakMinutes)=>WatchItinerary.buildWatchItinerary({
     budgetMinutes,breakMinutes,candidates:rows.map(i=>({itemId:i.id,title:i.title,
-      runtimeMinutes:Number(i.runtime)||null,sourceReady:i.hasSource?'unknown':'needs-source'}))});
+      runtimeMinutes:Number(i.runtime)||null,sourceReady:i.hasSource?'unknown':'needs-source',reason:i.reason||''}))});
   function open(initial='bulletin', routeOptions={}) {
     const existing=document.getElementById('whisperV3Dialog');
     if(existing)existing.close();
@@ -93,14 +93,16 @@
           return;
         }
         if(tab==='route'){
-          const list=routeOptions.watchlist ? {watchlist:routeOptions.watchlist} : await call(window.api.mediaTools,{action:'daily-list'});
+          let list,localPlan;
+          if(routeOptions.local){const [items,history]=await Promise.all([catalog(),window.api.listWatchLibrary()]);if(!current())return;localPlan=window.MediaToolsModel.eveningPlan(items,history,{minutes:600,breakMinutes:0});list={watchlist:localPlan.candidates.slice(0,100).map(r=>({id:r.key,catalogId:r.itemId,title:r.title+(r.episode?' · '+r.episode:''),runtime:Math.ceil(r.remainingSeconds/60),hasSource:true,reason:(r.durationBasis==='observed-playback'?t('Gözlenen oynatma süresi','Observed playback duration'):t('Katalog süresi','Catalogue duration'))+' · '+t('Kalan dakika yukarı yuvarlandı','Remaining minutes rounded up')}))};}
+          else list=routeOptions.watchlist ? {watchlist:routeOptions.watchlist} : await call(window.api.mediaTools,{action:'daily-list'});
           if(!current())return;
           const budget=h('input',{type:'number',min:15,max:600,step:1,value:routeOptions.budget??180,'aria-label':t('Dakika bütçesi','Minutes budget')});
           const range=h('input',{class:'ws-range',type:'range',min:budget.min,max:budget.max,step:1,value:budget.value,'aria-label':t('İzleme süresini ayarla','Adjust watching time')});
           const syncRange=()=>{range.value=budget.value;range.style.setProperty('--range-progress',((Number(range.value)-Number(range.min))/(Number(range.max)-Number(range.min))*100)+'%');};
           options.budgetControl=[h('div',{class:'ws-budget-value'},budget,h('small',{text:t('dakika','minutes')})),range,h('div',{class:'ws-range-labels'},h('span',{text:budget.min+' '+t('dk','min')}),h('span',{text:budget.max+' '+t('dk','min')}))];
           options.presets=h('div',{class:'ws-route-presets',role:'group','aria-label':t('İzleme süresi','Watching time')},[[180,t('Bir akşam','An evening')],[360,t('Hafta sonu','Weekend')],[480,t('Uzun bir gün','A long day')],[null,t('Özel süre','Custom time')]].map(([value,label])=>{const node=button(label,()=>{if(value===null){budget.focus();budget.select();return;}budget.value=value;render();},'ws-preset');node.dataset.budget=value??'custom';node.replaceChildren(h('span',{text:label}),h('small',{text:value===null?t('Siz belirleyin','Choose your time'):value+' '+t('dakika','minutes')}));return node;}));
-          options.items=list.watchlist;
+          options.items=list.watchlist;if(routeOptions.local)options.loadPoster=(target,id)=>loadPoster(target,list.watchlist.find(r=>r.id===id)?.catalogId||id);
           const excluded=new Set();
           let routeVersion=0;
           const breakInput=h('input',{type:'number',min:0,max:120,step:1,value:routeOptions.breakMinutes??10});
@@ -111,15 +113,16 @@
             input.onchange=()=>{if(input.checked)excluded.delete(row.id);else excluded.add(row.id);render();};
             choices.append(h('label',null,input,row.title));
           }
-          options.presets=[options.presets,choices];
+          options.presets=[button(routeOptions.local?t('İzleme listesine dön','Use watchlist titles'):t('Yerel film ve bölümler','Local films & episodes'),()=>open('route',{...routeOptions,local:!routeOptions.local,budget:Number(budget.value),breakMinutes:Number(breakInput.value)})),options.presets,choices,...(localPlan?[h('p',{class:'mtx-muted',text:t('Süresi bilinmeyen giriş dışarıda: ','Unknown durations excluded: ')+localPlan.unknown+(localPlan.partial||localPlan.candidates.length>100?t(' · İlk 100 aday',' · First 100 candidates'):'')+' · '+t('Anlık plan; kaynak değişince yeniden açın.','Planning snapshot; reopen after source changes.')})]:[])];
 
           const render=()=>{
             const revision=++routeVersion;
             syncRange();
-            for(const node of options.presets[0].querySelectorAll('button')){const selected=node.dataset.budget===budget.value||(node.dataset.budget==='custom'&&![180,360,480].includes(Number(budget.value)));node.classList.toggle('is-selected',selected);node.setAttribute('aria-pressed',String(selected));}
+            for(const node of options.presets[1].querySelectorAll('button')){const selected=node.dataset.budget===budget.value||(node.dataset.budget==='custom'&&![180,360,480].includes(Number(budget.value)));node.classList.toggle('is-selected',selected);node.setAttribute('aria-pressed',String(selected));}
             const route=buildRoute(list.watchlist.filter(i=>!excluded.has(i.id)),Number(budget.value),Number(breakInput.value));
             options.handlers.onPreviewApply=()=>{
               if(!route.items.length||revision!==routeVersion)return;
+              if(routeOptions.local){drawer(t('Yerel izleme planı','Local viewing plan'),h('section',null,h('ol',null,route.items.map(i=>h('li',{text:i.title+' · '+i.runtimeMinutes+' '+t('dk kaldı','min remaining')}))),h('p',{text:t('Salt okunur plan. Oynatma, kuyruk, durum ve puan değişmez.','Read-only plan. Playback, queue, status and ratings stay unchanged.')})));return;}
               const name=h('input',{maxlength:80,'aria-label':t('Koleksiyon adı','Collection name')});
               const preview=h('section',{class:'v3-runtime-controls'},h('ol',null,route.items.map(i=>h('li',{text:i.title}))),name);
               preview.append(button(t('Üyeliği önizle','Review membership'),async()=>{

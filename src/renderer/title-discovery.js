@@ -33,14 +33,15 @@
     for(const code of master?[...master.options].map(n=>n.value):['TR','US','GB','DE','FR','ES','IT','NL','CA','AU','JP','KR','IN','BR']){const option=el('option','',names.of(code));option.value=code;country.append(option);}country.value=master?.value||'TR';watchHeader.append(country);
     const availability=el('div','mtd-watch-content');watch.append(availability,el('small','mtd-extra-copy','JustWatch · TMDB'));aside.append(watch);
     let watchSequence=0;
-    async function loadWatch(){
+    async function loadWatch(refresh=false){
       const sequence=++watchSequence,region=country.value;availability.replaceChildren(el('p','mtd-extra-copy',t('Checking availability…','İzleme bilgileri alınıyor…')));availability.setAttribute('aria-busy','true');
       try{
-        const result=await request('metadata-watch',item.id,{region});if(sequence!==watchSequence||!availability.isConnected)return;
+        const result=await request('metadata-watch',item.id,{region,refresh:refresh===true});if(sequence!==watchSequence||!availability.isConnected)return;
         availability.replaceChildren();let count=0;
         const labels={flatrate:t('Subscription','Abonelik'),free:t('Free','Ücretsiz'),ads:t('With ads','Reklamlı'),rent:t('Rent','Kiralama'),buy:t('Buy','Satın alma')};
         for(const [mode,providers] of Object.entries(result.watch.groups))if(providers.length){count+=providers.length;const group=el('div','mtd-provider-group');group.append(el('h3','',labels[mode]||mode));const list=el('div','mtd-provider-list');for(const p of providers)list.append(el('span','',p.name));group.append(list);availability.append(group);}
         if(!count)availability.append(el('p','mtd-extra-copy',t('No availability information for this country. Results from other countries are not substituted.','Bu ülke için izleme bilgisi bulunamadı. Başka ülkelerin sonuçları gösterilmiyor.')));
+        const checked=new Date(result.watch.checkedAt);availability.append(el('p','mtd-extra-copy',(Number.isFinite(result.watch.checkedAt)?t('Checked: ','Kontrol: ')+new Intl.DateTimeFormat(window.UiLocale?.get?.()==='tr'?'tr':'en',{dateStyle:'medium',timeStyle:'short'}).format(checked):t('Check date unavailable','Kontrol tarihi yok'))+(result.watch.cacheHit?t(' · cached (up to 10 minutes)',' · önbellek (en fazla 10 dakika)'):'')),el('p','mtd-extra-copy',t('Availability can change. Prices are not provided; verify terms on the source.','Bulunabilirlik değişebilir. Fiyat bilgisi verilmez; koşulları kaynaktan doğrula.')),button(t('Refresh availability','Bulunabilirliği yenile'),()=>loadWatch(true)));
         availability.append(button(t('Check on TMDB / JustWatch ↗','TMDB / JustWatch’ta kontrol et ↗'),async()=>{try{await window.api.openExternal(result.watch.url);}catch(error){availability.append(el('p','mtd-extra-status',error.message));}}));
       }catch(error){if(sequence===watchSequence&&availability.isConnected)availability.replaceChildren(el('p','mtd-extra-status',error.message),button(t('Retry','Yeniden dene'),loadWatch));}
       finally{if(sequence===watchSequence)availability.setAttribute('aria-busy','false');}

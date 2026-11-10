@@ -96,6 +96,8 @@
     if (row.secondaryText) { const sec = h('p', { class: 'pw-cue__sec', lang: vm.secondaryLang || null }); appendHighlighted(sec, row.secondaryText, q); body.push(sec); }
     else if (hasSecondary && row.pairing === 'missing') body.push(h('p', { class: 'pw-cue__sec pw-cue__sec--missing', text: t(L, 'noTranslation') }));
     if (row.pairing === 'uncertain') body.push(h('div', { class: 'pw-cue__flags' }, h('span', { class: 'pw-badge pw-badge--warn', text: t(L, 'uncertain') }), row.secondaryCandidates.map((c) => h('span', { class: 'pw-badge', title: c.text, text: `${formatClock(c.videoStart)}` }))));
+    if(row.pairing==='uncertain')body.push(h('details',{class:'pw-pair-review'},h('summary',{text:L==='tr'?'Eşleşme adaylarını incele':'Review pairing candidates'}),h('p',{text:row.sourceText}),h('small',{text:(L==='tr'?'Kaynak: ':'Source: ')+row.videoStart.toFixed(3)+'–'+row.videoEnd.toFixed(3)+' s · '+row.trackRevision}),row.secondaryCandidates.map(c=>h('div',{class:'pw-pair-candidate'},h('p',{text:c.text}),h('small',{text:c.videoStart.toFixed(3)+'–'+c.videoEnd.toFixed(3)+' s · '+(L==='tr'?'örtüşme ':'overlap ')+Math.max(0,Math.min(row.videoEnd,c.videoEnd)-Math.max(row.videoStart,c.videoStart)).toFixed(3)+' s'}),h('button',{type:'button',class:'pw-btn',text:L==='tr'?'Bu adayı oturum için seç':'Choose for this session',on:{click:()=>handlers.onPairCandidate?.(row,c)}}),h('button',{type:'button',class:'pw-btn',text:L==='tr'?'Bu bloğu düzenle':'Edit this exact block',on:{click:()=>handlers.onEditCandidate?.(row,c)}})))));
+    if(row.humanSelection)body.push(h('small',{class:'pw-cue__sec',text:L==='tr'?'İnsan seçimi · yalnız bu kaynak revizyonunda; sağlayıcı doğrulaması değildir.':'Human choice · this source revision only; not provider verification.'}));
     const timed = vm.transcriptState !== 'untimed';
     return h('div', { class: 'pw-cue', role: 'listitem', 'aria-current': active ? 'true' : null, data: { key: row.key, cueId: row.cueId } },
       timed ? h('button', { class: 'pw-cue__time', type: 'button', 'aria-label': `${t(L, 'playHere')} ${formatClock(row.videoStart)}`, on: { click: () => handlers.onSeekRow && handlers.onSeekRow(row, 'preserve') } }, formatClock(row.videoStart)) : h('span'),
@@ -108,10 +110,11 @@
     const activeVisible = rows.some((r) => r.key === vm.activeKey);
     const list = h('div', { class: 'pw-transcript', role: 'list', tabindex: '0', 'aria-label': t(L, 'transcript') });
     if (vm.transcriptState === 'untimed') list.append(h('div', { class: 'pw-answer', style: 'margin:8px 16px' }, h('p', { text: t(L, 'transcriptUntimed') })));
-    if (vm.transcriptState === 'none' || (!all.length && vm.transcriptState !== 'untimed')) list.append(h('div', { class: 'pw-empty', style: 'margin:16px;border:0' }, h('div', { class: 'pw-empty__icon' }, icon('transcript')), h('h3', { text: L==='tr'?'Henüz konuşma dökümü yok.':'No transcript loaded yet.' }),h('p',{text:L==='tr'?'Altyazı yüklediğinde zamanlı satırlar burada görünür.':'Load subtitles to see timed lines here.'})));
+    if(!all.length&&vm.totalRows>0&&vm.transcriptState!=='untimed')list.append(h('div',{class:'pw-empty'},h('h3',{text:L==='tr'?'Bu filtrelerde eşleşen satır yok.':'No cues match these filters.'})));
+    else if (vm.transcriptState === 'none' || (!all.length && vm.transcriptState !== 'untimed')) list.append(h('div', { class: 'pw-empty', style: 'margin:16px;border:0' }, h('div', { class: 'pw-empty__icon' }, icon('transcript')), h('h3', { text: L==='tr'?'Henüz konuşma dökümü yok.':'No transcript loaded yet.' }),h('p',{text:L==='tr'?'Altyazı yüklediğinde zamanlı satırlar burada görünür.':'Load subtitles to see timed lines here.'})));
     else if (all.length && !rows.length) list.append(h('div',{class:'pw-empty'},h('h3',{text:L==='tr'?'Aramada eşleşme yok.':'No matching lines.'})));
     rows.forEach((r) => list.append(cueRow(vm, r, handlers)));
-    if(rows.length && !vm.hasMoreRows) list.append(h('p',{class:'pw-transcript-end',text:L==='tr'?'Yüklü dökümün sonu':'End of loaded transcript'}));
+    if(rows.length && !vm.hasMoreRows) list.append(h('p',{class:'pw-transcript-end',text:vm.totalRows>vm.matchedCount?(L==='tr'?'Filtrelenmiş sonuçların sonu':'End of filtered results'):(L==='tr'?'Yüklü dökümün sonu':'End of loaded transcript')}));
     let programmatic = false;
     const pause = () => { if (vm.follow !== false) handlers.onFollow && handlers.onFollow(false); };
     ['wheel', 'touchstart'].forEach((ev) => list.addEventListener(ev, pause, { passive: true }));
@@ -174,16 +177,20 @@
 
   function renderPlayerWorkspace(root, vm, handlers) {
     const prev = root.querySelector('.pw-transcript'); const keepScroll = prev ? prev.scrollTop : 0; const prevSearch = root.querySelector('.pw-panel__tools input');
+    const filterFocus = root.querySelector('.pw-issue-filter select') === document.activeElement;
     const hadFocus = prevSearch && document.activeElement === prevSearch; const L = vm.locale;
     const tabs = [['transcript', 'transcript', 'transcript'], ['assistant', 'assistant', 'sparkle'], ['queue', 'queue', 'list']];
     let content; let tr = null;
     if (vm.tab === 'assistant') content = assistantTab(vm, handlers); else if (vm.tab === 'queue') content = queueTab(vm, handlers);
     else { tr = transcriptTab(vm, handlers); content = tr.list; }
     const search = h('input', { type: 'search', value: vm.query || '', autocomplete: 'off', 'aria-label': t(L, 'findInTranscript'), placeholder: t(L, 'findInTranscript'), on: { input: (e) => handlers.onQuery && handlers.onQuery(e.target.value) } });
+    const issueLabels={all:['Tüm sorunlar ve satırlar','All cues'],missing:['Eksik çeviri','Missing translation'],uncertain:['Belirsiz eşleşme','Uncertain pairing'],empty:['Boş metin','Empty text'],fast:['Hızlı okuma','Fast reading'],short:['Kısa süre','Short duration'],overlap:['Çakışma','Overlap'],lines:['Satır uzunluğu','Line length'],invalid:['Geçersiz zaman','Invalid timing'],long:['Uzun gösterim','Long display'],gap:['Kısa kare aralığı','Short frame gap'],shot:['Kesimi aşıyor','Crosses scene cut']};
+    const issueSelect=h('select',{'aria-label':L==='tr'?'Sorun türü':'Issue type',on:{change:e=>handlers.onIssueFilter?.(e.target.value)}},Object.entries(issueLabels).map(([kind,labels])=>h('option',{value:kind,text:labels[L==='tr'?0:1]+(kind==='all'?'':' · '+(vm.issueCounts?.[kind]||0))})));
+    issueSelect.value=vm.issueFilter||'all';
     const panel = h('section', { class: 'pw-panel', tabindex:'-1', 'aria-label': vm.media.title },
       h('header',{class:'pw-panel-heading'},h('div',null,h('h2',{text:vm.tab==='transcript'?(L==='tr'?'Konuşma dökümü':'Transcript'):t(L,vm.tab)}),h('p',{text:[vm.sourceLang,vm.secondaryLang].filter(Boolean).join(' + ')})),h('button',{class:'pw-panel-close pw-btn pw-btn--ghost pw-btn--icon',type:'button','aria-label':L==='tr'?'Paneli kapat':'Close panel',on:{click:()=>handlers.onPanelClose?.()}},icon('close'))),
       h('div', { class: 'pw-tabs', role: 'tablist' }, tabs.map(([k, key, ic]) => h('button', { class: 'pw-tab', type: 'button', role: 'tab', 'aria-selected': vm.tab === k ? 'true' : 'false', on: { click: () => handlers.onTab && handlers.onTab(k) } }, t(L, key)))),
-      vm.tab === 'transcript' && h('div', { class: 'pw-panel__tools' }, h('div', { class: 'pw-search' }, icon('search', 'pw-icon--sm'), search)),
+      vm.tab === 'transcript' && h('div', { class: 'pw-panel__tools' }, h('div', { class: 'pw-search' }, icon('search', 'pw-icon--sm'), search),vm.totalRows!==undefined&&h('div',{class:'pw-issue-filter'},h('label',null,h('span',{text:L==='tr'?'Sorun türü':'Issue type'}),issueSelect),h('small',{role:'status',text:L==='tr'?`${vm.rows.length} gösterilen · ${vm.matchedCount} eşleşen / ${vm.totalRows} toplam satır`:`${vm.rows.length} shown · ${vm.matchedCount} matching / ${vm.totalRows} total cues`}),vm.activeOutside&&h('button',{type:'button',class:'pw-btn',on:{click:()=>handlers.onRevealActive?.()},text:L==='tr'?'Aktif satır filtre dışında · filtreleri kaldır':'Active cue outside filter · clear filters'}))),
       content,
       vm.tab === 'transcript' && tr && vm.activeKey && h('div', { class: 'pw-follow', hidden: true }, h('button', { class: 'pw-btn pw-btn--primary', type: 'button', on: { click: () => handlers.onFollow && handlers.onFollow(true) } }, icon('chevron-down', 'pw-icon--sm'), t(L, 'followNow'))),
       vm.tab === 'transcript' && inspector(vm, handlers),
@@ -207,6 +214,7 @@
     } else root.replaceChildren(heading,h('div', { class: 'pw-player' }, left, panel));
     const list = root.querySelector('.pw-transcript');
     if (list) { list.scrollTop = keepScroll; if (tr && tr.list.__afterMount) tr.list.__afterMount(root.querySelector('.pw-follow')); }
+    if(filterFocus)root.querySelector('.pw-issue-filter select')?.focus({preventScroll:true});
     const inp = root.querySelector('.pw-panel__tools input'); if (hadFocus && inp) { inp.focus(); const n = inp.value.length; inp.setSelectionRange(n, n); }
     return { stageSlot: root.querySelector('[data-slot="stage"]') };
   }

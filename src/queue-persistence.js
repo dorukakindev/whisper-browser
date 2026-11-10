@@ -171,6 +171,7 @@ function normalizeQueueItem(raw) {
     watchReported: String(raw.watchReported || '').slice(0, 20),
     recovered: !!raw.recovered,
   };
+  if(raw.podcastBinding!==undefined){const binding=require('./renderer/queue-lifecycle').podcastBindingForDisk(raw.podcastBinding);if(!binding)return null;item.podcastBinding=binding;}
   if (status === 'done' && opts.translateRetryOnly === true && raw.repairOutput) {
     const output = selectRepairOutput([raw.repairOutput], item.files, opts.translateTo);
     if (output) item.repairOutput = output;

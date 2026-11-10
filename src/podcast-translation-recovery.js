@@ -72,7 +72,7 @@ function materialize({directory,sourceVersion,source,translation,targetLanguage,
 }
 // File repair is separate from feed recovery: the exact generated file and sidecar
 // are re-read at approval. Original artifacts and successful rows stay untouched.
-function repairFile({file,bytes,directory,prepare=false,expectedHash,allowMixed=false}){
+function repairFile({file,bytes,directory,prepare=false,expectedHash,allowMixed=false,selectedIndices}){
  let raw=readOutputRecovery(file,bytes),mixed=false;
  const text=require('./browser-textutil').decodeSubtitleBuffer(bytes).text;
  if(!raw){
@@ -86,22 +86,34 @@ function repairFile({file,bytes,directory,prepare=false,expectedHash,allowMixed=
  const metadata=mixed?{mixedSubtitleRepair:true}:JSON.parse(fs.readFileSync(file+'.meta.json','utf8'));
  if(metadata.mixedSubtitleRepair===true)mixed=true;
  const fingerprint=hash(Buffer.concat([bytes,Buffer.from(JSON.stringify(metadata))]));
- const info={canRepair:failed.size>0,total:raw.completed.length,failed:failed.size,suspected:suspects.length,targetLanguage:raw.targetLanguage,fingerprint,mixed};
+ const info={canRepair:failed.size>0,total:raw.completed.length,failed:failed.size,suspected:suspects.length,targetLanguage:raw.targetLanguage,fingerprint,mixed,rows:[...failed].sort((a,b)=>a-b).slice(0,500).map(index=>({index,start:translated[index].startMs/1000,end:translated[index].endMs/1000,source:raw.sourceCues[index].text.slice(0,1000),translation:translated[index].text.slice(0,1000)})),rowsPartial:failed.size>500};
  if(!prepare||!info.canRepair)return info;
  if(expectedHash!==fingerprint)fail();
+ let cueRange=null;
+ if(selectedIndices!==undefined){
+  if(!Array.isArray(selectedIndices)||!selectedIndices.length||selectedIndices.length>500||new Set(selectedIndices).size!==selectedIndices.length||selectedIndices.some(i=>!Number.isSafeInteger(i)||!failed.has(i)))fail('invalid-selection');
+  const selected=new Set(selectedIndices),start=Math.min(...selectedIndices.map(i=>translated[i].startMs/1000)),end=Math.max(...selectedIndices.map(i=>translated[i].endMs/1000));
+  const affected=[...failed].filter(i=>translated[i].endMs/1000>start+.001&&translated[i].startMs/1000<end-.001);
+  if(affected.some(i=>!selected.has(i)))throw Error('Choose every failed row in one continuous time range. / Tek zaman aralığındaki tüm eksik satırları seç.');
+  if(end-start<=.004)throw Error('This cue is too short for a safe range selection. / Bu satır güvenli aralık seçimi için çok kısa.');
+  // Existing engine range matching has a 1 ms tolerance. An interior window
+  // selects whole cues without accidentally including a touching neighbour.
+  cueRange=(Math.round((start+.002)*1000)/1000)+':'+(Math.round((end-.002)*1000)/1000);
+ }
  if(raw.forSpeech&&!(typeof metadata.speechProtocol==='string'&&/^speech-[a-z0-9-]{1,100}$/.test(metadata.speechProtocol)))fail('for-speech-unsupported');
  const sourceText=serialize(raw.sourceCues),source={state:'timed',text:sourceText,status:'complete'};
  const track={state:'timed',text,status:'partial',targetLanguage:raw.targetLanguage,
   recovery:{...raw,forSpeech:false,completed:raw.completed.map((done,i)=>done&&!failed.has(i))}};
  const result=materialize({directory,sourceVersion:fingerprint,source,translation:track,targetLanguage:raw.targetLanguage,expectedTranscriptText:sourceText});
- if(raw.forSpeech||mixed){
+ if(raw.forSpeech||mixed||cueRange){
   const staged=JSON.parse(fs.readFileSync(result.translationPath+'.meta.json','utf8'));
   if(mixed)staged.mixedSubtitleRepair=true;
   if(raw.forSpeech){staged.forSpeech=true;staged.speechProtocol=metadata.speechProtocol;}
+  if(cueRange)staged.repairCueRange=cueRange;
   require('./fsync-utils').atomicWriteFileSync(result.translationPath+'.meta.json',JSON.stringify(staged)+'\n');
   result.forSpeech=raw.forSpeech;
  }
- return {...info,...result,repairInputProof:{source:hash(fs.readFileSync(result.sourcePath)),translation:hash(fs.readFileSync(result.translationPath)),metadata:hash(fs.readFileSync(result.translationPath+'.meta.json'))}};
+ return {...info,...result,...(cueRange?{translateCueRange:cueRange}:{}),repairInputProof:{source:hash(fs.readFileSync(result.sourcePath)),translation:hash(fs.readFileSync(result.translationPath)),metadata:hash(fs.readFileSync(result.translationPath+'.meta.json'))}};
 }
 // Called only after both subtitle paths have been authorized by main.
 function verifyRepairInputs(options){
@@ -113,5 +125,6 @@ function verifyRepairInputs(options){
   if(typeof proof[key]!=='string'||!/^[a-f0-9]{64}$/.test(proof[key])||typeof file!=='string')invalid();
   try{const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>32*1024*1024||hash(fs.readFileSync(file))!==proof[key])invalid();}catch{invalid();}
  }
+ const metadata=JSON.parse(fs.readFileSync(options.translateExisting+'.meta.json','utf8'));if(metadata.repairCueRange!==undefined&&options.translateCueRange!==metadata.repairCueRange)invalid();
 }
 module.exports={readOutputRecovery,validate,coverage,recoveryInfo,materialize,repairFile,verifyRepairInputs};

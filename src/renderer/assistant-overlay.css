@@ -483,3 +483,5 @@ html[data-theme=light] .tool-card[data-status=pending] .tool-status,html[data-th
 .sources .source-card[open] .source-title{white-space:normal;overflow-wrap:anywhere;text-overflow:clip}
 .sources .source-card[open]>summary{align-items:start}
 .sources .source-card[open] .source-tags{flex-wrap:wrap;justify-content:flex-end}
+
+.conversation-capacity{font-size:11px;line-height:1.5;color:var(--muted);margin:6px 16px}.flow-result-review,.runtime-delivery,.action-card-history{margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.flow-result-review>summary,.runtime-delivery>summary,.action-card-history>summary{cursor:pointer;color:var(--accent);font-size:12px}.flow-result-review p,.runtime-delivery p{font-size:12px;line-height:1.6;overflow-wrap:anywhere}.flow-result-review small{display:block;color:var(--muted);line-height:1.6}.action-card-history .tool-card{margin-top:12px}

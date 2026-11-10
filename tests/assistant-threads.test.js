@@ -61,3 +61,8 @@ test('thread persistence keeps a bounded count of unverified references',()=>{
  const base=thread(),rows=cleanThread({...base,messages:[base.messages[0],{id:'answer',parentId:'question',role:'assistant',text:'x',status:'complete',basis:{unverified:2,extra:'x'}},{id:'two',parentId:'answer',role:'assistant',text:'y',basis:{unverified:-4}}]}).messages;
  assert.deepEqual(rows[1].basis,{unverified:2});assert.equal(rows[2].basis,null);
 });
+
+test('R31 continued reply keeps the ninth live card and rejects capacity overflow without rewriting the archive',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'assistant-cards-'));try{const service=registerAssistantThreads({app:{getPath:()=>dir},ipcMain:{handle(){}},authorized:()=>true}),t=thread(),card=i=>({kind:'app_action',proposalId:'card-'+i,tool:'navigate_workspace',label:'Card '+i,resultStatus:i<9?'stopped':''});t.messages[1].actions=Array.from({length:9},(_,i)=>card(i+1));let r=await service.handle({},{action:'save',sourceKey:t.sourceKey,thread:t});assert.equal(r.ok,true,r.error);const listed=await service.handle({},{action:'list',sourceKey:t.sourceKey});assert.equal(listed.threads[0].messages[1].actions.at(-1).proposalId,'card-9');assert.equal(listed.threads[0].messages[1].actions.length,9);const before=fs.readFileSync(path.join(dir,'assistant-conversations.json'),'utf8');r.thread.messages[1].actions=Array.from({length:65},(_,i)=>card(i+1));const over=await service.handle({},{action:'save',sourceKey:t.sourceKey,thread:r.thread});assert.equal(over.ok,false);assert.match(over.error,/capacity|limit|sınır/i);assert.equal(fs.readFileSync(path.join(dir,'assistant-conversations.json'),'utf8'),before);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

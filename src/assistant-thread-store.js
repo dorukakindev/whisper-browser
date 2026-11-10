@@ -43,11 +43,12 @@ function citationsOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,40).flatMap(
 
 function actionsOf(raw){
   if(!Array.isArray(raw))return [];
-  return raw.slice(0,8).flatMap(row=>{
+  require('./assistant-run-steps').actionCapacity(raw);
+  return raw.flatMap(row=>{
     if(row?.kind==='app_action'){
       if(!id(row.proposalId)||require('./assistant-capabilities').get(row.tool)?.policy!=='proposal')return [];
       return [{kind:'app_action',proposalId:row.proposalId,tool:row.tool,label:text(row.label,120),summary:text(row.summary,1000),
-        resultStatus:['accepted','completed','failed','stopped','unknown'].includes(row.resultStatus)?row.resultStatus:'',refreshable:row.resultStatus==='failed'&&row.refreshable===true,resultText:text(row.resultText,500)}];
+        resultStatus:['applying','accepted','partial','completed','failed','stopped','unknown'].includes(row.resultStatus)?row.resultStatus:'',refreshable:row.resultStatus==='failed'&&row.refreshable===true,resultText:text(row.resultText,500),...(/^[a-zA-Z0-9_:.-]{1,120}$/.test(row.jobId||'')?{jobId:row.jobId}:{})}];
     }
     if(!row||!['seek_to_time','preview_translation_change','open_voice_preparation'].includes(row.kind))return [];
     const result={kind:row.kind,source:evidenceOf(row.source?[row.source]:[])[0]||null,translation:text(row.translation,2000)};
@@ -98,7 +99,8 @@ function registerAssistantThreads({app,ipcMain,authorized}){
     try{
       if(!input||typeof input!=='object'||typeof input.sourceKey!=='string'||!input.sourceKey||input.sourceKey.length>6000)throw Error('Conversation source is missing.');
       const data=read();
-      if(input.action==='list')return {ok:true,threads:data.threads.filter(row=>row.sourceKey===input.sourceKey).sort((a,b)=>b.updatedAt-a.updatedAt).map(row=>({...row,messages:row.messages.map(m=>m.status==='streaming'?{...m,status:'stopped'}:m)}))};
+      const capacity=()=>({archiveThreads:data.threads.length,archiveLimit:200,bytes:Buffer.byteLength(JSON.stringify(data)),byteLimit:32000000});
+      if(input.action==='list')return {ok:true,capacity:capacity(),threads:data.threads.filter(row=>row.sourceKey===input.sourceKey).sort((a,b)=>b.updatedAt-a.updatedAt).map(row=>({...row,messages:row.messages.map(m=>m.status==='streaming'?{...m,status:'stopped'}:m)}))};
       if(input.action==='save'){
         const thread=cleanThread(input.thread);if(thread.sourceKey!==input.sourceKey)throw Error('Conversation source changed.');
         const index=data.threads.findIndex(row=>row.id===thread.id),old=data.threads[index];
@@ -121,7 +123,7 @@ function registerAssistantThreads({app,ipcMain,authorized}){
         }
         if(index<0&&data.threads.length>=200)throw Error('Conversation limit reached (200). Export/remove an old conversation.');
         if(index<0&&data.threads.filter(row=>row.sourceKey===input.sourceKey).length>=20)throw Error('Conversation limit reached for this source (20).');
-        thread.updatedAt=Date.now();thread.revision=(old?.revision||0)+1;if(index>=0)data.threads[index]=thread;else data.threads.push(thread);save(data);return {ok:true,thread};
+        thread.updatedAt=Date.now();thread.revision=(old?.revision||0)+1;if(index>=0)data.threads[index]=thread;else data.threads.push(thread);save(data);return {ok:true,thread,capacity:capacity()};
       }
       if(input.action==='delete'){const index=data.threads.findIndex(row=>row.id===input.id&&row.sourceKey===input.sourceKey);if(index<0)throw Error('Conversation not found.');data.threads.splice(index,1);save(data);return {ok:true};}
       throw Error('Unsupported conversation operation.');

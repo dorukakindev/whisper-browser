@@ -104,3 +104,16 @@ console.log('player-transcript-model.test.js: OK');
  for(const settle of [0,0.004,0.009])assert.equal(M.activeRowIndex(rows,M.landingTime(rows[1].videoStart,rows[1].videoEnd)-settle),1);
  assert.equal(M.activeRowIndex(rows,rows[1].videoStart-0.004),0,'jumping to the exact start can leave the previous row active');
 }
+
+// E09: real pairing and existing scan stay separate from filtering and never change cues.
+{
+ const rows=[{pairing:'missing',secondaryText:''},{pairing:'uncertain',secondaryText:'',secondaryCandidates:[{text:'A'},{text:'B'}]},{pairing:'origin-linked',secondaryText:'Valid'}];
+ const before=JSON.stringify(rows),kinds=M.reviewKinds(rows,[{i:0,kind:'empty'},{i:2,kind:'fast'}],true);
+ assert.deepEqual([...kinds[0]],['missing','empty']);assert.deepEqual([...kinds[1]],['uncertain']);assert.deepEqual([...kinds[2]],['fast']);
+ assert.equal(M.reviewKinds(rows,[],false)[0].size,0,'no translation track is not a missing translation');assert.equal(JSON.stringify(rows),before);
+}
+
+{
+ const source=track('S','source',[cue('s',1,3,'Original')]),secondary=track('T','translation',[cue('t1',1,3,'One'),cue('t2',1,3,'Two')]);const rows=M.buildTranscriptRows({sourceTrack:source,secondaryTrack:secondary,mediaKey:'A',generation:7}),before=JSON.stringify(rows),owner={mediaKey:'A',generation:7,trackRevision:rows[0].trackRevision};
+ const selected=M.chooseCandidate(rows,rows[0].key,'t2',owner);assert.equal(selected[0].secondaryText,'Two');assert.equal(selected[0].pairing,'human-selected');assert.equal(JSON.stringify(rows),before);for(const invalid of [{...owner,generation:8},{...owner,mediaKey:'B'},{...owner,trackRevision:'other'}])assert.throws(()=>M.chooseCandidate(rows,rows[0].key,'t1',invalid),/changed/);assert.throws(()=>M.chooseCandidate(rows,rows[0].key,'missing',owner));
+}

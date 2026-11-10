@@ -32,6 +32,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   let textUI = null;
   const plans = new Map();
   const referenceRecipes = new Map();
+  const rehearsals=new Map();
   const positionPlans = new Map();
   const continuations = new Map();
   const continuationSenders = new WeakSet();
@@ -136,6 +137,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
   function finish(s, type, data = {}) {
     // A late or repeated terminal event must not rewrite a finished run or clean up another run's files.
     if (s.finished) return;
+    if(type==='done'&&s.integrity){data={...data,integrity:s.integrity};if(s.sample){rehearsals.set(s.sender.id+':'+s.id,s.integrity);while(rehearsals.size>30)rehearsals.delete(rehearsals.keys().next().value);}}
     s.finished = true;
     if (s.continuationRecipe && ['error','cancelled'].includes(type)) {
       s.continuationRecipe.interrupted = true;
@@ -457,7 +459,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           sync, syncInvalid, quality, qualityIncomplete:saved.qualityIncomplete===true, qualityUnavailable:saved.qualityUnavailable === true || !quality?.groups?.length, sample:saved.sample === true,
           background: saved.background && validVoiceOutput(path.join(root,`${saved.id}-background.wav`))
             ? (()=>{ const file=path.join(root,`${saved.id}-background.wav`);grantMedia(file);return {path:file,url:pathToFileURL(file).href}; })() : null,
-          timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, metrics:saved.metrics || null, logPath: entry.file }) };
+          timing: saved.timing, subtitle: saved.subtitle, settings:saved.settings || null, integrity:saved.integrity || null, metrics:saved.metrics || null, logPath: entry.file }) };
       } catch (_) {}
     }
     return { ok: true, output: null };
@@ -645,7 +647,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       const canEdit=(c.autoFit||c.naturalSpeech)&&typeof shorten==='function';
       const editorVersion=canEdit?require('node:crypto').createHash('sha256').update(JSON.stringify([String(editorIdentity()).slice(0,128),s.settings.speechSourceIdentity])).digest('hex'):null;
       if(resume&&resume.editorVersion!==editorVersion)throw Error('The text editor changed / Metin düzenleyicisi değişti.');
-      const selectedTakes=await groupTakes.resolve(e.sender,request.groupTakes,{subtitleHash:s.subtitleHash,sourceIdentity:s.sourceIdentity,range:s.range},forceGroups);
+      const selectedTakes=await groupTakes.resolve(e.sender,request.groupTakes,{subtitleHash:s.subtitleHash,sourceIdentity:s.sourceIdentity,range:s.range,sample:s.sample},forceGroups);
       if(forceAll&&Object.keys(selectedTakes).length)throw Error('Whole-plan regeneration cannot reuse selected recordings.');
       let reviewedText=trusted?.dubText||null;
       if(request.dubText){
@@ -659,6 +661,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
         reviewedText={sourceHash:prepared.sourceHash,edits};
       }
       const reviewedBytes=reviewedText?Buffer.from(JSON.stringify(reviewedText)):null;
+      s.integrity=require('./dub-integrity').make({sourceIdentity:s.sourceIdentity,subtitleHash:s.subtitleHash,referenceFingerprint:referenceRecipe,settings:{...s.settings,pronunciations:effectivePronunciations,groupTakes:selectedTakes},textEdits:reviewedText?.edits||{},range:s.range,sample:s.sample,reviewedHash:reviewedBytes?createHash('sha256').update(reviewedBytes).digest('hex'):null});
+      if(typeof request.rehearsalId==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(request.rehearsalId))s.integrity.rehearsal={id:request.rehearsalId,...require('./dub-integrity').compare(rehearsals.get(e.sender.id+':'+request.rehearsalId),s.integrity)};
       if(reviewedText)s.settings.reviewedText=true;
       if (s.cancelled) { job = null; finish(s, 'cancelled'); return { ok: false, error: 'İptal edildi.' }; }
       const outputDir = voiceStorage(app).output;

@@ -38,7 +38,7 @@ function validateWorkspace(w){
 function libraryState(entry){
  const version=sourceVersion(entry),saved=entry.podcastWorkspace,current=saved?.sourceVersion===version;
  const summary=track=>track?{state:track.state,status:track.status||'complete',hasText:!!track.text?.trim(),...(track.coverage?{coverage:{...track.coverage}}:{}),...(track.recovery?{recoveryAvailable:true,total:track.recovery.completed.length,completed:track.recovery.completed.filter(Boolean).length}:{})}:undefined;
- return {sourceVersion:version,positionState:saved&&(!current||saved.previous&&!saved.transcript)?'needs-review':undefined,
+ return {...(Number.isFinite(entry.lastListenedAt)&&entry.lastListenedAt>0?{lastListenedAt:entry.lastListenedAt}:{}),sourceVersion:version,positionState:saved&&(!current||saved.previous&&!saved.transcript)?'needs-review':undefined,
   podcastWorkspace:current?{sourceVersion:version,position:saved.position,rate:saved.rate,transcript:summary(saved.transcript),translation:summary(saved.translation)}:undefined};
 }
 module.exports={matchesTranscriptTimeline,libraryState,sourceVersion,sourceBinding,episodeIdentity,resourceIdentity,audioEvidence,validateAudioEvidence,spotifyEpisode,validateWorkspace,validateTimedText};

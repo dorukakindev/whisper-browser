@@ -13,4 +13,5 @@ function activity(catalog=[],collection=[]){const events=[],undatedByDomain={};l
  }
  return {events:events.sort((a,b)=>b.date.localeCompare(a.date)||(b.at||0)-(a.at||0)),undated,undatedByDomain};
 }
-module.exports={clean,append,activity,day};
+function ratings(row){const raw=row.ratings?.personal,current=raw==null?require('./personal-collection').ratingOf(row):String(raw).trim()===''?null:Number(raw),events=clean(row.activity).filter(e=>e.type==='rating').sort((a,b)=>b.at-a.at);const latest=events.find(e=>Number(e.to)===current&&e.to!==null);return {current:Number.isFinite(current)?current:null,currentAt:latest?.at||(Number.isSafeInteger(row.ratedAt)&&row.ratedAt>0?row.ratedAt:null),events,sourceVariants:(row.variants||[]).filter(v=>v.rating!=null).map(v=>({source:v.source||null,rating:require('./personal-collection').ratingOf({...row,...v,ratedAt:v.ratedAt}),dateKnown:false}))};}
+module.exports={clean,append,activity,day,ratings};

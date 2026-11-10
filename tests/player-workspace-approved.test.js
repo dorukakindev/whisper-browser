@@ -35,3 +35,12 @@ const input=root.querySelector('.pw-timeline input');
 input.value='500';input.dispatchEvent(new dom.window.Event('input'));
 assert.equal(root.querySelector('.pw-timeline__tooltip').textContent,'1:00');
 console.log('player-workspace-approved: real heading, empty state, stable stage, markers and seek tooltip OK');
+
+for(const locale of ['tr','en']){
+ let selected='',revealed=0;const model={...vm,locale,totalRows:12,matchedCount:2,rows:[],issueFilter:'uncertain',issueCounts:{uncertain:2},activeOutside:true};
+ const handlers={onIssueFilter:value=>selected=value,onRevealActive:()=>revealed++};UI.renderPlayerWorkspace(root,model,handlers);
+ const select=root.querySelector('.pw-issue-filter select');assert.equal(select.value,'uncertain');assert.match(select.querySelector('option[value=uncertain]').textContent,/2/);
+ select.focus();select.value='fast';select.dispatchEvent(new dom.window.Event('change'));assert.equal(selected,'fast');
+ UI.renderPlayerWorkspace(root,{...model,issueFilter:selected},handlers);assert.equal(document.activeElement,root.querySelector('.pw-issue-filter select'));
+ root.querySelector('.pw-issue-filter button').click();assert.equal(revealed,1);assert.match(root.querySelector('.pw-issue-filter small').textContent,/12/);
+}

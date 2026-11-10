@@ -419,7 +419,7 @@
         const repair=missingTranslationAction(snap,service,status);
         const canRetry=(!!recovery?.partial||recovery?.failed>0)&&!!repair&&!repair.disabled;
         return { ...task, state: status.preparing || task.state === 'queued' ? 'running' : partial?'partial':task.state,
-          text: status.preparing ? T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…') : partial?(recovery.total>0?`${recovery.completed}/${recovery.total} `+T('çeviri satırı hazır.','translated lines ready.'):T('Kısmi çeviri kaydedildi.','Partial translation saved.'))+' '+(canRetry?T('Kaydedilmiş satırlar korunur; yalnız eksikleri tamamlayabilirsiniz.','Saved lines are kept; complete only the missing lines.'):T('Eksikleri tamamlamak için İşlemler’den çeviriyi yeniden inceleyin.','Review translation in Tasks to complete the missing lines.')):task.text,
+          text: status.preparing ? (task.phase==='acquisition'?task.text:T('Podcast sesi hazırlanıyor…', 'Preparing podcast audio…')) : partial?(recovery.total>0?`${recovery.completed}/${recovery.total} `+T('çeviri satırı hazır.','translated lines ready.'):T('Kısmi çeviri kaydedildi.','Partial translation saved.'))+' '+(canRetry?T('Kaydedilmiş satırlar korunur; yalnız eksikleri tamamlayabilirsiniz.','Saved lines are kept; complete only the missing lines.'):T('Eksikleri tamamlamak için İşlemler’den çeviriyi yeniden inceleyin.','Review translation in Tasks to complete the missing lines.')):task.text,
           retry:canRetry?()=>{const retry=actions().find(action=>action.id==='retry-translation');if(current()&&retry&&!retry.disabled)return retry.run();}:null,
           retryLabel:canRetry?repair.label:null,
           retryActionId:canRetry?'retry-translation':null,

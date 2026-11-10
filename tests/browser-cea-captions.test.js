@@ -295,6 +295,7 @@ async function testOutOfOrderHlsSegments() {
     browserHlsCeaArrivals: new Map(),
     browserHlsCeaDecodeQueues: new Map(),
     browserHlsCeaDecoders: new Map(),
+    browserHlsCeaDecoderRevisions: new WeakMap(),
     browserHlsCeaFetchedSegments: new Set(),
     browserHlsCeaFullCaptureJob: null,
     browserHlsCeaInitializations: new Map(),

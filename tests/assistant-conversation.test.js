@@ -10,6 +10,38 @@ function overlay(){
   return {dom,w,commands,snapshot,$:id=>w.document.getElementById(id)};
 }
 
+test('native summary and undelivered-message routes preserve drafts, enforce source tokens and never submit',async()=>{
+ const dom=new JSDOM('<div id="aiChatLog"></div><textarea id="aiChatText"></textarea>',{runScripts:'outside-only'}),w=dom.window;let snapshot,command,source='A',submissions=0;
+ try{
+  Object.assign(w,{player:{workspaceMode:'player'},UiLocale:{get:()=> 'en'},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,
+   assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>null,aiSourceScope:()=>source,buildOptsFromUI:()=>({}),subtitleSourceTime:v=>v,subtitleContextLanguage:()=>'',
+   AssistantRunSteps:require('../src/assistant-run-steps'),AssistantAgentUI:{status:()=>null,busy:()=>false,canRetry:()=>false,proposalLive:()=>false},
+   AssistantWorkspace:{key:()=>source,activeId:()=> 'thread',summaryDraft:()=> 'Partial historical summary',reviewAction:()=> 'Inspect CURRENT source',snapshot:()=>({current:{id:'thread',messages:[{id:'reply',role:'assistant',text:'Saved reply',steps:[{id:'old-read',name:'search_library',state:'running'}],runtimeMessages:[{id:1,mode:'followup',status:'not-delivered',text:'Try my question',intentRevision:2},{id:2,mode:'steer',status:'delivered',text:'Already sent',intentRevision:2}]}]},threads:[]})},
+   api:{updateAssistant:value=>snapshot=value,onAssistantCommand:fn=>command=fn},aiChatSend:()=>submissions++,aiWebResearch:()=>submissions++});
+  w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));
+  const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();assert(snapshot);assert.equal(snapshot.messages[0].steps[0].state,'unknown');assert.equal(snapshot.messages[0].review.unverified,1);
+  const input=w.document.getElementById('aiChatText'),token=snapshot.sourceToken,links=snapshot.messages[0].runtimeLinks;
+  command({action:'runtime-draft',text:links[0].draftId,sourceToken:token});assert.equal(input.value,'Try my question');
+  command({action:'summary-draft',sourceToken:token});assert.equal(input.value,'Try my question','existing draft is never replaced');
+  input.value='';command({action:'runtime-draft',text:links[1].draftId,sourceToken:token});assert.equal(input.value,'','delivered messages are not retried');
+  source='B';command({action:'summary-draft',sourceToken:token});assert.equal(input.value,'','stale source token is refused');
+  await wait();command({action:'summary-draft',sourceToken:snapshot.sourceToken});assert.equal(input.value,'Partial historical summary');assert.equal(submissions,0);
+ }finally{w.close();}
+});
+
+test('card history keeps the newest visible while historical proposals require fresh review and delivery retry is a draft',()=>{
+ const ui=overlay();try{
+  const actions=Array.from({length:9},(_,i)=>({id:'p'+i,proposalId:'proposal'+i,kind:'app_action',label:'Card '+i,resultStatus:i<8?'completed':'',facts:{historical:true,requiresReview:i===8}}));
+  ui.snapshot({capacity:{messages:180,messageLimit:200,sourceThreads:2,sourceLimit:20,archiveThreads:3,archiveLimit:200},messages:[{id:'answer',role:'ai',text:'Saved answer',actions,review:{completed:8,proposed:1},runtimeLinks:[{draftId:'rt1',mode:'followup',status:'not-delivered',text:'Unsent question',intentRevision:2}]}]});
+  const history=ui.w.document.querySelector('.action-card-history');assert.equal(history.open,false);assert.equal(history.querySelectorAll('.tool-card').length,8);
+  const newest=[...ui.w.document.querySelectorAll('.tool-card')].at(-1);assert.equal(newest.closest('.action-card-history'),null);assert.match(newest.textContent,/Historical proposal/);assert.equal([...newest.querySelectorAll('button')].some(b=>b.textContent==='Apply'),false);
+  newest.querySelector('button').click();assert.equal(ui.commands.at(-1).action,'review-tool');assert.equal(ui.commands.at(-1).meta.sourceToken,'A:1');
+  ui.w.document.querySelector('.runtime-delivery button').click();assert.equal(ui.commands.at(-1).action,'runtime-draft');assert.equal(ui.commands.at(-1).text,'rt1');
+  ui.$('summaryDraft').click();assert.equal(ui.commands.at(-1).action,'summary-draft');assert.equal(ui.commands.some(c=>c.action==='send'||c.action==='export'),false);
+  assert.match(ui.$('conversationCapacity').textContent,/180/);assert.match(ui.w.document.querySelector('.flow-result-review').textContent,/Accepted is not completed/);
+ }finally{ui.w.close();}
+});
+
 test('Closing an excerpt stays closed when a streaming snapshot arrives before its toggle event',()=>{
  const ui=overlay();try{
   const messages=text=>[{id:'answer',role:'ai',text,links:[{id:'F1',label:'Source one',excerpt:'Exact source excerpt'}]}];
@@ -79,7 +111,7 @@ test('Parent bridge rejects stale source commands and receipts acknowledge only 
   const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Film</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let listener,scope='A',sends=0,last;const openedSettings=[];
  try{
   Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'file:fixture',job:null},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>null,aiSourceScope:()=>scope,buildOptsFromUI:()=>({translateModel:'fixture'}),api:{updateAssistant:value=>{last=value;},onAssistantCommand:fn=>{listener=fn;}},aiChatSend:async text=>{sends++;const node=w.document.createElement('div');node.className='ai-msg ai-msg-user';node._sourceScope=scope;node.textContent=text;w.document.getElementById('aiChatLog').append(node);}});
-  w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));
+  w.AssistantRunSteps=require('../src/assistant-run-steps');w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));
   w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.subtitleSourceTime=value=>value;w.subtitleContextLanguage=()=>'';
   w.AppSettingsUI={open:async(...args)=>openedSettings.push(args)};
   w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));
@@ -117,7 +149,7 @@ test('an accepted new question clears the old tool notice without hiding rejecte
  const dom=new JSDOM('<div id="aiChat"><div id="aiChatLog"></div></div><div id="playerTitle">Film</div><select id="aiTranscriptScope"><option value="watched">Watched</option></select>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let listener,last,accept=false;
  try{
  Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'file:fixture'},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>null,aiSourceScope:()=> 'A',buildOptsFromUI:()=>({translateModel:'fixture'}),AssistantJobsUI:{snapshot:()=>({jobs:[]}),cancel:async()=>{throw Error('Previous tool failed')}},api:{updateAssistant:v=>last=v,onAssistantCommand:fn=>listener=fn},aiChatSend:async text=>{if(!accept)return;const node=w.document.createElement('div');node.className='ai-msg ai-msg-user';node._sourceScope='A';node.textContent=text;w.document.getElementById('aiChatLog').append(node);}});
- w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));
+ w.AssistantRunSteps=require('../src/assistant-run-steps');w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));
  w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.subtitleSourceTime=value=>value;w.subtitleContextLanguage=()=>'';
   w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
  listener({action:'cancel-job',text:'old-job',sourceToken:'A'});await wait();assert.equal(last.workspaceError,'Previous tool failed');
@@ -139,7 +171,7 @@ test('source-free home and studio retain honest localized metadata and no conten
  for(const locale of ['en','tr'])for(const workspace of ['media-library','subtitle-studio']){
   const dom=new JSDOM('<div id="aiChatLog"></div><div id="playerTitle"></div>',{runScripts:'outside-only',url:'https://parent.test/'}),w=dom.window;let last;
   try{Object.assign(w,{UiLocale:{get:()=>locale},player:{workspaceMode:'player'},state:{},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>({workspace,page:'home',heading:'Home',note:'No active video is attached. Do not infer contents of a previously opened video.'}),aiSourceScope:()=>workspace,buildOptsFromUI:()=>({}),api:{updateAssistant:v=>{last=v},onAssistantCommand:()=>{}},subtitleSourceTime:v=>v,subtitleContextLanguage:()=>''});
-   w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));await new Promise(r=>setTimeout(r,80));
+   w.AssistantRunSteps=require('../src/assistant-run-steps');w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));await new Promise(r=>setTimeout(r,80));
    assert.equal(last.sourcePreview.attached,false);assert(!last.suggestions.some(r=>/:summary$|:explain$/.test(r.id)));assert(!last.sourceDescription.includes('Do not infer'));assert.match(last.sourceDescription,locale==='tr'?/Henüz video/:/No video/);assert(last.suggestions.some(r=>/:tasks$/.test(r.id)));
   }finally{dom.window.close()}
  }
@@ -170,7 +202,7 @@ test('Go to source: only podcast and library contexts offer it, the panel button
  try{
   Object.assign(w,{UiLocale:{get:()=> 'en'},player:{workspaceMode:'player',mediaKey:'file:fixture'},state:{running:false,queueRunning:false},aiChatPreparing:null,aiChatRetryPacket:null,assistantProviderSelection:()=>({model:'fixture'}),globalAssistantContext:()=>context,aiSourceScope:()=> 'A',buildOptsFromUI:()=>({translateModel:'fixture'}),AssistantJobsUI:{snapshot:()=>({jobs:[]}),cancel:async()=>{}},
    MediaShelfUI:{isPodcastMode:()=>true},CinemaSahne:{openShelf:async options=>{opened.push(['sahne',options.mode]);return {ok:true};}},MediaTitleUI:{open:async id=>{opened.push(['title',id]);}},api:{updateAssistant:v=>last=v,onAssistantCommand:fn=>listener=fn},aiChatSend:async()=>{}});
-  w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.subtitleSourceTime=value=>value;w.subtitleContextLanguage=()=>'';
+  w.AssistantRunSteps=require('../src/assistant-run-steps');w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));w.subtitleSourceTime=value=>value;w.subtitleContextLanguage=()=>'';
   w.eval(fs.readFileSync(path.join(root,'global-assistant.js'),'utf8'));const wait=()=>new Promise(resolve=>setTimeout(resolve,90));await wait();
   assert.equal(last.sourceTarget,null,'a plain video has no source card to return to');
   listener({action:'open-source',sourceToken:'A'});await wait();assert.match(last.workspaceError,/no source to open/);assert.deepEqual(opened,[]);
@@ -263,7 +295,7 @@ test('A podcast source card travels from the overlay command through global-assi
    AssistantWorkspace:{snapshot:()=>({current:{id:state.thread,messages:[{id:'answer',role:'assistant',status:'complete',text:'See ['+id+'].',citations:[card]}]},threads:[]}),key:()=> 'conversation',activeId:()=>state.thread},
    PlayerSourceCatalogIntegration:{openPodcastEntry:async entry=>{state.calls.push(['open',entry]);options.afterOpen?.(state);}},PlayerWorkspaceIntegration:{executeExisting:async packet=>{state.calls.push(['seek',packet.time]);return {ok:true};}},CinemaSahne:{open(){},openShelf(){}},
    api:{updateAssistant:value=>state.last=value,onAssistantCommand:fn=>state.listener=fn,mediaShelf:async input=>{state.shelf.push(input);return options.shelf?options.shelf(state.shelf.length,row):{ok:true,row:row()};}}});
-  w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));
+  w.AssistantRunSteps=require('../src/assistant-run-steps');w.eval(fs.readFileSync(path.join(root,'../assistant-source-context.js'),'utf8'));w.eval(fs.readFileSync(path.join(root,'../assistant-source-preview.js'),'utf8'));
   w.eval(fs.readFileSync(path.join(root,'assistant-podcast-sources.js'),'utf8'));
   const originalSnapshot=w.AssistantWorkspace.snapshot;
   w.AssistantWorkspace.snapshot=()=>{const value=originalSnapshot();value.current.messages[0].text+='\n\nSaved podcast sources\n['+id+'] Show · Episode · Original · 12.0–15.0 s · The lighthouse blinks.';return value;};
