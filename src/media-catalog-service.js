@@ -184,6 +184,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
               source: previous?.episodes?.find(old => old.id === ep.id)?.source || null,
             }));
           }
+          const E=require('./metadata-evidence'),evidence=E.clean(previous?.metadataEvidence);for(const key of E.catalogFields)if(Object.hasOwn(patch,key))evidence.fields[key]={provider:'user',identity:'',at:Date.now(),valueHash:E.digest(patch[key])};patch.metadataEvidence=evidence;
           return { ok: true, item: visible(store().upsert(patch)) };
         }
         case 'remove': {

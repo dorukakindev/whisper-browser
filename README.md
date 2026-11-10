@@ -22,6 +22,18 @@ Whisper Browser is a desktop media library, player and embedded browser, with di
 
 ## Proje bilgisi ve kaldığın yer
 
+**Yeni sohbet başlangıcı:** [güncel Git teslim kaydı](docs/devir/2026-11-10-1519.md). [Tek 50 işlik planda](docs/plans/2026-11-10-next-50.md) 1–6 grupları kaynak sınırlarıyla yerelde uygulandı. İzlediklerim/Anime/Manga içinde Seri haritası, kişisel tüketimden ayrı Yayın takvimi, seçili yayınlardan ICS ve Tür/tema portresi var. Bilinmeyen hikâye sırası, tekil cilt tarihi ve eksik tür/tema uydurulmaz. Kullanıcının seçtiği 11/12/15 grubu da yerelde uygulandı; 7–9 bekler. 13/14 ve 16 kaynak kapsamıyla yerelde eklendi; MAL yolu XML tabanlı, doğrudan hesap API bağlantısı yok. 17/18/20 de yerelde uygulandı: ayrı kaynak kimlikleri, alan kökeni ve kontrollü yenileme. 19/23/25 de yerelde eklendi: seçili çevrimdışı kapaklar, seri ilerlemesi ve akıllı raflar. 24/26/28 de yerelde eklendi: onaylı toplu düzenleme, koleksiyon sunumu ve ayrı ara verme notları. Yeni önerilen grup 29/30/32. Git teslim paketi [PR #909](https://github.com/dorukakindev/whisper-browser/pull/909), gerçek ana dal master; ürün commit’i `5a3bec18c3b70af6cab1ad9e9d27f4b8acf66244`. Ürün ve belgeler ayrı commitlerdir; birleştirme kimliği PR kaydındadır.
+
+**Koleksiyonlar ve notlar:** Kayıtları seçip toplu durum/üyelik farklarını inceleyebilirsin. Koleksiyonlar kapak/açıklama/sıra ve tamamlanma özeti taşır; mevcut katalog etiketleri korunur. Ara verme/bırakma gerekçesi puanı veya durumu değiştirmez. Kaynak/not araçları kartın Diğer işlemler menüsündedir.
+
+**Kütüphane düzeni:** Arşiv araçlarından seçili Anime/Manga kapaklarını çevrimdışı saklayıp boyutlarını yönetebilirsin. Seri ilerlemesi bilinmeyen toplamları ayrı gösterir; Akıllı raflar kayıtlı koşulları güncel kütüphaneye uygular ve eşleşme nedenini açıklar. Film afişleri mevcut yerel dosyalarında kalır; kişisel puan/ilerleme otomatik değişmez.
+
+**Kaynak bilgileri:** Kaynak kimlikleri alanı MAL/AniList/IMDb/TMDB bağlantılarını ayrı gösterir; kayıtlı olmak doğrulanmış olmak değildir. Karttaki Kaynaklar / yenile, alan kökenini, tarihini ve kişisel düzeltmeyi gösterir; yalnız seçilen kaynak alanları uygulanır. Eski bilinmeyen köken tahmin edilmez.
+
+**Arşiv araçları:** Kaynak sürümlerini karşılaştırma, yeni aktarımlar için seçili geri alma ve fark önizlemeli AniList açık liste/MAL XML okuması var. Anime/Manga kartından kaynak eşleşmesini aday incelemesiyle düzeltip geri alabilir, XML aktarımında alan farklarını seçebilir ve kayıtlı havuzları açıklamalı JSON/CSV olarak önizleyip dışa aktarabilirsin. Kişisel kimlik/puan/ilerleme korunur; dışa aktarım tüm uygulama yedeği değildir.
+
+**İçerik ağı eşitlemesi:** kişisel 310 anime/manga kaydının referansları yedek alınarak ağa eklendi. Ağdaki Koleksiyonu eşitle düğmesi gizli kayıtları korur ve dışlama nedenlerini sayar. Puan ile tamamlama ayrıdır; MAL kaynaklı puansız 0, olumsuz tercih değildir. [Kanıt ve sınırlar](docs/devir/2026-11-10-1344.md).
+
 **Öneriler:** film ve anime için kendi puanlarından, Letterboxd/AniList profilinden veya seçtiğin bir yapıma benzerlerden başla. Keşfet ve İzlediklerim düğmeleri aynı sayfaya gider. Halka açık profil örneğinin kapsamı ayrıca gösterilir. [Güncel teslim](docs/devir/2026-11-10-1250.md) · [Ayrı 50 iş yol haritası](docs/plans/2026-11-10-next-50.md).
 
 **İzlediklerim → Takvim / Zevkime göre:** tarihli işlem geçmişi, kaynağı doğrulanmış anime/manga kapakları ve destek/karşıt puanlarla açıklanan öneriler. Anime/manga bilgilerini tamamlama işi mevcut MAL kimliğini AniList yanıtında doğrular; puan ve ilerleme korunur. [13 kaynak incelemesi](docs/research/2026-11-10-recommendation-repositories.md).

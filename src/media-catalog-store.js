@@ -133,6 +133,7 @@ function itemOf(raw, old = null) {
     synopsisTr: text(raw.synopsisTr ?? old?.synopsisTr, 12000),
     synopsisTrSource: /^[a-f0-9]{64}$/.test(raw.synopsisTrSource ?? old?.synopsisTrSource ?? '') ? (raw.synopsisTrSource ?? old.synopsisTrSource) : '',
     synopsis: text(raw.synopsis ?? old?.synopsis, 4000),
+    metadataEvidence: require('./metadata-evidence').clean(raw.metadataEvidence??old?.metadataEvidence),
     imdbId: imdbIdOf(raw.imdbId ?? old?.imdbId), tmdbId: tmdbIdOf(raw.tmdbId ?? old?.tmdbId, kind),
     tasteDomain: require('./media-domains').DOMAINS.includes(raw.tasteDomain??old?.tasteDomain)?(raw.tasteDomain??old.tasteDomain):null,
     activity: require('./personal-history').clean((old||raw).activity),

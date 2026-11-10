@@ -1,5 +1,87 @@
 # Bekleyen işler
 
+## Git teslim paketi · PR #909 · 2026-11-10
+
+- **Açık kullanıcı komutuyla paketlendi:** bu sohbette biriken 1–6, 11–20, 23–26 ve 28 işlerinin doğrulanmış ürün/belge değişiklikleri. [Teslim/devir kaydı](docs/devir/2026-11-10-1519.md) · [PR #909](https://github.com/dorukakindev/whisper-browser/pull/909), hedef gerçek ana dal master. Başlangıç uzak/yerel `6a3a98527792f8ba3da0aa7f3a07a2f9c2a91e95`; ürün sonu `5a3bec18c3b70af6cab1ad9e9d27f4b8acf66244`. Birleştirme/uzak sonuç PR'nin canlı kaydından ve teslim yanıtından doğrulanır; belge commit'i üründen ayrıdır.
+- **Kanıt:** 99 hedefli Node testi, katalog kayıt ve servis betikleri, ürün JS sözdizimi ve diff/link kontrolleri. Gerçek Windows/start.bat/kişisel profil ve önceki canlı/GPU/asistan kabulleri açık kalır. MAL doğrudan hesap API bağlantısı yok; kaynak kapsamları değiştirilmedi.
+- **Koruma:** kişisel OFFLINE-MANIFEST/rapor indeksi ve start.sh silinmesi; ilgisiz yerel rehber/rapor/arşiv ve kişisel profil dosyaları korunur. [skip ci] başlıkları kullanılır, Actions başlatılmaz. Önceki Git komutu bekler kayıtları bu açık teslim için tarihseldir.
+- **Sonraki somut geliştirme:** 29 öneri geri bildirimi → 30 tekrarları azaltma → 32 koşullu filtreler. Bu teslim bu işleri tamamlandı saymaz.
+
+
+## Seçilen üçlü: 24 toplu düzenleme → 26 koleksiyon sunumu → 28 ara verme notları · 2026-11-10
+
+- **Yerelde uygulandı:** 100 seçili kayda alan farkı/onaylı durum veya üyelik; mevcut katalog etiketini koruyan kapak/açıklama/sıra/tamamlanma sunumu ve elle koleksiyonlar; puan ve durumdan bağımsız gerekçe kaydı. [Devir ve kanıt](docs/devir/2026-11-10-1511.md). Önceki biten işler tekrar yapılmadı.
+- **Koruma:** durumlar katalog/içe aktarılan kayıtlar için ayrı atomik seçimlerdir; karma medya elle koleksiyonda tek tanım dosyasına gider. Kaynak kitap/podcast durumu ve geçici geçmiş satırı bu araçla yazılmaz. Puan/ilerleme/not/kimlik/varyantlar korunur. Koleksiyon silmek kaynak kayıt silmez; katalog sunumu sıfırlamak etiketi silmez. Gerekçe, öneri/zevk kanıtı değildir; aktarılmış yorum ayrı kalır.
+- **Kanıt:** 65 hedefli test + katalog kayıt/servis betikleri; dört ürün JS sözdizimi, diff/link. Atomik/stale/token sahibi, kaynak byte/puan koruma, sırali kapak referansı, silme/etiket sahipliği, ayrı gerekçe ve JSON/CSV kapsam/kaçış; kontrollü EN/TR DOM. Gerçek kişisel profile ve açık uygulamaya dokunulmadı.
+- **Kalan kabul / sınır:** gerçek Windows/LG/start.bat/kişisel profil uçtan uca denenmedi. Toplu durum iki dosyayı kapsayan işlem değildir; kayıt sahibi ayrılır. Koleksiyon kapağı mevcut üye görselinden seçilir, yeni dosya seçici yok. Sunum 60/2 MB, elle üye 1000; not 10000/2 MB ve 2000 karakter. Koleksiyon görünümü ilk 260 ve sınır açıklaması. Önceki canlı/GPU/asistan/MAL sınırları sürer.
+- **Dal/teslim:** master `6a3a98527792f8ba3da0aa7f3a07a2f9c2a91e95`; önceki yerel/kişisel farklar korundu; yeni commit/push/PR/merge/Actions yok.
+- **Tam sonraki adım:** önerilen **29 öneri geri bildirimi → 30 öneri tekrarlarını azaltma → 32 koşullu öneri filtreleri**. 7–10, 21–22, 27 ve diğer bekleyenler korunur. Git için açık komut bekle.
+
+
+## Seçilen üçlü: 19 çevrimdışı kapak → 23 seri ilerlemesi → 25 akıllı raflar · 2026-11-10
+
+- **Yerelde uygulandı:** seçili Anime/Manga kapakları için 64 MB sınırlı, byte/hash kontrolü ve önizlemeli silmesi olan ayrı önbellek; anime bölüm, manga chapter/cilt ve yalnız kayıtlı dizi bölümlerini gösteren ilerleme panosu; nedeni görünür, güncel kayıtlardan hesaplanan kayıtlı filtre rafları. [Devir ve kanıt](docs/devir/2026-11-10-1442.md). Önceki biten işler tekrar yapılmadı.
+- **Koruma:** film afişleri mevcut yerel yolunda; otomatik önbellek indirme/eviction yok. Kişisel puan/durum/ilerleme/not/kimlik değişmez; bilinmeyen toplam ve çelişen kaynak sayısı uydurulmaz. Raflar kayıt kopyalamaz; MAL puansız 0 beğeni/puan değildir. Sadece açık seçimli cache/raf dosyaları değişir.
+- **Kanıt:** 59 hedefli test; dört ürün JS sözdizimi ve diff/link kontrolleri. Kontrollü EN/TR DOM, offline data URL, kapasite/bozuk byte, kaynak değişimi, token sahibi, stale raf/önizleme ve kişisel koleksiyon byte koruma. Gerçek kişisel profile ve açık uygulamaya dokunulmadı.
+- **Kalan kabul / sınır:** canlı kapak indirimi ve gerçek Electron codec/Windows/LG/start.bat denenmedi. Kapaklar PNG/JPEG/WebP ve 1400 KiB/görsel; 20 seçili kaynak/işlem. Cache yalnız kütüphane kartında, ilişkili harita kapaklarının tamamını kapsamaz. Pano kayıtlı TV bölüm listesiyle sınırlı; ayrı tekrar/cilt düzenleyicisi eklenmedi. Raf 30/200 KB, sonuç ilk 200; otomatik arka plan tarama yok. Önceki canlı/GPU/asistan/MAL sınırları sürer.
+- **Dal/teslim:** master `6a3a98527792f8ba3da0aa7f3a07a2f9c2a91e95`; önceki yerel/kişisel farklar korundu; commit/push/PR/merge/Actions yok.
+- **Tam sonraki adım:** önerilen **24 toplu güvenli düzenleme → 26 koleksiyon sunumu → 28 yarım bırakma notları**. 7–10, 21–22 ve diğer bekleyenler listede korunur. Git için açık komut bekle.
+
+
+## Seçilen üçlü: 17 kaynak kimlikleri → 18 alan kökeni → 20 kontrollü yenileme · 2026-11-10
+
+- **Yerelde uygulandı:** ayrı MAL/AniList/IMDb/TMDB tablosu ve yalnız sağlayıcı yanıtıyla doğrulanan bağlantılar; alan bazında köken/tarih/kişisel düzeltme; yalnız değişen/eksik alanları seçtiren Anime/Manga ve mevcut TMDB eşleşmeli katalog yenilemesi. [Devir ve sınırlar](docs/devir/2026-11-10-1426.md). Önceki biten işler tekrar yapılmadı.
+- **Koruma:** puan/durum/ilerleme/not/kişisel başlık/toplamlar değişmez. Kişisel metadata düzeltmesi/film kilidi korunur, eski bilinmeyen köken uydurulmaz. Toplu anime tamamlama artık mevcut alanları sessiz yenilemez. Kimlik değişirken eski kaynak düzeltmesi geri alma anlık görüntüsünde tutulur; yeni düzeltme sessiz kaybolmaz. JSON/CSV ayrı kaynak kimliklerini de taşır.
+- **Kanıt:** 58 hedefli Node testi + mevcut katalog kayıt ve servis kontrol betikleri; on JS sözdizimi ve diff/link. TMDB ana/fallback kimlik sapması ve açık kişisel boş alanın otomatik tamamlamada korunması doğrulandı. Kontrollü EN/TR DOM; kişisel profile ve açık uygulamaya dokunulmadı.
+- **Kalan kabul:** gerçek Windows/LG/start.bat ve kişisel kayıtla canlı AniList/TMDB yenilemesi bu tur yapılmadı. Eski doğrulama kanıtsız kimlik çiftleri kayıtlı fakat doğrulanmamış kalır; yeni kaynak kontrolü kullanıcı isteğiyle. Katalog yenilemesi mevcut TMDB eşleşmesi/ayarını gerektirir. Film afişi mevcut ayrı akışında kalır. Önceki MAL hesap/GPU/asistan sınırları sürer.
+- **Dal/teslim:** master `6a3a98527792f8ba3da0aa7f3a07a2f9c2a91e95`; önceki yerel/kişisel farklar korundu, commit/push/PR/merge/Actions yok.
+- **Tam sonraki adım:** önerilen **19 çevrimdışı kapak önbelleği → 23 seri ilerleme panosu → 25 kişisel akıllı raflar**. 7–10 ve diğer bekleyenler korunur; Git için açık komut bekle.
+
+
+## Seçilen üçlü: 13 kaynak karşılaştırma → 14 aktarım geri alma → 16 okuma eşitlemesi · 2026-11-10
+
+- **Yerelde uygulandı:** iki kaynak sürümünü veya kişisel kaydı yan yana okuma; yeni aktarımlarda atomik alan kökenli makbuz ve seçili geri alma önizleme/onay; AniList açık anime/manga listesini veya yeni MAL XML'ini aynı fark önizlemesinden uygulama. [Devir ve kanıt](docs/devir/2026-11-10-1413.md). Önceki biten işler tekrar yapılmadı.
+- **Koruma:** sonra düzenlenen veya başka aktarımla korunan alanlar geri sarılmaz; puan/durum tarihleri ilgili kişisel değerle birlikte korunur. Eski makbuzsuz aktarım geri alınabilir sayılmaz. Kaynakta eksilen kayıtlar eşitlemeyle silinmez; 0 puansız ve ayrı havuzlar sürer. Kişisel profile dokunulmadı.
+- **Kanıt:** 64 hedefli test, beş JS sözdizimi, diff ve bağlantı kontrolü. İki parçalı AniList okuması, EN/TR karşılaştırma/okuma/geri alma, sahibine bağlı token ve stale önizleme. Canlı resmi AniList şeması doğrulandı; gerçek hesap okuması/kişisel geri alma ve Windows görünümü/start.bat denenmedi.
+- **Açık kaynak sınırı:** 16'da MAL **XML** tabanlıdır; doğrudan MAL hesap API bağlantısı eklenmedi. AniList en fazla 10×100 parça, tavan ve kimlik dışlaması görünür. Son 40 geri alma makbuzu, 12 kaynak varyantı, koleksiyonda toplam 16 MB sınırı. Ağ notları silinmez; geri alınan yeni kaydın referansı kaynak tekrar gelene kadar çözümlenemeyebilir.
+- **Dal/teslim:** master `6a3a98527792f8ba3da0aa7f3a07a2f9c2a91e95`; önceki kişisel/yerel farklar korundu. Git teslimi/Actions yok.
+- **Tam sonraki adım:** önerilen **17 kaynak kimlik tablosu → 18 metadata kökeni/güncelliği → 20 kontrollü metadata yenileme önizlemesi**. 7–10 bekler. Git için açık komut bekle.
+
+
+## Seçilen üçlü: 11 kimlik düzeltme → 12 aktarım farkı → 15 dışa aktarım · 2026-11-10
+
+- **Yerelde uygulandı:** sabit kişisel id ile doğrulanmış aday/özet/onay ve yalnız kimliği geri alma; alan düzeyinde mevcut/kaynak seçimi, kayıt atlama ve stale önizleme reddi; yedi havuz kapsamlı sürümlü JSON/CSV önizleme/indirme. [Devir ve sınırlar](docs/devir/2026-11-10-1359.md). 1–6 ve kişisel ağ eşitlemesi tekrar yapılmadı.
+- **Koruma:** puan/ilerleme/not/kaynak sürümleri sessiz değişmez. Düzeltilmiş provider kimliği aktarım ve adaylarda çoğaltılmaz; eski kimliğin harita/takvim bilgisi gizlenir. Geri alma sonraki puanı korur. Kaynak MAL 0 puansız ayrımı sürer. Kişisel profile yazılmadı, kimliği 0 kayıt otomatik eşleştirilmedi.
+- **Kanıt:** 58 hedefli test; yedi JS sözdizimi ve diff/link kontrolü. EN/TR arayüz davranışı kontrollü DOM ile, sağlayıcı doğrulaması kontrollü yanıtlarla. Gerçek Windows/LG görünümü, canlı aday, start.bat ve dosya indirme/harici açılış kabulü yapılmadı. JSON/CSV tüm uygulamanın yedeği değildir; CSV özet, JSON belirtilen arşiv kapsamıdır; geri yükleme eklenmedi.
+- **Dal/teslim:** master `6a3a98527792f8ba3da0aa7f3a07a2f9c2a91e95`; önceki yerel ve kişisel farklar korundu. Git teslimi/Actions yok.
+- **Tam sonraki adım:** önerilen **13 kaynak sürümü karşılaştırma → 14 alan kökenli güvenli aktarım geri alma → 16 fark önizlemeli MAL/AniList okuma eşitlemesi**. 7–9 bekler; 14 için mevcut varyantların ötesinde işlem kökeni gerekir. Git için açık komut bekle.
+
+
+## Ek öncelik: gerçek kişisel içerik ağı eşitlemesi · 2026-11-10
+
+- **Kişisel dosyada tamamlandı:** 310 koleksiyon referansı eklendi; toplam ağ kaynağı 4 → 314, koleksiyon 0 → 310. İkinci eşitleme 0 ekledi. Gizli/etkin olmayan/kapasite dışında/depolama sınırında/çözümlenemeyen/yinelenen kaynak sayıları 0. [Devir ve kanıt](docs/devir/2026-11-10-1344.md). Bu iş tek 50 işlik plana ek önceliktir; 1–6 tekrar yapılmadı.
+- **Güvenli uygulama:** yükseltilmiş salt okunur süreç kontrolünde işlem öncesi/sonrası Whisper/Electron yazıcısı yoktu; uygulama kapatılmadı veya aynı profille açılmadı. Dört kişisel dosya hash manifestiyle işlemden önce profil altına yedeklendi. Koleksiyon/katalog/raf dosyaları byte düzeyinde aynı; eski ağ referansları, tepkiler, olaylar, notlar, kanıtlar, ilişkiler ve hipotezler korundu.
+- **Gerçek puan kanıtı:** 237 anime + 73 manga/manhwa (44 manhwa, 29 manga). 53 puanlı anime: 42 olumlu, 2 olumsuz, 9 karma; 257 puansız. İki düşük puanlı tamamlanmış kayıt olumlu dayanak değil. Manga/manhwa puansız; olumlu tercih 0. Zevk profilinde animeye 53 puan katılır, diğer altı havuzun puan sonucu değişmez. Ağ yolu aynı sınıfları bağımsız doğrular. Hipotez 0, yapay analiz yok.
+- **Düzeltme:** yeniden çalıştırılabilir collection-sync ve arayüz düğmesi/sayısal dışlama özeti; aktarım/puan düzenlemesi gizli kaydı yeniden açmaz. Eski MAL 0/boş değeri puansız; açık kullanıcı 0 kaydı ayrı. Diskte değişen ağ dosyasını eski bellekle ezmeye karşı sürüm kontrolü. Başlangıca bağlı eski mekanizma dosya tarihleriyle teşhis edildi; geçmiş süreçlerin tam çalıştırma sırası kanıtlanmadı.
+- **Kanıt / sınır:** 53 hedefli test, altı JS sözdizimi ve diff/link kontrolü. Kişisel normal start.bat/gerçek Windows görünüm teyidi bu tur yapılmadı. Haritanın 60 düğüm/120 görünür ilişki tavanı, ağda referans eksikliği anlamına gelmez. Kod yerel, master HEAD aynı; Git teslimi/Actions yok.
+- **Tam sonraki adım:** ek öncelik kapandı; mevcut tek yol haritasındaki **7 çeşitlilik → 8 tarihli puan eğilimleri → 9 ayrı tekrar oturumları** grubuna dön. Yeni Git teslimi için açık komut bekle.
+
+## İkinci üçlü: yayın takvimi, ICS ve tür/tema portresi · 2026-11-10
+
+- **Yerelde uygulandı:** kişisel tüketim takviminden ayrı Yayın takvimi; anime bölüm anları UTC ve seçili gösterim saat dilimiyle, anime/manga ilk yayınları tam/eksik tarih ayrımıyla. Seçili kaynak takvimleri ve görünür yayınlardan ICS önizleme/indirme. Yedi ayrı havuzda puanlı tür/tema portresi, kapsam/eksik bilgi ve yüksek/düşük puanlı örnekler. [Devir](docs/devir/2026-11-10-1333.md).
+- **Dal/teslim:** master `6a3a98527792f8ba3da0aa7f3a07a2f9c2a91e95`; önceki 1–3 grubu ve belge/kişisel farklar korunuyor. Yeni commit/push/PR/merge veya Actions yok.
+- **Kanıt:** dört mevcut dosyada 48/48 hedefli test; altı JS sözdizimi, diff ve yeni devir bağlantıları. Gerçek AniList MAL anime 21 sorgusu: 9 bölüm zamanı + 1 ilk yayın tarihi. Kişisel dosya değişmezliği, hata sonrası önbellek, eski seçim reddi, UID/SEQUENCE, UTF-8 ICS kaçış/katlama, İstanbul gün dönüşümü ve EN/TR arayüz davranışları kontrollü doğrulandı.
+- **Kalan kabul / kaynak sınırı:** gerçek LG/Windows görünümü, kişisel start.bat açılışı ve dış takvim uygulamasına dosya içe aktarma denenmedi. İndirme düğmesi mevcut Blob indirme düzenini kullanır; dosya erişim penceresi tetikleyen test yapılmadı. Anime kaynağı yapım başına ilk 25 yaklaşan bölümü kapsar, devamı varsa gösterilir. Manga tekil cilt/bölüm tarihleri yok. ICS anlık görüntüdür, abonelik değildir; tekrar içe aktarmayı dış uygulama yönetir. Eksik tür/tema türetilmez; puansız tamamlama beğeni sayılmaz. Önceki canlı/GPU kabulleri sürer.
+- **Tam sonraki adım:** tek yol haritasından **7 çeşitlilik görünümü → 8 tarihli puan eğilimleri → 9 ayrı tekrar izleme/okuma oturumları**. 7 bilinmeyen tür/yıl/ülkeyi ve örnek sayısını ayırsın; 8 aktarım tarihini eski puan tarihi saymasın; 9 ilk tamamlamayı ve mevcut kimliği korusun. Git teslimi için açık komut bekle.
+
+## İlk üçlü: seri haritası, sıra ve takip · 2026-11-10
+
+- **Yerelde uygulandı, kaynak sınırları açık:** Anime/manga kimlikli ilişki haritası, kullanıcı isteğiyle dal genişletme; tam/eksik/bilinmeyen yayın tarihleri ve ayrı hikâye sırası görünümü; kalıcı takip, takip sonrası keşfedilen devamlar, yayın bilgisi ve katalog cilt sayısı değişiklikleri. Puan/durum/ilerleme dosyasına yazmaz. [Devir](docs/devir/2026-11-10-1308.md), [tek yol haritası](docs/plans/2026-11-10-next-50.md).
+- **Dal/teslim:** master `6a3a98527792f8ba3da0aa7f3a07a2f9c2a91e95`; ürün ve belge değişiklikleri commit edilmedi. Yeni Git teslimi açık komut bekler. Önceki kişisel/belge farkları korunur.
+- **Kanıt:** 28 hedefli test (kişisel koleksiyon + öneri merkezi), dört JS sözdizimi kontrolü ve diff kontrolü. Gerçek AniList MAL anime 1 sorgusu: AniList anime 1, 5 ilişki, 6 tarihli düğüm. Kimlik kayması/kısmi GraphQL hatası reddi, yeniden yüklemede takip, hata sonrası önbellek, ağ isteği sırasında takibi bırakma ve yetkisiz IPC kontrollü testlerle doğrulandı.
+- **Kalan kabul / sınır:** Gerçek Windows/LG görsel kabulü ve kişisel start.bat yeniden açılışı bu grupta yapılmadı; açık uygulamaya dokunulmadı. AniList hikâye kronolojisi veya tekil cilt çıkış tarihini sağlamaz; bu ikisi doğrulanmış gibi sunulmaz. Takip kontrolü kullanıcı yenilemesiyle çalışır; arka plan/OS bildirimi yok. Harita yalnız genişletilen doğrudan ilişkileri kapsar. Önceki canlı puanlı AniList/GPU/asistan kabulleri açık kalır.
+- **Tam sonraki adım:** Yol haritasının 4 yayın takvimi, 5 seçili takvimi ICS dışa aktarımı, 6 tür/tema portresi grubunu bu sırayla uygula. 4 için tarih/saat dilimi kaynağını ve mevcut takvimden ayrımı belirle; 5 sabit UID kullansın; 6 yalnız puanlı kanıttan hesaplasın. Tekil cilt çıkışı için tarihli yayıncı kaynağı entegrasyonu ayrıca gereklidir; mevcut cilt toplamı çıkış kanıtı değildir.
+
 ## Ortak öneriler ve açık Git teslimi · 2026-11-10
 
 - **Ürün tamamlandı, teslim dalı codex/personal-library-recommendations-20261110:** Öneriler sayfası; film/anime, yerel puan, halka açık profil ve kesin başlığa göre benzerler. Keşfet/İzlediklerim ortak giriş. 50 iş ayrı gelecek yol haritasıdır; tamamlandı sayılmadı.

@@ -92,6 +92,20 @@ function profile(diary = [], catalog = [], saved = {}, reviewEntries = []) {
     metadataMatched:[...distinct.values()].filter(row=>{const item=items.get(key(row));return item&&((item.genres||[]).length||(item.directors||[]).length);}).length,reviews:reviews.slice(-10000).reverse(),reviewCount:reviews.length,mentions,
     preferencesConfigured:supplied,preferences:effectivePreferences(saved),analysis:saved.analysis || null };
   const metadataMatched=rated.filter(row=>values(metadataFor(row),'genres').length||values(metadataFor(row),'directors').length).length;
+  // Reuse the profile's current-score / latest-dated identity resolution. Each
+  // title contributes once per tag; completion and provider scores add no votes.
+  function portraitGroups(field) {
+    const groups=new Map();
+    for(const row of rated)for(const value of new Map(values(metadataFor(row),field).map(value=>[fold(value.trim()),value])).values()) {
+      const item=metadataFor(row),name=value.trim(),id=fold(name),group=groups.get(id)||{name,evidence:[]};
+      group.evidence.push({title:row.title,itemId:item?.id||null,rating:row.rating*2,source:validRating(item?.ratings?.personal)?item.portraitSource||'catalog':'diary',...(row.watchedDate?{date:row.watchedDate}:{})});groups.set(id,group);
+    }
+    return [...groups.values()].map(group=>({name:group.name,count:group.evidence.length,share:rated.length?group.evidence.length/rated.length:0,average:group.evidence.reduce((sum,e)=>sum+e.rating,0)/group.evidence.length,
+      positive:group.evidence.filter(e=>e.rating>=7).sort((a,b)=>b.rating-a.rating).slice(0,3),negative:group.evidence.filter(e=>e.rating<=5).sort((a,b)=>a.rating-b.rating).slice(0,3),neutral:group.evidence.filter(e=>e.rating>5&&e.rating<7).slice(0,2)})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name));
+  }
+  result.portrait={rated:rated.length,ratingScale:10,positiveThreshold:7,negativeThreshold:5,
+    genreCovered:rated.filter(row=>values(metadataFor(row),'genres').length).length,themeCovered:rated.filter(row=>values(metadataFor(row),'themes').length).length,
+    genres:portraitGroups('genres'),themes:portraitGroups('themes')};
   result.preferencesRevision=preferencesRevision(saved);
   result.evidenceRevision=hash({rated:rated.map(row=>({title:row.title,year:row.year,rating:row.rating,itemId:metadataFor(row)?.id,genres:values(metadataFor(row),'genres'),directors:values(metadataFor(row),'directors')})).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))),reviews:reviewCorpus([...diary,...reviewEntries])});
   const genresMatched=rated.filter(row=>values(metadataFor(row),'genres').length).length,directorsMatched=rated.filter(row=>values(metadataFor(row),'directors').length).length;

@@ -157,7 +157,8 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
       if (!Number.isSafeInteger(id) || id < 1) throw new Error('Eser kimliği geçersiz.');
       const kind = item.kind === 'series' ? 'tv' : 'movie';
       const data = await request(`${kind}/${id}`, token, { append_to_response: 'credits,external_ids' }, signal);
-      if(!data.overview && language()!=='en-US'){const fallback=await request(`${kind}/${id}`,token,{language:'en-US'},signal);data.overview=fallback.overview||'';}
+      if(data.id!==undefined&&data.id!==id)throw Error('TMDB identity mismatch. / TMDB kimliği uyuşmuyor.');
+      if(!data.overview && language()!=='en-US'){const fallback=await request(`${kind}/${id}`,token,{language:'en-US'},signal);if(fallback.id!==undefined&&fallback.id!==id)throw Error('TMDB fallback identity mismatch. / TMDB yedek dil kimliği uyuşmuyor.');data.overview=fallback.overview||'';}
       const patch = { title: data.title || data.name, originalTitle: data.original_title || data.original_name,
         originalLanguage: /^[a-z]{2}$/.test(data.original_language || '') ? data.original_language : '',
         productionCountries: Array.isArray(data.production_countries) ? [...new Set(data.production_countries.map(row=>row.iso_3166_1).filter(code=>/^[A-Z]{2}$/.test(code)))].slice(0,30) : null,
@@ -171,7 +172,8 @@ function createMetadataClient(fetchImpl = fetch,{language=()=> 'tr-TR'}={}) {
         directors: (data.credits?.crew || []).filter(p=>p.job==='Director').map(p=>p.name).concat((data.created_by||[]).map(p=>p.name)).slice(0,10),
         tagline: data.tagline || '', tmdbRating: Number(data.vote_average)||null, tmdbVotes: Number(data.vote_count)||0,
         backdrop: /^\/[a-zA-Z0-9._-]+$/.test(data.backdrop_path || '') ? data.backdrop_path : '' };
-      return { patch, poster: /^\/[a-zA-Z0-9._-]+$/.test(data.poster_path || '') ? data.poster_path : '',
+      const E=require('./metadata-evidence'),at=Date.now(),evidence={version:1,fields:E.record(patch,E.catalogFields,'tmdb',patch.tmdbId,at),pair:data.id===id&&/^tt\d{7,12}$/.test(patch.imdbId)?{tmdbId:patch.tmdbId,imdbId:patch.imdbId,at}:null};
+      return { patch,evidence,identityConfirmed:data.id===id, poster: /^\/[a-zA-Z0-9._-]+$/.test(data.poster_path || '') ? data.poster_path : '',
         seasons: (data.seasons || []).map(s => ({ number: s.season_number, count: s.episode_count })) };
     },
     async season(item, number, token) {

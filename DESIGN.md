@@ -355,3 +355,40 @@ Arayüz dili yenilenirken Sahne'nin odaklı transkript/başlık araması aynı k
 ## Ortak öneri merkezi · 2026-11-10
 
 Üst medya menüsünde Öneriler; grafit/amber kaynak alanı ve kapaklı sonuç kartları. Film/Anime ve kaynak seçimi açık etiketlidir; kesin başlık seçilmeden benzerlik başlamaz. Sonuç gelince kaynak formu daralır, yeniden açılabilir. Halka açık örnek kapsamı görünür; kişisel puan ve seçili yapım dayanağı birbirine karıştırılmaz. LG tam ekran ve tek dar tanıda taşma 0.
+
+## Seri haritası ve devam takibi · 2026-11-10
+
+İzlediklerim/Anime/Manga içinde mevcut çalışma alanlarına Seri haritası eklenir; kayıt kartı aynı alana seçili kimlikle gider. Grafit/amber tokenları, Sora başlık ve mevcut alan/düğme yardımcıları korunur. Seçili yapım kapağı/kimliği üstte; amber bağlantı çizgili ilişkiler altta. İlişkiler / Yayın sırası / Hikâye sırası / Devamlar birbirini yığmadan ayrı gösterilir. Dar alanda ilişki eylemi kartın altına geçer, çalışma alanları sarılır. Tam tarihler, kısmi tarihler ve bilinmeyenler ayrı bölümlerdir; eksik tarihle kesin sıra iddiası yoktur. Her ilişki kaynak kimliği ve kontrol tarihi taşır. Takip kişisel puan/ilerlemeden bağımsız, açık düğmeyle değişir; hata önceki önbelleği korur. Gerçek Windows görsel kabulü bu dilimde yapılmadı.
+
+## Yayın takvimi ve tür/tema portresi · 2026-11-10
+
+Mevcut arşive Yayın takvimi ve Tür / tema portresi çalışma alanları eklenir. Tüketim geçmişindeki Takvim aynı kalır. Yayın alanı: seçili yapımı kaynaktan kontrol etme, zaman damgalı kaynak takvimleri, ay/saat dilimi, seçili yayınların dışa aktarımı ve amber tarih sütunlu ajanda. Saatli yayın UTC kaynak anını ve seçili yerel saati birlikte gösterir; yalnız gün verilen tarihe saat/saat dilimi eklenmez. ICS önce önizlenir, dosya indirmesi açık düğmeyledir. Tekil yayın seçiminde DOM odağı korunur. Portre: toplam puanlı/tür bilgili/tema bilgili sayıları, genişte iki sütunlu tür ve tema listeleri; amber çubuk tüm puanlı havuzdaki payı gösterir, yüksek/düşük puan örnekleri ayrı açılır. Etiketlerin toplamı yüzde yüz olmak zorunda değildir. Dar alanda ajanda eylemleri alta, portre tek sütuna geçer; mevcut grafit/amber tokenları ve yazı aileleri kullanılır. Gerçek Windows görsel kabulü bu grupta yapılmadı.
+
+## İçerik ağı koleksiyon eşitlemesi · 2026-11-10
+
+Mevcut İçerik Ağı üst eylemlerine Koleksiyonu eşitle eklenir. Mevcut durum yazısı stilindeki ayrı özet, referans/eklenen/gizli/etkin olmayan/kapasite/depolama/çözümlenemeyen/yinelenen kaynak sayılarını gösterir. Haritadaki görünür düğüm sınırı ile kalıcı kaynak sayısı ayrı tutulur. Eşitleme kişisel puan veya kullanıcı tarafından gizlenen görünürlüğü değiştirmez. Mevcut grafit/amber düğmeleri ve EN/TR metin düzeni kullanılır. Native görsel kabul bu tur yapılmadı.
+
+
+## Kişisel arşiv inceleme araçları — 2026-11-10
+
+Kayıt kartında kimlik düzeltme, üst eylemlerde dışa aktarım; XML aktarımı mevcut girişinde kalır. Tek grafit/amber inceleme penceresi, baskın başlık ve kapsam açıklaması; her kaydın alan farkları açılır bölümde, mevcut/kaynak değerleri yan yana, dar alanda alt alta. Adayda kaynak kimlikleri ve ayrı son onay görünür. Dışa aktarım önce kapsam/biçim ve kayıt sayısı, sonra sınırlı önizleme ve açık indirme eylemidir. Sora/IBM Plex ve ortak tema değişkenleri korunur. EN/TR kontrollü DOM davranışı doğrulandı; gerçek Windows görünümü bu tur denenmedi.
+
+
+## Kaynak sürümleri ve geri alma — 2026-11-10
+
+Arşiv içe/dışa aktarım, kaynak okuma ve geçmiş eylemleri üstte tek Arşiv araçları açılır menüsündedir. Kayıt kartında Kaynak sürümleri salt okunur incelemesi vardır: iki sürüm seçici, alan/sol/sağ değer ızgarası, farklı satırlarda amber vurgu; dar alanda alan başlığı iki değerin üstündedir. Geri alma geçmişi kayıt bazlı korunacak/dönecek/kaldırılacak özet ve ayrı son onay sunar. AniList açık liste veya MAL XML okuması mevcut alan farkı yüzeyini kullanır; otomatik kayıt yoktur. Mevcut grafit/amber ve yazı ailesi korunur. EN/TR kontrollü DOM akışları geçti; gerçek Windows görünümü bu grupta denenmedi.
+
+
+## Kaynak kimlikleri ve alan incelemesi — 2026-11-10
+
+Mevcut arşiv çalışma alanlarına Kaynak kimlikleri eklenir; kayıt başlığı altında dört ayrı MAL/AniList/IMDb/TMDB hücresi ve kanıt durumu vardır. Kaynak/uyarlama kimlikleri görsel olarak tek bir etikette eritilmez. Karttaki Kaynaklar / yenile tek inceleme penceresinde kimlik özeti, alan değeri/köken/zaman/koruma ve ayrı yenileme önizlemesi sunar. Yalnız değişen/eksik alanlar iki değerli seçim satırıdır; korunan alan açıkça etiketlenir. Kişisel düzeltme ikincil açılır alanda kalır. Genişte dört kimlik hücresi, darda iki; yenileme değerleri dar alanda alt alta. Grafit/amber, Sora/IBM Plex ve mevcut odak stilleri korunur. EN/TR kontrollü DOM doğrulandı; gerçek Windows görünümü bu tur denenmedi.
+
+
+## Kapak yönetimi, ilerleme ve akıllı raflar — 2026-11-10
+
+Çevrimdışı kapak yönetimi Arşiv araçları menüsünde kalır; kullanılan/azami MB belirgin, saklama ve silme seçimleri ayrıdır. Silme özeti ve ikinci onay kişisel kayıtların korunacağını açıklar. Seri ilerleme alanı büyük gerçek sayı/amber çubuk, bilinmeyen toplam ve kaynak etiketiyle iki sütunlu kartlar; sezon/bölüm ayrıntısı açılır alandadır. Akıllı raflar adlandırılmış koşullar ve eşleşme nedeni sunar; temel koşullar önde, ülke/yıl/tür/puan aralığı ikincil açılır alanda. Bu alanda havuzun tek sahibi raf filtresidir. Dar görünümde alanlar tek sütuna iner. Mevcut grafit/amber ve Sora/IBM Plex, üst medya gezinmesi korunur. EN/TR kontrollü DOM davranışı geçti; gerçek Windows görünümü bu tur denenmedi.
+
+
+## Toplu seçim, koleksiyon ve gerekçe — 2026-11-10
+
+Kartın köşesinde erişilebilir seçim kutusu, listede sayı/inceleme/temizleme şeridi; fark önizlemesi ve ayrı son onay. Kartın puan/düzenle/devam eylemi önde, kaynak/harita/not araçları özellik kaybı olmadan Diğer işlemler menüsündedir; Escape menüyü kapatıp özetine odak verir. Koleksiyon alanı kapak+açıklama baskın iki sütunlu kart, gerçek tamamlandı işaret sayısı ve numaralı üye listesi; dar alanda tek sütun. Sıra ikincil açılır düzenleyicide, görsel mevcut üye kaydından seçilir. Ara verme gerekçesi ayrı bağlam ve metin, durum/puanı değiştirmediği açıklamasıyla tek inceleme penceresindedir. Mevcut grafit/amber, Sora/IBM Plex ve üst gezinme korunur. EN/TR kontrollü DOM geçti; gerçek Windows görünümü bu tur denenmedi.
