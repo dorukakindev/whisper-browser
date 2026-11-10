@@ -1191,7 +1191,7 @@ test('saved timestamps remain readable per line without granting stream seeking 
 test('Tasks exposes one real sentence merge checkbox and reviews the selected partial track',async t=>{
  const f=fixture(t),processing=f.document.createElement('input');processing.id='mergeContinuation';processing.type='checkbox';f.document.body.append(processing);
  let enabled=null,opened='';f.window.SentenceMergeControl={set:value=>{enabled=value;processing.checked=value;}};f.window.SubtitleTranslationRepair={review:async(file,{isCurrent,allowMixed})=>{assert(isCurrent());assert(allowMixed);opened=file;return {ok:true};}};
- f.player.subPath='source.srt';f.player.sub2Path='manual.partial.srt';f.player.subRole='source';f.player.sub2Role='translation';
+ f.player.subPath='primary-translation.srt';f.player.sub2Path='manual.partial.srt';f.player.subRole='translation';f.player.sub2Role='translation';
  const adapter=f.open(),items=adapter.panel().sections.flatMap(section=>section.items),toggle=items.find(item=>item.id==='sentence-merge'),repair=items.find(item=>item.id==='retry-translation');
  assert(toggle);assert(repair);assert.equal(repair.disabled,false);toggle.onChange(true);assert.equal(enabled,true);await repair.run();assert.equal(opened,'manual.partial.srt');
  opened='';f.player.sub2Path='new-track.srt';await repair.run();assert.equal(opened,'');

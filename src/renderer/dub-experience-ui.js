@@ -131,6 +131,7 @@
  document.addEventListener('keydown',event=>{if(event.defaultPrevented||event.isComposing||[...document.querySelectorAll('dialog[open]')].some(dialog=>dialog!==$('dubGeneratorDialog')))return;if(event.ctrlKey&&event.altKey&&!event.shiftKey&&event.code==='KeyR'&&!event.repeat&&!/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)&&!event.target.isContentEditable){event.preventDefault();void repairNow();}});
  window.addEventListener('dub-preflight-ready',event=>{
   if(event.detail?.reveal){
+   window.DubStudioLayout?.reveal(host);
    $('dubReviewTools').open=true;
    host.open=true;
    host.scrollIntoView?.({block:'nearest'});

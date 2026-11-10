@@ -40,7 +40,7 @@ function createGroupTakes({app,grantMedia}){
     const record=groups([row])[0],file=await verified(s.sha256);grantMedia(file);
     const token=crypto.randomUUID();tokens.set(token,{sender,key,subtitleHash:base.doc.subtitleHash,sourceIdentity:base.doc.sourceIdentity,range:base.doc.range??null,file,cache_key:s.cache_key,sha256:s.sha256,record,applyAllowed:s.cache_key===original.cache_key});
     while(tokens.size>2000)tokens.delete(tokens.keys().next().value);
-    choices.push({token,compareOnly:s.cache_key!==original.cache_key,sha256:s.sha256,current:s.sha256===original.sha256,recordedAt:data.doc.finishedAt||'',status:record.status,text:record.text,url:pathToFileURL(file).href});seen.add(s.sha256);
+    choices.push({token,compareOnly:s.cache_key!==original.cache_key,sha256:s.sha256,current:s.sha256===original.sha256,recordedAt:data.doc.finishedAt||'',status:record.status,text:record.text,levelDb:record.continuity?.levelDb??null,url:pathToFileURL(file).href});seen.add(s.sha256);
     if(choices.length>=20)break;
    }catch{}
   }

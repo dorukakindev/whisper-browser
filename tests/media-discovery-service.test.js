@@ -26,7 +26,7 @@ test('fixed provider routes, caching, personal exclusions and idempotent watchli
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-'));
   try {
     const catalog = createMediaCatalogStore({ filePath: path.join(dir, 'catalog.json') });
-    catalog.upsert({ title: 'Liked', kind: 'film', imdbId: 'tt1234567', favorite: true, genres: ['Drama'], ratings: { personal: '4.5' } });
+    catalog.upsert({ title: 'Liked', kind: 'film', imdbId: 'tt1234567', favorite: true, genres: ['Drama'], ratings: { personal: '9' } });
     const calls = [], handlers = new Map();
     const rows = [{ id: 'tt1234567', name: 'Liked', genres: ['Drama'] }, { id: 'tt1234568', name: 'New', genres: ['Drama'], poster: 'https://images.metahub.space/poster/small/tt1234568/img', description: 'A fixture.' }];
     registerMediaDiscovery({ ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, authorized: e => e.allowed, catalogStore: () => catalog, userData:()=>dir,

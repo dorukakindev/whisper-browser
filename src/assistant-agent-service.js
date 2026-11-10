@@ -438,6 +438,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
   try{
    const current=manifest.clean(input.owner);if(row.expires<Date.now())throw Error('This card expired before it was applied; nothing ran. Ask again. / Kart uygulanmadan eskidi; hiçbir şey çalışmadı. Yeniden iste.');
    if(!manifest.same(row.owner,current))throw Error('The source or conversation changed / Kaynak veya sohbet değişti.');
+   if(row.name==='open_voice_preparation'&&row.owner.subtitleKey!==current.subtitleKey)throw Error('The subtitle track changed. Ask for a new action / Altyazı izi değişti. Yeni bir işlem isteyin.');
    requireOwner(current);registry.validate(row.name,row.args,current);
    if(row.name==='translate_video_captions'){const probe=captionProbes.get(event.sender.id);if(!probe||probe.expires<Date.now()||!manifest.same(probe.owner,current)||!probe.languages.some(item=>item.id===row.args.caption_id))throw Error('Caption selection expired. Probe again.');}
    proposals.delete(input.proposalId);receipts.claim(input.proposalId,{sender:event.sender.id,owner:current,name:row.name});claimed=true;

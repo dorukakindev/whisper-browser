@@ -357,7 +357,7 @@
       const toolbox=el('details','cn-accordion');toolbox.append(el('summary','',t('Subtitle & voice tools','Altyazı ve ses araçları')),tools());view.body.append(toolbox);
     } else if (state.page === 'recall' && window.RecallNetworkUI) {
       recallView=window.RecallNetworkUI.render({host:content,api:input=>window.api.recallRequest(input),locale:english()?'en':'tr',onOpen:async source=>{
-        if(source.kind==='catalog')return window.MediaTitleUI.open(source.id);
+        if(source.kind==='collection')return window.PersonalLibraryUI.editCollection(source.id);if(source.kind==='catalog')return window.MediaTitleUI.open(source.id);
         if(source.kind==='feed')return window.MediaHomeUI.openFeedEntry(source.id);
         if(source.kind==='book')return window.MediaShelfUI.openBook(source.id);
         if(source.kind==='podcast')return window.MediaShelfUI.openPodcast(source.locator?.podcastId,source.locator?.url);
@@ -395,6 +395,10 @@
       const currentView=feedsView,currentRender=state.render;void currentView.ready.then(()=>{if(feedsView===currentView&&state.page==='feeds'&&state.render===currentRender&&state.active)host.scrollTop=pagePositions.get('feeds')||0;});
     } else if (state.page === 'discover' && window.MediaDiscoveryUI) {
       const discovery = el('section', 'md-page'); content.append(discovery); window.MediaDiscoveryUI.mount(discovery);
+    } else if (state.page==='recommend'&&window.RecommendationHubUI) {
+      const recommendations=window.RecommendationHubUI.mount(content);virtualDisposers.push(()=>recommendations.dispose());
+    } else if (['watched','anime','manga'].includes(state.page) && window.PersonalLibraryUI) {
+      const personal=window.PersonalLibraryUI.mount(content,{page:state.page,history:watch,onOpen:id=>window.MediaTitleUI.open(id),onPlay:playWatch});virtualDisposers.push(()=>personal.dispose());
     } else if (state.page === 'web' && window.WebHistoryV2) {
       const web = window.WebHistoryV2.mount(content, watch.filter(item => model.medium(item) === 'web'), {
         query: state.query, playWatch, artwork: item => art(item, 'whv-owned-art'), disposeArtwork: node => posterObserver.unobserve(node),
@@ -546,12 +550,12 @@
     const outline=document.createElementNS(gear.namespaceURI,'path');let points=[];for(let i=0;i<32;i++){const angle=i*Math.PI/16-Math.PI/2,r=i%4===1||i%4===2?10:8;points.push((12+Math.cos(angle)*r).toFixed(2)+','+(12+Math.sin(angle)*r).toFixed(2));}outline.setAttribute('d','M'+points.join('L')+'Z');const center=document.createElementNS(gear.namespaceURI,'circle');center.setAttribute('cx','12');center.setAttribute('cy','12');center.setAttribute('r','3.2');gear.append(outline,center);settings.append(gear);actions.append(settings);
     const mainPages = [];
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
-    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['recall', t('Knowledge & taste', 'İçerik ve zevk ağı')], ['feeds', t('Feeds (RSS)', 'Akışlar (RSS)')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('Taste profile','Zevk profilim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
+    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['watched',t('My viewing','İzlediklerim')], ['recommend',t('Recommendations','Öneriler')], ['anime','Anime'], ['manga','Manga / Manhwa'], ['recall', t('Content network', 'İçerik ağı')], ['feeds', t('Feeds (RSS)', 'Akışlar (RSS)')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('My taste','Zevkim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false');
       if (key === 'home') control.id = 'mhHome';
       control.addEventListener('click', () => setMenu(false));
-      if (['home','discover','films','series','feeds'].includes(key)) { mainPages.push(control); nav.append(control); }
+      if (['home','discover','watched','recommend','films','series','feeds','taste'].includes(key)) { mainPages.push(control); nav.append(control); }
       else extraNav.append(control);
     }
     extraNav.append(button(t('Browser scripts','Tarayıcı scriptleri'),()=>window.UserscriptManagerUI.open()),button(t('Browser engine & memory','Tarayıcı motoru ve bellek'),()=>window.BrowserMechanismsUI.open()));

@@ -45,7 +45,7 @@ const service = registerDubService({ observeJob:(session,event,cancel)=>observed
     status('separate_gpu');
     if (backgroundMode==='fail') { fs.writeFileSync(output,'incomplete'); fs.writeFileSync(output.replace(/\.wav$/,'.partial.wav'),'partial'); throw new Error('fixture separation failed'); }
     if (backgroundMode==='hold') return new Promise((_resolve,reject)=>{fs.writeFileSync(output,'incomplete');fs.writeFileSync(output.replace(/\.wav$/,'.partial.wav'),'partial');rejectPreparation=reject;onProcess({exitCode:null,signalCode:null});});
-    fs.writeFileSync(output,'instrumental');
+    fs.writeFileSync(output,wav);
   },
   spawn:(exe,args,opts)=>{
     calls.push({exe,args,opts}); child=new EventEmitter(); child.exitCode=null;
@@ -415,7 +415,7 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.deepEqual(backgroundRange,{start:600,end:1200},'background separation must receive only the selected ten minutes');
     assert.ok(events.some(e=>e.id==='adaptive'&&e.type==='status'&&e.stage==='separate_gpu'&&e.text.includes('GPU (CUDA)')));
     const adaptiveOutput=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
-    fs.writeFileSync(adaptiveOutput,wav);
+    fs.writeFileSync(adaptiveOutput,require('./dub-run-world').wav(3));
     fs.writeFileSync(adaptiveOutput.replace(/\.wav$/,'.sync.json'),JSON.stringify({version:1,videoDuration:2,audioDuration:3,
       segments:[{v0:0,v1:2,a0:0,a1:3}]}));
     child.emit('close',0);
@@ -570,7 +570,7 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal(events.at(-1).type,'error');assert.equal(events.at(-1).recoverablePath,badMapWav);
     assert.equal((await call('dub:start',{id:'quality-rejected',srt,timingMode:'clip',followDelivery:false})).ok,true);
     const rejectedQualityWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];
-    fs.writeFileSync(rejectedQualityWav,wav);
+    fs.writeFileSync(rejectedQualityWav,require('./dub-run-world').wav(1));
     fs.writeFileSync(rejectedQualityWav.replace(/\.wav$/,'.quality.json'),JSON.stringify({version:1,groups:[{
       key:'1',group:1,text:'Kontrol gerekli.',sourceStart:0,sourceEnd:1,audioStart:0,audioEnd:1,
       status:'ready',verification:{status:'review',review:true,missing_numbers:['12']}
@@ -581,7 +581,7 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.deepEqual(events.at(-1).quality.groups[0].verification.missing_numbers,['12']);
     assert.equal((await call('dub:latest')).output.quality.groups[0].status,'review','reopen must not restore a rejected ready state');
     assert.equal((await call('dub:start',{id:'quality-incomplete',srt,timingMode:'clip',followDelivery:false})).ok,true);
-    const incompleteWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];fs.writeFileSync(incompleteWav,wav);
+    const incompleteWav=calls.at(-1).args[calls.at(-1).args.indexOf('--output')+1];fs.writeFileSync(incompleteWav,require('./dub-run-world').wav(1));
     fs.writeFileSync(incompleteWav.replace(/\.wav$/,'.quality.json'),JSON.stringify({version:1,groups:[{key:'1',group:1,text:'One group.',sourceStart:0,sourceEnd:1,audioStart:0,audioEnd:1,status:'ready',verification:{status:'passed'}}]}));
     child.stdout.emit('data','[2/3] speech progress\n');child.emit('close',0);
     assert.equal(events.at(-1).type,'done','playable audio remains available');assert.equal(events.at(-1).qualityIncomplete,true);assert.equal(events.at(-1).qualityUnavailable,true,'incomplete group evidence must never auto-attach as verified');

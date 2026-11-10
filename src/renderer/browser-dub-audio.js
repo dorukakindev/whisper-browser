@@ -10,6 +10,9 @@
       this.cleanup = Promise.resolve();
       this.intent = 0;
       audio.addEventListener('loadedmetadata', () => this.tick());
+      for (const event of ['canplay','waiting','seeked']) {
+        audio.addEventListener(event, () => { if (this.session?.range) this.tick(); });
+      }
       audio.addEventListener('error', () => this.fail('Ses dosyası açılamadı. WAV veya MP3 deneyin.'));
       audio.addEventListener('ended', () => this.changed(this.session, 'Dublaj sona erdi'));
       backgroundAudio?.addEventListener('loadedmetadata',()=>this.tick());
@@ -260,7 +263,14 @@
       const target = mapped.time;
       if (s.range || s.sync || s.background || Number.isFinite(a.duration) || this.offset) {
         const stop = s.range?.end ?? s.sync?.videoDuration ?? (s.background && Number.isFinite(this.backgroundAudio?.duration) ? this.backgroundAudio.duration : Number.isFinite(a.duration) ? a.duration : Infinity);
-        const inside = videoTime >= (s.range?.start || 0) && videoTime < stop && a.readyState > 0;
+        const inRange = videoTime >= (s.range?.start || 0) && videoTime < stop;
+        // Prepare a newly entered cut while the original track is still
+        // audible. Metadata alone does not guarantee playable audio.
+        if (s.range && inRange && !s.muted && a.readyState > 0 && !a.seeking
+            && Math.abs(a.currentTime - target) > .25) {
+          try { a.currentTime = target; } catch (_) { /* metadata not seekable yet */ }
+        }
+        const inside = inRange && (s.range ? a.readyState >= 3 && !a.seeking : a.readyState > 0);
         this.rangeMute(s, inside || !!s.priorMuted);
         if (!inside || !s.muted) {
           if (s.sync && !inside) this.videoRate(s,s.baseRate,true);

@@ -99,6 +99,7 @@ function queueSnapshotPayload() {
     items: state.queue.map((item) => ({
       id: item.id, type: item.type, input: item.input, label: item.label,
       status: item.status, files: item.files || [], warnings: item.warnings || [],
+      repairOutput: item.repairOutput,
       error: item.error || '', opts: item.opts || {}, recovered: !!item.recovered,
       watchSource: !!item.watchSource, watchReported: item.watchReported || '',
     })),
@@ -505,7 +506,7 @@ const QUEUE_UI_LIMIT = 500;
 // doğrulama/sınır hatasını birbirine karıştırmasın diye.
 let _queueRejectReason = '';
 
-function addToQueue(type, input, { watchSource = false, optionsOverride = null } = {}) {
+function addToQueue(type, input, { watchSource = false, optionsOverride = null, repairOwner = null, repairLabel = '' } = {}) {
   _queueRejectReason = '';
   if (!input) { _queueRejectReason = 'invalid'; return false; }
   const inputKey = queueInputKey(type, input);
@@ -557,7 +558,7 @@ function addToQueue(type, input, { watchSource = false, optionsOverride = null }
   const id = ++_queueIdCounter;
   const label = type === 'youtube'
     ? input.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)
-    : input.split(/[\\/]/).pop();
+    : repairLabel || input.split(/[\\/]/).pop();
   // Aynı kök-adlı farklı dosyalar aynı çıktı klasöründe aynı .srt/.vtt adını
   // üretir ve sessizce birbirini ezer (D:\a\film.mp4 vs D:\b\film.mp4).
   // Yalnız çakışan işe benzersiz sonek verilir; aynı dosyanın yeniden koşusu
@@ -570,7 +571,7 @@ function addToQueue(type, input, { watchSource = false, optionsOverride = null }
     }
   }
   // Ayarları EKLEME anında dondur: kuyruk işlenirken UI değişse bile bu iş eski ayarı kullanır
-  state.queue.push({ id, type, input, label, status: 'pending', files: [], opts, watchSource });
+  state.queue.push({ id, type, input, label, status: 'pending', files: [], opts, watchSource, repairOwner });
   setJobsTab('queue');
   renderQueue();
   return true;
@@ -625,6 +626,9 @@ function renderQueue() {
     const removable = item.status !== 'running';
     const retryable = item.status === 'error';
     const openable = item.status === 'done' && item.files && item.files.length > 0;
+    const repair = item.status === 'done' ? item.repairOutput : null;
+    const repairStatus = repair?.status === 'partial'
+      ? interfaceChoice('Kısmi çeviri','Partial translation') : '';
     const pendingSiblings = state.queue.filter((entry) => entry.status === 'pending');
     const pendingIndex = pendingSiblings.findIndex((entry) => entry.id === item.id);
     const movable = item.status === 'pending' && pendingSiblings.length > 1;
@@ -634,8 +638,10 @@ function renderQueue() {
         <span class="queue-title" data-ui-untranslated>${escapeHtml(item.label)}</span>
         <small class="queue-meta">${escapeHtml(queueItemMeta(item))}</small>
         ${item.error ? `<small class="queue-error" title="${escapeHtml(item.error)}">Hata: ${escapeHtml(item.error)}</small>` : (item.warnings?.length ? `<small class="queue-note">${item.warnings.length} uyarı</small>` : '')}
+        ${repairStatus && repair.total ? `<small class="queue-note">${escapeHtml(interfaceChoice(`${repair.completed}/${repair.total} satır hazır`,`${repair.completed}/${repair.total} lines ready`))}</small>` : ''}
+        ${item.repairMessage ? `<small class="queue-note" role="status" title="${escapeHtml(item.repairMessage)}">${escapeHtml(item.repairMessage)}</small>` : ''}
       </div>
-      <span class="queue-status">${escapeHtml(interrupted ? 'Yarım kaldı' : (STATUS_TEXT[item.status] || item.status))}</span>
+      <span class="queue-status">${escapeHtml(repairStatus || (interrupted ? 'Yarım kaldı' : (STATUS_TEXT[item.status] || item.status)))}</span>
       <span class="queue-actions">
         ${openable ? `<button class="queue-remove queue-open" data-open="${escapeHtml(item.id)}" title="Çıktı klasörünü aç" aria-label="${escapeHtml(item.label)} çıktısını klasörde göster"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h7l2 2h9v10H3z"/></svg></button>` : ''}
         ${movable && pendingIndex > 0 ? `<button class="queue-remove queue-move" data-move="-1" data-id="${escapeHtml(item.id)}" title="Yukarı taşı" aria-label="${escapeHtml(item.label)} işini yukarı taşı"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>` : ''}
@@ -649,7 +655,7 @@ function renderQueue() {
   list.querySelectorAll('.queue-open').forEach(btn => {
     btn.addEventListener('click', () => {
       const item = state.queue.find(x => x.id === parseInt(btn.dataset.open, 10));
-      if (item && item.files && item.files[0]) window.api.showInFolder(item.files[0]);
+      if (item?.files?.length) window.api.showInFolder(item.repairOutput?.path || item.files[0]);
     });
   });
   list.querySelectorAll('.queue-remove[data-id]:not(.queue-move)').forEach(btn => {
@@ -723,6 +729,7 @@ async function processNextQueueItem() {
     return;
   }
   next.status = 'running';
+  delete next.repairOutput;
   next.recovered = false;
   state.currentQueueId = next.id;
   renderQueue();
@@ -819,6 +826,7 @@ async function processNextQueueItem() {
     selectedSubPath: player.subPath || '',
     secondSubPath: player.sub2Path || '',
     kind: opts.translateOnly ? 'translate' : 'queue',
+    manualSubtitleLoad: opts.translateRetryOnly === true && !next.podcastBinding,
     startedAt: Date.now(),
     percent: 0,
   };
@@ -4346,7 +4354,7 @@ $('cancelBtn').addEventListener('click', async () => {
     $('playerJobCancel')?.click();
     return;
   }
-  const cancelOwnerId=state.activeJobId,cancelOwnerJob=player.job;
+  const cancelOwnerId=state.activeJobId,cancelOwnerJob=player.job,cancelQueueId=state.currentQueueId;
   const cancelQueueItem=state.queue?.find(item=>item.id===state.currentQueueId&&item.status==='running');
   if(cancelQueueItem?.podcastBinding)cancelQueueItem.podcastBinding.cancelRequested=true;
   state.cancelled = true;
@@ -4374,10 +4382,19 @@ $('cancelBtn').addEventListener('click', async () => {
   }
   const r = await window.api.cancelTranscribe().catch(()=>({ok:false,error:'İptal bağlantısı kurulamadı.'}));
   if(state.activeJobId && state.activeJobId!==cancelOwnerId || player.job && player.job!==cancelOwnerJob && player.job.running)return;
+  if(cancelQueueItem&&(state.currentQueueId!==cancelQueueId||!state.queue.includes(cancelQueueItem)||cancelQueueItem.status!=='running'))return;
   if(aiJob&&!r?.ok&&r?.error!=='Çalışan iş yok.'){
     if(r?.running){state.running=true;$('startBtn').classList.add('hidden');$('cancelBtn').classList.remove('hidden');}
     if(aiJob.bubble)aiJob.bubble.textContent=(aiJob.streamText?aiJob.streamText+'\n\n':'')+'İptal doğrulanamadı. Yanıtlar uygulanmayacak; tekrar İptal düğmesine basabilirsiniz.';
     updateAiChatActions();return;
+  }
+  if(cancelQueueItem&&r?.ok!==true&&!r?.deferred&&r?.error!=='Çalışan iş yok.'){
+    // A rejected or missing acknowledgement cannot release a running queue owner.
+    state.running=true;
+    $('startBtn').classList.add('hidden');$('cancelBtn').classList.remove('hidden');
+    logLine(interfaceChoice('Durdurma doğrulanamadı. İş izlenmeye devam ediyor; tekrar Durdur’a basabilirsiniz.','Stop was not confirmed. The job is still being tracked; you can press Stop again.'),'warn');
+    setStatus(interfaceChoice('Durdurma doğrulanamadı','Stop not confirmed'),'warn');
+    return;
   }
   if (state.queueRunning) {
     // Kuyruk modunda iptal → tüm kuyruğu durdur
@@ -5727,7 +5744,7 @@ window.api.onEvent((event) => {
       const completedOutputJob = state.activeOutputJob;
       const podcastBinding = completedOutputJob?.podcastBinding;
       if(podcastBinding)void persistPodcastJobOutputs(event,podcastBinding).catch(error=>logLine(error.message,'warn'));
-      if (completedOutputJob) {
+      if (completedOutputJob && !completedOutputJob.manualSubtitleLoad) {
         completedOutputJob.stage = 'Oynatıcıya yükleniyor';
         completedOutputJob.loading = true;
         void attachCompletedJobSubtitles(event, completedOutputJob).then((result) => {
@@ -5737,6 +5754,8 @@ window.api.onEvent((event) => {
           if (state.activeOutputJob === completedOutputJob) state.activeOutputJob = null;
           updatePlayerTaskCenter();
         });
+      } else if (completedOutputJob?.manualSubtitleLoad) {
+        state.activeOutputJob = null;
       }
       setProgress(100);
       $('progressText').textContent = '100%';
@@ -5754,6 +5773,7 @@ window.api.onEvent((event) => {
           item.status = 'done';
           item.error = '';
           item.files = event.files || [];
+          window.SubtitleTranslationRepair?.recordResult(item, event);
           // Uyarıları sakla: kuyruk bitince hangi dosyaların elle kontrol gerektirdiğini özetle
           item.warnings = Array.isArray(event.warnings) ? event.warnings : [];
           reportWatchQueueResult(item, 'done');
@@ -5885,13 +5905,166 @@ window.SentenceMergeControl={set(enabled){
   window.dispatchEvent(new CustomEvent('workflow-merge-change',{detail:{enabled:!!enabled}}));
 }};
 window.SubtitleTranslationRepair={epochs:new WeakMap(),
+reviewCursors:new WeakMap(),
+channelProof(secondary){
+  const cues=secondary?(player.cues2Raw||player.cues2||[]):(player.cuesRaw||player.cues||[]);
+  return JSON.stringify([secondary?player.sub2Path:player.subPath,secondary?player.sub2Raw:player.subRaw,cues.map(cue=>[cue.start,cue.end,cue.text])]);
+},
+missingReview(){
+  const active=window.BrowserDubAudioUI?.context?.();
+  if(active?.mode!=='player'||!active.visible||!active.hasMedia)return null;
+  const secondary=!!player.sub2Path&&player.sub2Role==='translation';
+  if(!secondary&&player.subRole!=='translation')return null;
+  const recovery=player[secondary?'subtitleRecovery2':'subtitleRecovery'];
+  const proof=player[secondary?'subtitleRecoveryProof2':'subtitleRecoveryProof'];
+  if(!Array.isArray(recovery?.completed)||!proof||proof!==this.channelProof(secondary))return null;
+  const missing=recovery.completed.flatMap((done,index)=>done?[]:[index]);
+  if(!missing.length)return null;
+  const owner=this.captureOwner(secondary?player.sub2Path:player.subPath);
+  if(!owner)return null;
+  return {id:'subtitle-missing-review',label:interfaceChoice('Eksik çeviri satırları','Missing translation lines'),
+    detail:interfaceChoice(`${missing.length} satır tamamlanmamış. Zamanına gidip metni inceleyebilirsiniz.`,`${missing.length} lines are incomplete. Jump to their time to review the text.`),state:'done',review:true,
+    actions:[{label:interfaceChoice('Sıradaki eksik satır','Next missing line'),run:()=>{
+      if(player.editing||browserQuickEditor||!this.matchesOwner(owner)||proof!==this.channelProof(secondary)||player[secondary?'subtitleRecovery2':'subtitleRecovery']!==recovery)return;
+      const cues=secondary?(player.cues2Raw||player.cues2):(player.cuesRaw||player.cues);
+      const cursor=this.reviewCursors.get(recovery)||0,index=missing[cursor%missing.length],cue=cues[index];
+      if(!cue)return;
+      this.reviewCursors.set(recovery,cursor+1);
+      const search=$('cueSearch');if(search)search.value='';
+      player.savedOnly=false;player.qualityOnly=false;player.untranslatedOnly=false;
+      const target=Math.max(0,subtitleVideoTime(cue.start,secondary)+.01);
+      const displayed=player.cues.findIndex(row=>subtitleVideoTime(row.start,false)<=target&&subtitleVideoTime(row.end,false)>target);
+      if(displayed>=0)player.cueListPageStart=Math.floor(displayed/500)*500;
+      renderCueList('');
+      const dialog=$('globalTaskCenter');if(dialog?.open)dialog.close();
+      const video=$('playerVideo');if(video)video.currentTime=target;
+      renderCue();highlightCueRow();
+      $('cueList')?.querySelector(`.cue-card[data-idx="${player.activeIdx}"]`)?.scrollIntoView({block:'center'});
+    }}]};
+},
+selection(){
+  return [player.subPath,player.sub2Path,player.subRole,player.sub2Role,player.subRaw,player.sub2Raw,
+    JSON.stringify([player.cuesRaw||player.cues||[],player.cues2Raw||player.cues2||[]]
+      .map(cues=>cues.map(cue=>[cue.start,cue.end,cue.text])))];
+},
+captureOwner(file){
+  const context=window.BrowserDubAudioUI?.context?.();
+  if(!context?.visible||!context.hasMedia||!context.mediaKey||!['player','browser'].includes(context.mode))return null;
+  if(context.mode==='browser'&&(!context.mediaToken||context.subtitleTrack?.path!==file))return null;
+  const secondary=!!player.sub2Path&&player.sub2Role==='translation';
+  if((secondary?player.sub2Path:player.subPath)!==file)return null;
+  if(player.subRole==='source'&&player.sub2Path&&!secondary)return null;
+  const useSecondary=secondary||player.subRole==='source';
+  const {mode,tabId,mediaKey,generation,mediaId,mediaToken,source,subtitleRange}=context;
+  return {mode,tabId,mediaKey,generation,mediaId,mediaToken,source,range:subtitleRange?{...subtitleRange}:null,secondary:useSecondary,offsetChannel:secondary?'secondary':'primary',
+    selection:window.SubtitleTranslationRepair.selection()};
+},
+recordResult(item,event){
+  if(item.opts?.translateRetryOnly!==true)return;
+  item.repairOutput=subtitleOutputContract.selectRepairOutput(event.outputs,item.files,item.opts.translateTo);
+},
+matchesOwner(owner,active=window.BrowserDubAudioUI?.context?.()){
+  return !!owner&&active?.visible&&active.hasMedia
+    &&['mode','tabId','mediaKey','generation','mediaId','mediaToken','source'].every(key=>active[key]===owner[key]);
+},
+canRestore(item,active=window.BrowserDubAudioUI?.context?.()){
+  const proof=item.opts?.repairPlaybackProof;
+  if(!proof||!active?.visible||!active.hasMedia||active.mode!=='player')return false;
+  const canonical=value=>String(value||'').replace(/\\/g,'/').toLowerCase();
+  const file=player.sub2Path&&player.sub2Role==='translation'?player.sub2Path:player.subPath;
+  return canonical(proof.mediaPath)===canonical(active.source)&&canonical(proof.subtitlePath)===canonical(file);
+},
+taskRows(){
+  const active=window.BrowserDubAudioUI?.context?.();
+  if(!active?.visible||!active.hasMedia)return [];
+  const rows=state.queue.filter(item=>item.status==='done'&&item.repairOutput&&(window.SubtitleTranslationRepair.matchesOwner(item.repairOwner,active)||window.SubtitleTranslationRepair.canRestore(item,active)))
+    .map(item=>{
+      const output=item.repairOutput;
+      const label=interfaceChoice('Onarılan altyazı','Repaired subtitles');
+      const detail=item.repairMessage||(output.status==='partial'
+        ?interfaceChoice(`Kısmi çeviri · ${output.failed} eksik satır`,`Partial translation · ${output.failed} missing lines`)
+        :interfaceChoice('SRT yüklemeye hazır.','SRT ready to load.'));
+      return {id:'subtitle-repair:'+item.id,label,detail,state:'done',review:output.status==='partial',
+        actions:item.repairLoading||item.repairApplied||!output.subtitleHash?[]:[{label:interfaceChoice('SRT’yi yükle','Load SRT'),run:async()=>{
+          try{item.repairMessage=await window.SubtitleTranslationRepair.loadResult(item);}
+          catch(error){item.repairMessage=friendlySystemError(error.message);}
+          updatePlayerTaskCenter({refresh:false});renderQueue();
+          window.MediaExperience?.refreshTasks?.();
+        }}]};
+    });
+  const review=window.SubtitleTranslationRepair.missingReview?.();
+  if(review)rows.push(review);
+  return rows;
+},
+async loadResult(item){
+  let owner=item.repairOwner;
+  const output=item.repairOutput;
+  if(!output?.subtitleHash||item.status!=='done'||item.repairLoading||item.repairApplied)return '';
+  if(!window.SubtitleTranslationRepair.matchesOwner(owner)&&window.SubtitleTranslationRepair.canRestore(item)){
+    const proof=item.opts.repairPlaybackProof,captured=window.SubtitleTranslationRepair.captureOwner(proof.subtitlePath);
+    if(!captured||player.editing||browserQuickEditor)return interfaceChoice('Önce açık altyazı düzenlemesini kapatın.','Close the open subtitle editor first.');
+    const generation=player.generation;
+    item.repairLoading=true;
+    try{
+      const verified=await window.api.verifyRepairResult({queueItemId:item.id,mediaPath:captured.source,subtitlePath:proof.subtitlePath});
+      if(!verified?.ok)return verified?.error||interfaceChoice('Onarım yeniden doğrulanamadı.','Could not verify the repair.');
+      if(player.generation!==generation||player.editing||browserQuickEditor||!window.SubtitleTranslationRepair.matchesOwner(captured)||!window.SubtitleTranslationRepair.selection().every((value,index)=>value===captured.selection[index])||!state.queue.includes(item)||item.repairOutput!==output)return interfaceChoice('Medya veya altyazı değişti; yeniden deneyin.','The media or subtitles changed; retry.');
+      const sourceSecondary=captured.offsetChannel==='secondary',raw=sourceSecondary?player.sub2Raw:player.subRaw;
+      const cues=sourceSecondary?(player.cues2Raw||player.cues2):(player.cuesRaw||player.cues);
+      const signature=rows=>JSON.stringify(rows.map(cue=>[cue.start,cue.end,cue.text]));
+      if(verified.sourceText!==raw||signature(parseSubtitles(raw||''))!==signature(cues||[]))return interfaceChoice('Seçili altyazıda kaydedilmemiş düzenleme var.','The selected subtitles contain unsaved edits.');
+      if(!['path','subtitleHash','language','total','completed','failed'].every(key=>verified.output?.[key]===output[key]))return interfaceChoice('Onarım kaydı değişti; yeniden açın.','The repair record changed; reopen it.');
+      captured.range=verified.range;owner=item.repairOwner=captured;
+    }finally{item.repairLoading=false;}
+  }
+  if(!owner)return '';
+  const draft=()=>player.editing||!!browserQuickEditor;
+  const sameOwner=()=>window.SubtitleTranslationRepair.matchesOwner(owner);
+  const selectionMatches=()=>window.SubtitleTranslationRepair.selection().every((value,index)=>value===owner.selection[index]);
+  const generation=player.generation;
+  const isCancelled=()=>draft()||player.generation!==generation||!sameOwner()||!selectionMatches()||item.repairOutput!==output||!state.queue.includes(item);
+  const blocked=()=>draft()?interfaceChoice('Önce açık altyazı düzenlemesini kapatın.','Close the open subtitle editor first.')
+    :interfaceChoice('Medya veya seçili altyazı değişti. SRT dosyası çıktı klasöründe.','The media or selected subtitle changed. The SRT is in the output folder.');
+  if(isCancelled())return blocked();
+  item.repairLoading=true;
+  try{
+    const audioToken=owner.mode==='browser'&&currentBrowserWhisperAudio()?.mediaToken===owner.mediaToken?owner.mediaToken:'';
+    const register=()=>registerCompletedBrowserOutputs({items:[output],translation:output},{workspaceMode:owner.mode,mediaKey:owner.mediaKey,
+      browserTabId:owner.tabId,browserMediaToken:audioToken,selectedSubPath:player.subPath,
+      clipRange:owner.range,translateForSpeech:item.opts.translateForSpeech});
+    const playbackContext=owner.mode==='player'&&owner.range?{subtitlePath:output.path,mediaPath:owner.source,range:owner.range}:null;
+    const originalText=owner.selection[owner.selection[1]&&owner.selection[3]==='translation'?5:4];
+    const expectedTimeline=parseSubtitles(originalText||'').map(cue=>[cue.start,cue.end]);
+    const result=await loadSubtitle(output.path,owner.secondary,{silent:true,select:true,role:'translation',
+      isCancelled,playbackContext,preserveSecondary:true,expectedHash:output.subtitleHash,
+      expectedTimeline,syncOffsetFrom:owner.mode==='player'?owner.offsetChannel:undefined,beforeCommit:register});
+    if(!result?.loaded||!sameOwner()||(owner.secondary?player.sub2Path:player.subPath)!==output.path)return result?.error||blocked();
+    item.repairApplied=true;
+    player.translationRetryAvailable=output.failed;
+    if(owner.mode==='browser'){
+      player.browserTranslationFailed=output.failed;
+      const tab=browserTabState();
+      if(tab)tab.browserTranslationFailed=output.failed;
+    }
+    setSubtitleMode('translation',false);
+    return output.status==='partial'
+      ? interfaceChoice('Kısmi SRT yüklendi. Eksik satırları dublajdan önce inceleyin.','Partial SRT loaded. Review missing lines before dubbing.')
+      : interfaceChoice('Onarılan SRT yüklendi. Dublaj hazırlığında kullanılabilir.','Repaired SRT loaded. It is available for voice preparation.');
+  }finally{item.repairLoading=false;}
+},
 enqueue:async function(file,info,{isCurrent=()=>true,allowMixed=false}={}){
   if(!isCurrent())return {ok:false,stale:true};
-  const result=await window.api.repairSubtitleTranslation({path:file,prepare:true,expectedHash:info.fingerprint,allowMixed});
+  const repairOwner=window.SubtitleTranslationRepair.captureOwner(file);
+  const result=await window.api.repairSubtitleTranslation({path:file,prepare:true,expectedHash:info.fingerprint,allowMixed,
+    ...(repairOwner?.mode==='player'?{localMediaPath:repairOwner.source}:{})});
   if(!isCurrent())return {ok:false,stale:true};
   if(!result?.ok||!result.sourcePath)throw Error(result?.error||interfaceChoice('Çeviri kaydı değişti; yeniden inceleyin.','Translation changed; review it again.'));
-  const override={translateOnly:true,translate:true,input:result.sourcePath,translateExisting:result.translationPath,translateTo:result.targetLanguage,language:'auto',translateForSpeech:result.forSpeech,translateRetryOnly:true,translateCueRange:'',mergeContinuation:false,dedupeCues:false,clipStart:'',clipEnd:'',outputNameSuffix:'-translation-repair'};
-  if(!addToQueue('file',result.sourcePath,{optionsOverride:override}))throw Error(interfaceChoice('Çeviri kuyruğa eklenemedi.','Could not queue translation.'));
+  const override={translateOnly:true,translate:true,input:result.sourcePath,translateExisting:result.translationPath,translateTo:result.targetLanguage,language:'auto',translateForSpeech:result.forSpeech,translateRetryOnly:true,translateCueRange:'',mergeContinuation:false,dedupeCues:false,clipStart:'',clipEnd:'',formats:'srt',dualSubtitle:false,outputNameSuffix:'-translation-repair'};
+  if(result.playbackContext)override.subtitlePlayback=result.playbackContext;
+  if(result.repairInputProof)override.repairInputProof=result.repairInputProof;
+  if(result.repairPlaybackProof)override.repairPlaybackProof=result.repairPlaybackProof;
+  const repairLabel=file.split(/[\\/]/).pop().slice(0,500);
+  if(!addToQueue('file',result.sourcePath,{optionsOverride:override,repairOwner,repairLabel}))throw Error(interfaceChoice('Çeviri kuyruğa eklenemedi.','Could not queue translation.'));
   if(!state.queueRunning&&!state.running)void startQueue();
   return {ok:true,queued:true};
 },
@@ -5905,14 +6078,18 @@ review:async function(file,{isCurrent=()=>true,allowMixed=false}={}){
   if(!isCurrent())return {ok:false,stale:true};
   return window.SubtitleTranslationRepair.enqueue(file,info,{isCurrent,allowMixed});
 },
-offer:async function(file,container,{isCurrent=()=>true,suspected=0}={}){
+offer:async function(file,container,{isCurrent=()=>true,suspected=0,allowMixed=false}={}){
   if(!file||!window.api.repairSubtitleTranslation)return;
-  const token={},epochs=window.SubtitleTranslationRepair.epochs;epochs.set(container,token);
+  const token={},epochs=window.SubtitleTranslationRepair.epochs;
+  if(!container.isConnected)return;
+  epochs.get(container)?.box?.remove();
+  epochs.set(container,token);
   const valid=()=>epochs.get(container)===token&&isCurrent()&&container.isConnected;
-  const info=await window.api.repairSubtitleTranslation({path:file});
+  const info=await window.api.repairSubtitleTranslation({path:file,allowMixed});
   if(!valid())return;
   if(!info?.canRepair&&!suspected)return;
   const box=document.createElement('div');box.className='cue-untranslated-banner translation-repair-offer';box.dataset.uiUntranslated='';box.setAttribute('role','status');
+  token.box=box;
   const label=document.createElement('span'),button=document.createElement('button');
   const choice=(tr,en)=>interfaceChoice(tr,en);
   label.textContent=info?.canRepair?choice(`Bu dosyada ${info.failed} satır eksik veya ${info.targetLanguage==='tr'?'Türkçeye':'hedef dile'} çevrilmemiş olabilir. Bu satırlar çevrilsin mi? Hazır satırlar ve zamanlar korunur.`,`${info.failed} lines in this file are incomplete or may be untranslated. Translate these lines? Ready lines and timestamps are kept.`):choice('Çevrilmemiş olabilecek satırlar var; güvenli satır kurtarma bilgisi bulunamadı. Kaynak ve çeviriyi inceleyin.','Some lines may be untranslated; safe cue recovery is unavailable. Review the source and translation.');
@@ -5923,9 +6100,9 @@ offer:async function(file,container,{isCurrent=()=>true,suspected=0}={}){
       if(button.disabled||!valid())return;
       button.disabled=true;button.setAttribute('aria-busy','true');
       try{
-        const result=await window.SubtitleTranslationRepair.enqueue(file,info,{isCurrent:valid});
+        const result=await window.SubtitleTranslationRepair.enqueue(file,info,{isCurrent:valid,allowMixed});
         if(!result.ok||!valid())return;
-        label.textContent=choice('Eksik satırlar çeviri kuyruğuna eklendi. Yeni sonucu inceleyip dublaj için yeniden seçin.','Missing lines were queued for translation. Review the new result and select it again for dubbing.');
+        label.textContent=choice('Eksik satırlar çeviri kuyruğunda. Yeni SRT tamamlanınca Aktif işler’den yükleyebilirsiniz.','Missing lines are queued. Load the new SRT from Activity when ready.');
         button.hidden=true;
       }catch(error){if(valid())label.textContent=String(error.message);}
       finally{button.disabled=false;button.removeAttribute('aria-busy');}
@@ -12414,7 +12591,7 @@ function browserTransformForChannel(secondary = false) {
 function subtitleSourceTime(videoTime, secondary = false) {
   const value = Number(videoTime);
   if (!Number.isFinite(value)) return NaN;
-  if (player.workspaceMode !== 'browser') return value - player.offset;
+  if (player.workspaceMode !== 'browser') return value - (secondary ? player.offset2 : player.offset);
   try { return browserSubtitleSync.videoToSourceTime(value, browserTransformForChannel(secondary)); }
   catch (_) { return value; }
 }
@@ -12427,7 +12604,7 @@ function subtitleVideoTransform(secondary = false) {
 function subtitleVideoTime(sourceTime, secondary = false, transform = null) {
   const value = Number(sourceTime);
   if (!Number.isFinite(value)) return NaN;
-  if (player.workspaceMode !== 'browser') return value + player.offset;
+  if (player.workspaceMode !== 'browser') return value + (secondary ? player.offset2 : player.offset);
   try { return browserSubtitleSync.sourceToVideoTime(value, transform || browserTransformForChannel(secondary)); }
   catch (_) { return value; }
 }
@@ -13634,7 +13811,7 @@ async function showBrowserWorkspace(retry = 0) {
 }
 
 function setWorkspaceMode(mode, persist = true) {
-  if (mode !== player.workspaceMode) window.BrowserDubAudioUI?.stop();
+  if (mode !== player.workspaceMode) window.BrowserDubAudioUI?.stopForSourceChange();
   mode = mode === 'browser' ? 'browser' : 'player';
   const previousMode = player.workspaceMode;
   if (mode !== previousMode) player.browserWorkspaceSeq += 1;
@@ -15432,6 +15609,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
         mediaType: event.media.tagName === 'audio' ? 'audio' : event.media.tagName === 'video' ? 'video' : '',
         mediaToken: typeof event.media.docToken==='string'?event.media.docToken:'',
         audioSourceIdentity: event.media.audioSourceIdentity || '',
+        dubSourceIdentity: event.media.dubSourceIdentity || '',
         artworkUrl: typeof event.media.artworkUrl==='string'?event.media.artworkUrl:'',
         fallbackArtworkUrl: event.media.fallbackArtworkUrl || '',
         audioTitle: event.media.audioTitle || '',
@@ -15472,6 +15650,7 @@ if (window.api.onBrowserEvent) window.api.onBrowserEvent((event) => {
       savePlayerPosition();
       flushWatchState(false, true);
     }
+    window.BrowserDubAudioUI?.restoreReturningTab?.(event);
     if (player.browserDuration > 0 && isFinite(player.browserDuration)) {
       if (player.browserProfileKey !== player.mediaKey) {
         player.browserProfileKey = player.mediaKey;
@@ -19811,7 +19990,9 @@ async function restoreWatchProfile(key) {
   applySavedLanguagePrefs();
   updateSeriesChip();
   if (prefs.dubPlayback && !staleGeneration(gen) && player.mediaKey === key) {
-    await window.BrowserDubAudioUI?.restore(prefs.dubPlayback, key);
+    const dub = window.BrowserDubAudioUI;
+    if (browserMode) await dub?.restoreBrowserPreference?.(prefs.dubPlayback,key);
+    else await dub?.restore(prefs.dubPlayback,key);
   }
   if (restoreBrowserScene && !staleGeneration(gen) && player.mediaKey === key
       && window.BrowserStudy?.revision?.() === sceneRevision && ['podcast', 'study'].includes(prefs.browserStageMode)) {
@@ -22632,12 +22813,12 @@ function setSubtitleModeMenuOpen(open) {
 function setMediaKey(key) {
   clearPlayerPlaybackRecovery();
   player.playbackCheckpoint = null;
-  if (key !== player.mediaKey) window.BrowserDubAudioUI?.stop();
   // Devam eden sürüklemeyi eski medya anahtarı hâlâ geçerliyken tamamla;
   // kayıtlı cümle/kelime göçü yeni videonun deposuna yazılmamalı.
   closeTimeline();
   // Eski medyanın son konumunu ve tercihlerini anahtar değişmeden yakala.
   flushWatchState(false, true);
+  window.BrowserDubAudioUI?.stopForSourceChange();
   const nextKey = key || '';
   if (!String(nextKey).startsWith('youtube:')) {
     player.ytInfo = null;
@@ -23340,13 +23521,13 @@ function setLocalSyncProfileValue(secondary) {
 // dolu) bir dosya vardı — o zaman profilsiz yeni parça 0'dan başlar, eski
 // dosyanın kayması sızmaz. İlk yüklemede profil yoksa mevcut player.offset
 // (legacy prefs.offset) korunur.
-function applyLocalSyncProfile(secondary, isSwitch) {
+function applyLocalSyncProfile(secondary, isSwitch, syncOffset) {
   if (player.workspaceMode !== 'player') return;
   if (!player.offsetProfiles || typeof player.offsetProfiles !== 'object') player.offsetProfiles = {};
   const key = localSyncProfileKey(secondary);
   if (!key) return;
   const stored = player.offsetProfiles[key];
-  const next = Number.isFinite(stored) ? stored
+  const next = Number.isFinite(syncOffset) ? syncOffset : Number.isFinite(stored) ? stored
     : (isSwitch ? 0 : (secondary ? 0 : player.offset));
   if (secondary) {
     player.offset2 = next;
@@ -23363,14 +23544,27 @@ function applyLocalSyncProfile(secondary, isSwitch) {
       btn.classList.toggle('hidden', !next || !player.subPath || !shiftable);
     }
   }
+  if(Number.isFinite(syncOffset))setLocalSyncProfileValue(secondary);
 }
 
+function restoreLocalTranslationRecovery(){
+  const secondary=!!player.sub2Path&&player.sub2Role==='translation';
+  const recovery=secondary?player.subtitleRecovery2:(player.subPath&&player.subRole==='translation'?player.subtitleRecovery:null);
+  player.translationRetryAvailable=Array.isArray(recovery?.completed)?recovery.completed.filter(done=>!done).length:0;
+}
+
+const subtitleLoadSequence = { primary:0, secondary:0 };
 async function loadSubtitle(path, secondary = false, options = {}) {
+  const channel=secondary?'secondary':'primary';
+  const sequence=++subtitleLoadSequence[channel];
   if (player.workspaceMode === 'browser' && !options.silent) {
     const tab = browserTabState();
     if (tab) { tab.subtitleSelectionRestored = true; tab.subtitleSelectionExplicit = true; }
   }
   if (!path) {
+    player[secondary?'subtitleContext2':'subtitleContext']=null;
+    player[secondary?'subtitleRecovery2':'subtitleRecovery']=null;
+    player[secondary?'subtitleRecoveryProof2':'subtitleRecoveryProof']=null;
     if (player.workspaceMode === 'player') {
       if (secondary) player.offset2 = 0;
       else {
@@ -23470,6 +23664,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
         }
       }
     }
+    if(player.workspaceMode==='player')restoreLocalTranslationRecovery();
     renderCueList($('cueSearch') ? $('cueSearch').value : '');
     updateSubtitleChips();
     updateMakeTransState();
@@ -23484,31 +23679,35 @@ async function loadSubtitle(path, secondary = false, options = {}) {
   }
   const gen = currentGeneration();
   const knownSubtitle = (player.subtitles || []).find((item) => item.path === path);
-  const requestedRole = options.role || knownSubtitle?.role
+  let requestedRole = options.role || knownSubtitle?.role
     || (secondary ? 'translation' : 'source');
-  if (options.select === true) {
+  const selectId = secondary ? 'playerSubSelect2' : 'playerSubSelect';
+  const deferredSelection = options.select === true && !!options.expectedHash;
+  const initialSelection = deferredSelection ? $(selectId)?.value : undefined;
+  if (options.select === true && !deferredSelection) {
     addSubtitleOption(path, undefined, { role: requestedRole });
-    const target = $(secondary ? 'playerSubSelect2' : 'playerSubSelect');
+    const target = $(selectId);
     if (target) target.value = path;
   }
   const previousPrimaryPath = player.subPath;
   const previousSecondaryPath = player.sub2Path;
-  const res = await window.api.readSubtitle(path).catch((error) => ({ ok: false, error: error.message }));
+  const res = await window.api.readSubtitle(path,options.expectedHash).catch((error) => ({ ok: false, error: error.message }));
   // Okuma sirasinda baska videoya gecildiyse sonucu AT (eski altyazi yenisine
   // baglanmasin). Ayni video icinde iki altyazi hizli secilirse de gec gelen
   // ilk okuma sonuncuyu ezmesin diye yol karsilastirilir.
-  if (staleGeneration(gen)) return;
+  if (staleGeneration(gen)||sequence!==subtitleLoadSequence[channel]) return;
   if (options.isCancelled?.()) {
     const select = $(secondary ? 'playerSubSelect2' : 'playerSubSelect');
     if (select?.value === path) select.value = (secondary ? player.sub2Path : player.subPath) || '';
     return;
   }
-  const selNow = secondary ? $('playerSubSelect2') : $('playerSubSelect');
+  const selNow = $(selectId);
   // Bos secim de bilincli bir secimdir ("Altyazi yok" / "Kapali"). Okuma
   // surerken temizlendiyse gec kalan dosyayi tekrar yukleme.
-  if (selNow && selNow.value !== path) return;
+  if (selNow && selNow.value !== (deferredSelection ? initialSelection : path)) return;
   if (!res || !res.ok) {
     if (selNow) selNow.value = (secondary ? player.sub2Path : player.subPath) || '';
+    if(options.expectedHash)return {ok:false,error:res?.error};
     const message = /ENOENT|ENOTDIR/.test(res?.error || '')
       ? 'Altyazı dosyası bulunamadı. Dosyayı bul düğmesinden yeni konumunu seçin.'
       : `Altyazı okunamadı: ${(res && res.error) || 'bilinmeyen hata'}`;
@@ -23525,6 +23724,29 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     return {ok:false,error:message};
   }
   let cues = parseSubtitles(res.text);
+  if(options.expectedHash&&!cues.length){
+    if(selNow)selNow.value=(secondary?player.sub2Path:player.subPath)||'';
+    return {ok:false,error:interfaceChoice('SRT’de yüklenebilir satır yok.','The SRT contains no loadable cues.')};
+  }
+  if(options.expectedTimeline&&(!options.expectedTimeline.length||cues.length!==options.expectedTimeline.length
+      ||cues.some((cue,index)=>Math.abs(cue.start-options.expectedTimeline[index][0])>.0005
+        ||Math.abs(cue.end-options.expectedTimeline[index][1])>.0005))){
+    if(selNow&&!deferredSelection)selNow.value=(secondary?player.sub2Path:player.subPath)||'';
+    return {ok:false,error:interfaceChoice('Onarılan SRT’nin zamanları seçili altyazıyla eşleşmiyor.','The repaired SRT timing does not match the selected subtitles.')};
+  }
+  options.beforeCommit?.();
+  const recovery=player.workspaceMode==='player'?res.translationRecovery:null;
+  if(recovery&&!options.role){
+    requestedRole='translation';
+    addSubtitleOption(path,undefined,{role:'translation',language:recovery.targetLanguage,
+      status:recovery.completed.some(done=>!done)?'partial':'complete'});
+  }
+  if(deferredSelection){
+    addSubtitleOption(path,undefined,{role:requestedRole});
+    if(selNow)selNow.value=path;
+  }
+  const syncOffset=options.syncOffsetFrom==='primary'?Number(player.offset)
+    :options.syncOffsetFrom==='secondary'?Number(player.offset2):undefined;
   const browserTrackForPath = player.workspaceMode === 'browser'
     ? player.browserTracks.find((track) => track.path === path) : null;
   if (browserTrackForPath) {
@@ -23538,7 +23760,8 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     cues = reviewSourceCues(browserTrackForPath, path, cues);
   }
   if (!secondary) cues = applyCueQuality(cues, player.cueQualitySource);
-  player[secondary ? 'subtitleContext2' : 'subtitleContext'] = player.workspaceMode === 'player' ? res.playbackContext || null : null;
+  player[secondary ? 'subtitleContext2' : 'subtitleContext'] = player.workspaceMode === 'player' ? options.playbackContext || res.playbackContext || null : null;
+  player[secondary ? 'subtitleRecovery2' : 'subtitleRecovery'] = recovery;
   const wordSegments = player.workspaceMode === 'player' && Array.isArray(res.wordSegments)
     ? res.wordSegments : [];
   let wordStats = wordSegments.length ? attachTimedWordsToCues(cues, wordSegments) : null;
@@ -23553,9 +23776,9 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     }
     player.activeIdx2 = -1;
     player.sub2Path = path;
-    player.sub2Lang = (browserTrackForPath && browserTrackSourceLanguage(browserTrackForPath))
+    player.sub2Lang = recovery?.targetLanguage || (browserTrackForPath && browserTrackSourceLanguage(browserTrackForPath))
       || subLangFromPath(path);
-    applyLocalSyncProfile(true, !!previousSecondaryPath && previousSecondaryPath !== path);
+    applyLocalSyncProfile(true, !!previousSecondaryPath && previousSecondaryPath !== path, syncOffset);
     player.sub2Raw = res.text;
     player.sub2Stat = { mtimeMs: res.mtimeMs, size: res.size };
     player.sub2Format = /\.(ass|ssa)$/i.test(path) ? 'ass'
@@ -23616,14 +23839,14 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     player.translationRetryAvailable = 0;
     player.activeIdx = -1;
     player.subPath = path;
-    player.subLang = (browserTrackForPath && browserTrackSourceLanguage(browserTrackForPath))
+    player.subLang = recovery?.targetLanguage || (browserTrackForPath && browserTrackSourceLanguage(browserTrackForPath))
       || subLangFromPath(path);
     player.subRole = requestedRole;
     player.subRaw = res.text;
     player.subStat = { mtimeMs: res.mtimeMs, size: res.size };
     player.subFormat = /\.(ass|ssa)$/i.test(path) ? 'ass'
                      : /\.vtt$/i.test(path) ? 'vtt' : 'srt';
-    applyLocalSyncProfile(false, !!previousPrimaryPath && previousPrimaryPath !== path);
+    applyLocalSyncProfile(false, !!previousPrimaryPath && previousPrimaryPath !== path, syncOffset);
     // Madde 10 — aynı kaynağa ait kaydedilmemiş kurtarma kaydı varsa öner.
     timelineCheckRecovery().catch(() => {});
     const browserTrack = browserTrackForPath;
@@ -23641,7 +23864,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
       player.browserLoadedTrackId = browserTrack.id;
       player.browserTranslationTrackId = browserTrack.id;
       player.browserTranslationFailed = 0;
-      if (previousPrimaryPath !== path) clearBrowserSecondarySelection();
+      if (previousPrimaryPath !== path&&!options.preserveSecondary) clearBrowserSecondarySelection();
       const tab = browserTabState();
       if (tab) {
         tab.browserLoadedTrackId = browserTrack.id;
@@ -23688,6 +23911,10 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     setSubtitlesVisible(true);
     logLine('Altyazı gizliydi — otomatik açıldı.', 'warn');
   }
+  if(player.workspaceMode==='player'){
+    player[secondary?'subtitleRecoveryProof2':'subtitleRecoveryProof']=recovery?window.SubtitleTranslationRepair.channelProof(secondary):null;
+    restoreLocalTranslationRecovery();
+  }
   updateSubtitleChips();
   updateMakeTransState();
   updateBrowserTranslationExportButton();
@@ -23702,6 +23929,7 @@ async function loadSubtitle(path, secondary = false, options = {}) {
     logLine(`${secondary ? 'Karşılaştırma altyazısı' : 'Altyazı'} yüklendi: `
       + `${path.split(/[\\/]/).pop()} (${cues.length} blok)`, 'success');
   }
+  return {ok:true,loaded:true};
 }
 
 // Videonun yanindaki altyazilari bul, listeye ekle, ilkini otomatik yukle.
@@ -25013,7 +25241,7 @@ function updatePlayerTaskCenter({ refresh = true, listTarget = null } = {}) {
   const localLabels = new Set(localRows.map((row) => row.label));
   const browserRows = (player.browserJobs || []).map(browserTaskRow)
     .filter((row) => !(row.rawJob.tabId === player.browserActiveTabId && localLabels.has(row.label)));
-  const rows = [...localRows, ...browserRows, ...(window.MediaExperience?.taskRows() || [])];
+  const rows = [...localRows, ...browserRows, ...(window.SubtitleTranslationRepair?.taskRows() || []), ...(window.MediaExperience?.taskRows() || [])];
   const badge = $('playerTaskBadge');
   if (badge) {
     badge.textContent = String(rows.length);
@@ -25043,7 +25271,7 @@ function updatePlayerTaskCenter({ refresh = true, listTarget = null } = {}) {
     const stateLabel = document.createElement('span'); stateLabel.className = 'player-task-state';
     // Ham TR yazılır; observer EN'e çevirir ve orijinali kaydeder — iş
     // sürerken dil değiştirilince gidiş-dönüş kayıpsız olur.
-    stateLabel.textContent = row.state === 'done' ? interfaceChoice('Tamamlandı', 'Completed') : row.state === 'cancelled' ? interfaceChoice('Durduruldu', 'Cancelled') : row.state === 'failed' ? interfaceChoice('Başarısız', 'Failed') : progress.percent !== null ? `${progress.percent.toFixed(0)}%`
+    stateLabel.textContent = row.review && row.state === 'done' ? interfaceChoice('İnceleme gerekli','Needs review') : row.state === 'done' ? interfaceChoice('Tamamlandı', 'Completed') : row.state === 'cancelled' ? interfaceChoice('Durduruldu', 'Cancelled') : row.state === 'failed' ? interfaceChoice('Başarısız', 'Failed') : progress.percent !== null ? `${progress.percent.toFixed(0)}%`
       : row.recoverable ? 'Yarım kaldı'
         : (row.state === 'paused' || row.status === 'paused') ? 'Duraklatıldı' : 'İşleniyor';
     titleLine.append(label, stateLabel);
@@ -28178,6 +28406,10 @@ if ($('playerVideo')) {
   // değişiklikleri select'i güncellemeden bırakıyordu (sonraki > adımı atlıyordu).
   video.addEventListener('ratechange', () => {
     if (player.workspaceMode === 'browser') return;
+    // Dubbing adjusts the media clock temporarily. The next file's metadata
+    // reload uses this control, so keep it on the user's selected speed.
+    const dubPlayback = window.BrowserDubAudioUI?.originalPlayback();
+    if (dubPlayback?.adaptive) { syncPlayerSpeedControl(dubPlayback.speed); return; }
     // Basılı tutunca 2× ve "boşlukları hızlandır" politikasının geçici hızı
     // kullanıcının seçtiği hız değildir. Select'e yazılırsa 5 sn'de bir kaydedilip
     // sonraki açılışta video 2× başlıyordu.

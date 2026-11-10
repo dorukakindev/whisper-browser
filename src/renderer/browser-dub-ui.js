@@ -6,15 +6,43 @@
   if (!audio || !input || !add) return;
   const video = byId('playerVideo');
   const remembered = new Map();
+  const tabDubs = new Map();
+  const sameSource = (a,b) => a.mode===b.mode && a.tabId===b.tabId && a.mediaKey===b.mediaKey
+    && a.generation===b.generation && (a.mediaId||'')===(b.mediaId||'');
+  const sameVerifiedMedia = (a,b) => a.tabId===b.tabId && a.source===b.source
+    && !!a.sourceProof && a.sourceProof===b.sourceProof;
+  // The probe token changes on element, source or document replacement.
+  // It can prove an in-memory return, but is never saved in the profile.
+  const sameLiveMedia = (a,b) => a.tabId===b.tabId && a.source===b.source
+    && !!a.mediaToken && a.mediaToken===b.mediaToken;
+  const matchesTabEntry = (owner,active) => owner.sourceProof
+    ? sameVerifiedMedia(owner,active)
+    : sameLiveMedia(owner,active);
+  const tabVisit = owner => `${player.generation}:${owner.generation}`;
+  let attaching = 0;
+  let audioPreferenceRevision = 0;
   function remember(value) {
     remembered.set(player.mediaKey, value);
     if (remembered.size > 100) remembered.delete(remembered.keys().next().value);
     document.dispatchEvent(new CustomEvent('media-playback-preferences-changed'));
   }
   function snapshot() {
-    if (controller.session?.playbackAsset) {
-      const value = { ...controller.session.playbackAsset, offset: controller.offset, mix: controller.session.mix };
-      remembered.set(controller.session.mediaKey, value); return value;
+    if (controller.session?.playbackAsset && controller.owns()) {
+      const s = controller.session;
+      const value = { ...s.playbackAsset, offset: controller.offset, mix: s.mix,
+        ...(s.sourceProof ? {sourceProof:s.sourceProof} : {}) };
+      if (s.mode === 'browser' && !s.returnDisabled && s.mediaId) {
+        const previous = tabDubs.get(s.tabId);
+        if (previous && sameSource(previous.owner,s)) previous.saved = value;
+        else tabDubs.set(s.tabId,{owner:{mode:s.mode,tabId:s.tabId,mediaKey:s.mediaKey,generation:s.generation,mediaId:s.mediaId,source:s.source,sourceProof:s.sourceProof,mediaToken:s.mediaToken},saved:value,visit:tabVisit(s)});
+        if (tabDubs.size > 100) tabDubs.delete(tabDubs.keys().next().value);
+      }
+      remembered.set(s.mediaKey, value); return value;
+    }
+    const active = context();
+    if (active.mode === 'browser') {
+      const entry = tabDubs.get(active.tabId);
+      return entry && (sameSource(entry.owner,active) || matchesTabEntry(entry.owner,active)) ? entry.saved : null;
     }
     return remembered.get(player.mediaKey);
   }
@@ -51,6 +79,10 @@
   }) : (()=>{const subtitleTrack=selectedBrowserSubtitle();return { mode: player.workspaceMode, tabId: player.browserActiveTabId,
     mediaKey: player.mediaKey, source: player.browserPageUrl || player.mediaKey || '', generation: browserTabState()?.generation,
     mediaId: browserTabState()?.mediaId || '',
+    mediaToken: browserTabState()?.browserClockSample?.generation === player.generation
+      ? browserTabState().browserClockSample.mediaToken || '' : '',
+    sourceProof: browserTabState()?.browserClockSample?.generation === player.generation
+      ? browserTabState().browserClockSample.dubSourceIdentity || '' : '',
     subtitleRange: selectedSubtitleRange(subtitleTrack), subtitleTrack,
     priorMuted: !!browserTabState()?.tabMuted,
     hasMedia: !!player.browserMediaSeen,
@@ -58,6 +90,26 @@
     visible: !byId('playerLayer').classList.contains('hidden') };})();
   const notify = message => player.workspaceMode === 'player'
     ? osd(message) : setBrowserSignal(message, false, { priority: 90, holdMs: 7000 });
+  const savedDubUnavailable = () => notify(window.UiLocale?.get?.()==='tr'
+    ? 'Kayıtlı dublaj açılamadı; özgün ses korunuyor.' : 'Saved dub unavailable; original audio is preserved.');
+  function canOpenSavedAudio(url) {
+    if (!url) return Promise.resolve(false);
+    const probe = new Audio();
+    return new Promise(resolve => {
+      const done = ok => {
+        clearTimeout(timer);
+        probe.onloadedmetadata = probe.onerror = null;
+        probe.removeAttribute('src');
+        probe.load();
+        resolve(ok);
+      };
+      const timer = setTimeout(() => done(false),4000);
+      probe.onloadedmetadata = () => done(Number.isFinite(probe.duration) && probe.duration > 0);
+      probe.onerror = () => done(false);
+      probe.preload = 'metadata';
+      probe.src = url;
+    });
+  }
   const controller = new window.BrowserDubAudio({ audio, context,
     backgroundAudio: byId('browserDubBackground'), musicAudio: byId('browserDubMusic'), ambienceAudio: byId('browserDubAmbience'),
     mute: (id, muted, expected, mode) => {
@@ -137,6 +189,8 @@
   });
   const changeMix=value=>{controller.setMix(value);if(controller.session){remember(snapshot());window.dispatchEvent(new CustomEvent('dub-mix:changed',{detail:{url:controller.session.url,mix:controller.session.mix}}));}};
   byId('browserDubRemove').addEventListener('click', () => {
+    const active = context();
+    if (active.mode === 'browser') tabDubs.delete(active.tabId);
     if (controller.session) controller.session.playbackAsset = null;
     remember(null); void controller.remove();
   });
@@ -152,29 +206,52 @@
   });
   window.api.onBrowserEvent?.(event => {
     const s = controller.session;
+    const navigation = event.type === 'closed' || (event.type === 'navigation' && event.loading);
+    const manual = event.type === 'tab-audio' && event.manual;
+    if (manual) audioPreferenceRevision++;
+    const entry = tabDubs.get(event.tabId);
+    if ((event.type === 'closed' || manual) && entry && (event.generation === undefined || event.generation >= entry.owner.generation)) {
+      tabDubs.delete(event.tabId);
+      if (manual) remembered.set(entry.owner.mediaKey,null);
+    }
     if (!s || event.tabId !== s.tabId) return;
-    if ((event.type === 'navigation' && event.loading) || event.type === 'closed') {
+    if (navigation) {
       void controller.remove(); return;
     }
     if (event.generation !== undefined && event.generation !== s.generation) return;
+    // Buffering can release our mute just as playback resumes. Its
+    // acknowledgement is not a user request to remove the dub.
+    if (manual) {
+      s.returnDisabled = true;
+      if (event.tabMuted === false) {
+        s.playbackAsset = null;
+        remember(null);
+        void controller.remove();
+        return;
+      }
+    }
     if (event.type === 'media' && event.media) controller.update(event.media);
-    if (event.type === 'tab-audio' && event.tabMuted === false && s.desiredMuted) void controller.remove();
   });
   window.BrowserDubAudioUI = {
     master: () => controller.session?.mode==='player'&&controller.matches() ? {...controller.session.master} : null,
     setMaster: value => {const changed=controller.setMaster(value);if(changed){if(Number.isFinite(value.volume))video.volume=controller.session.master.volume;window.dispatchEvent(new CustomEvent('dub-master:changed'));document.dispatchEvent(new CustomEvent('media-playback-preferences-changed'));}return changed;},
     snapshot,
-    originalPlayback: () => controller.matches() ? { muted: controller.session.priorMuted, speed: controller.session.baseRate } : null,
-    restore: async (saved, expectedKey) => {
+    originalPlayback: () => controller.matches() ? { muted: controller.session.priorMuted, speed: controller.session.baseRate, adaptive: !!controller.session.sync } : null,
+    restore: async (saved, expectedKey, stillWanted = () => true) => {
       if (!saved || !['local', 'generated'].includes(saved.kind) || typeof saved.id !== 'string') return false;
-      remembered.set(expectedKey, saved);
       const expected = context();
       if (expected.mediaKey !== expectedKey || !expected.visible || !expected.hasMedia) return false;
       const result = await Promise.resolve().then(() => saved.kind === 'local' ? window.api.restorePlaybackAudio(saved.id) : window.api.latestDub(saved.id)).catch(() => null);
+      if (!stillWanted() || !sameSource(context(),expected)) return false;
       if (!result?.ok || !result.output || result.output.syncInvalid) {
-        notify(window.UiLocale?.get?.()==='tr' ? 'Kayıtlı dublaj bulunamadı; özgün ses korunuyor.' : 'Saved dub unavailable; original audio is preserved.'); return false;
+        savedDubUnavailable(); return false;
       }
       const file = result.output;
+      if (saved.kind === 'local') {
+        const readable = await canOpenSavedAudio(file.url);
+        if (!stillWanted() || !sameSource(context(),expected)) return false;
+        if (!readable) { savedDubUnavailable(); return false; }
+      }
       if (saved.kind === 'generated') file.rows = file.quality?.groups || [];
       if (!await window.BrowserDubAudioUI.attachGenerated({ ...file, mix: saved.mix }, expected)) return false;
       if (!controller.matches() || controller.session?.generation !== expected.generation || controller.session?.url !== file.url) return false;
@@ -183,7 +260,52 @@
       byId('browserDubOffset').value = controller.offset;
       remember(snapshot()); controller.tick(); return true;
     },
+    restoreBrowserPreference: (saved,key) => {
+      const expected = context(), intent = controller.intent, revision = audioPreferenceRevision;
+      const stillWanted = () => {
+        const active = context();
+        return sameSource(expected,active) && !!saved.sourceProof && active.sourceProof === saved.sourceProof
+          && !controller.session && !attaching && !choosingAudio && controller.intent === intent
+          && audioPreferenceRevision === revision
+          && ![...tabDubs.values()].some(entry => entry.owner.mediaKey===key || entry.owner.tabId===active.tabId);
+      };
+      return stillWanted() ? window.BrowserDubAudioUI.restore(saved,key,stillWanted) : false;
+    },
+    restoreReturningTab: (event) => {
+      const expected = context();
+      if (expected.mode !== 'browser' || expected.tabId !== event.tabId || expected.generation !== event.generation
+          || !expected.visible || !expected.hasMedia || !expected.mediaId || event.media?.adPlaying
+          || !(Number(event.media?.readyState) >= 3) || controller.session || attaching || choosingAudio) return;
+      const entry = tabDubs.get(expected.tabId), visit = tabVisit(expected);
+      if (!entry || entry.visit === visit) return;
+      if (!matchesTabEntry(entry.owner,expected)) {
+        if (expected.sourceProof || expected.mediaToken || expected.source !== entry.owner.source) tabDubs.delete(expected.tabId);
+        return;
+      }
+      entry.visit = visit;
+      const intent = controller.intent;
+      const stillWanted = () => tabDubs.get(expected.tabId) === entry && tabVisit(context()) === visit
+        && controller.intent === intent && !controller.session && !attaching && !choosingAudio && !player.browserAdPlaying
+        && matchesTabEntry(entry.owner,context());
+      void window.BrowserDubAudioUI.restore(entry.saved,expected.mediaKey,stillWanted);
+    },
     stop: () => { if (controller.session) remember(snapshot()); return controller.remove(); },
+    stopForSourceChange: () => {
+      const session = controller.session;
+      const restoreLocal = session?.mode === 'player' && controller.owns(session);
+      if (session) remember(snapshot());
+      const cleanup = controller.remove();
+      // The next source reuses this element. Restore the old owner's controls
+      // before its key or generation changes and async cleanup loses ownership.
+      if (restoreLocal) {
+        video.muted = session.priorMuted;
+        if (session.sync) {
+          video.playbackRate = session.baseRate;
+          syncPlayerSpeedControl(session.baseRate);
+        }
+      }
+      return cleanup;
+    },
     suspend: () => controller.suspend(), checkContext: () => controller.tick(),
     context,
     seekSource: async (seconds, expected) => {
@@ -209,9 +331,13 @@
     setBaseRate: rate => controller.setBaseRate(rate),
     attachGenerated: async (file, expected) => {
       const c = context();
-      if (c.tabId !== expected.tabId || c.mediaKey !== expected.mediaKey || c.generation !== expected.generation
-          || (c.mediaId || '') !== (expected.mediaId || '') || c.mode !== expected.mode || !c.visible || !c.hasMedia) return false;
-      if (!await controller.attach(file, c)) return false;
+      if (!sameSource(c,expected) || !c.visible || !c.hasMedia) return false;
+      attaching++;
+      const pending = controller.attach(file,c);
+      const intent = controller.intent;
+      try { if (!await pending) return false; }
+      finally { attaching--; }
+      if (controller.intent !== intent || !controller.matches()) return false;
       const id = file.id || (()=>{ try { return decodeURIComponent(new URL(file.url).pathname.split('/').pop()).replace(/\.wav$/i,''); } catch { return ''; } })();
       controller.session.playbackAsset = file.playbackAsset || (/^[a-zA-Z0-9-]{1,80}$/.test(id) && !file.playbackAsset ? { kind: 'generated', id } : null);
       window.BrowserDubAudioUI.setMix(file.mix || {});

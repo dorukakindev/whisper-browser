@@ -13,7 +13,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
   const store = () => catalog ||= require('./media-catalog-store').createMediaCatalogStore({ filePath: path.join(userData(), 'media-catalog.json') });
   if (mediaShelf) require('./media-shelf-service').registerMediaShelf({
     ipcMain, dialog, owner, authorized, userData, pythonPath, inspectMedia, grantMedia, nativeImage,
-    catalogStore: store, catalogView:tasteCatalogView, ...mediaShelf,
+    catalogStore: store, catalogView:tasteCatalogView, discoveryRequest:(event,input)=>discovery.handle(event,input), ...mediaShelf,
   });
   const discovery = mediaShelf && require('./media-discovery-service').registerMediaDiscovery({ ipcMain, authorized, userData, nativeImage, catalogStore: store, translateSynopsis });
   const sourceKey = source => source ? canonicalWatchKey(source.type === 'local'
@@ -174,7 +174,7 @@ function registerMediaCatalogService({ ipcMain, dialog, owner, authorized, userD
           const raw = input.item || input.patch || {};
           const previous = raw.id ? found(raw.id) : null;
           // Native seçici veya kayıtlı içe aktarım dışında renderer dosya yolu veremez.
-          const patch = Object.fromEntries(['id', 'kind', 'title', 'year', 'synopsis', 'imdbId', 'tmdbId', 'watchStatus', 'favorite','genres','directors','certifications','originalLanguage','productionCountries','directorIds','directorPeople','directorsTruncated']
+          const patch = Object.fromEntries(['id', 'kind', 'title', 'year', 'synopsis', 'imdbId', 'tmdbId', 'watchStatus', 'tasteDomain', 'favorite','genres','directors','certifications','originalLanguage','productionCountries','directorIds','directorPeople','directorsTruncated']
             .filter(key => Object.hasOwn(raw, key)).map(key => [key, raw[key]]));
           if (raw.ratings && typeof raw.ratings === 'object') patch.ratings = { ...(previous?.ratings || {}), personal: raw.ratings.personal };
           if (Array.isArray(raw.episodes)) {

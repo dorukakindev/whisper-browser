@@ -188,7 +188,7 @@
           <div class="sh-seg" role="tablist" style="--n:${this.caps.cinema?3:2};--i:${this.caps.cinema?['cinema','podcast','study'].indexOf(m):(study?1:0)}" aria-label="${T('Sahne türü', 'Stage type')}">${this.caps.cinema?`<button role="tab" type="button" data-mode="cinema" aria-selected="${cinema}">${ic('play')}${T('Oynatıcı','Player')}</button>`:''}<button role="tab" type="button" data-mode="podcast" aria-selected="${m==='podcast'}">${ic('mic')}${T('Podcast', 'Podcast')}</button><button role="tab" type="button" data-mode="study" ${this.caps.study===false?`disabled title="${T('Ses kaynağında iki dil alttaki dil seçicisinden okunur.','Read both languages with the language selector below.')}"`:""} aria-selected="${m==='study'}">${ic('classic')}${T('Çift dilli', 'Bilingual')}</button></div>
           <div class="sh-top-r">${this.caps.queue?`<button class="sh-btn" data-a="listeningQueue" type="button">${ic('list')}<span>${T('Dinleme kuyruğu', 'Listening queue')}</span></button>`:''}<button class="sh-btn" data-a="panel" type="button" aria-pressed="false" aria-haspopup="dialog">${ic('tools')}<span>${T('İşlemler', 'Tasks')}</span></button><button class="sh-btn" data-a="sleep" type="button" aria-pressed="false">${ic('moon')}<span data-r="sleeplbl">${T('Uyku', 'Sleep')}</span></button><button class="sh-btn" data-a="classic" type="button" title="${T('Klasik panele dön', 'Back to classic panel')}">${ic('classic')}<span>${T('Klasik panel', 'Classic panel')}</span></button></div>
         </header>
-        <div class="sh-job" data-r="job" role="status" hidden><span class="sh-job-t" data-r="jobt"></span><span class="sh-job-bar" data-r="jobbar"><i></i></span><button class="sh-chip" data-a="jobcancel" type="button" hidden>${T('İptal', 'Cancel')}</button><button class="sh-chip" data-a="jobretry" type="button" hidden>${T('Yeniden dene', 'Retry')}</button></div>
+        <div class="sh-job" data-r="job" role="status" hidden><span class="sh-job-t" data-r="jobt"></span><span class="sh-job-bar" data-r="jobbar"><i></i></span><span class="sh-job-percent" data-r="jobpercent" aria-hidden="true" hidden></span><button class="sh-chip" data-a="jobcancel" type="button" hidden>${T('İptal', 'Cancel')}</button><button class="sh-chip" data-a="jobretry" type="button" hidden>${T('Yeniden dene', 'Retry')}</button></div>
         <div class="sh-workbar" data-r="workbar" hidden></div><div class="sh-main"></div>
         <aside class="sh-panel" data-r="panel" role="dialog" aria-label="${T('İşlemler', 'Tasks')}" hidden></aside>
         <div class="sh-toast" data-r="toast" role="status" aria-live="polite"></div>
@@ -1866,6 +1866,9 @@
       const running = j.state === 'running';
       const progress = running && Number.isFinite(j.progress) ? Math.round(Math.max(0, Math.min(1, j.progress)) * 100) : null;
       const bar = this.q('[data-r=jobbar]');
+      bar.setAttribute('role','progressbar');bar.setAttribute('aria-label',T('İşlem ilerlemesi','Task progress'));bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax','100');
+      if(progress===null){bar.removeAttribute('aria-valuenow');bar.setAttribute('aria-valuetext',T('İlerleme oranı henüz bilinmiyor','Progress percentage is not yet known'));}
+      else{bar.setAttribute('aria-valuenow',String(progress));bar.removeAttribute('aria-valuetext');}
       bar.hidden = !running;
       bar.classList.toggle('ind', running && progress === null);
       const percent = this.q('[data-r=jobpercent]');
@@ -1889,6 +1892,7 @@
         if(this.s.note)this.closeNote();
         if(this.s.word)this.closeWord();
         this.panelOpener=opener||document.activeElement;
+        if(opener?.hasAttribute('data-caption-entry'))this.s.panelSection='captions';
         this.drawPanel(true);
         const target = opener?.hasAttribute('data-caption-entry') ? this.q('[data-caption-section] button:not(:disabled)') : null;
         (target || this.q('[data-pclose]'))?.focus();
@@ -1952,16 +1956,31 @@
     drawPanel(force) {
       const box = this.q('[data-r=panel]'); if (!box) return; box.hidden = !this.s.panel; this.root.classList.toggle('panel-open', this.s.panel); this.paint(); if (!this.s.panel) return;
       const p = this.a.panel?.(); if (!p) { box.textContent = ''; return; }
-      const sig = JSON.stringify([this.st?.rev,this.taskPending,[...this.panelPending],p.sections.map((s) => [s.title, s.items.map((i) => [i.id, i.primary, i.type, i.label, i.value, i.disabled, i.pressed, i.hint, (i.options || []).map((o) => o.value + o.label).join('|'), i.text])])]);
+      const sig = JSON.stringify([this.st?.rev,this.taskPending,[...this.panelPending],p.sections.map((s) => [s.id,s.title, s.items.map((i) => [i.id, i.primary, i.type, i.label, i.value, i.disabled, i.pressed, i.hint, (i.options || []).map((o) => o.value + o.label).join('|'), i.text])])]);
       if (!force && sig === this.s.psig) return; this.s.psig = sig;
       const focused = box.contains(document.activeElement) ? document.activeElement.dataset.pid||document.activeElement.closest('.mk-picker')?.querySelector('.mk-picker-trigger')?.dataset.pid||'close' : null;
-      const previousScroll=box.scrollTop;box.textContent = '';
+      const focusedCategory=box.contains(document.activeElement)?document.activeElement.dataset.panelSection:null;
+      const previousScroll=box.querySelector('.sh-panel-content')?.scrollTop||0;box.textContent = '';
       const panelIdentity=this.id0;
       const fieldCurrent=control=>!this.dead&&this.s.panel&&!box.hidden&&box.contains(control)&&control.isConnected&&panelIdentity===this.id0&&panelIdentity===(this.a.identity?.()??'');
       box.append(this.el(`<div class="sh-panel-h"><b>${T('İşlemler', 'Tasks')}</b><button class="sh-btn icon" type="button" data-pclose aria-label="${T('Kapat', 'Close')}">${ic('close')}</button></div>`));
       box.querySelector('[data-pclose]').onclick=()=>this.togglePanel();
-      p.sections.forEach((sec) => {
+      const workspace=this.el('<div class="sh-panel-workspace"></div>'),nav=this.el(`<nav class="sh-panel-nav" role="tablist" aria-orientation="vertical" aria-label="${T('İşlem kategorileri','Task categories')}"></nav>`),content=this.el('<div class="sh-panel-content"></div>');workspace.append(nav,content);box.append(workspace);
+      this.panelUid ||= 'sh-tools-'+Math.random().toString(36).slice(2);
+      const keys=p.sections.map(sec=>sec.id||sec.title);
+      if(!keys.includes(this.s.panelSection))this.s.panelSection=keys[0];
+      const selectCategory=(key,focus=false)=>{
+        this.s.panelSection=key;
+        for(const tab of nav.children){const active=tab.dataset.panelSection===key;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;if(active&&focus)tab.focus({preventScroll:true});}
+        for(const section of content.children)section.hidden=section.dataset.panelSection!==key;
+        content.scrollTop=0;
+      };
+      nav.addEventListener('keydown',event=>{if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const at=keys.indexOf(this.s.panelSection),next=event.key==='Home'?0:event.key==='End'?keys.length-1:(at+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)+keys.length)%keys.length;if(keys[next])selectCategory(keys[next],true);});
+      p.sections.forEach((sec,index) => {
         const s = this.el(`<section class="sh-psec"><h3>${esc(sec.title)}</h3></section>`);
+        const key=keys[index],tab=this.el(`<button type="button" role="tab">${esc(sec.title)}${ic('chev')}</button>`);
+        tab.id=this.panelUid+'-tab-'+index;s.id=this.panelUid+'-section-'+index;tab.dataset.panelSection=key;s.dataset.panelSection=key;
+        tab.setAttribute('aria-controls',s.id);s.setAttribute('role','tabpanel');s.setAttribute('aria-labelledby',tab.id);tab.onclick=()=>selectCategory(key);nav.append(tab);
         if (sec.id === 'captions') s.dataset.captionSection = '';
         sec.items.forEach((it, n) => {
           if (it.type === 'note') { s.append(this.el(`<p class="sh-pnote">${esc(it.text)}</p>`)); return; }
@@ -1999,10 +2018,12 @@
             finally{this.panelPending.delete(actionKey);if(current()){this.drawPanel(true);this.tick();}}
           }; s.append(b);
         });
-        box.append(s);
+        content.append(s);
       });
-      if(focused)([...box.querySelectorAll('[data-pid]')].find(n=>n.dataset.pid===focused&&!n.disabled)||box.querySelector('[data-pclose]'))?.focus({preventScroll:true});
-      box.scrollTop=previousScroll;
+      selectCategory(this.s.panelSection);
+      if(focusedCategory)nav.querySelector('[aria-selected=true]')?.focus({preventScroll:true});
+      else if(focused)([...box.querySelectorAll('[data-pid]')].find(n=>n.dataset.pid===focused&&!n.disabled&&!n.closest('[role=tabpanel]').hidden)||box.querySelector('[data-pclose]'))?.focus({preventScroll:true});
+      content.scrollTop=previousScroll;
     }
     drawCinema(info,st){
       const meta=this.q('.sh-cinema-meta');meta.querySelector('h1').textContent=info.title||T('Oynatıcı','Player');meta.querySelector('p').textContent=info.sub||'';

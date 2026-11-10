@@ -2,9 +2,9 @@
  'use strict';
  const el=id=>document.getElementById(id),dialog=el('dubGeneratorDialog');
  const panel=document.createElement('details');panel.className='dub-group-takes';panel.id='dubGroupTakes';panel.hidden=true;panel.setAttribute('data-ui-untranslated','');
- panel.innerHTML='<summary></summary><div class="dub-take-content"><p class="dub-take-hint"></p><label for="dubTakeChoice"></label><div class="dub-take-picker"><select id="dubTakeChoice"></select><button class="btn btn-ghost" type="button" id="dubTakeRefresh"></button></div><div class="dub-ab-grid"><section><h4 id="dubTakeALabel"></h4><p id="dubTakeCurrentText"></p><audio id="dubTakeCurrent" controls preload="none" hidden></audio><button type="button" class="btn btn-ghost" id="dubTakePlayA"></button></section><section><h4 id="dubTakeBLabel"></h4><p id="dubTakeText"></p><audio id="dubTakePreview" controls preload="none" hidden></audio><button type="button" class="btn btn-ghost" id="dubTakePlayB"></button></section></div><div class="dub-take-actions"><button class="btn btn-secondary" type="button" id="dubTakeApply"></button><span id="dubTakeStatus" role="status"></span></div></div>';
+ panel.innerHTML='<summary></summary><div class="dub-take-content"><p class="dub-take-hint"></p><label for="dubTakeChoice"></label><div class="dub-take-picker"><select id="dubTakeChoice"></select><button class="btn btn-ghost" type="button" id="dubTakeRefresh"></button></div><p id="dubTakeLevel" class="dub-take-hint"></p><div class="dub-ab-grid"><section><h4 id="dubTakeALabel"></h4><p id="dubTakeCurrentText"></p><audio id="dubTakeCurrent" aria-labelledby="dubTakeALabel" controls preload="none" hidden></audio><button type="button" class="btn btn-ghost" id="dubTakePlayA"></button></section><section><h4 id="dubTakeBLabel"></h4><p id="dubTakeText"></p><audio id="dubTakePreview" aria-labelledby="dubTakeBLabel" controls preload="none" hidden></audio><button type="button" class="btn btn-ghost" id="dubTakePlayB"></button></section></div><div class="dub-take-actions"><button class="btn btn-secondary" type="button" id="dubTakeApply"></button><span id="dubTakeStatus" role="status"></span></div></div>';
  el('dubQualityResults').insertBefore(panel,el('dubQualityEvidence'));
- let switchSequence=0;
+ let switchSequence=0,shownPair='';
  let sequence=0,identity='',rows=[],busy=false;
  const en=()=>window.UiLocale?.get?.()==='en',copy=(tr,eng)=>en()?eng:tr;
  const read=()=>window.DubGeneratorUI.takeContext(),signature=c=>JSON.stringify([c.id,c.key,c.owner]);
@@ -18,9 +18,16 @@
  function selected(){return rows.find(r=>r.token===el('dubTakeChoice').value);}
  function buttons(){const c=read(),r=selected();el('dubTakePlayA').disabled=busy||c.busy||!rows.some(r=>r.current);el('dubTakePlayB').disabled=busy||c.busy||!r;el('dubTakeRefresh').disabled=busy||c.busy;el('dubTakeChoice').disabled=busy||c.busy||!rows.length;el('dubTakeApply').disabled=busy||c.busy||!c.recipeReady||!r||r.current||r.compareOnly;}
  function show(){
-  const row=selected(),audio=el('dubTakePreview'),a=el('dubTakeCurrent'),current=rows.find(r=>r.current);audio.hidden=!row;a.hidden=!current;if(current){if(a.getAttribute('src')!==current.url){a.pause();a.src=current.url;}}else{a.pause();a.removeAttribute('src');a.load();}el('dubTakePlayA').disabled=!current||read().busy;el('dubTakePlayB').disabled=!row||read().busy;
+  const row=selected(),audio=el('dubTakePreview'),a=el('dubTakeCurrent'),current=rows.find(r=>r.current);
+  const pair=JSON.stringify([current?.token,current?.url,row?.token,row?.url]);
+  if(pair!==shownPair){pause();shownPair=pair;}
+  audio.hidden=!row;a.hidden=!current;if(current){if(a.getAttribute('src')!==current.url){a.pause();a.src=current.url;}}else{a.pause();a.removeAttribute('src');a.load();}el('dubTakePlayA').disabled=!current||read().busy;el('dubTakePlayB').disabled=!row||read().busy;
   if(row){if(audio.getAttribute('src')!==row.url){audio.pause();audio.src=row.url;}}
   else{audio.pause();audio.removeAttribute('src');audio.load();}
+  const measured=[current?.levelDb,row?.levelDb].every(v=>Number.isFinite(v)&&v>=-150&&v<=40);
+  const target=measured?Math.min(current.levelDb,row.levelDb):0;
+  a.volume=measured?Math.pow(10,(target-current.levelDb)/20):1;audio.volume=measured?Math.pow(10,(target-row.levelDb)/20):1;
+  el('dubTakeLevel').textContent=measured?copy('Karşılaştırma ses düzeyi dengelendi; ham kayıtlar değişmez.','Comparison levels matched; raw recordings stay unchanged.'):copy('Ses düzeyi ölçümü yok; kayıtlar özgün düzeyinde çalar.','Level measurement unavailable; recordings play at their original levels.');
   el('dubTakeText').textContent=row?.text||'';el('dubTakeCurrentText').textContent=current?.text||'';
   el('dubTakeStatus').textContent=row?row.compareOnly?copy('Yalnız karşılaştırma: metin veya ses ayarları farklı. Bu kayıt uygulanamaz.','Comparison only: text or voice settings differ. This take cannot be applied.'):row.current?copy('Şu an kullanılan kayıt','Current recording'):copy('Önce dinle, sonra uygula.','Listen first, then apply.'):copy('Bu üretimde saklanmış ham kayıt yok.','No saved raw recordings for this production.');buttons();
  }

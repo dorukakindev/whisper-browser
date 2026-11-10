@@ -29,10 +29,18 @@ w.api = {
   startDub: async value => {request=value;return {ok:true};}, cancelDub: async () => ({ok:cancelOK}),
 };
 el('dubGeneratorDialog').showModal = () => {el('dubGeneratorDialog').open=true;};
-w.DubRunInfo=require('../src/renderer/dub-run-info');w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
+const originalControlIds=[...w.document.querySelectorAll('#dubGeneratorDialog input[id],#dubGeneratorDialog select[id],#dubGeneratorDialog textarea[id],#dubGeneratorDialog button[id]')].map(node=>node.id);w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-studio-layout.js'),'utf8'));w.DubRunInfo=require('../src/renderer/dub-run-info');w.eval(fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'));
 const tick = () => new Promise(setImmediate);
 (async()=>{
   el('playerDubGenerate').click();await tick();assert.equal(el('dubGeneratorDialog').open,true);
+  for(const id of originalControlIds)assert.equal(w.document.querySelectorAll('[id="'+id+'"]').length,1,'existing control kept exactly once: '+id);
+  assert.equal(w.DubStudioLayout.current(),'prepare');assert.equal(el('dubSubtitleSettings').hidden,false);
+  const retained=el('dubConcurrency').value;el('dubTab-settings').click();assert.equal(el('dubManualSettings').open,true);
+  el('dubTab-settings').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));assert.equal(w.DubStudioLayout.current(),'text');assert.equal(w.document.activeElement.id,'dubTab-text');
+  el('dubTab-text').dispatchEvent(new w.KeyboardEvent('keydown',{key:'End',bubbles:true}));assert.equal(w.DubStudioLayout.current(),'history');
+  el('dubTab-history').dispatchEvent(new w.KeyboardEvent('keydown',{key:'Home',bubbles:true}));assert.equal(w.DubStudioLayout.current(),'prepare');assert.equal(el('dubConcurrency').value,retained);
+  assert.equal([...w.document.querySelectorAll('#dubGeneratorDialog [role="tabpanel"]')].filter(node=>!node.hidden).length,1);
+
   assert.equal(latestQuery.source,'fixture');
   assert.equal(el('dubPronunciationSave').disabled,true,'Source dictionary waits for subtitle selection');
   el('dubPronunciationScope').value='global';el('dubPronunciationScope').dispatchEvent(new w.Event('change'));await tick();
@@ -145,9 +153,11 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubGeneratorStatus').textContent,'Durduruluyor…');
   onEvent({id:request.id,type:'status',text:'late progress'});
   assert.equal(el('dubGeneratorStatus').textContent,'Durduruluyor…');
-  onEvent({id:request.id,type:'cancelled',elapsedSeconds:3});
+  onEvent({id:request.id,type:'cancelled',elapsedSeconds:3,canResume:true});
   assert.equal(el('dubGeneratorStatus').textContent,'Durduruldu.');
   assert.equal(el('dubVoiceName').textContent,'changed.wav');assert.equal(el('dubReferenceQuality').textContent,'','Old voice quality cannot describe the replacement voice');
+  assert.match(el('dubStartRequirement').textContent,/actual-worker\.wav/);
+  assert.match(el('dubStartNext').textContent,/Özgün sesi seç|Choose the original voice/);
   assert.equal(el('dubGeneratorProgress').hasAttribute('value'),true,'stopped preparation must stop its indeterminate animation');
   assert.equal(el('dubGeneratorCancel').disabled,true);
   el('dubGeneratorStart').click();await tick();cancelOK=false;
@@ -160,6 +170,11 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubReferenceQuality').textContent,'','Same-path reference replacement also invalidates old quality after completion');
   assert.equal(el('dubGeneratedPreview').getAttribute('src'),'fixture.wav');
   assert.equal(el('dubGeneratedPreview').classList.contains('hidden'),false);
+  assert.match(el('dubNaturalReviewOpen').textContent,/Cümle seç ve düzelt|Select a sentence to edit/);
+  w.dispatchEvent(new w.CustomEvent('dub-runs:busy',{detail:true}));
+  assert.equal(el('dubNaturalReviewOpen').disabled,true,'wait for the run record before offering an action that needs enabled group controls');
+  w.dispatchEvent(new w.CustomEvent('dub-runs:busy',{detail:false}));
+  assert.equal(el('dubNaturalReviewOpen').disabled,false);
   assert.equal(attached,true,'generated audio must attach to the local player');
   attached=false;el('dubGeneratorUse').click();await tick();assert.equal(attached,true);
   assert.equal(el('dubRegenerateGroup').disabled,false);
@@ -281,15 +296,15 @@ const tick = () => new Promise(setImmediate);
   const savedAudio=el('dubGeneratedPreview').getAttribute('src');w.api.openPath=async()=> 'File not found';el('dubGeneratorOutput').click();await tick();assert.match(el('dubGeneratorStatus').textContent,/Dosya veya klasör açılamadı/);assert.equal(el('dubGeneratedPreview').getAttribute('src'),savedAudio);
   w.api.openPath=async()=>{throw Error('Access denied');};el('dubGeneratorOutput').click();await tick();assert.match(el('dubGeneratorStatus').textContent,/açma iznini/);
   let finishOpen;w.api.openPath=()=>new Promise(resolve=>finishOpen=resolve);el('dubGeneratorOutput').click();await tick();
-  attached=false;w.api.startDub=async()=>({ok:false,error:'startup refused'});el('dubGeneratorStart').click();await tick();
-  finishOpen('Late OS error');await tick();
+  attached=false;w.api.startDub=async()=>({ok:false,error:'ENOSPC: test output drive'});el('dubGeneratorStart').click();await tick();
+  finishOpen('Late OS error');await tick();assert.match(el('dubGeneratorDetails').textContent,/Çıktı diski dolu/);w.UiLocale={get:()=> 'en',t:text=>text};w.document.dispatchEvent(new w.Event('ui-locale-change'));assert.match(el('dubGeneratorDetails').textContent,/output drive is full/);assert.match(el('dubGeneratorDetails').textContent,/ENOSPC/);delete w.UiLocale;w.document.dispatchEvent(new w.Event('ui-locale-change'));
   assert.equal(el('dubGeneratedPreview').getAttribute('src'),'file:///last-good.wav','startup failure retains the previous audio');assert.equal(attached,false,'restoration never silently attaches');
   assert.equal(el('dubGeneratorUse').classList.contains('hidden'),false);assert.match(el('dubGeneratorStatus').textContent,/Önceki sesiniz/);
   w.api.startDub=async value=>{request=value;return {ok:true};};el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'error',error:'new synthesis failed'});await tick();assert.equal(el('dubGeneratedName').textContent,'last-good.wav');assert.equal(el('dubQualityGroup').options.length,1);
   el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'done',name:'review.wav',url:'file:///review.wav',quality:{groups:[{key:'1',group:1,status:'ready'},{key:'2',group:2,status:'review'},{key:'3',group:3,status:'failed'}]}});await tick();
   assert.equal(el('dubQualityGroup').value,'2','new results select a flagged group rather than the first ready one');
   assert.equal(el('dubQualitySummary').textContent,'1 hazır1 inceleme1 üretilemedi');
-  el('dubNextFlagged').click();assert.equal(el('dubQualityGroup').value,'3');el('dubNextFlagged').click();assert.equal(el('dubQualityGroup').value,'2');
+  el('dubNextFlagged').click();assert.equal(el('dubQualityGroup').value,'3');assert.match(el('dubQualityReasons').textContent,/kullanılabilir konuşma üretilemedi/);assert.doesNotMatch(el('dubQualityReasons').textContent,/Metin karşılaştırması mevcut değil/);assert.doesNotMatch(el('dubQualityInfo').textContent,/Metin denetlenmedi/);el('dubNextFlagged').click();assert.equal(el('dubQualityGroup').value,'2');
   el('dubOpenQuality').click();assert.equal(el('dubQualityResults').open,true);
   rangeContext={...rangeContext,currentTime:612.375,duration:624.25};
   assert.equal(el('dubSampleHere').hidden,false);
@@ -310,7 +325,40 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubGeneratorUse').classList.contains('hidden'),true);
   assert.match(el('dubGeneratorStart').textContent,/Dublajı başlat/);
   assert.match(el('dubResultTitle').textContent,/Kısa örnek hazır/);
+  el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'done',name:'no-report.wav',url:'file:///no-report.wav',qualityUnavailable:true,qualityIncomplete:true,quality:{groups:[{key:'1',group:1,status:'ready'}]}});await tick();assert.equal(el('dubGeneratorDialog').dataset.phase,'partial');assert.match(el('dubStartNext').textContent,/Sonucu incele/);assert.doesNotMatch(el('dubStartRequirement').textContent,/0 parça üretilemedi/);assert.equal(el('dubNaturalReviewOpen').textContent,'Mevcut grupları incele');assert.equal(el('dubNaturalReviewOpen').disabled,false);
+  el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'cancelled',canResume:true});await tick();assert.equal(el('dubGeneratorDialog').dataset.phase,'stopped');
+  const savedSubtitle=w.DubGeneratorUI.experience().srt;
+  w.dispatchEvent(new w.CustomEvent('dub-workspace:loaded',{detail:{id:'saved-project',subtitle:savedSubtitle,name:'saved.wav',url:'file:///saved.wav',quality:{groups:[{key:'1',group:1,status:'ready'}]}}}));await tick();
+  assert.equal(el('dubGeneratorDialog').dataset.phase,'done','opening a saved project clears a prior run resume action');assert.doesNotMatch(el('dubStartNext').textContent,/Kaldığın yerden/);
+  // Loading an independent saved project clears the prior failure, measurements and filter.
+  el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'phases',phases:{model_load_seconds:9}});onEvent({id:request.id,type:'timing',accelerated:3,clipped:2});onEvent({id:request.id,type:'error',error:'ENOSPC: old run'});await tick();
+  assert.match(el('dubGeneratorDetails').textContent,/ENOSPC/);
+  w.document.querySelector('[data-quality-filter="failed"]').click();
+  const saved={id:'new-saved',subtitle:savedSubtitle,name:'new.wav',url:'file:///new.wav',quality:{groups:[{key:'new-ready',group:1,status:'ready'}]}};
+  w.dispatchEvent(new w.CustomEvent('dub-workspace:loaded',{detail:saved}));await tick();
+  assert.equal(el('dubGeneratorDetails').textContent,'');assert.equal(el('dubPhaseSummary').textContent,'');assert.equal(el('dubGeneratorTiming').textContent,'');
+  w.document.dispatchEvent(new w.Event('ui-locale-change'));assert.equal(el('dubGeneratorDetails').textContent,'','old errors must not reappear after changing language');
+  assert.equal(el('dubQualityGroup').value,'new-ready');assert.equal(el('dubGeneratorDialog').dataset.phase,'done');
+  w.dispatchEvent(new w.CustomEvent('dub-workspace:loaded',{detail:{...saved,id:'no-report',quality:null}}));await tick();
+  assert.equal(el('dubGeneratorDialog').dataset.phase,'partial');assert.match(el('dubQualityGroup').textContent,/grup kalite raporu yok/);assert.match(el('dubQualitySummary').textContent,/Kalite raporu eksik/);assert.doesNotMatch(el('dubQualitySummary').textContent,/0 hazır/);assert.match(el('dubResultTitle').textContent,/kalite raporu eksik/);assert.match(el('dubNaturalReview').textContent,/Cümle bazında inceleme yapılamıyor/);assert.equal(el('dubNaturalReviewOpen').textContent,'Grup raporu yok');assert.equal(el('dubNaturalReviewOpen').disabled,true);
+  const preview=el('dubGeneratedPreview');Object.defineProperty(preview,'currentSrc',{configurable:true,value:saved.url});Object.defineProperty(preview,'error',{configurable:true,value:{code:4}});preview.dispatchEvent(new w.Event('error'));assert.match(el('dubGeneratorStatus').textContent,/üretim kaydı korunuyor/);assert.equal(w.DubGeneratorUI.experience().output.id,'no-report');
+  assert.equal(el('dubGeneratorUse').disabled,true);assert.match(el('dubResultTitle').textContent,/Ses dosyası açılamıyor/);
+  Object.defineProperty(preview,'error',{configurable:true,value:null});
+  Object.defineProperty(preview,'duration',{configurable:true,value:5});preview.dispatchEvent(new w.Event('loadedmetadata'));assert.equal(el('dubGeneratorUse').disabled,false);assert.match(el('dubGeneratorStatus').textContent,/yeniden hazır/);
+  Object.defineProperty(preview,'currentSrc',{configurable:true,value:'file:///previous.wav'});Object.defineProperty(preview,'error',{configurable:true,value:{code:4}});const priorStatus=el('dubGeneratorStatus').textContent;preview.dispatchEvent(new w.Event('error'));assert.equal(el('dubGeneratorStatus').textContent,priorStatus);assert.equal(el('dubGeneratorUse').disabled,false);
+  Object.defineProperty(preview,'error',{configurable:true,value:null});
+
+  const priorLatest=w.api.latestDub;w.api.latestDub=async()=>({ok:true,output:{...saved,id:'bridge-saved',timing:{accelerated:1,clipped:0}}});
+  el('dubGeneratorDetails').textContent='previous detail';el('dubGeneratorTiming').textContent='3 / 2';w.document.querySelector('[data-quality-filter="failed"]').click();
+  assert.equal((await w.DubGeneratorBridge.load('bridge-saved')).ok,true);assert.equal(el('dubGeneratorDetails').textContent,'');assert.equal(el('dubGeneratorTiming').textContent,'1 / 0');assert.equal(el('dubQualityGroup').value,'new-ready');w.api.latestDub=priorLatest;
+
   el('dubGeneratorStart').click();await tick();rangeContext={...rangeContext,mediaId:'different-video'};onEvent({id:request.id,type:'error',error:'late failure'});await tick();assert.equal(el('dubGeneratedPreview').getAttribute('src'),null,'never restore old video audio into a new source');
   dom.window.close();
   console.log('dub-generator-ui: selected background range, confirmed stop and failed stop passed');
 })().catch(e=>{dom.window.close();console.error(e);process.exitCode=1;});
+
+// The advice retains the exact technical cause and changes only its explanatory copy.
+{
+ const vm=require('node:vm'),source=fs.readFileSync(path.join(root,'src/renderer/dub-generator-ui.js'),'utf8'),a=source.indexOf('  function generationError('),b=source.indexOf('  function runtimeLabels(',a);
+ for(const lang of ['tr','en']){const c={window:{UiLocale:{get:()=>lang}}};vm.runInNewContext(source.slice(a,b),c);for(const raw of ['ENOSPC: disk full','EACCES: output.wav','ffmpeg executable not found','reference file missing','CUDA out of memory']){const text=c.generationError(raw);assert(text.endsWith(raw));assert(text.length>raw.length);}assert.equal(c.generationError('unknown exact cause'),'unknown exact cause');}
+}

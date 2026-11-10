@@ -2555,18 +2555,51 @@ ipcMain.handle('media:repairTranslation', async (event, request={}) => {
     const file=subtitleFileAccess.inspect(request.path);
     // A repair never opens a permission dialog or expands authority to arbitrary files.
     if(!subtitleFileAccess.has(file))throw Error('Open the generated subtitle first / Önce üretilmiş altyazıyı açın.');
-    const result=require('./podcast-translation-recovery').repairFile({file,bytes:fs.readFileSync(file),
+    const bytes=fs.readFileSync(file);
+    const result=require('./podcast-translation-recovery').repairFile({file,bytes,
       directory:path.join(app.getPath('userData'),'translation-repairs'),prepare:request.prepare===true,expectedHash:request.expectedHash,allowMixed:request.allowMixed===true});
-    if(result.sourcePath){subtitleFileAccess.grant(result.sourcePath);subtitleFileAccess.grant(result.translationPath);}
+    if(result.sourcePath){
+      subtitleFileAccess.grant(result.sourcePath);subtitleFileAccess.grant(result.translationPath);
+      const localContext=require('./local-subtitle-context');
+      const context=localContext.read(loadHistory(),file,bytes);
+      if(context)result.playbackContext={mediaPath:context.mediaPath,range:context.range,mediaStat:context.mediaStat};
+      if(typeof request.localMediaPath==='string')result.repairPlaybackProof=localContext.repairPlaybackProof(file,bytes,request.localMediaPath,authorizeLocalMediaPath,context?.mediaPath&&path.relative(context.mediaPath,request.localMediaPath)===''?context.range:null);
+    }
     return {ok:true,...result};
   } catch(error){return {ok:false,error:error.message};}
 });
 
-ipcMain.handle('media:readSubtitle', async (_e, filePath) => {
+ipcMain.handle('media:verifyRepairResult', async (event,request={}) => {
+  if(!authorizedBrowserSender(event))return {ok:false,error:'Unauthorized request / Yetkisiz istek.'};
+  try{
+    const item=loadQueueState().items.find(row=>row.id===request.queueItemId&&row.status==='done'&&row.opts?.translateRetryOnly===true);
+    if(!item?.repairOutput?.subtitleHash)throw Error('Saved repair is unavailable / Kayıtlı onarım kullanılamıyor.');
+    if(!loadHistory().some(job=>job.kind==='translation'&&Array.isArray(job.files)&&job.files.includes(item.repairOutput.path)))throw Error('Verified repair history is unavailable / Doğrulanmış onarım geçmişi yok.');
+    const file=subtitleFileAccess.inspect(request.subtitlePath);
+    if(!subtitleFileAccess.has(file))throw Error('Open the original subtitle first / Önce özgün altyazıyı açın.');
+    const stat=fs.lstatSync(file);
+    if(!stat.isFile()||stat.isSymbolicLink()||stat.size>32*1024*1024)throw Error('Invalid repair source / Geçersiz onarım kaynağı.');
+    const sourceBytes=fs.readFileSync(file);
+    const range=require('./local-subtitle-context').verifyRepairPlayback(item.opts.repairPlaybackProof,request.mediaPath,file,sourceBytes,authorizeLocalMediaPath);
+    const output=subtitleFileAccess.inspect(item.repairOutput.path),outputStat=fs.lstatSync(output);
+    if(!outputStat.isFile()||outputStat.isSymbolicLink()||outputStat.size>32*1024*1024||createHash('sha256').update(fs.readFileSync(output)).digest('hex')!==item.repairOutput.subtitleHash)throw Error('Saved SRT changed / Kayıtlı SRT değişti.');
+    subtitleFileAccess.grant(output);
+    return {ok:true,output:item.repairOutput,range,sourceText:decodeSubtitleBuffer(sourceBytes).text};
+  }catch(error){return {ok:false,error:error.message};}
+});
+
+ipcMain.handle('media:readSubtitle', async (_e, filePath, expectedHash) => {
   if (!authorizedBrowserSender(_e)) return { ok: false, error: 'Yetkisiz istek.' };
   try {
-    filePath = await authorizeSubtitleFile(filePath);
+    if (expectedHash !== undefined) {
+      if (typeof expectedHash !== 'string' || !/^[a-f0-9]{64}$/.test(expectedHash)) throw Error('Invalid subtitle digest.');
+      filePath = subtitleFileAccess.inspect(filePath);
+      if (!subtitleFileAccess.has(filePath)) throw Error('Subtitle access expired / Altyazı erişimi sona erdi.');
+    } else filePath = await authorizeSubtitleFile(filePath);
     const bytes = fs.readFileSync(filePath);
+    if (expectedHash && createHash('sha256').update(bytes).digest('hex') !== expectedHash) {
+      return {ok:false,code:'subtitle-changed',error:'The saved SRT changed / Kaydedilen SRT değişti.'};
+    }
     const { text, note } = decodeSubtitleBuffer(bytes);
     const playbackContext = require('./local-subtitle-context').read(loadHistory(),filePath,bytes);
     let wordSegments;
@@ -13294,6 +13327,8 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     };
     const directIdentity=!safeMedia.adPlaying&&safeMedia.readyState>=1
       ? observedDirectMediaIdentity(pageUrl,sourceUrl,media.tagName) : '';
+    // A page URL alone does not prove which embedded video is selected.
+    safeMedia.dubSourceIdentity = directIdentity || (!safeMedia.adPlaying && tab.contentId ? tab.mediaId : '') || '';
     if (media.tagName==='audio') {
       safeMedia.audioSourceIdentity = directIdentity;
       const episode = directIdentity && podcastSchema
@@ -13344,7 +13379,7 @@ async function probeActiveBrowserMedia(requestedTab = null) {
     const playbackDiagnostics = tab.playbackDiagnostics.observeMediaSample(safeMedia);
     for (const diagnostic of playbackDiagnostics) publishBrowserPlaybackDiagnostics(tab, diagnostic);
     tab.activeAudioToken=media.tagName==='audio'?media.docToken:'';
-    const mediaSignature = [safeMedia.docToken || '', safeMedia.audioSourceIdentity, safeMedia.publisher, safeMedia.artworkUrl, safeMedia.fallbackArtworkUrl, safeMedia.audioTitle, safeMedia.showTitle, safeMedia.siteName, JSON.stringify(safeMedia.audioChoices), safeMedia.pinnedAudio, safeMedia.live, Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
+    const mediaSignature = [safeMedia.docToken || '', safeMedia.audioSourceIdentity, safeMedia.dubSourceIdentity, safeMedia.publisher, safeMedia.artworkUrl, safeMedia.fallbackArtworkUrl, safeMedia.audioTitle, safeMedia.showTitle, safeMedia.siteName, JSON.stringify(safeMedia.audioChoices), safeMedia.pinnedAudio, safeMedia.live, Math.round(tab.position * 4), Math.round(tab.duration * 2), tab.rate,
       Math.round(tab.volume * 100), tab.muted, !!safeMedia.paused, !!safeMedia.adPlaying,
       !!safeMedia.adSkippable, safeMedia.adRemaining ?? '', safeMedia.readyState, !!safeMedia.seeking, !!safeMedia.ended, safeMedia.spinnerVisible].join('|');
     if (mediaSignature !== tab.lastMediaEventSignature) {
@@ -17135,7 +17170,12 @@ ipcMain.handle('browser:tab:mute', (event, tabId, muted, lease) => {
     } else {
       if (tab.generation !== lease.generation || String(tab.mediaId || '') !== lease.mediaId) return {ok:lease.mode==='update',stale:true};
       if (lease.mode === 'update' && (!old || old.owner !== lease.owner || old.wc !== wc)) return {ok:true,skipped:true};
-      priorMuted = old && old.wc === wc && wc.isAudioMuted() === old.applied ? old.priorMuted : wc.isAudioMuted();
+      // An attachment can restore before the first Play. Transfer the startup
+      // hold to the dub so Play cannot later undo the active dub's mute.
+      const hold = lease.mode === 'acquire' ? tab.sourceReturnHold : null;
+      if (hold) tab.sourceReturnHold = null;
+      priorMuted = hold?.wc === wc && wc.isAudioMuted() ? hold.priorMuted
+        : old && old.wc === wc && wc.isAudioMuted() === old.applied ? old.priorMuted : wc.isAudioMuted();
       muted = muted || priorMuted;
       tab.dubAudioMute = {owner:lease.owner,wc,priorMuted,applied:muted};
     }
@@ -17146,7 +17186,7 @@ ipcMain.handle('browser:tab:mute', (event, tabId, muted, lease) => {
   wc.setAudioMuted(typeof muted === 'boolean' ? muted : !wc.isAudioMuted());
   tab.tabMuted = wc.isAudioMuted();
   const audio = { tabMuted: tab.tabMuted, audible: wc.isCurrentlyAudible() };
-  sendBrowserEvent(tab, { type: 'tab-audio', ...audio });
+  sendBrowserEvent(tab, { type: 'tab-audio', ...audio, manual: lease === undefined });
   return { ok: true, ...audio, ...(typeof priorMuted === 'boolean' ? {priorMuted} : {}), ...(lease && lease.mode !== 'release' ? {leaseOwned:true} : {}) };
 });
 
@@ -21690,9 +21730,6 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       options.input = inputPath;
     } catch (_) { return { ok: false, error: 'Girdi dosyası bulunamadı veya okunamıyor.' }; }
   }
-  let subtitlePlayback=null;
-  try { subtitlePlayback=require('./local-subtitle-context').translationSnapshot(options,authorizeLocalMediaPath); }
-  catch (error) { return {ok:false,error:error.message}; }
   for (const optionName of ['syncSrt', 'translateExisting', 'explainTranslation']) {
     if (!options[optionName]) continue;
     try { options[optionName] = await authorizeSubtitleFile(options[optionName]); }
@@ -21700,6 +21737,12 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
       return { ok: false, error: 'Yardımcı altyazı dosyası bulunamadı, okunamıyor veya erişimi onaylanmadı.' };
     }
   }
+  let subtitlePlayback=null;
+  try {
+    require('./podcast-translation-recovery').verifyRepairInputs(options);
+    subtitlePlayback=require('./local-subtitle-context').translationSnapshot(options,authorizeLocalMediaPath);
+  }
+  catch (error) { return {ok:false,error:error.message}; }
   if (options.queueItemId && clonePublicOptions(options) === null) return { ok: false, error: 'Kuyruk işi seçenekleri 512 KB sınırını aşıyor.' };
   if (activeJob) {
     return { ok: false, busy: true, error: 'Zaten bir iş çalışıyor.' };
@@ -22283,8 +22326,8 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
   startPowerBlocker();
   return { ok: true, jobId };
   } finally {
-    if(!browserAudioHandedOff)browserAudio?.release();
     jobStarting = false;
+    if(!browserAudioHandedOff)browserAudio?.release();
   }
 });
 
@@ -22571,7 +22614,7 @@ require('./assistant-thread-store').registerAssistantThreads({app,ipcMain,author
 require('./music-analysis-service').register({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,userData:()=>app.getPath('userData'),modelDir:()=>path.join(appResourceRoot(),'backend','models','music-clap'),musicPython:()=>{const exe=path.join(appResourceRoot(),'backend','music-venv',process.platform==='win32'?'Scripts/python.exe':'bin/python');return fs.existsSync(exe)?exe:resolvePython();},python:resolvePython,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),grantMedia:file=>mediaFileAccess.grant(file)});
 require('./assistant-collections').register({ipcMain,authorized:authorizedBrowserSender,store:mediaCatalogService.store});
 require('./media-tools-service').registerMediaTools({app,ipcMain,grantSubtitle:file=>subtitleFileAccess.grant(file),grantMedia:file=>mediaFileAccess.grant(file),saveWatch:upsertWatchItem,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,catalogStore:mediaCatalogService.store,resolveDiscovery:(event,input)=>mediaCatalogService.discovery.handle(event,{action:'detail',kind:input.kind,id:input.id}),ffprobe:()=>resolveFfTool('ffprobe'),readOpenReviews:options=>require('./letterboxd-reviews').readBrowserReviews({signal:options?.signal,getTab:()=>activeBrowserTab(),execute:executeBrowserTrustedMain}),
-  getReviewTaste:()=>require('./media-shelf-service').readReviewTaste(app.getPath('userData'),mediaCatalogService.store().list()),
+  getReviewTaste:item=>require('./media-shelf-service').readReviewTaste(app.getPath('userData'),mediaCatalogService.store().list(),require('./media-domains').domainOf(item)),
   getReviewConfig:()=>{const config=assistantProviderConfig();const problem=browserTranslationConfigProblem(config);if(problem)throw Error(problem);return {...config,endpoint:safeTranslationEndpoint(config.endpoint)};},
   collectBrowserReviews:async(item,options)=>{
     // A normal, visible site window owns this public-review session. It never

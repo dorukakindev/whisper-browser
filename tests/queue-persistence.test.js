@@ -176,4 +176,34 @@ test('R217: disk queueRunning bayrağı terminal-sonrası bayat true kalamaz', (
     { id: 1, type: 'file', input: 'D:\\a.mp4', status: 'pending' },
   ] }).queueRunning, false, 'Açık false ezilmez');
 });
+test('repair completion and partial counts survive a restart and a stale renderer save', () => {
+  const id = 41, path = 'D:/output/repaired.tr.partial.srt';
+  const opts = { translateRetryOnly: true, translateTo: 'tr', subtitlePlayback: {
+    mediaPath:'D:/movie.mp4',range:{start:2,end:6},mediaStat:{size:240,mtimeMs:123}
+  } };
+  const initial = updateQueueSnapshotRunning({}, id, {type:'file',input:'D:/temp/source.srt',opts});
+  const output = {path,role:'translation',language:'tr',status:'partial',total:4,completed:3,failed:1,subtitleHash:'b'.repeat(64),
+    sourceHash:'a'.repeat(64),text:'not part of the queue receipt'};
+  const done = updateQueueSnapshotTerminal(initial, id, {type:'done',files:[path],outputs:[output]});
+  const {sourceHash,text,...receipt}=output;
+  const restored=normalizeQueueSnapshot(JSON.parse(JSON.stringify(done)));
+  assert.deepEqual(restored.items[0].opts.subtitlePlayback,opts.subtitlePlayback);
+  assert.deepEqual(restored.items[0].repairOutput,receipt);
+  assert.deepEqual(mergeQueueSnapshotForSave(restored,initial,null,[id]).items[0].repairOutput,receipt);
+  assert.equal(updateQueueSnapshotRunning(restored,id).items[0].repairOutput,undefined);
+});
+
+test('repair receipts reject filename guesses, mismatched files and ambiguous results', () => {
+  const id = 42, path = 'D:/output/repaired.tr.srt', another = 'D:/output/other.tr.srt';
+  const raw = {items:[{id,type:'file',input:'D:/temp/source.srt',status:'running',
+    opts:{translateRetryOnly:true,translateTo:'tr'}}]};
+  const output = {path,role:'translation',language:'tr',total:3,completed:3,failed:0};
+  for (const event of [
+    {files:[path]},
+    {files:[another],outputs:[output]},
+    {files:[path],outputs:[{...output,language:'en'}]},
+    {files:[path,another],outputs:[output,{...output,path:another}]},
+  ]) assert.equal(updateQueueSnapshotTerminal(raw,id,{type:'done',...event}).items[0].repairOutput,undefined);
+});
+
 console.log(`queue-persistence: ${passed} test`);

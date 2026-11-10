@@ -47,6 +47,13 @@ class DubPlanRegressionTests(unittest.TestCase):
             dub_plan.make_groups(cues,mode='akici')
         self.assertEqual(cues.source_ids,[2,4])
 
+    def test_fractional_millisecond_range_excludes_cues_touching_rounded_edges(self):
+        cues = [(1000, 2000, 'Previous.'), (2000, 3000, 'Selected.'),
+                (3000, 4000, 'Following.')]
+        groups = dub_plan.make_groups(cues, 1.9997, 3.0003, mode='satir')
+        self.assertEqual([(g['start'], g['end'], g['source_ids']) for g in groups],
+                         [(2000, 3000, [2])])
+
     def test_final_text_without_newline_and_malformed_next_header(self):
         payload=b'1\n00:00:00,000 --> 00:00:01,000\nComplete last sentence.'
         self.assertEqual(dub_plan.parse_srt('unused',payload)[0][2],'Complete last sentence.')

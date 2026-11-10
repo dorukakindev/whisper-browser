@@ -223,7 +223,7 @@ async def uret(args, cues, paths, prompt_text):
     from dub_quality import audio_identity
     from dub_lifecycle import bounded_call, EngineStalled, stop_server
     from dub_recovery import recover_long_speech
-    from dub_runtime import measured
+    from dub_runtime import measured, reference_call
     from huggingface_hub import snapshot_download
     from nanovllm_voxcpm import VoxCPM
 
@@ -256,8 +256,8 @@ async def uret(args, cues, paths, prompt_text):
             if runtime:
                 ref_lat,prompt_id=await runtime.prepare_reference(args,wav_bytes,reference_prompt)
             else:
-                ref_lat=await bounded_call(server.encode_latents(wav_bytes,'wav'),args.ready_timeout)
-                prompt_id=await bounded_call(server.add_prompt(wav_bytes,'wav',reference_prompt),args.ready_timeout) if reference_prompt else None
+                ref_lat=await reference_call(args,'reference_encode',server.encode_latents(wav_bytes,'wav'))
+                prompt_id=await reference_call(args,'reference_prompt',server.add_prompt(wav_bytes,'wav',reference_prompt)) if reference_prompt else None
         sr = int(getattr(server, "sample_rate", SAMPLE_RATE) or SAMPLE_RATE)
         print("Referans hazir; uretim basliyor.", flush=True)
         reference_seconds = time.monotonic() - reference_began

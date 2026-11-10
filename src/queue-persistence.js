@@ -16,6 +16,7 @@ const ALLOWED_STATUS = new Set(['pending', 'running', 'done', 'error']);
 const TERMINAL_STATUS = new Set(['done', 'error']);
 const SENSITIVE_URL_PARAMS = /^(token|access[_-]?token|id[_-]?token|refresh[_-]?token|oauth[_-]?token|api[_-]?key|client[_-]?secret|csrf|xsrf|jwt|sig|signature|auth|authorization|key|expires?|exp|credential|session|sid)$/i;
 const { redactUrlSensitiveParams } = require('./browser-place-url');
+const { selectRepairOutput } = require('./subtitle-output-contract');
 
 function secretOptionKey(key) {
   // Recognize credential phrases inside compound names without treating every
@@ -129,6 +130,8 @@ function mergeQueueSnapshotForSave(diskRaw, incomingRaw, activeQueueItemId = nul
     // kullanıcının diğer kuyruk düzenlemelerini kaybetme.
     item.status = authoritative.status;
     item.files = authoritative.files.slice();
+    if (authoritative.repairOutput) item.repairOutput = authoritative.repairOutput;
+    else delete item.repairOutput;
     item.warnings = authoritative.warnings.slice();
     item.error = authoritative.error;
     item.recovered = false;
@@ -149,7 +152,7 @@ function normalizeQueueItem(raw) {
   const status = ALLOWED_STATUS.has(raw.status) ? raw.status : 'pending';
   const opts = clonePublicOptions(raw.opts);
   if (opts === null) return null;
-  return {
+  const item = {
     id,
     type,
     input,
@@ -168,6 +171,11 @@ function normalizeQueueItem(raw) {
     watchReported: String(raw.watchReported || '').slice(0, 20),
     recovered: !!raw.recovered,
   };
+  if (status === 'done' && opts.translateRetryOnly === true && raw.repairOutput) {
+    const output = selectRepairOutput([raw.repairOutput], item.files, opts.translateTo);
+    if (output) item.repairOutput = output;
+  }
+  return item;
 }
 
 function normalizeQueueSnapshot(raw, activeQueueItemId = null) {
@@ -235,6 +243,10 @@ function updateQueueSnapshotTerminal(raw, queueItemId, event) {
     item.warnings = Array.isArray(event.warnings)
       ? event.warnings.filter((value) => typeof value === 'string').map((value) => value.slice(0, 2000)).slice(0, 100)
       : [];
+    const output = item.opts.translateRetryOnly === true
+      ? selectRepairOutput(event.outputs, item.files, item.opts.translateTo) : null;
+    if (output) item.repairOutput = output;
+    else delete item.repairOutput;
   } else if (event?.type === 'exit' && event?.cancelled) {
     // Kullanıcı iptalinde iş yeniden denenebilir kalır; uygulama kapanıp
     // renderer olayı alamasa bile disk snapshot'ı sahte bir hata taşımaz.
@@ -264,6 +276,7 @@ function updateQueueSnapshotRunning(raw, queueItemId, fallback = null) {
   if (!item) return queueSnapshotForDisk(snapshot);
   item.status = 'running';
   item.recovered = false;
+  delete item.repairOutput;
   return queueSnapshotForDisk({ ...snapshot, queueRunning: true, currentQueueId: id });
 }
 

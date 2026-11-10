@@ -1,5 +1,6 @@
 'use strict';
 const fs = require('node:fs');
+const {createHash}=require('node:crypto');
 
 // Generation workers write WAV/WAVEX/RF64. Exit status alone does not prove
 // that a crash or interrupted writer left playable sample data.
@@ -61,4 +62,46 @@ function inspectVoiceOutput(file) {
   finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 function validVoiceOutput(file) { return !!inspectVoiceOutput(file); }
-module.exports = {validVoiceOutput, inspectVoiceOutput};
+function voiceOutputIdentity(file){
+ let fd;
+ try{
+  const link=fs.lstatSync(file);if(!link.isFile()||link.isSymbolicLink()||!inspectVoiceOutput(file))return null;
+  fd=fs.openSync(file,'r');const before=fs.fstatSync(fd),hash=createHash('sha256'),buffer=Buffer.alloc(1024*1024);let count,total=0;
+  const same=(a,b)=>['size','mtimeMs','ctimeMs','ino','dev'].every(key=>a[key]===b[key]);
+  if(!same(link,before))return null;
+  // Never chase a growing writer beyond the initial file size.
+  while(total<before.size&&(count=fs.readSync(fd,buffer,0,Math.min(buffer.length,before.size-total),null))>0){hash.update(buffer.subarray(0,count));total+=count;}
+  const after=fs.fstatSync(fd),current=fs.lstatSync(file);
+  if(total!==before.size||!current.isFile()||current.isSymbolicLink()||!same(before,after)||!same(after,current))return null;
+  return {version:1,sha256:hash.digest('hex'),size:after.size,mtimeMs:after.mtimeMs};
+ }catch{return null;}finally{if(fd!==undefined)fs.closeSync(fd);}
+}
+function matchesVoiceOutput(file,expected){
+ if(!expected||expected.version!==1||!/^[a-f0-9]{64}$/.test(expected.sha256)||!Number.isSafeInteger(expected.size))return false;
+ const actual=voiceOutputIdentity(file);return !!actual&&actual.size===expected.size&&actual.sha256===expected.sha256;
+}
+async function voiceOutputIdentityAsync(file,{isCurrent=()=>true}={}){
+ let handle;
+ try{
+  if(!isCurrent())return null;
+  const link=await fs.promises.lstat(file);
+  if(!isCurrent()||!link.isFile()||link.isSymbolicLink()||!inspectVoiceOutput(file))return null;
+  handle=await fs.promises.open(file,'r');const before=await handle.stat(),hash=createHash('sha256'),buffer=Buffer.alloc(1024*1024);
+  const same=(a,b)=>['size','mtimeMs','ctimeMs','ino','dev'].every(key=>a[key]===b[key]);
+  if(!same(link,before))return null;
+  let total=0;
+  while(total<before.size){
+   if(!isCurrent())return null;
+   const {bytesRead}=await handle.read(buffer,0,Math.min(buffer.length,before.size-total),total);
+   if(!bytesRead)return null;hash.update(buffer.subarray(0,bytesRead));total+=bytesRead;
+  }
+  const after=await handle.stat(),current=await fs.promises.lstat(file);
+  if(!isCurrent()||!current.isFile()||current.isSymbolicLink()||!same(before,after)||!same(after,current))return null;
+  return {version:1,sha256:hash.digest('hex'),size:after.size,mtimeMs:after.mtimeMs};
+ }catch{return null;}finally{if(handle)await handle.close();}
+}
+async function matchesVoiceOutputAsync(file,expected,options){
+ if(!expected||expected.version!==1||!/^[a-f0-9]{64}$/.test(expected.sha256)||!Number.isSafeInteger(expected.size))return false;
+ const actual=await voiceOutputIdentityAsync(file,options);return !!actual&&actual.size===expected.size&&actual.sha256===expected.sha256;
+}
+module.exports = {validVoiceOutput, inspectVoiceOutput,voiceOutputIdentity,matchesVoiceOutput,voiceOutputIdentityAsync,matchesVoiceOutputAsync};

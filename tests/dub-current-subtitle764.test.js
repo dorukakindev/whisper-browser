@@ -92,6 +92,23 @@ test('an old explicit preflight confirmation cannot approve a newly selected aut
  }finally{h.close();}
 });
 
+test('a manual SRT with a short untranslated cue hidden by grouping opens repair before generation',async()=>{
+ const h=fixture('player');try{
+  h.w.DubExperienceModel=require('../src/renderer/dub-experience-model');
+  const recovery=require('../src/podcast-translation-recovery');
+  const bytes=Buffer.from('1\n00:00:00,000 --> 00:00:02,000\nBugün buradayız.\n\n2\n00:00:02,000 --> 00:00:04,000\nWhat is it?\n');
+  h.w.api.planDub=async()=>({ok:true,groups:[{key:'1,2',seconds:4,text:'Bugün buradayız. What is it?',start:0,end:4000}],sourceHash:'fixture'});
+  h.w.api.repairSubtitleTranslation=async request=>({ok:true,...recovery.repairFile({file:request.path,bytes,allowMixed:request.allowMixed})});
+  let offer;
+  h.w.SubtitleTranslationRepair={offer:async(file,_container,options)=>{offer={file,options};}};
+  await h.open();h.el('dubChooseSrt').click();await tick();
+  h.el('dubRangeEnabled').checked=false;
+  h.el('dubGeneratorStart').click();for(let i=0;i<12;i++)await tick();
+  assert.equal(h.started,0);assert.equal(h.el('dubGenerationGate').hidden,false);
+  assert.equal(offer.file,'C:/manual.srt');assert.equal(offer.options.allowMixed,true);
+ }finally{h.close();}
+});
+
 test('removing the automatic subtitle on the same video clears preparation and its saved output',async()=>{
  const h=fixture();try{
   h.w.api.latestDub=async()=>({ok:true,output:{name:'Old track output',url:'file:///old.wav',syncInvalid:true}});
@@ -371,6 +388,44 @@ test('Sahne shelf dub button: a Whisper episode opens its verified audio copy fi
   await noEntry.w.CinemaSahne.openShelf();const result=await noEntry.w.CinemaSahne.current.a.cmd('dub');
   assert.equal(result.code,'source-unavailable');assert.doesNotMatch(result.message,/oynatıcıda aç/);assert.deepEqual(noEntry.state.opened,[]);assert.equal(noEntry.dialog.open,false);
  }finally{noEntry.close();}
+});
+
+test('cancelled assistant approval cannot hand off a Podcast after its audio proof arrives',async()=>{
+ const exactSource={entryId:'entry-B',sourceVersion:'copyver'};
+ const f=sahneDubFixture({tracks:[{role:'source',exactSource}]});
+ try{
+  const original=f.w.api.feedsRequest;
+  let finish,cancelled=false;
+  f.w.api.feedsRequest=request=>request.action==='podcast-exact-audio'
+   ? new Promise(resolve=>{finish=resolve;}) : original(request);
+  await f.w.CinemaSahne.openShelf();
+  f.w.eval(fs.readFileSync(require.resolve('../src/renderer/media-experience'),'utf8'));
+  const pending=f.w.MediaExperience.openVoice({receipt:true,isCancelled:()=>cancelled});
+  assert.equal(typeof finish,'function');
+  cancelled=true;finish({available:true,sourceVersion:'copyver'});
+  assert.equal(await pending,false);
+  assert.deepEqual(f.state.opened,[]);
+  assert.equal(f.dialog.open,false);
+ }finally{f.close();}
+});
+
+test('changing the Podcast transcript revision during audio verification blocks the handoff',async()=>{
+ const track={id:'source',role:'source',revision:'reviewed',exactSource:{entryId:'entry-B',sourceVersion:'copyver'}};
+ const f=sahneDubFixture({tracks:[track]});
+ try{
+  const original=f.w.api.feedsRequest;
+  let finish;
+  f.w.api.feedsRequest=request=>request.action==='podcast-exact-audio'
+   ? new Promise(resolve=>{finish=resolve;}) : original(request);
+  await f.w.CinemaSahne.openShelf();
+  const pending=f.w.CinemaSahne.current.a.cmd('dub');
+  assert.equal(typeof finish,'function');
+  track.revision='updated';
+  finish({available:true,sourceVersion:'copyver'});
+  assert.equal((await pending).code,'stale-track');
+  assert.deepEqual(f.state.opened,[]);
+  assert.equal(f.dialog.open,false);
+ }finally{f.close();}
 });
 
 for(const change of ['close','reopen','generation']){

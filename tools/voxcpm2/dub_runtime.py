@@ -24,6 +24,41 @@ def measured(args, name):
     meter=getattr(args,'phases',None)
     return meter.measure(name) if meter else nullcontext()
 
+
+async def reference_call(args, stage, awaitable):
+    """Report the exact bounded reference RPC, including a silent engine wait."""
+    from dub_lifecycle import bounded_call, EngineStalled
+    began = time.monotonic()
+    def report(state):
+        print('DUB_REFERENCE_ACTIVITY '+json.dumps({'stage':stage,'state':state,
+              'elapsed':round(time.monotonic()-began,2),'limit':args.ready_timeout}),flush=True)
+    async def heartbeat():
+        while True:
+            await asyncio.sleep(5)
+            report('waiting')
+    report('start')
+    pulse=asyncio.create_task(heartbeat())
+    state='finished'
+    try:
+        with measured(args,stage):
+            return await bounded_call(awaitable,args.ready_timeout)
+    except EngineStalled as error:
+        state='timeout'
+        labels={'reference_encode':('Reference encoding','Referans ses kodlama'),
+                'reference_prompt':('Reference prompt preparation','Referans konuşma örneği hazırlığı'),
+                'reference_remove':('Previous prompt release','Önceki konuşma örneğinin bırakılması')}
+        en,tr=labels.get(stage,('Reference preparation','Referans hazırlığı'))
+        failure=EngineStalled(en+' timed out; completed speech is preserved. / '+tr+' zaman aşımına uğradı; tamamlanan ses korunur.')
+        failure.stage=stage
+        raise failure from error
+    except BaseException:
+        state='failed'
+        raise
+    finally:
+        pulse.cancel()
+        await asyncio.gather(pulse,return_exceptions=True)
+        report(state)
+
 def capacity(free, total, requested, maximum=.8):
     """Conservative cold-start advisory; never override engine KV safety checks."""
     if total<=0 or free<0 or free>total:
@@ -95,10 +130,10 @@ class EngineSession:
         previous = self.reference
         same_wave = previous is not None and previous[0][0] == key[0]
         if self.reference and self.reference[2]:
-            await bounded_call(self.server.remove_prompt(self.reference[2]),args.ready_timeout)
+            await reference_call(args,'reference_remove',self.server.remove_prompt(self.reference[2]))
         self.reference=None
-        lat=previous[1] if same_wave else await bounded_call(self.server.encode_latents(wav,'wav'),args.ready_timeout)
-        pid=await bounded_call(self.server.add_prompt(wav,'wav',prompt),args.ready_timeout) if prompt else None
+        lat=previous[1] if same_wave else await reference_call(args,'reference_encode',self.server.encode_latents(wav,'wav'))
+        pid=await reference_call(args,'reference_prompt',self.server.add_prompt(wav,'wav',prompt)) if prompt else None
         self.reference=(key,lat,pid)
         print('DUB_REFERENCE_CACHE '+json.dumps({'reused':False,'latentsReused':same_wave}),flush=True)
         return lat,pid

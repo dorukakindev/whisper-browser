@@ -42,3 +42,14 @@
 .media-title-page .film-dossier .film-viewing-tools>summary::before{content:'';width:6px;height:6px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);flex:none}
 .media-title-page .film-dossier .film-viewing-tools[open]>summary::before{transform:rotate(45deg)}
 .media-title-page .film-dossier .film-viewing-tools>:is(.fw-workspace,.daily-title){margin:18px 0 0;padding:22px 0;border:0;border-top:1px solid var(--border)}
+/* Verified review analysis owns a full-width evidence desk, not the legacy opinion columns. */
+.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-opinions{display:block;min-width:0}
+.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-opinions>.film-opinion-panel{display:block;padding:24px 0;min-width:0;max-width:none}
+.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-opinions .mrv-point,.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-opinions .mrv-point:last-child{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 24px;padding:20px 22px;margin:0 0 14px;align-items:start;min-width:0}
+.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-point>.mrv-point-heading{grid-column:1/-1;grid-row:1;min-width:0}
+.media-title-page .film-dossier .film-review-content.cv2-review-analysis .cv2-source-quote{grid-column:1;grid-row:2;min-width:0}
+.media-title-page .film-dossier .film-review-content.cv2-review-analysis .cv2-model-insight{grid-column:2;grid-row:2;min-width:0}
+.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-point>.mrv-source-jump{grid-column:2;grid-row:3;font-size:12px;margin:0;padding:6px 0;min-width:0}
+.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-point>.mrv-support{grid-column:1/-1;grid-row:4;min-width:0}
+.media-title-page .film-review-editor .mrv-control-room .mrv-loaded-sample{padding:20px 24px;margin-block:16px;border:1px solid var(--border);border-radius:14px}
+@media(max-width:800px){.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-opinions .mrv-point,.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-opinions .mrv-point:last-child{display:flex;flex-direction:column;padding:18px}.media-title-page .film-dossier .film-review-content.cv2-review-analysis .mrv-point>*{width:100%;box-sizing:border-box}}

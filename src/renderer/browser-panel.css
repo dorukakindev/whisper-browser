@@ -165,3 +165,49 @@
 
 .browser-podcast-toggle { grid-column:1; grid-row:1; }
 .browser-podcast-tools { grid-column:2; grid-row:1; }
+/* The same embedded assistant works in a dock and in the advanced tools dialog. */
+#playerSide.bp-panel .bp-scroll:has(#aiChat:not(.hidden)){display:flex;flex-direction:column;min-height:0}
+#playerSide.bp-panel #aiChat:not(.hidden){display:flex;flex-direction:column;gap:14px;min-height:440px;padding:18px 22px;background:radial-gradient(ellipse at 100% 0,color-mix(in srgb,var(--accent) 8%,transparent),transparent 62%)}
+#playerSide.bp-panel #aiChatLog{flex:1;min-height:180px;padding:0;gap:14px}
+#playerSide.bp-panel .ai-chat-empty{margin:0;padding:22px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(130deg,color-mix(in srgb,var(--accent) 7%,var(--bg-1)),var(--bg-1));text-align:start;align-self:stretch}
+#playerSide.bp-panel .ai-chat-empty-title{font-size:20px;line-height:1.35;letter-spacing:-.02em}
+#playerSide.bp-panel .ai-chat-empty-text{font-size:13px;line-height:1.7;max-width:60ch;margin-top:10px}
+#playerSide.bp-panel .ai-chat-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:18px;justify-content:stretch}
+#playerSide.bp-panel .ai-chip{font-size:12px;min-height:38px;border-radius:8px;text-align:start;padding:9px 12px;background:var(--bg-0);line-height:1.5;white-space:normal}
+#playerSide.bp-panel .ai-chat-input{display:flex;gap:8px;padding:10px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));border-radius:12px;background:var(--bg-1);box-shadow:0 8px 28px -22px var(--accent)}
+#playerSide.bp-panel #aiChatText{flex:1;min-width:0;min-height:64px;max-height:160px;resize:vertical;background:transparent;border:0;border-radius:6px;color:var(--text);font:inherit;font-size:14px;line-height:1.6;padding:8px}
+#playerSide.bp-panel .ai-chat-input>button{align-self:flex-end;min-height:40px;flex:none}
+#playerSide.bp-panel .ai-chat-foot{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:14px 0 0;border-top:1px solid var(--border);align-items:center;font-size:12px}
+#playerSide.bp-panel .ai-context-scope{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--text-dim)}
+#playerSide.bp-panel #aiTranscriptScope{min-height:36px;max-width:100%;padding:7px 28px 7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-1);color:var(--text);font:inherit}
+#playerSide.bp-panel .ai-context-preview{grid-column:1/-1;grid-row:2;border:1px solid var(--border);padding:10px 12px;border-radius:9px;background:var(--bg-1)}
+#playerSide.bp-panel .ai-context-preview summary{display:flex;justify-content:space-between;gap:12px;align-items:center;line-height:1.6}
+#playerSide.bp-panel .ai-context-preview small{white-space:normal;text-align:end}
+#playerSide.bp-panel #aiChatClear{justify-self:end;color:var(--text-muted)}
+#playerSide.bp-panel #browserSplitMenu{justify-self:end}
+#playerSide.bp-panel[data-bp-tab=ai] .bp-footer .bp-ask{display:none}
+#playerSide.bp-panel[data-bp-tab=ai] .bp-footer{padding-block:10px}
+.sh-existing-tools #playerSide.bp-panel>.bp-head{padding:4px 0 10px;justify-content:flex-end}
+.sh-existing-tools #playerSide.bp-panel>.bp-head>.bp-title{display:none}
+.sh-existing-tools #playerSide.bp-panel #sideRailCollapse{display:none!important}
+.sh-existing-tools #playerSide.bp-panel .bp-utilities>summary{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:8px}
+.sh-existing-tools #playerSide.bp-panel .bp-utilities>summary::after{content:attr(title);font-size:12px}
+.sh-existing-tools #playerSide.bp-panel .bp-utilities>summary{display:flex!important;width:auto;min-width:140px;white-space:nowrap}
+#playerSide.bp-panel #aiChatLog:has(.ai-chat-empty:not(.hidden)){flex:0 0 auto;min-height:0}
+.sh-existing-tools #playerSide.bp-panel{height:auto!important;min-height:0;border:0;overflow:visible}
+.sh-existing-tools #playerSide.bp-panel .bp-scroll{height:auto;max-height:none;overflow:visible}
+.sh-existing-tools #playerSide.bp-panel #aiChat:not(.hidden){min-height:0;padding:20px 0}
+.sh-existing-tools #playerSide.bp-panel #aiChatLog:has(.ai-chat-empty){flex:none;min-height:0}
+.sh-existing-tools #playerSide.bp-panel .bp-footer{border-top:1px solid var(--border)}
+.sh-existing-tools .browser-podcast-controls{padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1)}
+#playerSide.bp-panel .browser-podcast-transport{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+#playerSide.bp-panel .browser-podcast-transport>button{flex:1 1 70px}
+#playerSide.bp-panel .browser-podcast-transport .browser-podcast-speed{flex:0 1 110px;min-width:90px}
+.sh-existing-tools #playerSide.bp-panel #cueList{min-height:0;flex:none}
+.sh-existing-tools #playerSide.bp-panel .cue-empty-rich{padding:22px;gap:12px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 7%,var(--bg-1)),var(--bg-1));margin-block:16px}
+.sh-existing-tools #playerSide.bp-panel .cue-empty-icon{width:42px;height:42px}
+.sh-existing-tools #playerSide.bp-panel .browser-study{padding-bottom:16px}
+@media(max-width:600px){#playerSide.bp-panel #aiChat:not(.hidden){padding:16px}#playerSide.bp-panel .ai-chat-empty{padding:18px}#playerSide.bp-panel .ai-chat-empty-title{font-size:18px}}
+.sh-existing-tools>header{padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.sh-existing-tools>header>h2{font-size:24px;line-height:1.3;letter-spacing:-.025em;margin:0}
+.sh-existing-tools>header>.sh-btn{min-height:38px;padding:8px 16px;border:1px solid var(--border);border-radius:9px;background:var(--bg-1);color:var(--text);font:inherit;cursor:pointer}

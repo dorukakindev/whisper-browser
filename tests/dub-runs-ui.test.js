@@ -9,6 +9,61 @@ const clone=value=>value===undefined?value:JSON.parse(JSON.stringify(value));
 const tick=(ms=15)=>new Promise(resolve=>setTimeout(resolve,ms));
 const settle=async()=>{for(let i=0;i<4;i++)await tick(8);};
 
+test('closing the panel after restore approval leaves the single owned copy running and reopening shows the result',async()=>{
+ const w=world(),originalCopy=fs.promises.copyFile;let page,release;
+ try{
+  const moved=path.join(w.root,'close-during-copy.wav'),svc=w.boot({dialog:{showOpenDialog:async()=>({canceled:false,filePaths:[moved]})}});
+  await svc.call('dub:start',w.request('close-restore'));const worker=w.spawns.at(-1),target=outputOf(worker);fs.writeFileSync(target,wav(2));worker.proc.exitCode=0;worker.proc.emit('close',0);fs.renameSync(target,moved);
+  page=ui(svc);await page.open();await page.select('close-restore');await page.click('WAV dosyasını bul');
+  let reached,copies=0;const arrived=new Promise(resolve=>{reached=resolve;}),gate=new Promise(resolve=>{release=resolve;});
+  fs.promises.copyFile=async function(from,to){if(to===target){copies++;reached();await gate;}return originalCopy.apply(this,arguments);};
+  page.button('Kopyalayarak geri yükle').click();await arrived;await page.close();assert(svc.service.running());release();
+  for(let i=0;i<40&&svc.service.running();i++)await tick(10);assert(!svc.service.running());assert.equal(copies,1);assert(fs.existsSync(target));assert(fs.existsSync(moved));
+  await page.open();assert.equal(page.state('close-restore'),'completed');assert.equal(page.section.querySelectorAll('audio[autoplay]').length,0);
+ }finally{release?.();fs.promises.copyFile=originalCopy;page?.close_();w.close();}
+});
+
+test('temporary details load only on request, remain read-only and discard late answers after closing',async()=>{
+ const w=world();let page;
+ try{
+  const svc=w.boot();await svc.call('dub:runs',{action:'list'});const name='.restore-'+'e'.repeat(32)+'.wav',file=path.join(w.out,name);fs.writeFileSync(file,wav(1));const hash=sha(fs.readFileSync(file));
+  page=ui(svc);await page.open();assert(!page.log.some(row=>row[0]==='output-restore-files'));
+  const held=page.hold(req=>req.action==='output-restore-files','after');page.button('Geçici dosya ayrıntıları').click();await held.reached;await page.click('Geçici dosya ayrıntılarını kapat');held.release();await settle();assert.equal(page.doc.getElementById('dubTemporaryFiles').hidden,true);
+  await page.click('Geçici dosya ayrıntıları');assert(page.doc.getElementById('dubTemporaryFiles').textContent.includes(name));assert(page.doc.getElementById('dubTemporaryFiles').textContent.includes('salt okunur'));assert.equal(sha(fs.readFileSync(file)),hash);
+  await page.close();assert.equal(page.doc.getElementById('dubTemporaryFiles').hidden,true);
+ }finally{page?.close_();w.close();}
+});
+
+test('temporary-copy notice preserves files and record-write failure explains the already copied audio',async()=>{
+ const w=world(),originalRename=fs.renameSync;let page;
+ try{
+  const moved=path.join(w.root,'preserved.wav'),svc=w.boot({dialog:{showOpenDialog:async()=>({canceled:false,filePaths:[moved]})}});
+  await svc.call('dub:start',w.request('record-fail-ui'));const worker=w.spawns.at(-1),file=outputOf(worker);fs.writeFileSync(file,wav(2));worker.proc.exitCode=0;worker.proc.emit('close',0);const log=svc.events.at(-1).logPath;fs.renameSync(file,moved);
+  const leftover=path.join(w.out,'.restore-'+'b'.repeat(32)+'.wav');fs.writeFileSync(leftover,wav(1));
+  page=ui(svc);await page.open();assert(page.section.textContent.includes('etkin onaya bağlı değil'));assert(fs.existsSync(leftover));
+  await page.select('record-fail-ui');await page.click('WAV dosyasını bul');
+  fs.renameSync=function(from,to){if(to===log){const error=Error('Controlled ENOSPC');error.code='ENOSPC';throw error;}return originalRename.apply(this,arguments);};
+  await page.click('Kopyalayarak geri yükle');fs.renameSync=originalRename;
+  assert(page.section.textContent.includes('WAV kopyalandı ve doğrulandı'));assert(page.section.textContent.includes('üretim kaydı güncellenemedi'));assert(!page.section.textContent.includes('WAV geri yüklendi.'));assert(fs.existsSync(moved));assert(fs.existsSync(file));assert(fs.existsSync(leftover));
+  assert(page.button('Dinle (yalnız inceleme)'));assert.equal(w.spawns.length,1);
+ }finally{fs.renameSync=originalRename;page?.close_();w.close();}
+});
+
+test('matching moved WAV is previewed and copied only by explicit restore; closing a delayed picker discards approval',async()=>{
+ const w=world();let page;
+ try{
+  const moved=path.join(w.root,'Taşınmış ses.wav');
+  const svc=w.boot({dialog:{showOpenDialog:async()=>({canceled:false,filePaths:[moved]})}});
+  await svc.call('dub:start',w.request('moved-ui'));const worker=w.spawns.at(-1),file=outputOf(worker);fs.writeFileSync(file,wav(2));worker.proc.exitCode=0;worker.proc.emit('close',0);fs.renameSync(file,moved);
+  page=ui(svc);await page.open();await page.select('moved-ui');assert(page.button('WAV dosyasını bul'));
+  const hold=page.hold(req=>req.action==='output-restore-preview','after');page.button('WAV dosyasını bul').click();await hold.reached;
+  await page.close();hold.release();await settle();assert(!fs.existsSync(file));assert(!fs.readdirSync(w.out).some(name=>name.startsWith('.restore-')));
+  await page.open();await page.select('moved-ui');await page.click('WAV dosyasını bul');assert(page.section.textContent.includes('Taşınmış ses.wav'));assert(page.button('Kopyalayarak geri yükle'));assert(!fs.existsSync(file));
+  await page.click('Kopyalayarak geri yükle');assert(fs.existsSync(file));assert(fs.existsSync(moved));assert.equal(sha(fs.readFileSync(file)),sha(fs.readFileSync(moved)));assert(page.section.textContent.includes('WAV geri yüklendi'));
+  assert.equal(w.spawns.length,1);assert.equal(page.section.querySelectorAll('audio[autoplay]').length,0);
+ }finally{page?.close_();w.close();}
+});
+
 function ui(svc,{locale='tr',loadable=false}={}){
  const dom=new JSDOM(`<body><dialog id="dubGeneratorDialog">${runsHtml}</dialog></body>`,{runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window,log=[],holds=[];
  const bridge={holds,lose:null,failList:false,busyEvents:[]};

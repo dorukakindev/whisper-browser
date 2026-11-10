@@ -448,6 +448,25 @@ html[data-theme=light] .tool-card[data-status=pending] .tool-status,html[data-th
 .evidence-more>summary::before{content:'';width:6px;height:6px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(-45deg);transition:transform .15s ease}
 .evidence-more[open]>summary::before{transform:rotate(45deg)}
 #tools select{flex:0 0 auto;width:auto;max-width:46%}
+
+/* Conversation is the focus; source, suggestions and composer are distinct layers. */
+#panel{background:radial-gradient(ellipse at 100% 0,color-mix(in srgb,var(--accent) 7%,transparent),transparent 48%),var(--surface)}
+#panel header{background:linear-gradient(115deg,color-mix(in srgb,var(--accent) 10%,var(--surface)),var(--surface));border-bottom:1px solid var(--line)}
+#panel .assistant-mark{background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));box-shadow:0 0 24px -15px var(--accent)}
+#sourceBox{border:1px solid color-mix(in srgb,var(--accent) 18%,var(--line));background:linear-gradient(110deg,color-mix(in srgb,var(--accent) 7%,var(--surface)),var(--surface))}
+#assistantWorkspace .message.ai{padding:18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 5%,var(--raised)),var(--surface));box-shadow:0 8px 24px -22px var(--accent)}
+#assistantWorkspace .message.user{background:color-mix(in srgb,var(--accent) 8%,var(--raised));border-color:color-mix(in srgb,var(--accent) 22%,var(--line))}
+#suggestions,#panel:has(.empty) #suggestions{display:flex;align-items:center;gap:8px;padding-block:8px;flex-wrap:wrap}
+#primarySuggestion{display:flex;flex:1 1 180px;min-width:0}
+#primarySuggestion>button{width:100%;min-height:36px;border-color:color-mix(in srgb,var(--accent) 25%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+#suggestionMenu{flex:0 1 auto;min-width:0}#suggestionMenu[open]{flex-basis:100%}
+#suggestionMenu>summary{min-height:36px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:8px;padding:0 10px}
+#suggestionOptions{padding:10px 0 0}
+#tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;margin-top:4px}
+#tools #scopeLabel{position:static;width:auto;height:auto;clip:auto;font-size:12px;letter-spacing:0;color:var(--text)}
+#tools select{grid-column:2;grid-row:1;max-width:210px;width:auto}
+#tools .context-scope-hint{grid-column:1/-1;grid-row:2;white-space:normal;line-height:1.5;font-size:11px}
+#form{box-shadow:0 -10px 30px -24px var(--accent),inset 0 1px color-mix(in srgb,var(--text) 4%,transparent)}
 @media(prefers-reduced-motion:reduce){.evidence-more>summary::before{transition:none}}
 .tool-card .tool-head{margin:0;padding:0}
 .tool-card .tool-head>*{margin:0}

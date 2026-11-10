@@ -1,12 +1,156 @@
 # Bekleyen işler
 
+## Ortak öneriler ve açık Git teslimi · 2026-11-10
+
+- **Ürün tamamlandı, teslim dalı codex/personal-library-recommendations-20261110:** Öneriler sayfası; film/anime, yerel puan, halka açık profil ve kesin başlığa göre benzerler. Keşfet/İzlediklerim ortak giriş. 50 iş ayrı gelecek yol haritasıdır; tamamlandı sayılmadı.
+- **Kanıt:** 31 Node dosyası ve 54 kontrollü Python testi; hub 7/7; izole LG geniş/dar kabulü. Canlı film benzerleri 18, Letterboxd sınırlı örnekten 18; anime arama/25 benzer aday. [Güncel devir](docs/devir/2026-11-10-1250.md).
+- **Kalan kabul:** kişisel start.bat yeniden açılışı, canlı puanlı AniList profili ve önceki gerçek GPU/asistan kabulleri. Letterboxd RSS tüm profil değildir. Tam sonraki adım: normal açılışta Öneriler ve arşiv girişini teyit; ardından kaynak kimlikli franchise haritası. Aşağıdaki eski “Git komutu bekler” kayıtları tarihsel durumdur; bu teslim kullanıcı tarafından açıkça yetkilendirildi.
+
+
+## Kaynak incelemesi ve üç öncelik · 2026-11-10
+
+- **Tamamlandı, master / yerel:** kapaklı kimlikli metadata; tarihli işlem takvimi; puan/karşıt kanıt temelli türe özel öneriler ve yerel sıraya ekleme. 13 depo gerçek kaynak koduyla incelendi. [Araştırma](docs/research/2026-11-10-recommendation-repositories.md), [devir](docs/devir/2026-11-10-1207.md).
+- **Kanıt:** 44 hedefli test; LG geniş/dar izole Electron; gerçek AniList ile 309/310 metadata, 44 manhwa, 83 aday, 12 açıklamalı öneri. Korunan kişisel alan farkı 0; 82 kaynak bitiş tarihi, 228 tarihsiz kayıt ayrıdır.
+- **Kalan kabul:** yeni main/renderer normal yeniden açılışta kişisel süreçte teyit edilmeli; açık uygulamaya dokunulmadı. MAL kimliği 0 olan kayıt korunuyor. Sonraki somut ürün adımı: kaynak kimlikli franchise/izleme sırası, sonra tür-tema portresi. Ağır model ağırlıkları indirilmedi/çalıştırılmadı. Git teslimi açık komut bekler.
+
+## İzlediklerim, Anime/Manga ve türlere göre zevk · 2026-11-10
+
+- **Tamamlandı, master / yerel:** görünür arşiv, durum/puan/ilerleme, tarihli işaretler, yedi ayrı profil havuzu ve ağ bağlantısı. Gerçek aktarım: 466 kaynak kaydı → 237 anime/73 manga; 53 puanlı anime, manga puansız. [Devir](docs/devir/2026-11-10-1127.md), [tasarım/sözleşme](docs/design/2026-11-10-personal-library.md).
+- **Kanıt:** 132 hedefli test; izole gerçek LG/Electron 1920×1080 ve tek dar tanıda taşma 0. Gerçek profil dosyasında 310 kimlik/466 sürüm doğrulandı.
+- **Kalan kabul:** kişisel açık eski süreç değiştirilmedi. Tam sonraki adım: normal yeniden açılışta menüler/kayıtlar ve ilk ağ eşitlemesini teyit etmek. MAL menşe/tür metadata yoksa manhwa ayrımı tahmin edilmez, düzenleyiciden seçilir. Kapak/metadata eşleştirme ve tam durum zaman çizelgesi sonraki geliştirme; eski canlı medya kabulleri korunur. Git teslimi açık komut bekliyor.
+
+## Kuyruk bildirimi ve film yorumlarını gizleme · 2026-11-10 10:55
+
+- **Tamamlandı, master / yerel:** kuyruk ekleme onayı 4 saniyede kalkar; eski zamanlayıcı yeni hata/bildirimi silemez. Film analizi kaynakları korunarak gizlenir/gösterilir, aynı oturumda yenilemede kapalı kalır. [Devir](docs/devir/2026-11-10-1055.md).
+- **Kanıt:** Podcast 34/34, inline film yorumları 15/15; sözdizimi ve izole LG/Electron kontrollü süre/gizleme/yenileme/yeniden açma kabulü geçti.
+- **Kalan:** kişisel uygulamada sonraki normal açılış teyidi; önceki canlı medya kabulleri sürer. Tam sonraki adım: izole gerçek Browser Podcast aç/kapat ve hata sonrası geri dönüşü kısa sınamak. Git teslimi açık komut bekliyor.
+
+## Yedi kullanıcı görüntüsü · 2026-11-10 10:43
+
+- **Tamamlandı, master / yerel:** ekran ekran ayrıntılı tespit ve plan, ardından yorum çalışma alanı/analiz kanıtları, dolu RSS okuma ve gömülü asistan/İleri araçlar düzeni uygulandı. [Tespit–plan–sonuç](docs/design/2026-11-10-seven-screen-review.md), [devir](docs/devir/2026-11-10-1043.md).
+- **Kanıt:** yorum iş akışı 56/56, inline analiz 13/13, editör 3/3, RSS UI 12/12, gezinme 2/2 ve Browser Podcast kontrolü geçti. Gerçek LG/Electron kontrollü geniş/dar görünümde RSS/İleri araçlar yatay taşması 0; ham kaynak değeri korunur, iç kapatma gizli ve yardımcı işlemler menüsü görünür. Canlı model/site başarısı iddiası yok.
+- **Kalan kabul:** kullanıcının gerçek film analizi ve dolu RSS verisiyle son estetik karşılaştırma; Browser Podcast transportu ve gerçek İleri araçlar aç/kapat/native occlusion yaşam döngüsü. Tam sonraki adım: mevcut izolasyonda gerçek medya bağlamını açıp yalnız bu yerleşim/geri dönüş durumlarını kısa sınamak. Önceki ses/ağ ve asenkron çıktı işleri açık. Git teslimi yeni açık komut bekliyor.
+
+## Podcast kütüphanesi üst/alt düzeni · 2026-11-10 10:21
+
+- **Tamamlandı, master / yerel:** yayın kartları ve üç çalışma alanı; sinematik dinleme sahnesi/süreli amber ilerleme; yatay bilgi/eylem listesi; görünür transkript durumu; dinletmeden başlıktan bölüm inceleme; bölüm bazlı not/transkript/ileri araç alanı. Seçenekler ve kaynak sahipleri korunur. [Devir](docs/devir/2026-11-10-1021.md)
+- **Düzeltildi:** art arda sonuçsuz aramada kaybolan açıklama, reddedilmiş oynatmadan sonra transkript aracı açılması, sekmeden çıkıldıktan sonra yenilemede aramanın yeniden açılması. Kaynak yönlendirmeli arama görünür kalır ve sorgu korunur. Hedefli testler ve dört yayın/yirmi bölümlü izole LG/Electron kabulü geçti.
+- **Sınır / sonraki adım:** bu tur gerçek RSS ağı/ses akışı veya kişisel profil denenmedi. Sonraki somut kabul: mevcut bir RSS bölümünü izole profilde açma/devam, yayın yenileme hatası ve çevrimdışı kaynak geri dönüşünü kısa uçtan uca sınamak; yalnız gerçek hata varsa düzeltmek. Dolu RSS okuma ve yoğun film/dublaj kabulleri ayrı açık. Git teslimi yeni açık komut bekliyor.
+
+## Asistan ve film alt araçları · 2026-11-10 10:09
+
+- **Tamamlandı, master / yerel:** asistanın tek ana öneri/Diğer öneriler düzeni, görünür bağlam etiketi ve kaynak/yanıt/yazma yüzeyleri; film alt araçlarının mevcut kontrollere yönlendiren şeridi ve grid sırası; RSS boş durumundaki Besleme ekle kontrastı. Hedefli testler ve LG/Electron kontrollü görsel kabulü geçti. [Devir](docs/devir/2026-11-10-1009.md)
+- **İncelendi:** ana sayfa, dolu kontrollü Podcast kütüphanesi, Keşfet, film üst/altı ve üç oynatıcı. Bu alanlarda bu dilime ek ürün değişikliği gerekmedi. RSS bu tur boş durumuyla incelendi; dolu okuma kabulü yapılmadı.
+- **Açık görsel kabul:** dolu RSS liste/okuma, uzun film yorum/analizleri ve çok uyarılı dublaj sonuç/geçmişi. Sonraki adım: mevcut izole düzeneğe birkaç gerçek yapıyı temsil eden kontrollü RSS girdisi/uzun analiz ekleyip yalnız görünür yığılma, taşma ve ana eylemin bulunabilirliğini incelemek. Canlı sağlayıcı/GPU kabulleri ayrı açık. Git teslimi yeni açık komut bekliyor.
+
+## Üç oynatıcı görünümü · 2026-11-10 09:54
+
+- **Tamamlandı, master / yerel:** ortak İşlemler menüsü kategori/içerik düzenine ayrıldı, tüm seçenekler korundu; klavye, yenileme odağı ve altyazı yönlendirmesi doğrulandı. Podcast/Çift dilli ses görünümüne sinematik yatay kimlik, ışık/hover, aktif metin ve transport katmanları eklendi. Üç oynatıcıda büyük yüzde, hareketli ilerleme ve bilinmeyen oran ayrımı uygulandı. [Devir](docs/devir/2026-11-10-0954.md)
+- **Kanıt:** mevcut 215 Sahne motor testi + yeni iki hedefli davranış testi, 72 entegrasyon testi; LG 1920×1080 izole Electron ve tek 740×920 tanı geçti. Kontrollü kaynak/iş verisi kullanıldı; canlı çeviri/GPU/native video başarısı iddiası yok.
+- **Sıradaki görünüm incelemesi:** genel Ayarlar ve İleri araçlar içinde gerçek içerikle yoğun kategorileri incelemek; bağlantılı somut yığılmaları mevcut özellikleri silmeden düzenlemek. Sonraki adım mevcut menüleri aynı izole profilde açıp ana/ileri seçenek hiyerarşisini görmek. Dublajdaki yoğun sonuç/geçmiş kabulü ve önceki asenkron dosya işleri açık kalır. Git teslimi yeni açık komut bekliyor.
+
+## Öncelikli görünüm düzeltmesi · 2026-11-10 09:41
+
+- **Tamamlandı, master / yerel:** Doğal dublaj tek uzun formdan Hazırlık/Ayarlar/Metin/Sonuç/Geçmiş sekmelerine ayrıldı. Üç hazırlık kartı, tek görünür içerik, gruplu ayarlar, yan yana metin ve sabit üretim çubuğu uygulandı; mevcut seçenekler/ID’ler korundu. Dört hedefli test programı ve LG gerçek tam ekran izole Electron görsel/klavye/EN-TR kabulü geçti. [Devir](docs/devir/2026-11-10-0941.md)
+- **Açık görsel kabul:** uzun gerçek üretimde yoğun uyarıların ve geçmişteki geri-yükleme onayının yeni sekmeler içinde pratikliği. Sonraki adım: mevcut üretim/kayıt verisiyle yalnız bu iki yoğun durumu incelemek; yeni panel veya seçenek eklemeden somut yığılmayı düzeltmek. Bu tur yeni GPU/sağlayıcı üretimi başlatılmadı.
+- Önceki 09:26 diliminin asenkron çıktı doğrulaması ve işlem aşaması işleri açık kalır; bu talepte öncelik menü görünümüdür. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 09:26
+
+- **Tamamlandı, master / yerel:** asenkron son geri-yükleme onayı, aynı token’ın tek işlem/replay davranışı, üretim sahipliği, değişmiş kaydı koruma ve onay sonrası panel/normal kapanış koruması. Hedefli testler ve LG/Electron gerçek IPC kabulü geçti. [Devir](docs/devir/2026-11-10-0926.md)
+- **Açık, master / yerel:** üretim sonu ve kayıtlı sonuç yükleme hash’inin senkron kalması. Sonraki adım: terminal olay/medya sahipliğini koruyan asenkron doğrulamaya geçmeden somut bekleme noktasını belirlemek.
+- **Açık, master / yerel:** uzun geri-yükleme onayında mevcut düğme/bildirim alanından işlem kimlikli aşama görünürlüğü. Sonraki adım: kopyalama/doğrulamayı yeni ekran eklemeden göstermek.
+- Güç kesintisi/zorla kapatma, canlı sağlayıcı/asistan ve dinleme kabulleri ayrı açık. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 09:21
+
+- **Tamamlandı, master / yerel:** asenkron sınırlı WAV kimlik yordamı, geri-yükleme önizlemesinde asenkron hash/kopya, await sonrası sahiplik/kayıt/eksik-hedef denetimleri, geçici dosya ayrıntı API’si ve salt okunur kullanıcı alanı. Hedefli testler ve gerçek LG/Electron klavye kabulü geçti. [Devir](docs/devir/2026-11-10-0921.md)
+- **Açık, master / yerel:** son geri-yükleme onayının asenkron kopya/hash akışı. Sonraki adım: tek token/eşzamanlı onay/üretim sahipliği korumalarıyla asenkrona geçmek; hedefi ezmeme ve kayıt-yazma hata sözleşmesini korumak. Üretim sonu ve kayıtlı sonuç hash’i de bu dilimde hâlâ senkron.
+- Geçici dosya ayrıntıları yalnız gösterilir, silinmez; sahiplik iddiası yok. Canlı sağlayıcı/asistan ve dinleme kabulleri ayrı açık. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 09:15
+
+- **Tamamlandı, master / yerel:** sınırlı hash okuması, ctime/yol değişimi koruması, kopyalama/kayıt-yazma hatalarının ayrımı, dosyaların korunması ve etkin onaya bağlı olmayan geçici kopya sayısının görünürlüğü. Hedefli testler ve izole LG/Electron kontrollü hata kabulü geçti. [Devir](docs/devir/2026-11-10-0915.md)
+- **Açık, master / yerel:** geçici kopyaların salt okunur ayrıntısı. Sonraki adım: yalnız kullanıcı eylemiyle isim/yer/yaş göstermek; silme ve kesin sahiplik iddiası yok.
+- **Açık, master / yerel:** büyük normal WAV için senkron hash/kopyanın bekletmesi. Sonraki adım: somut bekleme varsa mevcut görev kimliğini koruyan asenkron uygulama; gereksiz benchmark kampanyası yok.
+- Canlı sağlayıcı/asistan ve dinleme kabulleri ayrı açık. Güç kesintisi veya bağımsız dış yazıcı süreç kabulü yapılmadı. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 09:10
+
+- **Tamamlandı, master / yerel:** kimlikli eksik WAV için seçme/önizleme/onay/üzerine yazmadan geri kopyalama; stale onay ve geçici dosya korumaları; Dinle yolunda kimlik denetimi. Gerçek LG/Electron ve hedefli ana servis/DOM testleri geçti. [Devir](docs/devir/2026-11-10-0910.md)
+- **Açık, master / yerel:** hedef kopya sonrası kayıt yazma hatasının geri dönüşü. Sonraki adım: kontrollü kayıt-yazma hatasıyla dosyaları koruyup yanlış başarı vermeden yeniden inceleme yolunu sınamak.
+- **Açık, master / yerel:** kimlik hash’i okunurken gerçek dış yazma ve çökmeden kalan sahipliği kanıtlı geçici kopyaların görünürlüğü. Sonraki adım: kısa kontrollü okuma yarışı; genel cache temizliği değil açık durum gösterimi.
+- Eski kimliksiz kayıtlarda otomatik geri bağlama yok. Canlı sağlayıcı/asistan ve dinleme kabulleri ayrı açık. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 09:03
+
+- **Tamamlandı, master / yerel:** yeni çıktı içerik kimliği, kayıt açarken değişmiş WAV’ın reddi, eksik/bozuk/değişmiş ayrımı, zaman haritası süresi ve kalite grup sınırlarının gerçek WAV’la denetimi. Hedefli ana servis testleri ve önceki gerçek GPU WAV’ının test kopyasında içerik değişimi kabulü geçti. UI/native koşu bu dilimde yapılmadı. [Devir](docs/devir/2026-11-10-0903.md)
+- **Açık, master / yerel:** kimlikli yeni kayıt için taşınmış WAV’ı seçerek yeniden bağlama. Sonraki adım: seçilen dosyanın kayıtlı özetiyle eşleşmesini ana süreçte doğrulayıp somut hedefi onayla mevcut kayda uygulamak. Eski kimliksiz kayıtlara otomatik kanıt üretme/klasör taraması yok.
+- **Açık, master / yerel:** kimlik okumasında dosya yarışı ve yeni tanı gerekçelerinin gerçek Son çalışmalar panelinde kabulü. Sonraki adım: kısa kontrollü dosya yarışı ve izole panel kontrolü.
+- Canlı sağlayıcı/asistan ve dinleme kabulleri ayrı açık. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 08:58
+
+- **Tamamlandı, master / yerel:** eksik raporda doğru başlık, açıklama ve grup inceleme eylemi; önizleme hatasında bağlama engeli; sağlıklı dosyaya dönüş ve eski kaynak hatasının reddi. Gerçek LG/Electron ve hedefli JSDOM/sözdizimi/diff kontrolleri geçti. [Devir](docs/devir/2026-11-10-0858.md)
+- **Açık, master / yerel:** taşınmış WAV’ı yeniden bağlama. Eski kayıtta güvenilir çıktı özeti yok; rastgele aynı adlı/süreli dosya eşleştirilmedi. Sonraki adım: yeni başarılı üretimlerde ana süreçte içerik özeti ve yan dosya tutarlılığını kaydetmek, ardından kullanıcı seçimiyle kimliği kanıtlanmış kurtarma akışını uygulamak.
+- **Açık, master / yerel:** eksik/bozuk WAV ayrımı ve sonuç yan dosya tutarlılığı. Sonraki adım: mevcut ana süreç WAV denetim nedenlerini ve başarılı kayıt yazımını incelemek; yalnız somut kopukluğu düzeltmek.
+- Canlı sağlayıcı/asistan ve dinleme kabulleri ayrı açık. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 08:55
+
+- **Tamamlandı, master / yerel:** kayıtlı sonuç geçişinde eski hata, süre/ölçüm ve filtre temizliği; bayraksız raporsuz sonuçta açık boş durum; önizleme açılamadığında dosya yönlendirmesi. JSDOM, sözdizimi/diff ve LG tam ekran izole Electron kayıt geçişi geçti. [Devir](docs/devir/2026-11-10-0855.md)
+- **Açık, master / yerel:** taşınmış gerçek WAV’ı kullanıcı seçimiyle mevcut kayda yeniden bağlama. Sonraki adım: mevcut kurtarma/kimlik/yetki sözleşmesini incelemek; otomatik tarama veya erişim genişletmek yok. Bu tur dosya hatasının açıklaması tamamlandı, kurtarma yapılmadı.
+- **Açık, master / yerel:** eksik raporda üst sonuç kartı ve grup inceleme eyleminin doğru kapsamı. Sonraki adım: mevcut kartta somut yanıltıcı durum varsa düzeltmek.
+- **Açık, master / yerel:** eski preview hata olaylarının gerçek dosya geçişiyle yarışı. Sonraki adım: kontrollü dosya yükleme/yeniden seçimle mevcut src korumasını kısa sınamak. Canlı sağlayıcı ve dinleme kabulleri ayrı açık. Git teslimi açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 08:50
+
+- **Tamamlandı, master / yerel:** hata nedenine göre EN/TR yönlendirme, başlangıç hatasının dil değişiminde yenilenmesi, eksik kalite raporunun kısmi durumu ve üretilemeyen ses/metin incelemesi ayrımı. Mevcut arayüz testi geçti; native görsel kabul bu dilimde yapılmadı. [Devir](docs/devir/2026-11-10-0850.md)
+- **Gerçek süreç kabulü tamamlandı:** iki kısa sentetik cümlede ilk grup sonrası iptal, kayıtlı işten devam, 1 hazır + 1 yeni grup ve önceki ham sesin değişmeden kalması doğrulandı. Ses doğallığı kulakla değerlendirilmedi.
+- **Açık, master / yerel:** eksik kalite raporunda grup ayrıntılarının sahte hazır durumu göstermemesi. Sonraki adım: kayıtlı eksik raporu açıp mevcut grup seçimini incele; somut tutarsızlık varsa düzelt.
+- **Açık, master / yerel:** sonuç değişiminde eski hata metni ve taşınmış dosya yönlendirmesi. Sonraki adım: kayıtlı/önceki sonuç açıldığında durum metninin doğru kayda ait olduğunu ve kurtarma mesajını kısa hedefli akışla doğrula.
+- Canlı sağlayıcı/asistan ve dinleme kabulleri açık. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10 08:38
+
+- **Tamamlandı, master / yerel:** yeni onarımların yerel medya/özgün SRT kanıtı, yeniden açılışta İşlem merkezi’nden doğrulanmış yükleme, eksik satıra geçiş, ikinci kanal zaman dönüşümü ve görevlerin anlık yenilenmesi. Gerçek LG/Electron kabulü ve hedefli testler geçti. Önceki 08:27 diliminin ilk iki açık hedefi bu kapsamda kapandı. Eski kanıtsız sonuçlar ve Browser sekmelerinin oturum sonrası yeniden bağlanması bu tamamlanmaya dahil değil. [Devir](docs/devir/2026-11-10-0838.md)
+- **Açık, master / yerel:** dublaj hata mesajının uygulanabilir sonraki adımları. Sonraki adım, gerçek nedenleri mevcut ayrıntı alanına bağlayıp devam/önceki ses korumasını bozmadan doğrulamak.
+- **Açık, master / yerel:** kısmi dublajda metin denetimi ile üretilemeyen ses ayrımı. Sonraki adım, mevcut sonuç satırlarını inceleyip yalnız karışıklık doğrulanırsa düzeltmek.
+- Canlı sağlayıcı, ses dinleme ve gerçek süreç iptal kabulü önceki sınırlarıyla açık. Git teslimi yeni açık komut bekliyor.
+
+## Son yerel dilim · 2026-11-10
+
+- Kuyruk iptali sahipliği, gecikmiş yanıt, onarımın üç dosyalı onay özeti ve kayıtlı dublaj projesindeki eski devam eylemi düzeltildi. Hedefli testler ve gerçek Electron başlangıç reddi geçti. [Devir](docs/devir/2026-11-10-0827.md)
+- **08:38 diliminde kapandı, yerel player kapsamı:** doğrulanmış kısmi sonuçtan eksik satıra gitme. Güncel kapsam üstteki kayıtta.
+- **08:38 diliminde kapandı, yeni yerel onarımlar:** oturum sonrası İşlem merkezi’nden doğrulanmış yükleme. Eski kanıtsız sonuçlar elle seçilir; Browser oturum kimliği korunur.
+- **Açık, master / yerel:** dublaj hata/sonuç mesajlarının uygulanabilir sonraki adımları. Sonraki adım: mevcut devam/önceki ses korumasını bozmadan somut mesaj boşluklarını doğrulamak. Canlı sağlayıcı, gerçek süreç durdurma ve dinleme kabulü bu dilimde yapılmadı; Git teslimi açık komut bekliyor.
+
+## Dublaj devamı ve ses karşılaştırması (2026-11-09)
+
+- Kesit sınırı düzeltmesi RTX 4070 SUPER üzerinde gerçek VoxCPM2 üretiminde doğrulandı. İki komşu satır dışarıda kaldı, tek yeni grup üretildi ve yerel Whisper hedef cümleyi tam çözdü. Zaman haritası ile WAV süresi eşleşti. [GPU kabulü](docs/devir/2026-11-09-2125.md).
+- Aynı WAV izole Electron tarayıcısına bağlandı. Kesit girişi, çıkışı ve geri sarıp yeniden giriş doğrulandı. Dublaj verisi hazır olmadan özgün sesin kesilmesi düzeltildi. [Oynatma kabulü](docs/devir/2026-11-09-2207.md).
+
+- Aynı izole profili yeniden açınca yarım üretim 1 hazır + 4 yeni grupla tamamlandı. Metin düzenlemeleri korundu. Tek grup düzeltmesinde diğer dört ham ses değişmedi. [Devir](docs/devir/2026-11-09-1652.md).
+- Kayıtlı sonucu yeniden açıp tek grup düzeltme, dengeli A/B ve LG tam ekranda 600 px gerçek panelin sonuç/editör/devam önizlemesi doğrulandı. Gerçek üretimde 1 yeni + 4 önbellek; diğer dört ham ses değişmedi. [Son devir](docs/devir/2026-11-09-1722.md). Git teslimi yeni açık komut bekliyor.
+- Referans kodlama/prompt/bırakma çağrıları ayrı süre ve bekleme bildirimi gösteriyor. Son gerçek kısa üretim 28,94 sn; kodlama 1,75 sn, prompt 0,12 sn. **Açık, master / yerel:** eski 150 sn beklemenin nedeni kesinleşmedi. Sonraki adım: bekleme tekrarlarsa yeni olay kaydından hangi referans çağrısının durduğunu belirle, o çağrıyı hedefleyerek düzelt; sırf kabul için uzun bekleme üretme. [Son devir](docs/devir/2026-11-09-1734.md).
+- Tarayıcıda tam yeniden açılış, ileri/geri sarma, duraklatma ve 1,25× doğrulandı. İki HTTP veri beklemesinde ses katmanları durdu, veri geldiğinde hizalandı ve elle duraklatma korundu. Tamponlama sırasında başka sekmeye geçince geciken yanıt eski sesi başlatmadı. Dönüşte toplam süresi henüz bilinmeyen aynı medya için dublajın geri bağlanması düzeltildi. [Kesinti kabulü](docs/devir/2026-11-09-2059.md) · [Sekme dönüşü kabulü](docs/devir/2026-11-09-2107.md).
+- Dengeli A/B örneğinde A’da 1,68 sn erken duraklama, B’de cümle sınırında 0,82 sn duraklama ölçüldü. Whisper small B’de “yılından”, medium “yılında” yazdı. **Açık, master / yerel:** telaffuz ve doğallık dinleme kabulü. Sonraki adım, yılın çevresindeki kelimeleri `artifacts/dub-next-20261109/session/comparison-year-A-B.wav` kesitinde dinlemek. [Ölçüm ve sınırlar](docs/devir/2026-11-09-1958.md).
+- A/B panelinde kayıt çifti değiştiğinde bekleyen eski oynatma iptal ediliyor. [Regresyon ve doğrulama](docs/devir/2026-11-09-2213.md).
+
 ## Podcast, altyazı ve dublaj · açık kabuller (2026-11-09)
 
 Ürün, hedefli testler ve önceki gerçek LG/VoxCPM2 kanıtları [teslim notunda](docs/devir/2026-11-09-1633.md). Sonraki adımlar:
 
 - **Gresham eksik çevirisi:** Gerçek işlemi kullanıcı başlatır. İzole profilde kayıtlı DeepInfra bilgisi çözülemediği için canlı istek gönderilmedi. 616 satırın 246 tanesi kayıtta api_failure durumunda. Kullanıcının başlattığı sonuçta nedeni, yalnız eksiklerin işlendiğini ve hazır satırların korunduğunu kontrol et. [Yerel doğrulama](docs/devir/2026-11-09-1558.md)
 - **Canlı asistan:** Algılanmış Podcast bölümünde gerçek modelle cümle birleştirme ayarını oku, değişikliği mevcut onayla uygula ve dublaj hazırlığına yönlendirmeyi kontrol et. Kaynak değişince eski kartı yeniden dene.
-- **Dublaj sesi ve panel:** Kaynak/dublaj WAV çiftini dinleyip 2,06 saniyelik duraklamanın etkisini değerlendir. Ayrı 12 saniyelik örnekte Whisper, Marie Curie adını ve iki yılı doğru çözdü. Telaffuzun doğallığını dinleyerek değerlendir. Dar gerçek Electron panelinde ileri ayarların erişimini doğrula. [Senkron](docs/devir/2026-11-09-1612.md) · [Telaffuz örneği](docs/devir/2026-11-09-1630.md)
+  **Yerel doğrulama:** Aynı videoda altyazı değişince eski hazırlık onayı ana süreçte, oynatıcıya gönderilmeden reddediliyor. Podcast ses kopyası doğrulanırken iptal gelirse oynatıcıya devir yapılmıyor. **Canlı kabul açık, master / yerel.** Windows kasası bu koşuda kullanılabilir DeepInfra anahtarı döndürmedi. Sonraki adım, kayıtlı DeepInfra asistan ayarı çalışır durumdayken sentetik Podcast akışını yeniden çalıştırıp ayar okuma, onay ve eski kart reddini doğrulamak. [Ana süreç testi](docs/devir/2026-11-09-2224.md) · [Podcast devri](docs/devir/2026-11-09-2116.md)
+- **Dublaj sesi ve panel:** Kaynak/dublaj WAV çiftini dinleyip 2,06 saniyelik duraklamanın etkisini değerlendir. Ayrı 12 saniyelik örnekte Whisper, Marie Curie adını ve iki yılı doğru çözdü. Telaffuzun doğallığını dengeli A/B ile dinleyerek değerlendir. Dar panelin sonuç/editör/A/B/devam önizlemesi [son devirde](docs/devir/2026-11-09-1722.md) doğrulandı; tüm ileri ayarlar bu kısa kabulün kapsamında değildi. [Senkron](docs/devir/2026-11-09-1612.md) · [Telaffuz örneği](docs/devir/2026-11-09-1630.md)
+- **Podcast hazırlığı:** Ses kopyası doğrulanırken altyazı değişirse eski dublaj hazırlığı oynatıcıya ulaşmadan duruyor. [Regresyon](docs/devir/2026-11-09-2226.md)
+- **Eksik altyazı onarımı:** Seçilen çeviri, güncel onay, hazır satırların korunması ve dublaj için SRT çıktısı yerelde doğrulandı. Canlı Gresham kabulü yukarıdaki kullanıcı başlatmalı akışı bekliyor. [Devir](docs/devir/2026-11-09-2232.md)
+- **Onarım çıktısını yükleme:** Aynı oturumda açık medya için İşlem merkezi’nden SRT yüklenir. Gerçek Electron’da yerel oynatıcı ve yerel HTTP Browser ses kaynağından dublaj paneline geçiş doğrulandı. Değiştirilmiş SRT, aynı adresli başka sekme, kısmi durum ve kesit aktarımı sınandı. Canlı yayıncı ve gerçek sağlayıcı kabulü açık. [Browser](docs/devir/2026-11-09-2252.md) · [Yerel oynatıcı](docs/devir/2026-11-09-2243.md)
+- **Onarım sonucu kalıcılığı:** Dosya ve kısmi durum gerçek Electron yeniden açılışında kuyrukta doğrulandı. Medya eşleşmesi yalnız oturum içinde geçerli. Sonraki adım, yeniden açılan yerel medyada dosya ve altyazı kimliğini tekrar kanıtlayabilen bir yükleme akışını değerlendirmek. [Devir](docs/devir/2026-11-09-2247.md)
+- **Onarım yükleme düzeltmeleri:** Senkron kayması, bellekteki metin düzenlemeleri, aynı dosyanın gecikmiş okumaları, zaman çizelgesi ve gerçek yükleme sonucu LG’de izole Electron ile doğrulandı. [Devir](docs/devir/2026-11-09-2257.md).
+- **Onarımın yerel kesit ve çeviri durumu:** Yeniden seçilen doğrulanmış SRT’nin rol/dil/eksik sayısı ve 2–6 sn dublaj kapsamı gerçek Electron yeniden açılışında doğrulandı. Kuyrukta değişen medya ve üretimde değişen SRT korumaları geçti. **Kalan, master / yerel:** oturum sonrası İşlem merkezi düğmesiyle doğrudan yükleme henüz yok. Sonraki adım, güncel medya ve seçili özgün altyazı kimliğini ana süreçten tekrar kanıtlayıp yalnız kullanıcı tıklamasıyla yüklemek. Canlı sağlayıcı ve dinleme kabulü ayrı açık kalır. [Devir](docs/devir/2026-11-09-2309.md)
 
 Aşağıdaki önceki dilimler tarihsel kayıtlardır. Güncel kapsam için yukarıdaki teslim notunu kullan.
 

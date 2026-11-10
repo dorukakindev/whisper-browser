@@ -159,6 +159,12 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
         raise ValueError('Baslangic ve bitis birlikte gerekli.')
     if start is not None and (not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start):
         raise ValueError('Gecersiz zaman araligi.')
+    # Cues and clipped bounds share the same millisecond clock. Testing
+    # overlap before rounding can retain a cue that clips to zero length.
+    if start is not None:
+        start_ms, end_ms = round(start * 1000), round(end * 1000)
+        if end_ms <= start_ms:
+            raise ValueError('Gecersiz zaman araligi.')
     selected, source_ids = [], []
     previous_start = -1
     for i, (s, e, text) in enumerate(cues):
@@ -168,9 +174,9 @@ def make_groups(cues, start=None, end=None, limit=0, mode='cumle', max_chars=250
                              'Sort subtitle timing before dubbing; source IDs were not changed.')
         previous_start = s
         if start is not None:
-            if e <= start * 1000 or s >= end * 1000:
+            if e <= start_ms or s >= end_ms:
                 continue
-            s, e = max(s, round(start * 1000)), min(e, round(end * 1000))
+            s, e = max(s, start_ms), min(e, end_ms)
         selected.append((s, e, text))
         source_ids.append(cues.source_ids[i] if isinstance(cues, SourceCues) else i + 1)
         if limit and len(selected) >= limit:

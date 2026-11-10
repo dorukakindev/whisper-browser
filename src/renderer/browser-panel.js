@@ -228,6 +228,9 @@
     const tab=player.sideTab||'subs'; side.dataset.bpTab=tab;
     side.dataset.bpState=player.cues.length ? 'playing' : player.browserTracks.length ? 'tracks' : 'empty';
     const hasCues=player.cues.length>0;
+    const chatHint=byId('aiChatEmpty')?.querySelector('.ai-chat-empty-text');
+    const chatCopy=hasCues?copy('O anki altyazı satırı, çevirisi, yakın satırlar ve zaman bilgisi soruyla birlikte gönderilir.','The current subtitle, translation, nearby lines and timing accompany your question.'):copy('Henüz altyazı yok. Genel soru sorabilir ya da Altyazılar bölümünden metin ekleyebilirsin.','No subtitles yet. Ask a general question or add text in Subtitles.');
+    if(chatHint&&chatHint.textContent!==chatCopy)chatHint.textContent=chatCopy;
     flow.hidden=!hasCues; trackSection.hidden=!player.browserTracks.length||hasCues;
     const tabIndex=['subs','ai','library','tools'].indexOf(tab);
     indicator.style.transform='translateX('+Math.max(0,tabIndex)*100+'%)';
