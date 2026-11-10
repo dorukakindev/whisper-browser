@@ -1,5 +1,89 @@
 # Changelog
 
+- **2026-11-10:** Ortak Film/Anime Öneriler sayfası, yerel puan / halka açık profil / seçili yapım akışları ve Keşfet–İzlediklerim düğmeleri. Kapsam ve doğrulama sınırları: [devir](docs/devir/2026-11-10-1250.md).
+
+- **Yerel, 2026-11-10.** AniList/MAL kimlikli kapak/tür/tema tamamlama ve kaynak menşei sınıflandırması; durum/puan/ilerleme takvimi; türüne özel destek/karşıt puanlı öneriler, puan çıkarma katkısı ve yeni adayı sıraya ekleme eklendi. Gerçek kişisel kayıtlarda 309 metadata, 44 manhwa, 83 yeni aday doğrulandı; puan/ilerleme/durum/not değişmedi. 13 depo incelendi, MIT cosine çekirdeği kaynak bildirimiyle uyarlandı. [Devir](docs/devir/2026-11-10-1207.md)
+
+- **Yerel, 2026-11-10.** Görünür İzlediklerim, Anime ve Manga/Manhwa arşivi; tarihli durum işaretleri, puan/ilerleme düzenleme ve aynı oynatma kaydını bir kez gösterme eklendi. Zevkim altında yedi ayrı tür havuzu ve İçerik ağı bağlantısı var; puan izlenmiş/favori varsayımına üstün gelir. Kullanıcının dört MAL dosyası 237 anime/73 manga olarak kaynak sürümleri korunarak aktarıldı. 132 hedefli test ve izole LG kabulü geçti. [Devir](docs/devir/2026-11-10-1127.md)
+
+- **Yerel, 2026-11-10.** Podcast bölüm sayısındaki yanıltıcı “bu cihazda yüklü” ifadesi “kütüphanede listeleniyor” olarak düzeltildi. EN/TR açıklaması, sayının indirilmiş ses dosyası olmadığını belirtir.
+
+- **Yerel, 2026-11-10.** Kuyruğa eklendi bildirimi 4 saniye sonra temizlenir; yeni durum/hatalar korunur. Film detayındaki yorum analizi kaynakları silinmeden gizlenip gösterilebilir; aynı oturumdaki yenilemede tercih korunur. [Devir](docs/devir/2026-11-10-1055.md)
+
+- **Yerel, 2026-11-10.** Kullanıcının yedi görüntüsü üzerinden yorum editörü, film analiz kanıtları, dolu RSS okuyucusu ve gömülü asistan/İleri araçlar düzenlendi. Kaynak/ham metin ayrı çalışma alanında; analizde yinelenen başlatma gizli; kanıtlar konu başlıklı alıntı/model bloklarıdır. RSS’te yatay taşma giderildi ve simge eylemleri etiketlendi. Gömülü asistanın boş alanı, kapsam kontrolleri ve modal başlık/kapatma hiyerarşisi toparlandı; yardımcı menü ve ileri seçenekler korundu. [Devir](docs/devir/2026-11-10-1043.md)
+
+- **Yerel, 2026-11-10.** Podcast kütüphanesinin üst/alt düzeni yenilendi: yayın kartları, Bölümler/Transkript araması/Radyo ve araçlar sekmeleri, belirgin dinleme ilerlemesi ve yatay bölüm eylemleri. Başlıktan oynatmadan inceleme ve bölüm bazlı araç/not alanı eklendi. Tekrarlı sonuçsuz arama açıklaması ve reddedilmiş oynatma sonrası araç açılması düzeltildi; arama sorgusu/aktif alan yenilemede doğru korunur. [Devir](docs/devir/2026-11-10-1021.md)
+
+- **Yerel, 2026-11-10.** Asistan tek ana öneri ve Diğer öneriler menüsüyle düzenlendi; kapsam adı görünür, kaynak/yanıt/yazma yüzeyleri daha belirgin. Film sayfasının altına izleme, günlük, altyazı/dublaj ve kaynak araçlarına götüren gezinme şeridi eklendi; mevcut kontroller ve taslaklar korunur. RSS boş durumundaki ekleme düğmesinin kontrastı düzeltildi. [Devir](docs/devir/2026-11-10-1009.md)
+
+- **Yerel, 2026-11-10.** Normal, Podcast ve Çift dilli oynatıcıda İşlemler uzun sütun yerine kategori menüsü oldu; dar pencerede yatay sekmelere döner. Podcast/ses görünümünde yatay kapak ve başlık kompozisyonu, sıcak ışık, hover ve katmanlı aktif cümle/oynatma alanı uygulandı. İşlem ilerlemesi büyük yüzde ve hareketli göstergeyle belirginleşti; bilinmeyen oran yüzdeye çevrilmez. Mevcut seçenekler ve kaynak/onay sahipliği korundu. [Devir](docs/devir/2026-11-10-0954.md)
+
+- **Yerel, 2026-11-10.** Doğal dublaj menüsü Hazırlık, Ayarlar, Metin, Sonuç ve Geçmiş sekmeleriyle yeniden düzenlendi. Altyazı/ses/kapsam yan yana, ayarlar kategoriler halinde, özgün/önerilen metin iki sütunda; üretim çubuğu sabit. Seçenekler ve mevcut kontroller korundu, inceleme eylemleri ilgili sekmeyi açar. Hedefli testler ve izole LG/Electron görsel kontrolü geçti. [Devir](docs/devir/2026-11-10-0941.md)
+
+- **Yerel, 2026-11-10.** Son WAV geri-yükleme onayı asenkron hash/kopya kullanır. Aynı onay tek işleme bağlanır, tekrar yanıtı yeni kopya oluşturmaz. İşlem boyunca yeni üretim engellenir; değişen kayıt ezilmez, panel/normal uygulama kapanışında onaylı işin dosyaları korunur. [Devir](docs/devir/2026-11-10-0926.md)
+
+- **Yerel, 2026-11-10.** WAV geri-yükleme önizlemesindeki hash/kopya işlemleri asenkron çalışır; bekleme sırasında değişen kayıt reddedilir. Son çalışmalar’da geçici kopyaların salt okunur ad/konum/boyut/zaman ayrıntıları açık kullanıcı eylemiyle görülebilir; geç yanıtlar kapalı alanı değiştirmez. [Devir](docs/devir/2026-11-10-0921.md)
+
+- **Yerel, 2026-11-10.** WAV kimliği okuması başlangıç boyutuyla sınırlanır ve okuma sırasında değişim daha sıkı reddedilir. Kopyalama ve kayıt-yazma hataları ayrı açıklanır; oluşmuş dosyalar korunur. Son çalışmalar etkin onaya bağlı olmayan geçici kopyaları silmeden ayrı bildirir. [Devir](docs/devir/2026-11-10-0915.md)
+
+- **Yerel, 2026-11-10.** Kimlikli ve eksik dublaj WAV’ı Son çalışmalar’dan dosya seçimi ve açık onayla geri kopyalanabilir. Kaynak korunur; dolu hedefin üzerine yazılmaz. Eski/değişmiş onay reddedilir. Dinle yolu da kayıtlı içerik kimliğini yeniden doğrular. [Devir](docs/devir/2026-11-10-0910.md)
+
+- **Yerel, 2026-11-10.** Yeni dublaj kayıtları WAV içerik kimliği taşır; değişmiş sonuç eski üretim adına yüklenmez. Eksik/bozuk/değişmiş dosya gerekçeleri ayrılır. Zaman haritası ve kalite grup aralıkları gerçek ses süresiyle doğrulanır; hatalı raporda kullanılabilir ses korunur. [Devir](docs/devir/2026-11-10-0903.md)
+
+- **Yerel, 2026-11-10.** Eksik raporda üst kart ses ile rapor kapsamını ayırır; grup yokken cümle inceleme vaat edilmez. Güncel ses önizlemesi açılamazsa videoya bağlama engellenir. Geçerli metadata ile geri dönüş ve eski kaynak hata olaylarının reddi doğrulandı. [Devir](docs/devir/2026-11-10-0858.md)
+
+- **Yerel, 2026-11-10.** Kayıtlı dublaj açılırken eski hata, faz/zaman ölçümleri ve kalite filtresi temizlenir. Raporsuz sonuç açık boş durum ve kısmi kapsam gösterir. Ses önizlemesi açılamazsa dosya konumunu kontrol etme yönlendirmesi sunulur; kayıt korunur. [Devir](docs/devir/2026-11-10-0855.md)
+
+- **Yerel, 2026-11-10.** Dublaj hata ayrıntıları disk/erişim/FFmpeg/referans nedenlerine uygun EN/TR yönlendirme sunar ve başlangıç hatası dil değişiminde yenilenir. Eksik kalite raporu kısmi sayılır; üretilemeyen ses, metin incelemesinden ayrılır. Gerçek GPU iptal/devamında bir hazır grup korunarak kalan grup tamamlandı. [Devir](docs/devir/2026-11-10-0850.md)
+
+- **Yerel, 2026-11-10.** Yeni yerel onarımlar kaynak/medya kanıtıyla yeniden açılışta İşlem merkezi’nden yüklenebilir. Doğrulanmış kısmi altyazıda sıradaki eksik satıra gidilir; düzenlenmiş/eski eylem reddedilir. İkinci kanalın zaman dönüşümü kendi kaymasını kullanır. Görevler anında yenilenir ve inceleme gereksinimi doğru etiketlenir. [Devir](docs/devir/2026-11-10-0838.md)
+
+- **Yerel, 2026-11-10.** Başarısız/yanıtsız kuyruk iptali çalışan öğeyi düşürmez; geciken yanıt yeni işe uygulanmaz. Onarımın kaynak, çeviri ve kurtarma dosyaları onay özetleriyle başlatmadan önce denetlenir. Kayıtlı dublaj projesi eski devam durumunu temizler. [Devir](docs/devir/2026-11-10-0827.md)
+
+- **Yerel, 2026-11-09.** Onarım SRT’sinin kesit bağı yeni çıktıya taşınır. Kuyrukta değişen video reddedilir; üretimde değişen SRT eski bağlamla kaydedilmez. Yeniden seçilen doğrulanmış çevirinin rolü, dili ve eksik satır sayısı geri gelir. İzole Electron yeniden açılışında dublajın kesit devri doğrulandı. [Devir](docs/devir/2026-11-09-2309.md)
+
+- **Yerel, 2026-11-09.** Onarılan SRT yüklenirken senkron kayması ve bellekteki düzenlemeler korunur. Zamanları değişmiş çıktı reddedilir. Aynı dosyanın gecikmiş okuması son seçimi ezmez ve başarısız yükleme başarı sayılmaz. [Devir](docs/devir/2026-11-09-2257.md)
+
+- **Yerel, 2026-11-09.** Onarılan SRT yüklenmeden önce içeriği doğrulanır. Değişen dosya seçeneklere eklenmez. Tarayıcıda yeni iz aynı ses kaynağına bağlanır, kesit ve eksik satır sayısı korunur. [Devir](docs/devir/2026-11-09-2252.md)
+
+- **Yerel, 2026-11-09.** Eksik altyazı onarımında doğru SRT ve kısmi sonuç sayıları yeniden açılışta kuyrukta korunur. Dosya onaylanan altyazının adıyla bulunur ve oynatıcıya yükleme açık kullanıcı eylemiyle yapılır. [Devir](docs/devir/2026-11-09-2247.md)
+
+- **Yerel, 2026-11-09.** Onarılan SRT aynı medya açıkken İşlem merkezi’nden yüklenebilir. Kısmi sonuç ayrıca belirtilir. Değişen kaynak, altyazı seçimi ve açık düzenleme yüklemeyi engeller. [Devir](docs/devir/2026-11-09-2243.md)
+
+- **Yerel, 2026-11-09.** Eksik çeviri onarımı dublajın kullandığı altyazıyı izler, eski onarım teklifini kaldırır ve tek dilli SRT üretir. Hazır satırların metni ve satır sonları, kesit dışında kalan eksik satırların metni ve durumu korunur. [Devir](docs/devir/2026-11-09-2232.md)
+
+- **Yerel, 2026-11-09.** Podcast ses kopyası doğrulanırken altyazı değişirse eski dublaj hazırlığı durur ve yeniden açılması istenir. [Devir](docs/devir/2026-11-09-2226.md)
+
+- **Yerel, 2026-11-09.** Asistan, dublaj hazırlığı kartını önerildiği altyazı sürümüne bağlar. Aynı bölümde altyazı değiştiğinde eski kart oynatıcıya gönderilmeden reddedilir. [Devir](docs/devir/2026-11-09-2224.md)
+
+- **Yerel, 2026-11-09.** A/B karşılaştırmasında kayıt çifti değişince eski oynatma isteği iptal edilir. Geciken ses verisi eski karşılaştırmayı başlatamaz. [Devir](docs/devir/2026-11-09-2213.md)
+
+- **Yerel, 2026-11-09.** Seçili kesitte dublaj oynatılabilir olana kadar özgün ses korunur. Dublaj veri beklerse özgün ses geri gelir. [Devir](docs/devir/2026-11-09-2207.md)
+
+- **Yerel, 2026-11-09.** Dublaj kesiti milisaniyeye yuvarlanırken sınırda kalan sıfır süreli komşu altyazı satırı planı bozmaz. [Devir](docs/devir/2026-11-09-2119.md)
+
+- **Yerel, 2026-11-09.** Asistanın dublaj hazırlığı onayı, altyazı izi değiştiğinde geçersiz olur. Podcast ses kopyası doğrulanırken iptal edilen hazırlık bölümü oynatıcıya devretmez. [Devir](docs/devir/2026-11-09-2116.md)
+
+- **Yerel, 2026-11-09.** Tamponlama sırasında ayrılınan sekmeye dönünce, toplam süresi henüz bilinmeyen aynı video için dublaj ve arka plan duraklatılmış olarak geri bağlanır. Yenilenen iframe eski bağlamayı devralmaz. [Devir](docs/devir/2026-11-09-2107.md)
+
+- **Yerel, 2026-11-09.** Yeniden açılan tarayıcıda dublaj ilk oynatma öncesinde ses sahipliğini devralır. Tamponlama sırasında özgün sesin geçici açılması kayıtlı dublajı kaldırmaz. [Devir](docs/devir/2026-11-09-2056.md)
+
+- **Yerel, 2026-11-09.** Aynı adresli tarayıcı sekmeleri kendi dublajlarını ve ayarlarını korur. Yenileme sonrasında otomatik bağlama doğrulanmış videoya uygulanır. Eksik veya bozuk kayıt açıklanır ve özgün ses açık kalır. [Devir](docs/devir/2026-11-09-2045.md)
+
+- **Yerel, 2026-11-09.** Aynı tarayıcı sekmesine dönünce kayıtlı dublaj, ses düzeyi ve zaman kaydırması geri gelir. Eski bağlama yanıtı başka sekmeye taşınmaz. Elle sesi açma ve dublajı kaldırma tercihleri dönüşte korunur. [Devir](docs/devir/2026-11-09-2013.md)
+
+- **Yerel, 2026-11-09.** Dublaj açıkken video değiştirildiğinde oynatıcı özgün ses durumunu ve kullanıcı hızını geri yükler. Dublajın geçici yavaşlatması hız seçicisine ve sonraki videoya taşınmaz. [Devir](docs/devir/2026-11-09-1955.md)
+
+- **Yerel, 2026-11-09.** Referans kodlama ve konuşma örneği hazırlığı ayrı aşama/süre ve bekleme bildirimi gösterir. Kayıtlı dublajın doğrulanmış anlatım/arka plan dosyaları tek grup düzenlemesinde korunur. Aynı onaylı metinle başarısız işi yeniden denemedeki dosya çakışması düzeltildi. [Devir](docs/devir/2026-11-09-1734.md)
+
+- **Yerel, 2026-11-09.** Kayıtlı dublaj yeniden açıldığında özgün ayarlar ve elle düzeltilen metinlerle tek grup düzeltmeye hazırlanabilir. A/B karşılaştırması ölçülen ham konuşma düzeylerini dengeler; ölçüm eksikse açıklar. Gerçek tek grup üretimi ve dar panel akışı doğrulandı. [Devir](docs/devir/2026-11-09-1722.md)
+
+- **Yerel, 2026-11-09.** Dublaj devamında değişen referans ses açıkça gösterilir. Sonuçtan cümle incelemeye geçiş ve kayıtlı sonuçtaki üretim sınırı açıklanır. Cümle eylemi kontroller hazır olduğunda açılır. [Devir](docs/devir/2026-11-09-1704.md)
+
+- **Yerel, 2026-11-09.** Geçmişten dublajı yeniden denerken elle düzeltilen metinler girdiyle birlikte doğrulanarak korunur. Değişen metin veya farklı gruplama eski onayla uygulanmaz. Gerçek uygulama yeniden açılışında önbellek ve tek grup düzeltme doğrulandı. [Devir](docs/devir/2026-11-09-1652.md)
+
+- **Yerel, 2026-11-09.** Elle seçilen karma SRT ile tam dublajdan önce özgün altyazı satırları taranır ve olası eksiklere onaylı çeviri seçeneği sunulur. [Devir](docs/devir/2026-11-09-1638.md)
+
 - **Yerel, 2026-11-09.** Podcast kuyruğu yerel sesi otomatik başlatır. Altyazı çevirisi zaman aşımı ve istek sınırı nedenlerini gösterir. Kaynakla aynı kalan belirgin kısa İngilizce cümleler olası eksik olarak işaretlenir. [Devir](docs/devir/2026-11-09-1630.md)
 
 - **Yerel, 2026-11-09.** Aynı medyanın transkripti güncellendiğinde Sahne okuma konumunu korur ve eski satır eşlemesini bırakır. [Devir](docs/devir/2026-11-09-1620.md)

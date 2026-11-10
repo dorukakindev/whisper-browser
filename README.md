@@ -22,6 +22,12 @@ Whisper Browser is a desktop media library, player and embedded browser, with di
 
 ## Proje bilgisi ve kaldığın yer
 
+**Öneriler:** film ve anime için kendi puanlarından, Letterboxd/AniList profilinden veya seçtiğin bir yapıma benzerlerden başla. Keşfet ve İzlediklerim düğmeleri aynı sayfaya gider. Halka açık profil örneğinin kapsamı ayrıca gösterilir. [Güncel teslim](docs/devir/2026-11-10-1250.md) · [Ayrı 50 iş yol haritası](docs/plans/2026-11-10-next-50.md).
+
+**İzlediklerim → Takvim / Zevkime göre:** tarihli işlem geçmişi, kaynağı doğrulanmış anime/manga kapakları ve destek/karşıt puanlarla açıklanan öneriler. Anime/manga bilgilerini tamamlama işi mevcut MAL kimliğini AniList yanıtında doğrular; puan ve ilerleme korunur. [13 kaynak incelemesi](docs/research/2026-11-10-recommendation-repositories.md).
+
+Üst menüde **İzlediklerim** tamamlananları, devam edilenleri ve sıradakileri bir arada gösterir. **Anime** ve **Manga / Manhwa** sol üst medya menüsünden de açılır; MAL XML/gzip kayıtları kaynak kimlikleriyle birleştirilir. **Zevkim** film, dizi, belgesel, anime, manga, podcast ve kitap için ayrı puan/tercih havuzu ve İçerik ağı bağlantısı sunar. İzlenmiş/okunmuş olmak beğeni sayılmaz. [Yerel teslim](docs/devir/2026-11-10-1127.md).
+
 Proje bilgisi sohbetle sınırlı tutulmaz. Yeni çalışmaya aşağıdaki kök dosyalardan başla:
 
 **Son teslim (2026-11-09):** Podcast, altyazı ve dublaj iyileştirmelerinin kapsamı ve doğrulama sınırları [teslim notunda](docs/devir/2026-11-09-1633.md). Açık kabuller [BACKLOG.md](BACKLOG.md) dosyasında.

@@ -34,6 +34,54 @@ components:
 
 # Whisper Browser tasarım kaydı
 
+## Kapaklı arşiv, takvim ve gerekçeli öneriler — 2026-11-10
+
+Kişisel arşiv Kayıtlarım / Takvim / Zevkime göre çalışma alanlarına ayrılır; tek alan görünürdür. Tür havuzu seçimi korunur. Kapak yüklenirken tür kimliği kalır, gerçek görsel geldikten sonra kapak görünür; harici resim hatası boş siyah kutuya dönüşmez. İş ilerlemesi gerçek done/total oranıdır ve durdurulabilir. Takvim aylık 7 sütun ve gün ajandasıdır; darda ajanda alta geçer. Ay atlama ve son tarihli kayda doğrudan erişim vardır. Kaynak bitiş tarihi ile uygulama işaretleme tarihi ayrıdır. Öneri kartında kaynak kapak, destek/karşıt puan, gizlenebilir dayanak/sınır ayrıntıları ve yerel sıraya ekleme bulunur; yüzdeyle beğeni iddiası yoktur. Genişte iki, darda tek sütun; mevcut grafit/amber ve tipografi tokenları kullanılır. Ayrıntı: [araştırma/uyarlama](docs/research/2026-11-10-recommendation-repositories.md).
+
+## Kişisel arşiv ve Zevkim — 2026-11-10
+
+İzlediklerim üst medya menüsünde görünürdür. Tür havuzları ve durum filtreleri iki farklı satırdır; arama filtrelerin yanında, devam edilenler baştadır. Genişte iki sütunlu yatay kayıt kartları, darda tek sütun; gerçek ilerleme amber çubuktur. Kapak bulunmayan MAL kaydı sahte görselle temsil edilmez, kısa tür kimliği kullanır. Düzenleyici ayrı odaklı dialogda puan/durum/ilerleme ve tarihlerin anlamını ayırır. Manga/manhwa/manhua açık sınıflandırmadır. Zevkim tür seçimi ile hesaplanan profil ve kaynak ağına tek giriş sağlar; kanıt ve sahipler birleşmez. Grafit/amber, Sora/IBM Plex Sans ve mevcut CSS tokenları korunur; yeni bağımsız tema yok. [Kapsam ve veri sözleşmesi](docs/design/2026-11-10-personal-library.md).
+
+## Yedi kullanıcı görüntüsünün düzenlenmesi — 2026-11-10 10:43
+
+Yorum editörü örnek/analiz, kaynaklardan alma ve metin/ileri seçenek çalışma alanlarına ayrılır. Çalışan analizde ikinci başlatma düğmesi görünmez; işlem ışığı yalnız belirsiz ilerlemeyi gösterir, yüzde üretmez. Kanıt sunumunda özgün alıntı ve model yorumu konu başlıklı tek blokta ayrı kalır. Film alt bölümünün stil sahibi `film-page-lower.css`, ortak analiz stilleri `film-review-cinema.css` ile aynı iki sütun sözleşmesini uygular; eski tek sütun yeni wrapper’ları daraltamaz.
+
+Dolu RSS’te sınırlı başlık/72ch okuma ölçüsü, kendi genişliğinde açılır alanlar ve görünür eylem etiketleri kullanılır; yatay taşma saklanmaz, kaynağı giderilir. Gömülü asistanın sahibi `browser-panel.css`/`browser-panel.js` olarak ayrı asistan overlay’inden ayrıdır; ikisi aynı palet ve hiyerarşi dilini paylaşır. İleri araçlar modalında tek başlık/kapatma, korunmuş yardımcı işlemler ve kompakt altyazısız durum vardır. Ayrıntılı tespit, plan, uygulama ve kanıt sınırları [yedi ekran kaydındadır](docs/design/2026-11-10-seven-screen-review.md).
+
+## Podcast kütüphanesi — 2026-11-10 10:21
+
+Önceki tek bölüm üzerinden yapılan inceleme kullanıcı için yeterli değildi. Podcast sayfasının üst ve alt kompozisyonu artık ayrı ele alınır: üstte okunabilir yayın kartları, altında Bölümler / Transkript araması / Radyo ve araçlar çalışma alanları vardır. Tek ana alan görünür; arama sorgusu, kaynak kapsamı ve not kimlikleri korunur. Transkript araması genel bölüm başlığı aramasından ayrılır. Radyo/ileri araçlar sekmeden açılır; aynı giriş üst başlıkta tekrarlanmaz.
+
+Bölümler alanında seçili bölüm, referans kapak/plak, gerçek süre/yüzde/amber dinleme ilerlemesi ve kuyruk bir dinleme sahnesidir. Kaynak transkriptin bulunup bulunmadığı görünür. Bölüm başlığına basmak oynatma başlatmadan bölümü incelemeye alır. Alt liste genişte bilgi solda/eylem sağda, dar alanda alt alta; notlar, transkript ve ileri dosya araçları adlandırılmış Bölüm araçları ve notlar açılır alanındadır. Özellikler silinmez. Filtreler, sıralama ve kayıtlı metin araması mevcut sahiplerini kullanır; çift altyazı zorunluluğu yoktur. Hareket/kapak hover ve sıcak yüzeyler korunur; sadeleştirme görsel etkiyi azaltmak anlamına gelmez.
+
+Bu yerleşim `podcast-library-ui.js` / `podcast-library.css` sahibindedir. LG 1920×1080 gerçek Electron renderer’ında dört yayın/yirmi kontrollü bölüm, kuyruk ekleme, başlıktan inceleme, sekme/draft koruma ve bağlantı diyaloğu kontrol edildi. Tek 740×920 tanısında yatay taşma yok. Canlı ağ veya medya dinleme kabulü değildir.
+
+## Asistan ve film alt araçları — 2026-11-10
+
+Asistanda konuşma alanı baskındır: kaynak özeti, yanıt yüzeyi ve yazma alanı ayrı görsel katmanlardır. Bir ana öneri görünür, kalan bütün öneriler mevcut Diğer öneriler açılır alanındadır. Bağlam kapsamının adı ve açıklaması görünür kalır; kapsam/ kaynak belirteci/ onay işlemleri değişmez. Katmanlar ortak surface/raised/accent/line değişkenlerini izler; ayrı tema sistemi yoktur.
+
+Film sayfasının altındaki mevcut kişisel araçların başında İzleme durumu, Film günlüğü, Altyazı ve dublaj, Kaynak kayıtları gezinme şeridi vardır. Bunlar sayfa içi yönlendirmedir; sekme gibi içerik gizlemez. Mevcut alanlara kaydırır ve odaklar, üretim/kayıt başlatmaz. Şerit ilk grid satırında, izleme ile günlük ikinci satırda; dar görünümde tek sütundur. Türkçe izleme hazırlığı ayrı ışıklı yüzeyle ayrılır; kanonik kaynak/altyazı/dublaj kontrolleri ve onayları korunur.
+
+RSS boş durumundaki Besleme ekle düğmesi açık metin/koyu yüzey kontrastına sahiptir. Ana sayfa/Keşfet/Podcast ve üç oynatıcı bu tur kontrollü içerikle incelendi; yeni kompozisyon değişikliği gerekmedi. Bu değerlendirme bütün canlı içerik ve yoğun durumların kusursuz olduğu iddiası değildir.
+
+## Üç oynatıcıda sinematik görünüm ve kategori menüsü — 2026-11-10
+
+Kullanıcı görünümün temel/gösterişsiz olmasını istemiyor: modern, sinematik, estetik, efektli ve belirgin ilerleme animasyonları olan bir ürün hedeflenir. Kolay kullanım, görsel etkiyi azaltmakla değil; içerik/işlem/ileri ayar hiyerarşisi ve anlaşılır kategorilerle sağlanır. Temel kullanıcı ana eylemi bulur, ileri kullanıcı seçeneklerini aynı menüde ilgili kategoriden açar. Bu tercih mevcut düşük hareket/OS seçeneklerini kaldırmaz.
+
+Normal, Podcast ve Çift dilli oynatıcının ortak İşlemler menüsü geniş ekranda kategori listesi ve tek görünür içerik alanından oluşur. Dar pencerede kategori listesi yatay kayar. Kontroller, onaylar ve kaynak sahipliği aynı kalır. Kategori/alan odağı yenilemede korunur; altyazı seçme yönlendirmesi ilgili kategoriyi açar. Bu yerel kategori gezinmesidir, uygulamaya sol genel gezinme eklemez.
+
+Podcast ve ses kaynağıyla kullanılan Çift dilli görünümde kapak ve bölüm kimliği yatay sinematik kümedir; sıcak ışık, kapak perspektifi/hover ve katmanlı transport/aktif cümle yüzeyleri kullanılır. İkinci altyazı zorunlu değildir. Video yüzeyinin ölçeği veya medya sahibi değiştirilmez. Üç modun iş şeridi gerçek yüzdeyi büyük gösterir, bilinmeyen ilerlemeyi belirsiz animasyonla ayırır. Parıltı/durum nabzı hareket tercihleri ve pencere etkinliğine uyar; sahte iş aşaması veya ses dalgası üretilmez.
+
+Sahipler mevcut `sahne.js`/`sahne.css`, ortak browser-style görünüm `browser-study-view.css`; renkler ortak runtime tema değişkenlerinden gelir. Ana görsel kabul LG 1920×1080 gerçek Electron penceresinde kontrollü kaynakla, dar tanı 740×920’de yapıldı. Canlı medya/sağlayıcı kabulüyle eşit değildir.
+
+## Doğal dublaj çalışma alanı — 2026-11-10
+
+Doğal dublaj tek uzun açılır form yerine beş yatay sekme kullanır: Hazırlık, Ayarlar, Metin, Sonuç ve Geçmiş. İlk açılış Hazırlık’tır. Altyazı, referans ses ve kapsam üç yan yana seçim kartıdır; seçilen kartın içeriği ortak alanda açılır. Aynı anda yalnız bir ana bölüm görünür. Üretim durumu ve başlat/durdur/sonuç eylemleri sabit alt çubukta kalır; teknik ayrıntılar açılır alandadır.
+
+Ayarlar’da hazır profiller ve zamanlama önde; motor/gruplama, gelişmiş kalite/AI, anlatım, arka plan ve ses/motor kategorileri iki sütunlu açılır menüdedir. Aynı anda bir kategori açılır. Metin’de özgün ve önerilen metin yan yanadır. Sonuç ve kayıt geçmişi hazırlık ekranına yığılmaz. Dar alanda ayarlar ve metin tek sütuna iner. Mevcut kontroller taşınır; seçenek, kimlik, onay veya üretim davranışı silinmez. Klavye okları/Home/End ve EN/TR sekme adları korunur.
+
+`dub-natural.css` ortak kontrol stillerini, `dub-studio-layout.css` yalnız bu kompozisyonu yönetir; aynı tema değişkenleri kullanılır. `dub-studio-layout.js` mevcut düğümleri kimlikleriyle taşır ve ilgili metin/sonuç/geçmiş eylemini doğru sekmede görünür kılar. Yeni bağımsız renk/yazı sistemi yoktur. LG 1920×1080 gerçek tam ekran Electron görüntüsü ve bir dar pencere tanısı alındı; yeni GPU üretimi veya ses doğallığı kabulü bu görsel değişikliğin kanıtı değildir.
+
 ## Görsel öncelik — güncel kullanıcı kararı, 2026-11-05
 
 Kullanıcı için görünüm ve tasarım kalitesi en önemli önceliktir. Hedef güçlü, özgün, etkileyici ve özenli bir medya deneyimidir. Kompozisyon, tipografi, atmosfer, ışık, hover ve geçişlerin yoğunluğu ekranın tasarımına göre belirlenir. Belirgin efektler, zengin katmanlar ve sürekli atmosfer/dekoratif animasyon kullanılabilir; bunlar için genel bir yasak veya zorunlu sakinlik/minimalizm kuralı yoktur. Tasarımcının yaratıcılığı gereksiz stil kısıtlarıyla daraltılmaz.
@@ -303,3 +351,7 @@ Oynatma grubundaki saniye geri/ileri atlaması, mevcut ok ikonunun yanında gör
 Arayüz dili yenilenirken Sahne'nin odaklı transkript/başlık araması aynı kaynakta imleç/seçim aralığıyla geri gelir. Dışarıdaki ayar kontrolünden odak çekilmez; gizli arama alanı odaklanmaz. Bu iki aramanın metin seçimi transkriptteki mevcut amber/on-accent renkleriyle tutarlıdır.
 
 İşlem kapsamının önizleme zamanları kabul edilen milisaniye hassasiyetini gösterir; tam saniyede gereksiz ondalık yoktur. Yüksek (en az 900px) ekranda aralık alanı açıkken mevcut işlem gövdesi en fazla 400px/40vh olabilir: aralık ve üretim eylemleri aynı anda okunur, transkript altta görünür kalır. Aralık kapalıyken mevcut daha kısa panel sınırı sürer.
+
+## Ortak öneri merkezi · 2026-11-10
+
+Üst medya menüsünde Öneriler; grafit/amber kaynak alanı ve kapaklı sonuç kartları. Film/Anime ve kaynak seçimi açık etiketlidir; kesin başlık seçilmeden benzerlik başlamaz. Sonuç gelince kaynak formu daralır, yeniden açılabilir. Halka açık örnek kapsamı görünür; kişisel puan ve seçili yapım dayanağı birbirine karıştırılmaz. LG tam ekran ve tek dar tanıda taşma 0.
