@@ -1,5 +1,25 @@
 # Changelog
 
+- **2026-11-10, Git teslim paketi:** PR #908 sonrasında biriken kişisel kütüphane/seri/takvim/kaynak/aktarım/kapak/raf/koleksiyon değişiklikleri [PR #909](https://github.com/dorukakindev/whisper-browser/pull/909) altında, ürün `5a3bec18c3b70af6cab1ad9e9d27f4b8acf66244` ve ayrı belgelerle paketlendi. 99 hedefli test + katalog betikleri geçti; [skip ci], kişisel farklar ve açık gerçek kabul sınırları korundu. [Teslim kaydı](docs/devir/2026-11-10-1519.md)
+
+- **Yerel, 2026-11-10:** Plan 24/26/28: önizleme/onaylı, tek kayıt sahibi içinde atomik toplu durum ve koleksiyon üyeliği; kapak/açıklama/sıra/tamamlanma sunumu, mevcut katalog etiketlerine bağlı sunum; puan/durum/aktarım yorumundan ayrı ara verme gerekçeleri. JSON/CSV yeni kişisel alanları kapsar; kartın ikincil eylemleri korunarak menüde toplandı. 65 hedefli test ve katalog kayıt/servis kontrolleri geçti; kişisel profile yazılmadı. [Devir](docs/devir/2026-11-10-1511.md)
+
+- **Yerel, 2026-11-10:** Plan 19/23/25: seçili çevrimdışı Anime/Manga kapak önbelleği, boyut yönetimi ve onaylı silme; kişisel/kaynak toplamını ayıran seri ilerleme panosu; güncel sonuç ve eşleşme nedenli akıllı raflar. Film afişleri ve kişisel kayıtlar korunur; otomatik cache temizliği yok. 59 hedefli test geçti; kişisel profile yazılmadı, gerçek Windows/sağlayıcı kabulü yapılmadı. [Devir](docs/devir/2026-11-10-1442.md)
+
+- **Yerel, 2026-11-10:** Plan 17/18/20: ayrı kimlik tablosu, kayıtlı/doğrulanmış bağlantı ayrımı; alan kökeni/güncellik ve korunan kişisel metadata düzeltmesi; Anime/Manga ve mevcut TMDB kaydında seçili yenileme önizlemesi. Mevcut anime metadata alanlarının sessiz yenilenmesi engellendi; TMDB ana/fallback kimlik sapması reddedildi, kişisel boş alanın otomatik doldurulmasına karşı koruma eklendi. 58 hedefli test, katalog kayıt/servis kontrolleri geçti; kişisel profile yazılmadı. [Devir](docs/devir/2026-11-10-1426.md)
+
+- **Yerel, 2026-11-10:** Kaynak sürümlerini yan yana karşılaştırma; yeni aktarımlarda son 40 makbuz üzerinden sonraki kişisel alanları/tarihleri koruyan seçili geri alma; AniList açık anime/manga listesi ve MAL XML yenilemesini ortak fark önizlemesinden uygulama. Arşiv araçları üst menüde toplandı. 64 hedefli test ve resmi AniList şema kontrolü geçti; kişisel profile dokunulmadı. Doğrudan MAL hesap API bağlantısı ve Windows canlı kabulü yok. [Devir](docs/devir/2026-11-10-1413.md)
+
+- **Yerel, 2026-11-10:** Plan 11/12/15: kişisel id/puan/ilerlemeyi koruyan, aday doğrulamalı ve geri alınabilir Anime/Manga kimlik düzeltmesi; alan bazında karar verilen XML fark önizlemesi; kapsam/puan/tarih/birim açıklamalı sürümlü JSON ve güvenli UTF-8 CSV önizleme/indirme. Düzeltilmiş kimlikte aday/aktarım çoğaltmama ve eski harita/takvim verisini ayırma. 58 hedefli test geçti; kişisel profile yazılmadı, Windows/dosya indirme kabulü yapılmadı. [Devir](docs/devir/2026-11-10-1359.md)
+
+- **Yerel, 2026-11-10:** Gerçek kişisel koleksiyonun 310 referansı, yedek ve tek-yazar kontrolüyle içerik ağına eklendi; tekrar ekleme 0, kişisel puan/ilerleme değişikliği 0. Yeniden çalıştırılabilir ve gizli kayıt koruyan koleksiyon eşitlemesi, dışlama sayıları, eski MAL 0/boş puan ayrımı ve eski bellekten ağ dosyası ezilmesine karşı disk sürüm kontrolü eklendi. Gerçek 53 anime puanı iki bağımsız yolda doğrulandı; 53 hedefli test geçti. [Devir](docs/devir/2026-11-10-1344.md)
+
+- **Yerel, 2026-11-10:** Ayrı yayın takvimi; UTC bölüm anı/yerel saat, tam ve eksik ilk yayın tarihleri, kaynak ve güncellik; seçili yayınlara sabit UID ve değişen tarihte SEQUENCE kullanan ICS önizleme/indirme. Yedi havuzda mevcut puan politikasını kullanan tür/tema portresi, örnek sayısı ve karşıt puanlar. 48 hedefli test ve gerçek AniList takvim sorgusu geçti; Windows görsel ve dış takvim içe aktarma kabulü yapılmadı. [Devir](docs/devir/2026-11-10-1333.md)
+
+- **Yerel, 2026-11-10:** Anime/manga seri haritası, kaynak kimlikli ilişki genişletme, tam/eksik yayın tarihleri ve doğrulanmamış hikâye sırası açıklaması; kalıcı devam takibi ve katalog cilt sayısı değişiklikleri. Kişisel puan/durum/ilerleme korunur. 28 hedefli test ve bir canlı AniList kaynak sorgusu geçti; Windows görsel kabulü yapılmadı. [Devir](docs/devir/2026-11-10-1308.md)
+
+- **2026-11-10, belge:** Tek 50 işlik yol haritasındaki ilk 15 madde amaç/kapsam/kabul koşullarıyla açıklandı ve yeni sohbet devir notu eklendi. Ürün kodu değişmedi; Git teslimi yapılmadı.
+
 - **2026-11-10:** Ortak Film/Anime Öneriler sayfası, yerel puan / halka açık profil / seçili yapım akışları ve Keşfet–İzlediklerim düğmeleri. Kapsam ve doğrulama sınırları: [devir](docs/devir/2026-11-10-1250.md).
 
 - **Yerel, 2026-11-10.** AniList/MAL kimlikli kapak/tür/tema tamamlama ve kaynak menşei sınıflandırması; durum/puan/ilerleme takvimi; türüne özel destek/karşıt puanlı öneriler, puan çıkarma katkısı ve yeni adayı sıraya ekleme eklendi. Gerçek kişisel kayıtlarda 309 metadata, 44 manhwa, 83 yeni aday doğrulandı; puan/ilerleme/durum/not değişmedi. 13 depo incelendi, MIT cosine çekirdeği kaynak bildirimiyle uyarlandı. [Devir](docs/devir/2026-11-10-1207.md)
