@@ -1,0 +1,66 @@
+{
+  "status": 200,
+  "data": {
+    "id": "chatcmpl-202611110738070396844768268d9d6V9Rr1OnK",
+    "object": "chat.completion",
+    "created": 1794382738,
+    "model": "gemini-4-carbon",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": ""
+        },
+        "finish_reason": "length"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 12465,
+      "completion_tokens": 4000,
+      "total_tokens": 16465,
+      "completion_tokens_details": {
+        "reasoning_tokens": 3997,
+        "text_tokens": 3,
+        "audio_tokens": 0,
+        "image_tokens": 0
+      },
+      "billing_usage": {
+        "source": "gemini_chat",
+        "semantic": "gemini",
+        "gemini_usage_metadata": {
+          "promptTokenCount": 12465,
+          "toolUsePromptTokenCount": 0,
+          "candidatesTokenCount": 3,
+          "totalTokenCount": 16465,
+          "thoughtsTokenCount": 3997,
+          "cachedContentTokenCount": 0,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 12465
+            }
+          ],
+          "toolUsePromptTokensDetails": [],
+          "candidatesTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 3
+            }
+          ]
+        }
+      },
+      "prompt_tokens_details": {
+        "text_tokens": 12465,
+        "audio_tokens": 0,
+        "image_tokens": 0
+      },
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "claude_cache_creation_5_m_tokens": 0,
+      "claude_cache_creation_1_h_tokens": 0
+    }
+  },
+  "elapsedMs": 51921,
+  "source": "https://raw.githubusercontent.com/dorukakindev/whisper-browser/a03e62451906698848982428b46946cdaa855d8a/src/stremio-addons.js"
+}

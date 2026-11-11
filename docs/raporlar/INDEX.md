@@ -1,3 +1,4 @@
+- [Rapor855](BROWSER_BUG_REPORT_855.md) — Carbon Stremio turu: iki aday, bir koşullu P2 doğrulandı; model sınırları.
 - [Rapor854](BROWSER_BUG_REPORT_854.md) — Görünüm/kullanım incelemesi; 12 kusur ve 68 öneri. Güncel kodla yeniden doğrulama; kanıt arşivi ayrıca sağlanır.
 - [Rapor853](BROWSER_BUG_REPORT_853.md) — Birikmiş uygulama ve kalan kabul kaydı; güncel beşli G02/G06/G07/G08/G09.
 - [Rapor852](BROWSER_BUG_REPORT_852.md) — R852 — R850 onarım sonuçları

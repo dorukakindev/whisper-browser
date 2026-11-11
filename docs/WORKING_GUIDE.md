@@ -90,6 +90,9 @@ Backend saf-fonksiyonlarını (`parse_timecode`, `split_segment_*`, `write_srt` 
 ### Backend iletişim protokolü (kritik)
 `backend/transcribe.py` argparse ile çağrılır ve **stdout'a NDJSON olayları** basar (`emit()` fonksiyonu). main.js bunları satır satır parse edip `transcribe:event` IPC kanalıyla renderer'a iletir; renderer.js'teki `window.api.onEvent` switch'i her olay tipini işler. Olay tipleri: `log`, `status` (stage), `download_progress`, `language`, `progress`, `segment`, `llm_progress`, `preview_refresh`, `done`, `error`, ayrıca main.js'in eklediği `exit`.
 
+Dublajın ayrı motor protokolünde `altyazi_oku.py`/`dub_timing.py` ilerleme ve zamanlama özeti için sürüm 1 NDJSON gönderir: `{"type":"progress","version":1,"done":2,"total":7}` ve `{"type":"timing","version":1,"accelerated":2,"clipped":0,"overflow":0}`. `dub-service.js` güvenli tam sayıları doğrular ve mevcut IPC/çalışma özeti sahibini günceller. Aynı tip yapısal olay geldikten sonra legacy özet çift işlenmez; eski harici motorların satırları hâlâ desteklenir. Diğer DUB_* olayları ve transcribe backend protokolü değişmez.
+
+
 **Yeni bir backend özelliği eklerken sözleşmeyi üç yerde senkron tut:**
 - `backend/transcribe.py` → `main()` içinde `argparse` argümanı + iş mantığı
 - `src/main.js` → `transcribe:start` handler'ında `options.X` → `args.push('--x', ...)`
@@ -138,3 +141,26 @@ Her çalışma için `docs/devir/YYYY-MM-DD-HHMM.md` oluştur; önceki notları 
 Notta repo/dal, başlangıç ve bitiş kod commit kimlikleri, değişen her dosyanın amacı, hata kök nedenleri ve kanıtları, özelliklerin kullanımı, test komutları/sonuçları ve çalıştırılmayanlar, bağımlılık/kurulum/şema değişiklikleri, yarım işler ve sonraki adımlar yer almalı. Commit veya push edilmemiş değişiklikleri açıkça belirt. Gizli anahtar, token, şifre veya kişisel veri yazma; kanıtlanmamış işi tamamlandı gösterme.
 
 Kullanıcının bu proje için talebi devir notunu commit edip ilgili GitHub deposuna push etmektir. Push başarıyla bitmeden GitHub'a yüklendi deme. Son yanıtta repo bağlantısı, tarihli notun doğrudan GitHub bağlantısı ve uzak dalda doğrulanan son commit kimliğini ver. Kod ve dokümantasyon commit'lerini ayırarak notta kesin bitiş kod kimliğini belirt; notun kendi hash'ini kendisine yazmaya çalışma.
+
+
+### Yapıt/kaynak ayrımı ve çeviri kaynak çerçevesi (Fable son üçlü)
+
+`stremio-service.play` katalog oturumundan `work:stremio:<sha256>` döndürür. `player.workKey` yalnız görüntü tercihleri/referans gruplamasıdır; `mediaKey`, generation, kaynak sürümü ve exact-audio kanıtları değişmez. MediaHub/HLS/izleme geçmişi kimliği taşır; bilinmeyen kimlik boş kalır. Pro `pp.w.<workKey>` görsel ayarlar, eski `pp.v.<sourceKey>` kaynak ayarlarını kullanır. `stremio.workTracks.<workKey>` yalnız sürüm referans metadata’sıdır (32 kaynak; kapasitede silme yok), yürütülebilir bağ/onay değildir.
+
+Adaptif dublaj `PlayerPlaybackControls.getRate()` kişisel tercihini temel hız olarak kullanır; `player-playback-preferences` değişimi temel hıza ulaşır. Native efektif speed alt sınırı0.0625, kullanıcı tercihi0.25–4’tür; telemetri tercih yazmaz.
+
+`build_work_translation_context` bağlam açıkken kaynak hash’i/6 dağıtılmış alıntı/16 ad-terim adayı üretir; bütün paralel ve refine istekleri aynı frame’i kullanır. Exact cache ve fuzzy TM scope frame’i içerir. Bağlam0 kapalıdır; interval scope dışarı taşmaz. Kullanıcı sözlüğü/incelenmiş sahne notu öncelikli, adaylar doğrulanmamıştır. Ek prepass/model çağrısı yapılmaz; mevcut prompt hesabı ve work_context_chars metriği ek içeriği yansıtır. Gerçek sağlayıcı kalite kazanımı kontrollü istek/kimlik testinden ayrı kabul edilir.
+
+
+### Canlı kabulü kişisel profilden ayırma
+
+`electron-provider-live.smoke.js` ayar/kasayı gerçek ürün profilinden yalnız okur; Electron userData ayrı geçici klasördür. Windows’ta SafeStorage için yalnız OS-korumalı `os_crypt.encrypted_key` bağlamı kopyalanır, gerçek API anahtarı kopya dosya/argv/loga yazılmaz. Sadece translate.apiKey ve translate.apiKeyProfiles okunur; geçici bağlam çıkışta kaldırılır. Eski whisper-altyazi sabit profil yolu kullanılmaz. Ek canlı isteği gereksiz tekrar etme; kayıtlı sentetik yanıtın gate replay’i canlı üretimden ayrıdır.
+
+`electron-native-stop762.smoke.js` için WHISPER_MPV_PATH harici test motorunu, WHISPER_NATIVE_HEADLESS=1 gizli owner/host’u seçer. Gerçek motor IPC/hız/konum/kapanış sonucu görünür native/tam ekran/dinleme başarısı değildir. Taşınabilir test binary’si kişisel kurulum seçimini veya proje bağımlılıklarını değiştirmez.
+
+
+### Stremio configure ve torrent setup sahipleri
+
+`stremio:request` içindeki addon-configure key/token sahibiyle mevcut kaydı seçer. Main `createStremioConfigurator` penceresi preload’suz/sandbox ve kalıcı olmayan partition’dadır. URL main’de kalır; callback origin/id doğrulaması sonrası yeni preview token döner. addon-install açık kaydetmeyle eski key’i aynı index’te değiştirir; enabled/installedAt/custom alanları korur. Stale/conflict/capacity mevcut kaydı silmez. Callback için yalnız bu session’ın stremio protocol handler’ı kullanılır; OS protocol registration yok. Mainwill-quit dispose ve success/cancel/error temizliği var.
+
+Torrent backend status engineState missing/invalid/installing/ready; install deduped ve sabit SHA bağlıdır. check-engine yalnız --version (sunucu/transfer yok). MediaHubUI.installTorrentEngine({isCurrent,onProgress}) install→check yapar; oynatma/retry çağırmaz. Kaynak diyalogu doğrulanan kurulumdan sonra exact token/stream retry’yi açar; medya key/generation/request değişirse eski tamamlama kullanılmaz. Testler yalnız izole/sentetik torrent kullanır; gerçek filmin peer/debrid/kodek erişimi ayrıca kabul edilir.

@@ -1,5 +1,13 @@
 # Changelog
 
+- **Yerel · 2026-11-11 · Stremio ayarları ve torrent kurulumu:** Eklentilerin kendi yapılandırma sayfası izole pencerede açılır; Install dönüşü same-page/popup/iframe’den yakalanıp açık kaydetmeyle mevcut eklentiyi koruyarak günceller. Ham torrent için eksik/bozuk motor kurulumu ve seçili kaynağa ayrı yeniden deneme eklendi. rqbit9.0.1 bu bilgisayarda doğrulanarak kuruldu; torrent başlatılmadı. Ayar satırının okunurluğu düzeltildi; hedefli/gerçek engine/gerçek Electron/kontrollü görsel testler geçti. Gerçek debrid hesabı/özel film kabulü ayrı. [Devir](docs/devir/2026-11-11-1235.md).
+
+- **Yerel · 2026-11-11 · C855 ve canlı çeviri kabulü:** Eksik sezon/bölümün0’a dönüşmesi düzeltildi; gerçek özel bölüm korunur. Konuşmacı sonrası Certainly ve quiet→sessiz doğru çevirileri yanlış reddedilmez; kişi adı/gerçek olumsuzluk kapıları korunur. Gerçek mpv hız/kapanış kontrolü ve güvenli izole sağlayıcı test yolu doğrulandı. Canlı küçük örnek genel kalite garantisi değildir; görünür native/dinleme açık. [Devir](docs/devir/2026-11-11-1206.md).
+
+- **Yerel · 2026-11-11 · Fable son üçlü:** Adaptif dublaj kişisel hız tercihini korur; native etkin hız alt sınırı düzeltildi. Stremio katalog yapıt kimliği kaynaktan ayrıldı; Pro görüntü ayarları aynı yapıtta paylaşılır, ses/zaman ayarları kaynağa bağlı kalır. Önceki altyazı/çeviri referansları salt okunur görünür. Çevirinin bütün partileri ve ikinci geçiş, sürüm/cache bağlı sabit kaynak çerçevesini kullanır; ek model çağrısı yok. Hedefli testler ve tek kontrollü Windows görünümü geçti; gerçek native/dinleme/sağlayıcı kalite kabulü ayrı. [Devir](docs/devir/2026-11-11-1147.md).
+
+- **Yerel · 2026-11-11 · Fable ikinci beşli:** Stremio altyazı dili arayüzden ayrıldı; eski arama/indirme yeni kaynağa bağlanamaz. Hazır AI açıklaması üretim sırasında okunabilir; aktif iş sahibi korunur. Dublaj progress/timing sürümlü JSON ile IPC ve kalıcı özete gider, eski motor desteği sürer. Native Stremio menüsü/atla/sıradaki için görüntü alanı ayrılır; panel görüntüyü dondurmaz. Mevcut kalıcı sohbet makbuzları yeni servis örneğiyle doğrulandı, ikinci defter eklenmedi. Hedefli testler ve iki kontrollü Windows render geçti; gerçek mpv/GPU kabulü ayrı. [Devir](docs/devir/2026-11-11-1133.md).
+
 - **Yerel · 2026-11-11 · Stremio ve Oynatıcı Pro:** Eklenti/katalog/kaynak seçimi, devam/kütüphane/puanlama ve ortak gelişmiş oynatıcı paneli mevcut R853/R854 sahipleri korunarak eklendi. Native görüntü komutlarının paket alanı, motor dönüşünde ayar uygulama, kapasitede kişisel kayıt kaybı, sorgulu manifest yolu, belirsiz bölüm dosyası ve Pro sekme erişilebilirliği düzeltildi. 14 hedefli test dosyası, 38 R854/CinemaUI kontrolü ve yedi kontrollü görünüm geçti; canlı manifest/katalog okuması doğrulandı. Tam test paketi eski hatalar nedeniyle yeşil değil; gerçek native/medya kabulü ayrı. [Devir](docs/devir/2026-11-11-0349.md)
 
 - **Yerel · 2026-11-11 · R854 kalan uygulama kapsamları:** Podcast liste erişimi ve tam yayın kimliği, öneri koşul/profil özeti, kısmi okuma hatasında kurtarma, ağ adayı inceleme ve gerçek dayanak ayrımı, tekil keşif dışlamasını kaldırma, yorum biçim/kısmi örnek/okuma yerine dönüş, kesin bölüm yönetimi ve seçili kopya konumu tamamlandı. Asistan yanıt alanının composer arkasına taşması, gerçek çeviri satırlarının sıfır sayılması ve sinematik yeniden kurulumda kopya konumunun kaybolması düzeltildi. 200 hedefli test, ayrı etkilenen oyuncu kontrolleri, tasarım ve izole Windows Chromium doğrulaması geçti. Sıcak amber ve kişisel veri sınırları korundu; canlı Electron kabulü ayrı. [Devir](docs/devir/2026-11-11-0311.md)
@@ -1349,3 +1357,33 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [0.9.0-beta.1] - 2026-09-15
 
 Initial public beta baseline. The older v1.1-browser-hardening tag is a historical checkpoint, not a stable semantic-version release.
+
+## Yerel düzeltmeler — 2026-11-11 · Fable ilk grup
+
+- Native motor yokken uzak kaynak HTML otomatik oynatmayı dener; eski motor durum yanıtı yeni kaynağı başlatamaz.
+- Stremio yeni kaynak oturumu yalnız başarı ve güncel sahip doğrulamasından sonra benimsenir; hata/iptal/geç yanıt önceki oturumu değiştirmez.
+- Shift+N bölüm gezinmesi ana N sıradaki panelini ayrıca açmaz.
+- Doğrulama: ilgili regresyon 8/8, native yaşam döngüsü 7/7, Stremio UI geçti; gerçek medya/native kabulü ayrı kalır.
+
+## Yerel düzeltmeler — 2026-11-11 · Fable medium ikinci grup
+
+- Modern/Sahne oynatıcı araçlarına mevcut Pro ve etkin Stremio girişleri eklendi; geç/gizli/başka kaynağa ait eylemler engellenir.
+- Whisper oluşturma uygunluğu aktif kaynakla eşitlendi; hazır yerel dosyası olmayan akışta EN/TR neden gösterilir ve eski dosya yolu yeni kaynağa uygulanmaz. Mevcut altyazı çevirisi korunur.
+- Normal düğme odağında J/L/M/F ve ok kısayolları çalışır; Space/Enter, metin düzenleme, menü ve tüketilmiş olaylar korunur.
+- Kontrollü doğrulama ve açık sınırlar: [devir](docs/devir/2026-11-11-1022.md).
+
+## Yerel düzeltmeler — 2026-11-11 · Fable medium üçüncü grup
+
+- Modern araç menüsünde medya merkezi ve altyazı/ileri araç hedefleri ayrıldı; bir tık iki pencere açmaz.
+- Stremio ilerleme kaydı hataları oynatmayı kesmeden EN/TR satırında görünür; aynı kaynağa bağlı yeniden deneme, geç yanıt koruması ve mevcut kayıtların korunması doğrulandı.
+- Dublaj stüdyosu hazır ayarı mevcut sahibin açık hazırlama yöntemiyle uygulanır; DOM polling kaldırıldı. Kaynak/konfigürasyon/busy/onay sınırları korunur, hazırlık üretim başlatmaz.
+- [Doğrulama ve açık sınırlar](docs/devir/2026-11-11-1036.md).
+
+## Yerel düzeltmeler — 2026-11-11 · Fable ilk beşli
+
+- Yeni stream geçmiş yazımında kaynak adresi yerine hash referansı; yeniden açılma bilgisi mevcut OS güvenli depo yöntemiyle main’de tutulur. Plaintext fallback yok, eski geçmiş/yedekler topluca değiştirilmez.
+- Yerel watched asistan bağlamı ve arama kanıtı, gelecek satırları/çevirileri kendi ofsetleriyle dışlar; açık full/nearby ve seçim sahipliği korunur.
+- Native metin DOM/render değişiminde iletilir; darbe keep-alive kalır, otomatik embedded altyazı kapalı ve elle iz seçimi açıktır. Gerçek gecikme kabulü ayrı.
+- Pro/Stremio hız ve uyku kontrolleri ana oynatıcının ortak tercihlerini kullanır; bağımsız timer ve açılışta hız ezmesi kaldırıldı. Eski Stremio hızı korunup açık seçimle uygulanabilir.
+- Dublaj timing flag’leri saved-project doğrulamasında korunur; Zamanlama filtresi/nedenler ve yalnız kaynak eşleşmesi doğrulanmış konuma dönüş eklendi. Mevcut tekil yeniden üretim tekrar yazılmadı.
+- [Kontroller ve sınırlar](docs/devir/2026-11-11-1105.md).
