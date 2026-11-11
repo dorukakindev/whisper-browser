@@ -1,3 +1,20 @@
+# Ortak film sayfası ve açık oturum kapatma · 2026-11-11 13:28
+
+- Kullanıcının üç yeni isteği yerelde uygulandı: ana sayfa açık oturum kartında gerçek oynatma sahibini kapatan X; Keşfet kartlarından/kart menüsünden kaldırılıp film sayfasına alınan benzer önerisi; Stremio tıklamasının aynı MediaDiscoveryUI/CinemaUI film ayrıntısını açması. Ayrı Stremio hero/konu/oyuncu sayfası kaldırıldı, kaynak/bölüm/listem/değerlendirme araçları ortak sayfaya bağlandı. IMDb dışı eklenti kimliği de aynı sayfada salt okunur metadata ve kendi kaynak araçlarıyla açılır.
+- Önceki asistan/Whisper işleri teslim kapsamına dahil. Ses hazırlığında genel İptal/Escape yönlendirmesi ve yeni oynatma başladıktan sonra gelen eski film metadata yanıtı düzeltildi. Oturum kapanırken kayıtlı konum korunur; arka plan Whisper işi iptal edilmez.
+- Kullanıcı bu tur açık commit/push/master birleşmesi yetkisi verdi. Başlangıç master e2674680, teslim dalı codex/shared-film-assistant-whisper-20261111. Ürün/belgeler ayrı commit, başlıklar [skip ci], Actions yok. Kişisel dört fark ve tmp/arşivler hariç tutulur. Git sonucu teslim kaydında/final yanıtta doğrulanır. [Devir ve sınırlar](docs/devir/2026-11-11-1328.md).
+
+# Görünür asistan ve debrid akışından Whisper · 2026-11-11 13:17
+
+- Yerel uygulama tamam: üç Sahne modunda üstte amber asistan baloncuğu; aktif yapıt kimliği/konum/süre ve mevcut altyazı kapsamı asistan bağlamında. Altyazı yokken görüntü/ses alınmış gibi konuşulmaz. Doğrudan Stremio HTTPS dosyasında ilk ses izi hazırlanıp mevcut Whisper hattına verilir; oynatma adresi veya localPath değiştirilmez. HLS/DASH/korumalı akışlar ve tamamlanmamış ham torrent bu yeni ses hazırlığında desteklenmez.
+- Hedefli UI/asistan/servis/iptal/güvenlik testleri, gerçek sentetik FFmpeg ve ses başlangıç ofseti kontrolü geçti. İzole 1920×1080 görüntüde baloncuk görüldü. Gerçek kişisel TorBox → ses hazırlığı → Whisper/GPU → zamanlı altyazı/asistan yanıtı kabulü yapılmadı. Kullanıcı ekranında ayarın kaydedildiği ve film görüntüsü/ilerleyen konum görüldü; bu ses/GPU kabulü değildir.
+- Sonraki: kullanıcı normal zamanda uygulamayı start.bat ile yeniden açar (açık oturum habersiz kapatılmadı), aynı doğrudan TorBox kaynağında Whisper'a basar; hazırlık/iptal/çıktı zamanlaması ve baloncuktan sorulan sorunun kapsamı kısa denenir. Somut hata varsa yalnız o yol düzeltilir. Yeni Git teslimi yok; mevcut kişisel farklar korunuyor. [Devir, dosyalar ve sınırlar](docs/devir/2026-11-11-1317.md).
+
+# Torrentio canlı ayar sayfası · 2026-11-11 12:58
+
+- Kullanıcının CONFIG_LOAD ekranı daraltıldı: izole gerçek Electron sistem DNS'iyle Torrentio'da ERR_CONNECTION_REFUSED (-102), example.com'da başarı; geçici direct proxy modu sonucu değiştirmedi. Sistem DNS A yanıtı 188.114.97.7/188.114.96.7, 1.1.1.1 A yanıtı 104.21.10.254/172.67.164.220. Yalnız test sürecinde tek host alternatif yanıta eşlenince gerçek configure sayfası TLS doğrulamasıyla açıldı, INSTALL bulundu. DNS yolu kaynaklı erişim sorunu doğrulandı; engelleyen aktör/neden belirlenmedi.
+- Kullanıcı açıkça onayladı: Ethernet IPv4 eski DNS (8.8.8.8/9.9.9.9) ve statik/DHCP durumu yerel tmp yedeğine kaydedildi; Windows yönetici onayıyla 1.1.1.1/1.0.0.1 uygulandı. Normal sistem DNS'i artık 104.21.10.254/172.67.164.220 döndürüyor; sabit IP eşlemesi olmadan gerçek izole Electron'da Torrentio configure ve example.com açıldı. IPv6/açık uygulama/kişisel eklenti/ürün kodu değiştirilmedi. Sonraki: kullanıcı Torrentio Ayarlar'ı yeniden açıp kendi debrid ayarını kaydeder, aynı filmi dener. Gerçek debrid/film kabulü açık. [Kanıt ve geri alma](docs/devir/2026-11-11-1258.md).
+
 # Güncel devam · 2026-11-11 12:49
 
 - **Kod teslim edildi:** master `089f2686bf2fd4b28e0b26e5c8593dce4d13f126`, PR #913/#914 birleşti. Sonraki Git teslimi için yeni açık komut gerekir. Sohbet geçişi belge güncellemeleri kullanıcının 12:53 açık komutuyla ayrı belge teslimine alındı; ürün kodu değişmedi. [Teslim kaydı](docs/devir/2026-11-11-1253.md).

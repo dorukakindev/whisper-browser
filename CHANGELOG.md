@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-11 · Ortak film ayrıntısı ve oturum kapatma
+
+- Ana sayfadaki açık oturum kartına görünür X eklendi. Mevcut oynatma sahibi kapanır, son konum korunur; arka plan döküm işine iptal gönderilmez. Korumalı browser sekmeleri mevcut onay yolunu kullanır.
+- Benzer film önerisi Keşfet kartlarının altından ve kart menüsünden film ayrıntısındaki seçeneğe taşındı. Stremio aynı gelişmiş Keşfet film sayfasını açar; eklenti kaynakları, dizi bölümleri, devam/listem/puan kayıtları kendi sahipleriyle ortak sayfada korunur. IMDb dışı kimliklerde desteklenmeyen IMDb işlemleri gösterilmez.
+- Akıştan ses hazırlığında genel İptal/Escape doğru sahibi durdurur; eski metadata yeni oynatmayı geri kapatamaz. Hedefli davranış testleri geçti; gerçek kişisel TorBox/Whisper/GPU kabulü ayrı. [Devir](docs/devir/2026-11-11-1328.md).
+
+## 2026-11-11 · Görünür asistan ve akıştan Whisper hazırlığı · yerel
+
+- Üç Sahne modunun üstüne amber asistan baloncuğu eklendi. Açık videonun başlık, konum, süre ve doğrulanmış Stremio yapıt kimliği mevcut altyazı kapsamıyla taşınır; altyazısız videoda görüntü/ses bilgisi varmış gibi sunulmaz.
+- Doğrudan HTTPS Stremio dosyasının ilk ses izi, gizli URL/başlıkları alt süreç argv'sine aktarmadan yerel WAV'a hazırlanır ve mevcut Whisper akışında işlenir. İptal, kaynak değişimi, kesik aktarım ve ses başlangıç ofseti hedefli doğrulandı; oynatma kaynağı korunur. Gerçek kişisel TorBox/GPU kabulü açık, Git teslimi yok. [Devir](docs/devir/2026-11-11-1317.md).
+
 ## 2026-11-11 · Yeni sohbet için kalıcı belgeler
 
 - Kısa AGENTS; güncel README/BACKLOG, teknoloji/mimari özeti ve agent/Claude çalışma sözleşmesi kaydedildi. Yalnız belge değişikliği; ürün kodu değişmedi, Git teslimi yapılmadı. [Devir](docs/devir/2026-11-11-1249.md).

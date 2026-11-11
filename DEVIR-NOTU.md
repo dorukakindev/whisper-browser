@@ -1,3 +1,6 @@
+Güncel teslim kapsamı: [Ortak film sayfası, oturum kapatma ve önceki işlerin teslimi](docs/devir/2026-11-11-1328.md)
+Güncel yerel geliştirme: [Asistan baloncuğu, açık film bağlamı ve debrid sesinden Whisper](docs/devir/2026-11-11-1317.md)
+Güncel inceleme: [Torrentio ayar sayfası DNS erişim tanısı](docs/devir/2026-11-11-1258.md)
 Güncel belge teslimi: [Yeni sohbet belgeleri · Git teslimi ve sınırlar](docs/devir/2026-11-11-1253.md)
 Güncel sohbet geçişi: [Kalıcı proje özeti, agent/Claude çalışma mantığı](docs/devir/2026-11-11-1249.md)
 Güncel Git teslim kaydı: [Birikmiş Fable / C855 / Stremio teslimi](docs/devir/2026-11-11-1244.md)
