@@ -26,6 +26,7 @@
  function retained(item){const entry=recentReviews.get(stableIdentity(item));return entry&&window.LetterboxdReviews?.matchFilm(item,entry.identity)?.state==='matched'?entry:null;}
  function selectedTitleId(){
   const c=typeof globalAssistantContext==='function'?globalAssistantContext():window.MediaExperience?.context();
+  if(!c){const id=window.StremioUI?.assistantMetadata?.()?.itemId;return /^discovery:(film|series):tt\d{7,12}$/.test(id||'')?id:null;}
   if(!['library-title','discovery-title'].includes(c?.type))return null;
   const id=c.catalogId||c.id;
   if(c.type==='discovery-title')return /^discovery:(film|series):tt\d{7,12}$/.test(id||'')?id:null;

@@ -34,6 +34,10 @@ components:
 
 # Whisper Browser tasarım kaydı
 
+## Ortak yapım ayrıntısı ve görünür eylemler — 2026-11-11
+
+Stremio film kartları ayrı film tasarımı üretmez; Keşfet'in mevcut MediaDiscoveryUI/CinemaUI ayrıntı sayfasını açar. Kaynak seçimi ortak hero'nun birincil eylemi, kütüphane eylemi ikincildir; eklenti kaynak/bölüm/listem/değerlendirme araçları ortak kaynak alanındadır. Benzer film önerisi yalnız film ayrıntısındaki bir seçenek olarak sunulur, Keşfet kartlarının altında veya sağ tık menüsünde tekrarlanmaz. Ana sayfa açık oturum kartı görünür erişilebilir X ile kapatılabilir. Üç oynatıcı modunda Transkript ile İşlemler arasındaki amber asistan baloncuğu mevcut asistan sahibini açar. Üst medya gezinmesi, sıcak amber/grafit, hareket tercihi ve ileri araçlar korunur.
+
 ## R854 uygulama tamamlaması — 2026-11-11 03:11
 
 Sıcak amber/grafit ve üst medya gezinmesi korunur. Podcast liste kontrolleri devam kartından önce, ikinci bilgiler mevcut bölüm araçlarında; yayın adı klavye odağında tam görünür. Asistan kaynak ayrıntısı yanıtın scroll'unu değiştirmeyen katmandır; Yanıta dön ve açık işlem ayrıntısı vardır. Bağlam seçimi kaynak ayrıntısında kalır. Yorum önizlemesinin yapım/yıl/sayı ve dönüş başlığı üst medya gezinmesinin altında görünür tutulur. Seçili video kopyasının adı/türü/konumu genel kişisel kayıttan ayrı, oynatma eyleminin yanında taşınır ve CinemaUI yeniden kurulumunda korunur. Yeni renk literali veya baskın alternatif palet eklenmedi. Kontrollü Windows Chromium görselleri gerçek Electron/monitör kabulünün yerine geçmez. [Kapsam ve sınırlar](docs/devir/2026-11-11-0311.md).

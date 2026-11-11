@@ -18,7 +18,7 @@ const MANIFESTS = {
   'https://configure.example/manifest.json': { id: 'cfg', name: 'Yapılandır', version: '1.0.0', resources: ['stream'], types: ['movie'], catalogs: [], behaviorHints: { configurationRequired: true } },
 };
 
-function harness({ torrentStatus = { ok: true, installed: true }, files, configureAddon, extraManifests={} } = {}) {
+function harness({ torrentStatus = { ok: true, installed: true }, files, configureAddon, prepareAudio, extraManifests={} } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'stremio-test-'));
   const calls = [], assertCalls = [], torrentCalls = [];
   const fetch = async (url) => {
@@ -49,7 +49,7 @@ function harness({ torrentStatus = { ok: true, installed: true }, files, configu
   } };
   const granted = [];
   const service = createStremioService({ root: () => root, fetch, assertUrl: async (u) => { assertCalls.push(u); if (/192\.168|169\.254/.test(u)) throw new A.AddonError('özel', 'UNSAFE'); },
-    torrents, configureAddon, decodeSubtitle: (bytes) => decodeDownloadedSubtitle(bytes, 'en'), grantSubtitle: (f) => granted.push(f), searchSubtitles: async () => ({ results: [] }), now: () => 1_700_000_000_000 });
+    torrents, configureAddon, prepareAudio, decodeSubtitle: (bytes) => decodeDownloadedSubtitle(bytes, 'en'), grantSubtitle: (f) => granted.push(f), searchSubtitles: async () => ({ results: [] }), now: () => 1_700_000_000_000 });
   const install = async (url) => { const p = await service.handle({}, { action: 'addon-preview', url }); return service.handle({}, { action: 'addon-install', token: p.token }); };
   return { root, service, calls, assertCalls, torrentCalls, granted, install };
 }
@@ -313,5 +313,25 @@ function harness({ torrentStatus = { ok: true, installed: true }, files, configu
   const cancelledWindow=configureWindow({url:origin+'/configure',expectedOrigin:origin});const cancelledRoot=windows.at(-1);cancelledRoot.destroy();assert.deepEqual(await cancelledWindow,{cancelled:true});assert.deepEqual(cancelledRoot.unhandledSchemes,['stremio']);
   const disposedWindow=configureWindow({url:origin+'/configure',expectedOrigin:origin});configureWindow.dispose();assert.deepEqual(await disposedWindow,{cancelled:true});
   const failedWindow=configureWindow({url:origin+'/configure',expectedOrigin:origin});windows.at(-1).webContents.emit('did-fail-load',{},-105,'URL contained fixture-key',origin+'/fixture-key',true);await assert.rejects(failedWindow,e=>e.code==='CONFIG_LOAD'&&!e.message.includes('fixture-key'));
+  // Audio preparation resolves an already played token, never a renderer-supplied URL.
+  let audioArgs,finishAudio;
+  const audioHarness=harness({prepareAudio:async args=>{audioArgs=args;args.onProgress({phase:'extracting',seconds:12});return new Promise((resolve,reject)=>{finishAudio=resolve;args.signal.addEventListener('abort',()=>reject(Error('secret upstream URL must not escape')),{once:true});});}});
+  await audioHarness.install('https://torr.example/cfg%3Dsecretkey/manifest.json');
+  const audioStreams=await audioHarness.service.handle({},{action:'streams',type:'series',id:'tt0944947',season:1,episode:2});
+  const audioRow=audioStreams.streams.find(s=>s.filename==='r.mp4');
+  await assert.rejects(audioHarness.service.handle({},{action:'audio-prepare',token:audioStreams.token,streamId:audioRow.id,requestId:'audio-1'}),e=>e.code==='AUDIO_SOURCE');
+  const playedAudio=await audioHarness.service.handle({},{action:'play',token:audioStreams.token,streamId:audioRow.id});
+  const preparingAudio=audioHarness.service.handle({},{action:'audio-prepare',token:audioStreams.token,streamId:audioRow.id,key:playedAudio.key,requestId:'audio-1',url:'https://evil.example/ignored'});
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(audioArgs.url,'https://cdn.example/r.mp4');assert(audioArgs.headers.some(([name])=>name==='Referer'));
+  assert.equal((await audioHarness.service.handle({},{action:'audio-status',requestId:'audio-1'})).progress.seconds,12);
+  await assert.rejects(audioHarness.service.handle({},{action:'audio-prepare',token:audioStreams.token,streamId:audioRow.id,key:playedAudio.key,requestId:'audio-other'}),e=>e.code==='AUDIO_BUSY');
+  finishAudio({path:'fixture.wav'});assert.equal((await preparingAudio).path,'fixture.wav');
+  const anotherAudioRow=audioStreams.streams.find(s=>s.filename==='v.mkv');
+  await audioHarness.service.handle({},{action:'play',token:audioStreams.token,streamId:anotherAudioRow.id});
+  // Renderer may fail opening the new source and retain the original playback.
+  const cancelAudio=audioHarness.service.handle({},{action:'audio-prepare',token:audioStreams.token,streamId:audioRow.id,key:playedAudio.key,requestId:'audio-2'});
+  await new Promise(resolve=>setImmediate(resolve));await audioHarness.service.handle({},{action:'audio-cancel',requestId:'audio-2'});
+  await assert.rejects(cancelAudio,e=>e.code==='AUDIO_CANCELLED'&&!e.message.includes('secret'));
+  assert.equal((await audioHarness.service.handle({},{action:'audio-status',requestId:'audio-2'})).active,false);
   console.log('stremio-addons.test.js: OK');
 })().catch((e) => { console.error(e); process.exit(1); });

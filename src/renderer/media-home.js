@@ -59,7 +59,7 @@
     if (active) { void refresh(); document.getElementById('mhHome')?.focus(); }
     else document.getElementById('openPlayer')?.focus();
   }
-  let returningHome=false,resuming=false,parked=null;
+  let returningHome=false,resuming=false,closingParked=false,parked=null;
   let homeReturnPromise=null;
   function returnHome(){if(homeReturnPromise)return homeReturnPromise;homeReturnPromise=performReturnHome().finally(()=>{homeReturnPromise=null;});return homeReturnPromise;}
   async function performReturnHome() {
@@ -83,7 +83,7 @@
         await window.api.hideBrowser();
         if(intent!==player.openIntent)return;
         disconnectBrowserBoundsObserver();
-        parked={mode,key,tabId,title:document.getElementById('playerTitle')?.textContent||t('Open workspace','Açık çalışma alanı'),
+        parked={mode,key,tabId,generation:player.generation,title:document.getElementById('playerTitle')?.textContent||t('Open workspace','Açık çalışma alanı'),
           position:mode==='browser'?player.browserTime:document.getElementById('playerVideo').currentTime,
           subtitle:mode==='browser'?player.browserTracks?.length>0:player.cues?.length>0,
           voice};
@@ -97,7 +97,7 @@
     if(!parked)return;
     const target=parked;
     if(target.key!==player.mediaKey||(target.mode==='browser'&&target.tabId!==player.browserActiveTabId)){parked=null;renderContent();return;}
-    if(resuming)return;resuming=true;
+    if(resuming||closingParked)return;resuming=true;
     try{
       layer.classList.remove('hidden');setWorkspaceMode(target.mode,false);
       document.getElementById('playerTitle').textContent=target.title;
@@ -105,6 +105,37 @@
       if(target.mode!=='browser')document.getElementById('playerBack')?.focus();
     }finally{resuming=false;}
     // Explicit return restores the workspace; playback remains paused until Play.
+  }
+  async function closeParkedWorkspace(){
+    if(closingParked||resuming||returningHome||!parked)return;
+    const target=parked,intent=player.openIntent;
+    const current=()=>parked===target&&target.key===player.mediaKey&&target.generation===player.generation
+      &&target.mode===player.workspaceMode&&intent===player.openIntent&&layer.classList.contains('hidden')
+      &&(target.mode!=='browser'||target.tabId===player.browserActiveTabId);
+    if(!current()){parked=null;renderContent();return;}
+    closingParked=true;renderContent();let closed=false;
+    try{
+      if(target.mode==='browser'){
+        // The existing owner requests explicit confirmation for pinned tabs or active work.
+        await closeBrowserTab(target.tabId);
+        if(browserTabState(target.tabId))return;
+      }else{
+        await flushWatchState(false,true);if(!current())return;
+        if(window.NativePlayerUI?.busy())await window.NativePlayerUI.stop({resume:false});
+        if(!current())return;
+        await window.BrowserDubAudioUI?.stop();if(!current())return;
+        // setMediaKey flushes the old owner's live timestamp before clearing its identity.
+        // Unloading first can reset currentTime and overwrite that saved position with zero.
+        setMediaKey('');
+        // The layer is already hidden, so this performs teardown instead of parking again.
+        closePlayer();
+        const video=document.getElementById('playerVideo');video?.pause();video?.removeAttribute('src');video?.load();
+      }
+      if(parked===target){parked=null;closed=true;}
+    }finally{
+      closingParked=false;renderContent();
+      document.getElementById(closed?'mhHome':'mhCloseWorkspace')?.focus({preventScroll:true});
+    }
   }
   let wasPlayerOpen = !layer?.classList.contains('hidden');
   function syncLayer() {
@@ -335,7 +366,7 @@
     virtualDisposers.forEach(dispose=>dispose());virtualDisposers=[];
     state.render++; posterQueue = []; posterObserver.disconnect();
     content.classList.remove('cn-home-content', 'cv2-home');content.replaceChildren();
-    if(parked&&(parked.key!==player.mediaKey||(parked.mode==='browser'&&parked.tabId!==player.browserActiveTabId)))parked=null;
+    if(parked&&(parked.key!==player.mediaKey||parked.generation!==player.generation||(parked.mode==='browser'&&parked.tabId!==player.browserActiveTabId)))parked=null;
     const status = el('p', 'mh-status'); status.id = 'mhStatus'; status.setAttribute('role', 'status'); content.append(status);
     if (state.error){const panel=el('section','mh-library-load-error media-surface');panel.setAttribute('role','alert');panel.append(el('h2','',t('Some library data is unavailable','Bazı kütüphane verileri kullanılamıyor')),el('p','',state.error),el('p','mh-muted',t('Available data and the last loaded records remain usable. Retry reads only; it does not change ratings, history or sources.','Kullanılabilir veri ve son yüklenen kayıtlar kullanılabilir kalır. Yeniden deneme yalnız okur; puan, geçmiş veya kaynak değiştirmez.')),button(t('Retry library data','Kütüphane verilerini yeniden yükle'),()=>refresh({metadata:false})));content.append(panel);}
     else if (!state.loaded) report(t('Loading your library…', 'Kütüphanen yükleniyor…'));
@@ -347,7 +378,12 @@
       const text=el('div');text.append(el('small','',t('Open session · paused','Açık oturum · duraklatıldı')),el('strong','',parked.title),el('p','',[
         parked.mode==='browser'?'Browser':t('Player','Oynatıcı'),Number.isFinite(parked.position)?minutes(parked.position):'',parked.subtitle?t('Subtitles ready','Altyazı hazır'):'',parked.voice?t('Voice attached','Dublaj bağlı'):''].filter(Boolean).join(' · ')));
       const actions=el('div','mh-session-actions');const back=button(t('Return to session','Oturuma dön'),resumeWorkspace,'mh-action mh-primary');back.id='mhResumeWorkspace';
-      actions.append(back,button(t('Voice preparation','Ses hazırlığı'),async()=>{await resumeWorkspace();if(!layer.classList.contains('hidden'))await window.MediaExperience?.openVoice();}));session.append(text,actions);content.append(session);
+      actions.append(back,button(t('Voice preparation','Ses hazırlığı'),async()=>{await resumeWorkspace();if(!layer.classList.contains('hidden'))await window.MediaExperience?.openVoice();}));
+      const close=button('',closeParkedWorkspace,'mh-session-close');close.id='mhCloseWorkspace';
+      close.setAttribute('aria-label',t('Close playback session','Oynatma oturumunu kapat'));close.title=parked.mode==='browser'?t('Close session; active tab work may require confirmation.','Oturumu kapat; sekmedeki işler için onay istenebilir.'):t('Close playback session. Background production jobs continue.','Oynatma oturumunu kapat. Arka plan üretim işleri sürer.');
+      close.append(window.MediaVisual?.icon('close')||document.createTextNode('×'));
+      for(const control of [...actions.querySelectorAll('button'),close]){control.disabled=closingParked;if(closingParked)control.setAttribute('aria-busy','true');}
+      session.append(text,actions,close);content.append(session);
     }
     const { items, watch, continuing } = state.data;
     const filter = rows => rows.filter(item => model.matches(item, state.query));

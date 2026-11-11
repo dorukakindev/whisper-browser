@@ -17,6 +17,7 @@
           ${caps.queue && mode !== 'podcast' ? button('listeningQueue', 'list', T('Dinleme kuyruğu', 'Listening queue'), 'aria-haspopup="dialog"') : ''}
           ${caps.dub ? button('dub', 'voice', T('Altyazıdan dublaj', 'Dub from subtitles'), 'aria-haspopup="dialog"') : ''}
           ${button('transcript', 'classic', T('Transkript', 'Transcript'), 'aria-expanded="false"', 'sh-transcript-toggle')}
+          <button class="sh-btn bp-button icon sh-assistant-bubble" type="button" data-a="assistant" aria-label="${T('Asistanı aç','Open assistant')}" title="${T('Asistanı aç','Open assistant')}">${icon('chat')}</button>
           ${button('panel', 'tools', T('İşlemler', 'Tasks'), 'aria-pressed="false" aria-haspopup="dialog"')}
           <label class="browser-study-sleep">${icon('moon')}<select data-r="sleep" aria-label="${T('Uyku zamanlayıcısı','Sleep timer')}" title="${T('Uyku zamanlayıcısı','Sleep timer')}"></select></label>
           ${button('advanced', 'classic', T('İleri araçlar', 'Advanced tools'))}

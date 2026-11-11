@@ -12,6 +12,19 @@ function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false,prefs});
  t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setCanSeek:value=>canSeek=value,setRevision:value=>revision=value};
 }
+test('all stage modes expose an assistant bubble in the top toolbar and use the current-media command',async t=>{
+ for(const mode of [{cinema:true},{study:true},{}]){
+  const f=mount(t,mode),button=f.sh.q('.sh-top [data-a=assistant]');
+  assert(button,'assistant is reachable without opening Tasks or the transcript');
+  assert.equal(button.getAttribute('aria-label'),'Asistanı aç');
+  assert(button.querySelector('svg'),'the top entry has a conversation bubble');
+  button.click();await new Promise(setImmediate);
+  assert.deepEqual(f.commands.map(args=>args[0]),['assistant']);
+  f.sh.a.identity=()=> 'other-source';button.click();await new Promise(setImmediate);
+  assert.equal(f.commands.length,1,'an outdated toolbar does not open context for a different source');
+ }
+});
+
 test('task categories preserve controls, active category and field focus through refresh',t=>{
  let merged=false;
  const sections=[{id:'captions',title:'Subtitles',items:[{id:'load',label:'Load'}]},{id:'fine',title:'Fine settings',items:[{id:'merge',type:'checkbox',label:'Merge sentences',value:false,onChange:value=>{merged=value;sections[1].items[0].value=value;}}]}];

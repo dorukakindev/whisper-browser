@@ -46,6 +46,13 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   window.player = { mediaKey: '' };
   window.eval('var player = window.player; var addSubtitleOption = (...a) => { window.__subs = (window.__subs||[]).concat([a]); }; var loadSubtitle = async (p) => { window.__loaded = p; };');
   window.MediaTitleUI = { createPage(cls) { const page = document.createElement('section'); page.className = cls + ' media-title-page'; page.open = true; page.close = () => { if (!page.open) return; page.open = false; page.dispatchEvent(new window.Event('close')); page.remove(); }; document.getElementById('mediaHome').append(page); return page; }, close() {} };
+  const sharedDetailCalls=[];
+  window.MediaDiscoveryUI={openDetail:async(row,options)=>{
+    sharedDetailCalls.push({row,options});const page=window.MediaTitleUI.createPage('md-detail');
+    const actions=document.createElement('div');actions.className='cn-hero-actions';const sourceHost=document.createElement('section');sourceHost.className='cn-film-sources';const status=document.createElement('p');page.append(actions,sourceHost,status);
+    const dispose=options.onReady({page,item:options.fallbackDetail.item,actions,sourceHost,status,close:()=>page.close()});page.addEventListener('close',()=>dispose?.(),{once:true});
+    return {ok:true};
+  }};
   const video = document.getElementById('playerVideo');
   let sharedSleep={at:0,mode:''};window.PlayerPlaybackControls={setRate:async rate=>{video.playbackRate=rate;return true;},getRate:()=>video.playbackRate||1,setSleep:minutes=>{sharedSleep={at:minutes?Date.now()+minutes*60000:0,mode:''};return true;},getSleep:()=>sharedSleep};
   Object.defineProperty(video, 'duration', { configurable: true, get: () => 3000 });
@@ -85,10 +92,11 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
 
   // Başlık sayfası: sezon ve bölümler
   click(host.querySelector('.sx-shelf .sx-card'));
-  await until(() => document.querySelector('.sx-title .sx-episode'), 'bölüm listesi');
-  assert.equal(document.querySelectorAll('.sx-title .sx-episode').length, 2, 'ilk sezonun iki bölümü');
+  await until(() => document.querySelector('.md-detail .sx-episode'), 'ortak yapım sayfasındaki bölüm listesi');
+  assert.equal(sharedDetailCalls.length,1,'Stremio uses the existing Discovery detail owner');assert.equal(sharedDetailCalls[0].row.providerId,'tt1');
+  assert.equal(document.querySelectorAll('.md-detail .sx-episode').length, 2, 'ilk sezonun iki bölümü');
   assert.equal(document.querySelector('.sx-season').options.length, 2);
-  assert.match(document.querySelector('.sx-title .sx-actions button').textContent, /Oynat/);
+  assert.match(document.querySelector('.md-detail .sx-actions button').textContent, /Oynat/);
 
   // Bölüm 1 → kaynak seçici → en iyi kaynak
   click(document.querySelector('.sx-episode button'));
@@ -98,8 +106,11 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   await until(() => opened.length === 1, 'oynatma başladı');
   assert.equal(opened[0].result.url, 'https://cdn.example/a.mp4');
   assert.equal(opened[0].seconds, 0);
+  assert.equal(UI.whisperSource().key,window.player.mediaKey);
+  assert.equal(UI.whisperSource().streamId,UI._test.session().streamId);
+  assert(!JSON.stringify(UI.whisperSource()).includes('https:'),'audio preparation sends only main-issued source identifiers');
   assert.ok(document.getElementById('playerStremioBtn') && !document.getElementById('playerStremioBtn').hidden, 'oynatıcı menü düğmesi görünür');
-  assert.ok(!document.querySelector('.sx-title'), 'başlık sayfası oynatma açılınca kapanır');
+  assert.ok(!document.querySelector('.md-detail'), 'ortak başlık sayfası oynatma açılınca kapanır');
 
   // Devam kaydı: zaman ilerler → kaydedilir; sıradaki bölüm bilgisi taşınır
   video.currentTime = 900; video.dispatchEvent(new window.Event('pause'));
@@ -275,18 +286,18 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   // Başlık sayfasında puan + durum + not
   document.getElementById('sxMode-home').click();
   UI.openTitle({ type: 'series', id: 'tt1', name: 'Test Dizisi' });
-  await until(() => document.querySelector('.sx-title .sx-mine'), 'değerlendirme paneli');
-  const star8 = document.querySelector('.sx-title .sx-star[data-n="8"]'); click(star8);
+  await until(() => document.querySelector('.md-detail .sx-mine'), 'değerlendirme paneli');
+  const star8 = document.querySelector('.md-detail .sx-star[data-n="8"]'); click(star8);
   await until(async () => true, 'bekle'); await tick(60);
   let ratingRow = (await service.handle({}, { action: 'rating-get', type: 'series', id: 'tt1' })).rating;
   assert.equal(ratingRow?.score, 8, 'yıldız tıklaması puanı kaydeder');
-  const statusSel = document.querySelector('.sx-title .sx-mine select'); statusSel.value = 'watching'; statusSel.dispatchEvent(new window.Event('change')); await tick(60);
-  const noteBox = document.querySelector('.sx-title .sx-mine textarea'); noteBox.value = 'Harika başlangıç'; noteBox.dispatchEvent(new window.Event('input')); noteBox.dispatchEvent(new window.Event('blur')); await tick(80);
+  const statusSel = document.querySelector('.md-detail .sx-mine select'); statusSel.value = 'watching'; statusSel.dispatchEvent(new window.Event('change')); await tick(60);
+  const noteBox = document.querySelector('.md-detail .sx-mine textarea'); noteBox.value = 'Harika başlangıç'; noteBox.dispatchEvent(new window.Event('input')); noteBox.dispatchEvent(new window.Event('blur')); await tick(80);
   ratingRow = (await service.handle({}, { action: 'rating-get', type: 'series', id: 'tt1' })).rating;
   assert.equal(ratingRow.status, 'watching'); assert.equal(ratingRow.note, 'Harika başlangıç');
-  click(document.querySelector('.sx-title .sx-star[data-n="8"]')); await tick(60);
+  click(document.querySelector('.md-detail .sx-star[data-n="8"]')); await tick(60);
   assert.equal((await service.handle({}, { action: 'rating-get', type: 'series', id: 'tt1' })).rating.score, 0, 'aynı yıldıza tekrar basınca puan kalkar (not kalır)');
-  document.querySelector('.sx-title').close();
+  document.querySelector('.md-detail').close();
   document.getElementById('sxMode-library').click(); [...document.querySelectorAll('.sx-lib .sx-seg-btn')].find((b) => b.dataset.v === 'rated').click();
   await until(() => document.querySelector('.sx-rated'), 'puanlarım kartı');
   assert.match(document.querySelector('.sx-rated').textContent, /Harika başlangıç/);
@@ -295,9 +306,9 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   // C855-01: actual metadata -> renderer -> source query; missing numbers never become special0.
   metadataExtras=[{id:'unknown-null',title:'Unknown null',season:null,number:null},{id:'unknown-blank',title:'Unknown blank',season:' ',episode:''},{id:'unknown-bool',title:'Unknown bool',season:false,episode:false}];
   await UI.openTitle({type:'series',id:'tt1'});
-  const unknownTitle=document.querySelector('.sx-title');assert(!unknownTitle.textContent.includes('Unknown null'));assert(!unknownTitle.textContent.includes('Unknown blank'));assert(!unknownTitle.textContent.includes('Unknown bool'));assert(![...unknownTitle.querySelector('.sx-season').options].some(o=>o.value==='0'),'missing metadata must not add a special season');unknownTitle.close();
+  const unknownTitle=document.querySelector('.md-detail');assert(!unknownTitle.textContent.includes('Unknown null'));assert(!unknownTitle.textContent.includes('Unknown blank'));assert(!unknownTitle.textContent.includes('Unknown bool'));assert(![...unknownTitle.querySelector('.sx-season').options].some(o=>o.value==='0'),'missing metadata must not add a special season');unknownTitle.close();
   metadataExtras.push({id:'special-zero',title:'Actual special zero',season:0,episode:'0'});
-  await UI.openTitle({type:'series',id:'tt1'});const specialTitle=document.querySelector('.sx-title'),seasonPicker=specialTitle.querySelector('.sx-season');assert([...seasonPicker.options].some(o=>o.value==='0'),'real special season remains selectable');seasonPicker.value='0';seasonPicker.dispatchEvent(new window.Event('change'));assert.equal(specialTitle.querySelectorAll('.sx-episode').length,1);assert.match(specialTitle.querySelector('.sx-episode').textContent,/Actual special zero/);
+  await UI.openTitle({type:'series',id:'tt1'});const specialTitle=document.querySelector('.md-detail'),seasonPicker=specialTitle.querySelector('.sx-season');assert([...seasonPicker.options].some(o=>o.value==='0'),'real special season remains selectable');seasonPicker.value='0';seasonPicker.dispatchEvent(new window.Event('change'));assert.equal(specialTitle.querySelectorAll('.sx-episode').length,1);assert.match(specialTitle.querySelector('.sx-episode').textContent,/Actual special zero/);
   const sourceQueries=[];window.api.stremio=q=>{if(q.action==='streams')sourceQueries.push(q);return originalApi(q);};click(specialTitle.querySelector('.sx-episode .sx-ep-actions button'));await until(()=>sourceQueries.length===1,'actual special source request');assert.equal(sourceQueries[0].season,0);assert.equal(sourceQueries[0].episode,0);await until(()=>resourceRequests.includes('https://torr.example/stream/series/tt1:0:0.json'),'special resource id');await until(()=>document.querySelector('.sx-streams .sx-stream'),'special source listing');document.querySelector('.sx-streams').close();specialTitle.close();window.api.stremio=originalApi;metadataExtras=[];
 
   let finishProgress;window.api.stremio=q=>q.action==='progress-save'?new Promise(resolve=>{finishProgress=resolve;}):originalApi(q);
@@ -325,6 +336,13 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   [...addonDialog.querySelectorAll('.sx-preview button')].find(b=>b.textContent==='Ayarları kaydet').click();await until(()=>JSON.parse(fs.readFileSync(addonFile,'utf8')).addons[torrentIndex].manifestUrl.includes('debrid-fixture'),'explicit configured save');const afterConfig=JSON.parse(fs.readFileSync(addonFile,'utf8'));assert.equal(afterConfig.addons.length,3);assert.equal(afterConfig.addons[torrentIndex].enabled,false);assert.equal(afterConfig.addons[torrentIndex].installedAt,initialConfig.addons[torrentIndex].installedAt);
   await until(()=>addonDialog.querySelector('.sx-preview').hidden,'settings save redraw complete');
   configureMode='cancel';const cancelBytes=fs.readFileSync(addonFile,'utf8');addonDialog.querySelector('.sx-addon-settings').click();await until(()=>configurationOpened===2,'reopen settings');await tick();assert.equal(fs.readFileSync(addonFile,'utf8'),cancelBytes);assert.match(addonDialog.querySelector('.sx-status').textContent,/Mevcut eklenti korundu/);addonDialog.close();
+  // A late title lookup must not park a newer playback to open its old details.
+  const beforeShared=sharedDetailCalls.length;let finishMeta;
+  window.api.stremio=request=>request.action==='meta'?new Promise(resolve=>{finishMeta=resolve;}):originalApi(request);
+  const delayedTitle=UI.openTitle({type:'movie',id:'tt1234567',name:'Old selection'});
+  window.player.generation=(window.player.generation||0)+1;
+  finishMeta({ok:true,meta:{type:'movie',id:'tt1234567',name:'Old selection',genres:[],videos:[]}});
+  assert.equal((await delayedTitle).cancelled,true);assert.equal(sharedDetailCalls.length,beforeShared);window.api.stremio=originalApi;
   console.log('stremio-ui.test.js: OK');
   process.exit(0);
 })().catch((e) => { console.error(e); process.exit(1); });
