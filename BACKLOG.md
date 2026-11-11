@@ -2,7 +2,7 @@
 
 - Kullanıcının üç yeni isteği yerelde uygulandı: ana sayfa açık oturum kartında gerçek oynatma sahibini kapatan X; Keşfet kartlarından/kart menüsünden kaldırılıp film sayfasına alınan benzer önerisi; Stremio tıklamasının aynı MediaDiscoveryUI/CinemaUI film ayrıntısını açması. Ayrı Stremio hero/konu/oyuncu sayfası kaldırıldı, kaynak/bölüm/listem/değerlendirme araçları ortak sayfaya bağlandı. IMDb dışı eklenti kimliği de aynı sayfada salt okunur metadata ve kendi kaynak araçlarıyla açılır.
 - Önceki asistan/Whisper işleri teslim kapsamına dahil. Ses hazırlığında genel İptal/Escape yönlendirmesi ve yeni oynatma başladıktan sonra gelen eski film metadata yanıtı düzeltildi. Oturum kapanırken kayıtlı konum korunur; arka plan Whisper işi iptal edilmez.
-- Kullanıcı bu tur açık commit/push/master birleşmesi yetkisi verdi. Başlangıç master e2674680, teslim dalı codex/shared-film-assistant-whisper-20261111. Ürün/belgeler ayrı commit, başlıklar [skip ci], Actions yok. Kişisel dört fark ve tmp/arşivler hariç tutulur. Git sonucu teslim kaydında/final yanıtta doğrulanır. [Devir ve sınırlar](docs/devir/2026-11-11-1328.md).
+- Teslim tamamlandı: [PR #916](https://github.com/dorukakindev/whisper-browser/pull/916) master'a birleşti, ürün/belgeler ayrı commit; 13:29 doğrulanan yerel/uzak master 594b6f9cc5436c61e829e0577296cb1e1a3126c4. Dört kişisel fark hash/varlıkla korundu; teslim commitlerine ait Actions koşusu0. Bu sonuç belge kaydı ayrı [skip ci] teslimindedir. Yeni ürün işi/Git teslimi açık komut bekler; kalan gerçek kabul yukarıda/son devirde. [Devir ve sınırlar](docs/devir/2026-11-11-1328.md).
 
 # Görünür asistan ve debrid akışından Whisper · 2026-11-11 13:17
 

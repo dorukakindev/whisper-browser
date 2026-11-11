@@ -1,4 +1,4 @@
-Güncel teslim kapsamı: [Ortak film sayfası, oturum kapatma ve önceki işlerin teslimi](docs/devir/2026-11-11-1328.md)
+Güncel teslim sonucu: [PR916 master — ortak film sayfası, oturum kapatma ve önceki işler](docs/devir/2026-11-11-1328.md)
 Güncel yerel geliştirme: [Asistan baloncuğu, açık film bağlamı ve debrid sesinden Whisper](docs/devir/2026-11-11-1317.md)
 Güncel inceleme: [Torrentio ayar sayfası DNS erişim tanısı](docs/devir/2026-11-11-1258.md)
 Güncel belge teslimi: [Yeni sohbet belgeleri · Git teslimi ve sınırlar](docs/devir/2026-11-11-1253.md)
