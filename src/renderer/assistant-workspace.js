@@ -152,7 +152,7 @@
   const now=Number.isFinite(position)?Math.max(0,position):0;
   const chosen=document.getElementById('aiTranscriptScope')?.value,scope=['nearby','full'].includes(chosen)?chosen:'watched';
   let rows;if(player.workspaceMode==='browser')rows=aiVideoRows();else{const roles=browserSubtitleRoleCues(),source=roles.source.length?roles.source:roles.translation;const translations=roles.source.length&&roles.translation.length?translationsForCues(source,roles.translation):[];rows=source.map((row,index)=>({...row,translation:translations[index]||''}));}
-  const eligible=rows.map((row,index)=>({...row,id:'U'+index})).filter(row=>Number.isFinite(row.start)&&Number.isFinite(row.end)&&row.start>=0&&row.end>=row.start&&(scope!=='watched'||row.start<=now+.75)&&(scope!=='nearby'||Math.abs(row.start-now)<=180));
+  const eligible=rows.map((row,index)=>({...row,id:'U'+index})).filter(row=>Number.isFinite(row.start)&&Number.isFinite(row.end)&&row.start>=0&&row.end>=row.start&&(scope!=='watched'||row.end<=now+1e-9)&&(scope!=='nearby'||Math.abs(row.start-now)<=180));
   return {now,scope,rows:eligible};
  }
  function subtitleById(id,owner){if(!owner||!window.AssistantAppActions.current(owner)||owner.subtitleKey!==window.AssistantAppActions.snapshot().subtitleKey)return undefined;return /^U\d+$/.test(id)?subtitleContextRows().rows.find(row=>row.id===id):undefined;}

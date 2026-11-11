@@ -162,11 +162,18 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    // provider history. Old explicit wording must not resolve a later ambiguity.
    flow.humanIntent??={question:flow.question,revision:0};
    const podcastWatched=['studio','page','video'].includes(owner.kind)&&(flow.podcastEvidence||input.context?.workspace==='podcast')&&watchedQuestion(flow.question);
-   const watchedOnly=(owner.kind==='video'||podcastWatched)&&watchedQuestion(flow.question);
+   // Local/direct player conversations retain the studio owner because video
+   // owners validate a browser tab. Their explicit playback packet still carries
+   // a frozen watched boundary; do not fall through to later renderer searches.
+   const localPlayback=owner.kind==='studio'&&(!!flow.localPlayback||Number.isFinite(input.context?.playback?.position)&&input.context.playback.position>=0);
+   if(localPlayback&&!flow.localPlayback)flow.localPlayback=manifest.sourceText(input.context).playback;
+   const watchedOnly=(owner.kind==='video'||podcastWatched||localPlayback)&&watchedQuestion(flow.question);
    // Continuation retains the episode packet, not a hidden player pool or a newly broadened context.
    const podcastContext=flow.podcastEvidence||input.context;
    const ownerHorizon=Number.isFinite(flow.owner?.time)?Math.min(flow.owner.time,owner.time):owner.time;
-   const horizon=podcastWatched&&Number.isFinite(podcastContext?.watched_cutoff)?Math.max(0,Math.min(ownerHorizon,podcastContext.watched_cutoff)):ownerHorizon;
+   const requestedHorizon=(podcastWatched||localPlayback)&&Number.isFinite(podcastContext?.watched_cutoff)?Math.max(0,Math.min(ownerHorizon,podcastContext.watched_cutoff)):ownerHorizon;
+   const horizon=watchedOnly?Math.min(requestedHorizon,Number.isFinite(flow.watchedCutoff)?flow.watchedCutoff:requestedHorizon):requestedHorizon;
+   if(watchedOnly)flow.watchedCutoff=horizon;
    const transcript=podcastContext?.transcript_evidence;
    const podcastRows=Array.isArray(podcastContext?.evidence)?podcastContext.evidence:
     (Array.isArray(transcript?.evidence)?transcript.evidence.map(row=>({
@@ -176,7 +183,7 @@ function register({app,ipcMain,authorized,getConfig,validateOwner=()=>true,fetch
    const sourceTruncated=podcastContext?.sourceTruncated??(sourceCoverage==='partial');
    const sourcePool=manifest.pool(reviewMode?[]:podcastWatched?podcastRows.map((row,index)=>({...row,id:'U'+index})):input.pool).filter(row=>!watchedOnly||row.end<=horizon);
    if(podcastWatched&&!flow.podcastEvidence)flow.podcastEvidence={workspace:'podcast',evidence:sourcePool,watched_cutoff:horizon,sourceTruncated,sourceCoverage};
-   const sourceContext=watchedOnly?{title:owner.title,...(podcastWatched?{workspace:'podcast',evidence:sourcePool,sourceTruncated,sourceCoverage}:{}),sinir:'Only timed excerpts ending by the frozen playback position are available.'}:input.context;
+   const sourceContext=watchedOnly?{title:owner.title,...(localPlayback?{playback:{...flow.localPlayback,position:horizon},evidence:sourcePool.slice(-12),sourceTruncated:true,sourceCoverage:{status:'partial',upstreamOmissionsUnknown:true},not:'Only the attached bounded recent finished subtitle excerpts are content evidence. They may be sampled and do not establish a complete summary of the watched transcript. Search the frozen subtitle scope for additional evidence; never infer omitted dialogue. No video frames or audio were sent.'}:{}),...(podcastWatched?{workspace:'podcast',evidence:sourcePool,sourceTruncated,sourceCoverage}:{}),sinir:'Only timed excerpts ending by the frozen playback position are available.'}:input.context;
    owner.hasSubtitles=sourcePool.length>0;
    const config=getConfig();
    controller=new AbortController();session={id:input.requestId,controller,owner,flow,reviewMode,runtime:runtimeTools.createRuntime(input.requestId)};const initialAttachment=manifest.sourceText(sourceContext),initialRows=[...(initialAttachment.evidence||[]),...(initialAttachment.feedSources||[]),...(initialAttachment.comparisonSources||[]),...(initialAttachment.page?.blocks||[])];session.scopeReads=[{tool:'initial-request',status:'attached',scope:JSON.stringify({source:manifest.publicContext(owner),coverage:initialAttachment.sourceCoverage||null,availableToolPoolRows:sourcePool.length,poolWasRead:false,watchedCutoff:watchedOnly?horizon:sourceContext?.watched_cutoff??null,productionRange:owner.range}),count:initialAttachment.sourceCoverage?.includedUnits??initialRows.length,total:initialAttachment.sourceCoverage?.providedUnits??null,truncated:initialAttachment.sourceTruncated===true,ids:initialRows.map(r=>r.id).filter(Boolean)}];sessions.set(event.sender.id,session);

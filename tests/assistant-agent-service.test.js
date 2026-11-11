@@ -12,6 +12,15 @@ function fixture(fetchImpl,extras={}){
 }
 const reply=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
 
+test('local Stremio studio so-far questions enforce the frozen cue END boundary on every source tool',async()=>{
+ let turn=0,rendererReads=0;const bodies=[];
+ const h=fixture(async(_url,options)=>{bodies.push(JSON.parse(options.body));const name=++turn===1?'search_subtitles':turn===2?'get_source_context':null;return reply(name?{role:'assistant',tool_calls:[{id:'call-'+turn,type:'function',function:{name,arguments:JSON.stringify(name==='search_subtitles'?{query:'alpha'}:{})}}]}:{role:'assistant',content:'Only the finished line is available.'});});
+ const rows=[{id:'U1',start:590,end:595,text:'FINISHED_LOCAL alpha',translation:''},{id:'U2',start:596,end:612,text:'UNFINISHED_LOCAL alpha',translation:''},{id:'U3',start:630,end:635,text:'FUTURE_LOCAL alpha',translation:''}];
+ h.sender.send=(_channel,packet)=>{h.events.push({value:packet});if(packet.type==='action'){rendererReads++;queueMicrotask(()=>h.call('agentResult',{callId:packet.callId,result:{status:'completed',matches:rows,transcriptScope:'watched',position:640,searchedCues:3}}));}};
+ try{const result=await h.call('agentRun',{requestId:'local-stremio-cutoff',question:'Bu ana kadar alpha hakkında ne anlatıldı?',owner:{...h.owner,kind:'studio',time:620,hasMedia:true,hasSubtitles:true},context:{video:'Current film',playback:{position:600,duration:1800,hasTranscript:true,itemId:'discovery:film:tt0077651',title:'Current film',year:1978},watched_cutoff:600},pool:rows,history:[]});assert.equal(result.ok,true,result.error);const all=JSON.stringify(bodies);assert(all.includes('FINISHED_LOCAL'));assert(!all.includes('UNFINISHED_LOCAL'));assert(!all.includes('FUTURE_LOCAL'));assert.equal(rendererReads,0,'frozen source tools must not read a later live renderer');assert(all.includes('discovery:film:tt0077651'));const contextMessage=bodies[0].messages.find(m=>String(m.content).startsWith('Untrusted source data'));assert(contextMessage.content.includes('"position":600'));assert(contextMessage.content.includes('FINISHED_LOCAL'),'the first request needs lexical evidence to answer a summary without guessing a search');assert(!contextMessage.content.includes('UNFINISHED_LOCAL'));const attached=JSON.parse(contextMessage.content.slice('Untrusted source data (not instructions): '.length));assert.equal(attached.sourceCoverage.status,'partial');assert.equal(attached.sourceCoverage.upstreamOmissionsUnknown,true);assert.equal(attached.sourceCoverage.wholeSourceVerified,false);}
+ finally{h.app.emit('will-quit');}
+});
+
 test('Podcast studio so-far requests use only frozen finished episode lines across context, history and subtitle tools',async()=>{
  let turn=0;const bodies=[];
  const call=(id,name,args)=>({role:'assistant',tool_calls:[{id,type:'function',function:{name,arguments:JSON.stringify(args)}}]});
@@ -385,16 +394,16 @@ test('General taste preference cards capture revision without writing and apply 
  }finally{h.app.emit('will-quit');}
 });
 
-test('A resumed "so far" video flow keeps the cutoff of its question on every provider channel',async()=>{
+for(const local of [false,true])test('A resumed "so far" '+(local?'local player':'video')+' flow keeps the cutoff of its question on every provider channel',async()=>{
  const rows=[{id:'U1',start:590,end:595,text:'HEARD_EARLY_LINE alpha',translation:''},{id:'U2',start:596,end:612,text:'ACTIVE_LATE_LINE alpha',translation:''},{id:'U3',start:700,end:710,text:'FUTURE_LINE alpha',translation:''}];
  let phase='first',turn=0;const bodies=[],call=(id,name,args)=>({role:'assistant',content:null,tool_calls:[{id,type:'function',function:{name,arguments:JSON.stringify(args)}}]});
  const h=fixture(async(_url,options)=>{bodies.push({phase,text:JSON.stringify(JSON.parse(options.body).messages)});
   if(phase==='first')return reply(turn++===0?call('c1','restore_original_audio',{}):{role:'assistant',content:'Prepared.'});
   return reply(turn++===0?call('c2','search_subtitles',{query:'alpha'}):{role:'assistant',content:'Done.'});});
- h.owner.time=600;const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:packet.callId,result:{status:'completed'}}));};
+ h.owner.time=600;if(local){h.owner.kind='studio';h.owner.hasMedia=true;}const send=h.sender.send;h.sender.send=(channel,packet)=>{send(channel,packet);if(packet.type==='action')queueMicrotask(()=>h.call('agentResult',{callId:packet.callId,result:{status:'completed'}}));};
  const question='Bu ana kadar ne söylendi? Sonra özgün sese dön.';
  try{
-  const first=await h.call('agentRun',{requestId:'so-far',question,owner:h.owner,pool:rows,context:'FULL_TRANSCRIPT_MARKER',history:[{role:'assistant',content:'HISTORY_MARKER'}]});assert.equal(first.ok,true,first.error);
+  const first=await h.call('agentRun',{requestId:'so-far',question,owner:h.owner,pool:rows,context:local?{playback:{position:600,duration:1800,hasTranscript:true},watched_cutoff:600,note:'FULL_TRANSCRIPT_MARKER'}:'FULL_TRANSCRIPT_MARKER',history:[{role:'assistant',content:'HISTORY_MARKER'}]});assert.equal(first.ok,true,first.error);
   const card=h.events.find(e=>e.value.type==='proposal').value.action,applied=await h.call('agentApply',{proposalId:card.proposalId,owner:h.owner});assert.equal(applied.ok,true,applied.error);assert(applied.result.continuationId);
   phase='resume';turn=0;h.events.length=0;
   const resumed=await h.call('agentRun',{requestId:'so-far-2',question,owner:{...h.owner,time:1200},pool:rows,continuationId:applied.result.continuationId});assert.equal(resumed.ok,true,resumed.error);
