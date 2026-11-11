@@ -76,8 +76,16 @@
     window.BrowserPanel?.reveal(toast);
     setTimeout(()=>toast.remove(),9000);
   }
+  // G14: intent vocabulary per group (lower-case). Search matches tool labels first, then these everyday phrases.
+  const intents={
+    'Yazı ve görünüm':'yazı yazıyı büyüt küçült font yazı tipi boyut renk karakter bozuk türkçe harf ass stil görünüm text size bigger fonts encoding broken characters style',
+    'Oynatma':'ses geriden geliyor gecikme önde senkron zaman kaydır ofset küçük oynatıcı mini pencere sync delay late early offset timing audio',
+    'Bul ve anla':'bul ara replik cümle kare karedeki yazı ekrandaki yazı ocr anlam arama find search dialogue line frame text on screen',
+    'Sahne ve bölümler':'sahne bölüm jenerik atla intro giriş dizi sonraki bölüm scene chapter skip credits series episode',
+    'Altyazı işlemleri':'altyazı oluştur çevir çeviri karşılaştır dışa aktar indir kaydet srt subtitle create translate compare export save download'
+  };
   const definitions=[
-    {name:['Görünüm ve ASS','Appearance & ASS'],hint:['Yazı, font ve karakter düzeltmeleri','Text, fonts and character repair'],icon:'display',tools:[
+    {name:['Yazı ve görünüm','Text & appearance'],hint:['Yazı boyutu, font ve karakter düzeltmeleri · ASS biçimi','Text size, fonts and character repair · ASS format'],icon:'display',tools:[
       {selector:'[data-bf-action="ass-load"]',icon:'file'},
       {selector:'[data-bf-action="ass-load-fonts"]',icon:'font'},
       {selector:'[data-bf-action="ass-load-mkv-fonts"]',icon:'film'},
@@ -113,7 +121,7 @@
       const group=make('details','bt-group');const summary=make('summary','');
       const badge=make('span','bt-group-icon');badge.append(icon(definition.icon));
       const copy=make('span','bt-group-copy');copy.append(make('strong','',definition.name[english?1:0]),make('small','',definition.hint[english?1:0]));
-      summary.append(badge,copy,icon('chevron'));group.append(summary);const body=make('div','bt-group-body');group.append(body);groupHost.append(group);groups.push(group);
+      group.dataset.intent=(intents[definition.name[0]]||'');summary.append(badge,copy,icon('chevron'));group.append(summary);const body=make('div','bt-group-body');group.append(body);groupHost.append(group);groups.push(group);
       let before=[];
       summary.addEventListener('click',()=>{before=groups.map(element=>({element,top:element.getBoundingClientRect().top}));});
       group.addEventListener('toggle',()=>{
@@ -253,7 +261,7 @@
       const query=input.value.trim().toLocaleLowerCase('tr');let matches=0;
       for(const row of rows) {
         const text=row.label;const at=text.toLocaleLowerCase('tr').indexOf(query);
-        const found=!query||at>=0;row.tool.hidden=!found;if(found)matches++;
+        const words=query.split(/\s+/).filter(w=>w.length>1),intentText=(row.group.dataset.intent||'').toLocaleLowerCase('tr'),intentHit=!!query&&words.length>0&&words.every(w=>intentText.includes(w)),found=!query||at>=0||intentHit;row.tool.hidden=!found;if(found)matches++;
         row.text.replaceChildren();
         if(query&&at>=0){row.text.append(document.createTextNode(text.slice(0,at)),make('mark','',text.slice(at,at+query.length)),document.createTextNode(text.slice(at+query.length)));}
         else row.text.textContent=text;

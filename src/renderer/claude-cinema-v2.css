@@ -234,7 +234,7 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
 .cv2-home-next>small{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted,#b0b4bd)}
 .cv2-next-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .cv2-home-next .cv2-next-chip{display:grid;align-content:start;gap:4px;min-width:0;height:auto;padding:10px 12px;text-align:left;border:1px solid var(--border,#383c43);border-radius:10px;background:rgba(255,255,255,.03);transition:border-color .2s,background .2s,transform .2s}
-.cv2-home-next .cv2-next-chip:hover,.cv2-home-next .cv2-next-chip:focus-visible{border-color:var(--primary,#d5a35c);background:rgba(213,163,92,.08);transform:translateY(-2px)}
+.cv2-home-next .cv2-next-chip:hover,.cv2-home-next .cv2-next-chip:focus-visible{border-color:var(--primary,var(--theme-accent));background:color-mix(in srgb,var(--theme-accent) 8%,transparent);transform:translateY(-2px)}
 .cv2-next-chip strong{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cv2-next-chip small{font-size:11px;color:var(--text-muted,#b0b4bd)}
 .cv2-next-chip .cn-progress{width:100%;height:3px;margin-top:2px}
@@ -329,3 +329,19 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
 /* Afişsiz detayda eski bej baş harf zemini daha özgül bir kuralla geliyordu; çerçeveli grafit/amber kompozisyon bunu ezmeli. */
 .media-title-page.cn-film-page .cn-film-hero .cn-film-poster.mv-art>.mv-art-fallback{background:none;color:color-mix(in srgb,var(--cn-gold) 84%,var(--cn-text))}
 .cn-film-hero .cn-film-copy h1.cn-title-long{font-size:clamp(30px,3.4vw,52px);-webkit-line-clamp:4}
+
+/* R854-05 — the sticky media header (and the film section nav under it) must not cover the anchor target.
+   --cv2-sticky-top is refreshed from the real header height when a film section link is used. */
+.cv2-film{--cv2-sticky-top:76px;--cv2-anchor-offset:calc(var(--cv2-sticky-top) + 72px)}
+.cv2-film .cn-film-nav{top:var(--cv2-sticky-top)}
+.cv2-film .cv2-film-sources,.cv2-film .film-review-section,.cv2-film :is(.cn-story,.cn-cast,.cn-audience,.cn-extras,.cn-accordion){scroll-margin-top:var(--cv2-anchor-offset)}
+
+/* R854 cinematic redesign — Home: glass doors with quiet ivory icons; the amber stays for the single primary action. */
+.cv2-home-doors{gap:14px}
+.cv2-home-door{position:relative;border-radius:22px;border:1px solid color-mix(in srgb,var(--text) 9%,transparent);background:linear-gradient(155deg,color-mix(in srgb,var(--text) 8%,var(--bg-1)),var(--bg-1) 75%);box-shadow:0 26px 44px -34px black,inset 0 1px color-mix(in srgb,var(--text) 7%,transparent);transition:transform .22s ease,border-color .22s,background .22s}
+.cv2-home-door svg{color:var(--text);opacity:.86}
+.cv2-home-door strong{font-size:16px;letter-spacing:-.015em}
+.cv2-home-door:hover,.cv2-home-door:focus-visible{border-color:color-mix(in srgb,var(--text) 22%,transparent)}
+html:not([data-motion=off]):not([data-motion=reduce]) .cv2-home-door:hover,html:not([data-motion=off]):not([data-motion=reduce]) .cv2-home-door:focus-visible{transform:translateY(-4px)}
+.cv2-home-hero .cn-hero-art{border-radius:26px;box-shadow:0 50px 90px -40px black,0 0 0 1px color-mix(in srgb,var(--text) 10%,transparent)}
+.cv2-home-doors .cv2-home-door svg{color:var(--text);stroke:var(--text);opacity:.86}

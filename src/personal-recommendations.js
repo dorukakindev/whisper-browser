@@ -23,4 +23,4 @@ function recommend(rows,candidates,{domain,limit=12,exploration=false,maxMinutes
  const selected=[];while(pool.length&&selected.length<limit){pool.sort((a,b)=>(b.score-diversityWeight*Math.max(0,...selected.map(r=>cosine(b.vector,r.vector))))-(a.score-diversityWeight*Math.max(0,...selected.map(r=>cosine(a.vector,r.vector))))||a.title.localeCompare(b.title));selected.push(pool.shift());}
  return {rows:selected.map(({vector,...r})=>r),domain,rated:rated.length,positive:positive.length,negative:negative.length,metadataRated:rated.filter(r=>Object.keys(features(r)).length).length,needsMetadata:positive.length>0&&!positive.some(r=>Object.keys(features(r)).length),needsRatings:!positive.length};
 }
-module.exports={recommend,features,cosine,identity};
+module.exports={recommend,features,cosine,identity,scoreOf};

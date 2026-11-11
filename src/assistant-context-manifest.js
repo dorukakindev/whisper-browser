@@ -17,6 +17,7 @@
   const add=(...parts)=>{const size=parts.reduce((sum,part)=>sum+(typeof part==='string'?part.replace(/\0/g,'').length:0),0);if(size){characters+=size;units++;}};
   for(const key of ['chapterText','selectedText','excerpt','reviewAnalysis','synopsis','note','cumle','mevcut_ceviri','not'])add(value[key]);
   add(value.page?.selectedText);
+  for(const source of value.comparisonSources||[])add(source?.text,source?.translation,source?.personalNote);
   for(const source of value.recallAnalysis?.sources||(Array.isArray(value.feedSources)?value.feedSources:[]))add(source?.text,source?.personalNote);
   for(const row of Array.isArray(value.page?.blocks)?value.page.blocks:[])add(row?.text);
   for(const key of ['onceki','sonraki'])for(const row of Array.isArray(value[key])?value[key]:[])add(row?.metin);
@@ -55,6 +56,7 @@
    const limit=key==='chapterText'?16000:key==='excerpt'?8000:4000;
    const value=context[key];if(typeof value==='string'){safe[key]=text(value,limit);if(value.length>limit)safe.sourceTruncated=true;}else if(typeof value==='boolean')safe[key]=value;
   }
+  if(Array.isArray(context.comparisonSources)){safe.comparisonSources=context.comparisonSources.slice(0,8).filter(r=>r&&typeof r.id==='string'&&typeof r.revision==='string').map(r=>({id:text(r.id,100),kind:text(r.kind,40),title:text(r.title,300),revision:text(r.revision,100),role:r.role==='translation'?'translation':r.role==='source'?'source':'quoted-source',language:text(r.language,24)||'unknown',origin:text(r.origin,40),scope:text(r.scope||r.locator?.scope,100),location:Object.fromEntries(Object.entries(r.location||r.locator||{}).filter(([k,v])=>['noteId','itemId','reviewId','nodeId','sourceId','episode','sourceVersion','page','seconds','end'].includes(k)&&(typeof v==='string'&&!/^(?:[a-z]:[\\/]|file:|\\\\)/i.test(v)||Number.isFinite(v))).map(([k,v])=>[k,typeof v==='string'?text(v,500):v])),text:text(r.text,1500),translation:text(r.translation,500),personalNote:text(r.personalNote,500),shortened:r.shortened===true||String(r.text||'').length>1500||String(r.translation||'').length>500||String(r.personalNote||'').length>500}));if(context.comparisonSources.length>8||safe.comparisonSources.some(r=>r.shortened))safe.sourceTruncated=true;}
   if(['feed-sources','recall-sources'].includes(context.type)&&!context.recallAnalysis&&Array.isArray(context.feedSources)){let remaining=16000;safe.feedSources=context.feedSources.slice(0,3).filter(s=>s&&/^[FR][a-f0-9]{16}$/.test(s.id)&&typeof s.text==='string').map(s=>{const body=text(s.text,Math.min(6000,remaining));remaining-=body.length;return {id:s.id,entryId:text(s.entryId,200),title:text(s.title,300),url:text(s.url,2000),nodeId:text(s.nodeId,200),scope:context.type==='recall-sources'?text(s.scope,100):s.scope==='feed-full'?'feed-full':'summary',revision:text(s.revision,100),reactionRevision:text(s.reactionRevision,100),domain:text(s.domain,30),role:['positive-support','counter-evidence','context-only'].includes(s.role)?s.role:'context-only',tasteEligible:s.tasteEligible===true,startOffset:s.startOffset,endOffset:s.endOffset,text:body,shortened:s.shortened===true||body.length<s.text.length};});}
   if(context.type==='recall-sources'&&context.recallAnalysis){const contract=typeof module==='object'&&module.exports?require('./assistant-recall-contract'):globalThis.AssistantRecallContract;safe.recallAnalysis=contract.normalize(context.recallAnalysis);}
   if(typeof context.chapterText==='string'&&context.chapterText.length>16000)safe.chapterTextComplete=false;
@@ -75,6 +77,7 @@
    if(safe.page?.blocks.length){safe.page.blocks.pop();safe.page.truncated=true;}
    else if(safe.chapterText?.length>1000){safe.chapterText=safe.chapterText.slice(0,-1000);safe.chapterTextComplete=false;}
    else if(safe.feedSources?.length){safe.feedSources.pop();}
+   else if(safe.comparisonSources?.length)safe.comparisonSources.pop();
    else if(safe.evidence?.length)safe.evidence.pop();
    else if(safe.onceki?.length)safe.onceki.shift();
    else if(safe.sonraki?.length)safe.sonraki.pop();

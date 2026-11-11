@@ -13,7 +13,7 @@ function register({ipcMain,authorized,store,now=Date.now}){
   const plan=plans.get(input.id);if(!plan||plan.sender!==event.sender.id)throw Error('Collection plan expired. Plan again.');
   if(input.action==='inspect')return {ok:true,plan:{id:plan.id,name:plan.name,member:plan.member,items:plan.items.map(({id,title})=>({id:'catalog:'+id,title}))}};
   if(input.action!=='apply')throw Error('Unsupported collection action.');const catalog=store(),patches=plan.items.map(item=>{const row=catalog.get(item.id);if(!row||identity(row)!==item.identity)throw Error('A title or membership changed. Plan again.');const collections=plan.member?[...new Set([...(row.collections||[]),plan.name])]:(row.collections||[]).filter(name=>name!==plan.name);if(collections.length>40)throw Error('Collection membership limit reached.');return {id:row.id,collections};});
-  catalog.upsertMany(patches);plans.delete(plan.id);return {ok:true,name:plan.name,count:patches.length};
+  catalog.upsertMany(patches);plans.delete(plan.id);return {ok:true,name:plan.name,count:patches.length,items:patches.map(row=>({id:row.id,member:plan.member,collection:plan.name}))};
  }catch(error){return {ok:false,error:error.message};}});
  return {plans};
 }

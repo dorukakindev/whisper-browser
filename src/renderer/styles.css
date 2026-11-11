@@ -3069,7 +3069,7 @@ to { opacity: 1; transform: translateY(0); }
   --group-cyan: #64bdcc;
   --group-green: #72b888;
   --group-gray: #7c858e;
-  --accent-soft: rgba(213,163,92,.14);
+  --accent-soft: color-mix(in srgb,var(--theme-accent) 14.000000000000002%,transparent);
   --accent-dim: #a98552;
   --accent-contrast: var(--theme-accent-contrast);
   --success: #69b58b;

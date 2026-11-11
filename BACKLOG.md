@@ -1,10 +1,112 @@
 # Bekleyen işler
 
+## Stremio / Oynatıcı Pro · birleşti, Git teslimi sürüyor · 2026-11-11-0349
+
+- Verilen HTML'ler ve 14–18 paketleri incelendi; son kümülatif 33 dosyanın SHA-256'ları doğrulandı. Önceki R853/R854, sıcak amber ve Whisper/üst menü düzeltmeleri korunarak Stremio eklenti/katalog/kaynak/kütüphane/puanlama ve Pro paneli eklendi. [Devir, doğrulama ve sınırlar](docs/devir/2026-11-11-0349.md).
+- Dal `codex/stremio-r854-20261111`, taban `ded71f4646504f65e5a70ad3fb594c06f010cea1`; ürün commit'i `61a179985a97a33082a105cb871779212f4688b8` (`[skip ci]`). Ürün ve 32 belge ayrı commitlerle teslim dalına pushlandı; belge commit'i `50362adc52bc75a1c4ebab5812d9dc996b896f39`. PR/master birleşmesi henüz gerçekleşmedi; ilgisiz kişisel farklar korunur.
+- Native vprop paket alanı, motor dönüşünde ayar uygulama, kapasitede kişisel satır kaybı/bozuk dosya ezme, manifest query yolu, belirsiz torrent dosyası, puan okuma/yazma yarışları ve gerçek axe tablist hatası düzeltildi. 14 hedefli dosya exit 0, R854/CinemaUI 38/38; yedi odak görünümünde JS ve seçili axe kurallarında 0 ihlal. Canlı Cinemeta manifest/katalog (50) ve Torrentio manifesti okundu; gerçek medya oynatma değildir.
+- **Tam `npm test` yeşil değil:** 87 dosya başarısız; aynı 85 Node + 2 Python dosyası paket öncesi kopyada da başarısız. Çözülmüş sayılmadı. Gerçek mpv bulunamadı; gerçek torrent/native/sağlayıcı üretimi/Electron/ASUS kabulü açık. Kişisel dosyalar yazılmadı.
+- **Kesin devam:** GitHub PR aracı çalışır hale gelince teslim dalından `[skip ci]` PR → beklenen HEAD ile master birleşmesi → yerel/uzak HEAD doğrulaması. Eklenti artık kurulu görünüyor; `get_repo` ve `create_pull_request` araçları hâlâ `Unknown tool` hatası veriyor. Normal Git push başarılı. Kimlik çıkarma kontrolü otomatik onayca reddedildi ve çalışmadı. Bağlantı/araç düzelmeden PR/merge yapıldı deme. Actions kullanma; tamamlanan kodu tekrarlama.
+
+## R854 · kalan uygulama kapsamları tamam · 2026-11-11-0311
+
+- **Yerel ürün uygulaması tamam; canlı kabul sınırları açık, Git teslimi yok.** `master` / `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Madde dökümü, testler ve kabul sınırları](docs/devir/2026-11-11-0311.md).
+- G45 → G46 → G47'den başlayarak önceki dökümde kalan 35 kayıt güncel kodla karşılaştırıldı; hazır parçalar tekrar yazılmadı. R854-01…12 ve G01…G68 için açık ürün uygulama işi bırakılmadı. Eski paket sayıları tarihsel kayıttır; hepsinin gerçek Electron kabulü yapılmış sayılmaz.
+- Podcast liste erişimi/tam yayın adı; öneri koşul/profil özeti; kısmi kütüphane hata paneli; asistan kaynak/yanıt alanı; gerçek çeviri satır sayısı ve işlem etkisi; kişisel dayanak/tercih geri alma; JSON/kısmi örnek/önizleme dönüşü; hedef bölüm/aynı sezona dönüş; devam kökeni ve seçili video kopyasının konumu tamamlandı. Sinematik yeniden kurulumda konum metni kaybı, asistanın composer arkasına taşması ve çevirileri sıfır sayması doğrulanıp düzeltildi.
+- **200/200** son hedefli test, ayrı etkilenen oyuncu davranışı **2/2**, tasarım ve 12 JS syntax geçti; dokuz odak görünümünde JS hatası 0. Kişisel veri/açık uygulama değişmedi; sıcak amber, eski R853/R854 ve Whisper düzeltmeleri korundu. Eski 419 renk eşiği uyuşmazlığı değiştirilmedi.
+- **Sıradaki:** yeni G geliştirmesi değil, (1) normal açılışta mevcut Podcast/üst menü kabulü, (2) izole Electron'da gerçek medya/Browser geçişleri, (3) sonuçları aynı rapora kaydetme. Canlı site/sağlayıcı/GPU ve ASUS kabulü yapılmadı. Açık Git komutu beklenir.
+
+## R854 · görsel kontrol ve G43 · 2026-11-11-0248
+
+- **Yerelde tamamlandı; Git teslimi yok.** `master` / `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Devir, kanıt ve kalan kabul](docs/devir/2026-11-11-0248.md).
+- G43: menü dışında kayıtlı görünüm adı ve etkin tarih/alan özeti; değiştirildi işareti, kaynak/kayıt yazmadan kapsam/kamera/seçim/aralığa dönüş. Açık kaydetme ayrı, EN/TR ve sıcak amber korunur.
+- Zevkim/Seriler/Podcast, seri ikinci sezonu ve G43 görünümü izole Windows Chromium'da 1920×1080 incelendi; beş odak görünümünde JS hatası 0, yeni görsel kusur bulunmadı. Gerçek start.bat/Electron/ASUS ve kişisel kullanım kabulü açık; fixture sonucu canlı kabul değildir.
+- Kullanıcının önceki arşivlerindeki dokuz farklı R854 sürümünün yolları son pakette kapsanıyor; eklenen adlandırılmış JS işlevlerinde kayıp bulunmadı. Önceki birleşme, R853 ve sıcak amber/oyuncu düzeltmeleri korunuyor; tüm davranışlar canlı doğrulanmış sayılmadı. **54/54** hedefli kontrol, tasarım ve JS syntax geçti. Kişisel profile/açık uygulamaya dokunulmadı.
+- **Kesin sonraki R854 üçlüsü (medium): G45 aday ayrıntısı → G46 tekil tercih geri alma → G47 gerçek kişisel dayanak türleri.** Ardından G48–G52. Eski nötr karar ve aşağıdaki eski devam sıraları tarihsel kayıttır; rapor bütünü kapanmadı.
+
+## Sıcak amber ve oyuncu düzeltmeleri · 2026-11-11-0234
+
+- **Yerelde düzeltildi; açık kişisel uygulama yenilenmedi, Git teslimi yok.** `master` / `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Devir ve kabul sınırları](docs/devir/2026-11-11-0234.md).
+- Kullanıcı nötr/siyah-beyaz yönü geri çekti; sıcak amber/grafit, renkli kapak/ortam ışığı geri geldi. Tek ortak palet ve kontrastlar korunur. AGENTS/DESIGN/README güncel kararı taşır.
+- Mevcut kişisel Whisper kaydında 1.089 zamanlı satır ve doğru cache byte hash'i doğrulandı; dosyaya yazılmadı. Kayıtlı ASR yüklemesi aynı bölüm/sürüm/hash'e ait doğrulanmış kopyayı açar; eksik/farklı/eskimiş kanıtta güvenlik kapısı korunur. Kopya geçişinde yalnız exact eski/yeni oynatma sahibi için kuyruk playback makbuzu devredilir, diğer bölüm etkilenmez.
+- Ayarların gizli İleri araçlar dialog'una sahiplik üzerinden açılması ve Sahne arkasında kalan başlık menüleri düzeltildi. İzole tam renderer'da önce ayarlar/Diğer arkada, sonra ayarlar/Diğer/Görünüm önde; JS hatası 0. 134/134 hedefli kontrol, tasarım kontrastı, syntax/diff temiz. Bu, kişisel açık uygulamada canlı oynatma kabulü değildir; **yeniden Whisper gerekmez**, normal açılıştan sonra aynı kayıt kullanılabilir.
+- Sıradaki: (1) normal açılışta kayıtlı sonuç ve üç üst menünün kullanıcı kabulü, (2) eksik R854 görsel kabulü, (3) G43 → G45–G52. Önceki nötr tasarım kararı artık geçerli değildir.
+
+## Claude R854 paket birleşmesi ve nötr tasarım · 2026-11-11-0217
+
+- **Hazır paket yerelde birleştirildi; R854 raporu tümüyle kapanmadı. Git teslimi yok.** `master` / `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Kapsam, testler ve kesin devam](docs/devir/2026-11-11-0217.md).
+- Son kümülatif paketin 45 taban/yeni SHA-256'ı doğrulandı; önceki verilen arşivlerin yolları kapsanıyor. 42 dosya, altı elle çözülen R853 çakışması; kök durum belgeleri ve aynı adlı kişisel podcast devri korunarak alındı. Karşılaştırma masası, puan/kapsam envanteri, exact alıntı okuyucusu, podcast kaynak kimliği ve ağ karar geçmişi kaybolmadı.
+- Yeni kullanıcı yönü uygulandı: nötr/sinematik zemin, düşük doygunluklu etkileşim vurgusu; amber/buz mavisi baskın değil. Tek CSS aksanı oyuncu/asistan/Browser/küçük oynatıcı ve üretilen sayfa araçlarına bağlandı. AGENTS/DESIGN/README güncellendi.
+- 80/80 R854 + yorum akışı kontrolü, ayrı exact kanıt/Geri birleşme kontrolü, kısa sahiplik/alan ve Browser/player kontrolleri geçti; 30 JS syntax temiz. Okuyucu açık durumunun kapsam panelinden etkilenmesi ve sentezde teknik tercih metni sızıntısı düzeltildi. Dört izole Chromium görünümü gözle incelendi; gerçek start.bat/Electron/canlı kabulü değildir.
+- 571 renk bütçesi değişmedi, gerçek sayı 574 → 566. Eski 419 eşikli test **önce de başarısızdı ve hâlâ başarısız**; eşiği yükselterek test geçirme yapılmadı.
+- **Kalan:** Dış paket G durumunu 28 tam / 4 görsel doğrulanmamış / 18 kısmi / 18 başlanmamış bildiriyor; hepsi bitmiş sayılmadı. Sıra: (1) Zevkim/Seriler/Podcast ve eksik görsel kabul, (2) G43 etkin kayıtlı görünüm kapsamı, (3) G45–G52 Sana özel/inline yorum/aday ayrıntısı. Sonrasında aynı raporun kalanları; yeni iş listesi üretme, Git komutu bekle.
+
+## Podcast seçkisi ve ayrı YouTube sırası · 2026-11-11-0200
+
+- **Gerçek kişisel aktarım yapıldı, iki dış kaynak bölümü bekliyor; Git teslimi yok.** `master` / `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Devir, yedek ve doğrulama](docs/devir/2026-11-11-0200.md).
+- 62 yeni podcast kaynağı (56 RSS, 6 arşiv), 229 kütüphane kaydı; seçili 74 bölüm sıra sonuna eklendi (17 → 91). Eski kuyruk/indeks, 57 raf podcasti ve 6.205 bölümün kişisel alanları, mevcut kaynak kayıtları korundu. Yedek ve ayrıntılı makbuzlar profilin `manual-import-backups/` dizininde; kişisel dosyalar repoya eklenmedi.
+- YouTube ayrı: 56 videoluk `İçerik önerileri · İzleme sırası` kalıcı listesi, 50 aktif sıra + listede korunan 6 kayıt, 19 kanal aboneliği. Diğer yerel depolama anahtarları değişmedi; yeniden açılışta kalıcılık doğrulandı. İki videoda yalnız verilen kimlik/başlık korundu, oynatma doğrulanmadı.
+- Aynı yayıncı arşiv sayfasındaki seslerin birbirini ezmesi hazırlık kopyasında doğrulandı ve `feed-store` kimlik/gruplamasında düzeltildi. Üç kısa hedefli test, syntax ve gerçek profilde tekrar aktarım/kayıp olmaması kontrolleri geçti. Ürün görsel/oynatma kabulü değildir.
+- **Kalan:** Bir bölümün gerçek sesi 404/410, diğerinde yalnız Spotify önizlemesi var; tam bölüm diye eklenmedi. Özel ilk yedekte `pending-sources.json` bağlantıları koruyor. Sonraki adımlar: (1) bu iki tam kaynağı edinince ekle, (2) normal kullanımda oynatmayı kontrol edip listedeki altı videoyu kapasite açılınca sıraya al, (3) önceki R853 kabulüne dön. Tamamlanan geliştirmeleri tekrarlama, Git komutu bekle.
+
+## R853 · kalan 18 kapsam · 2026-11-11-0123
+
+- **Yerel uygulama tamamlandı; Git teslimi yok.** A01–A14 + G13/N05 + N03 + L05/L06; G15, A07 ile ortak. Dal `master`, başlangıç/bitiş HEAD `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Kapsam, dosyalar, kanıt ve sınırlar](docs/devir/2026-11-11-0123.md). Genel 50 iş veya Claude R854 paketi bu kapsama katılmadı; eski yerel ve kişisel farklar korundu.
+- Alan bağlı zevk/öneri/tercih, yeni sayfalara normal gezinme, ortak salt-okunur arşiv ve gerçek kaynak revizyonlu podcast/notebook sayfalama. Kaynak karşılaştırma masası ve tekrar doğrulanan ayrı not kayıt onayı; seçilebilir gerçek gönderim paketi. Kalıcı kaynak/seçenek/iş makbuzu, bağımlı plan, exact çalışma haritası, amaçla daralan/keşifle genişleyen gerçek araç registry'si, podcast teşhisi, hub denetimleri, yanıt kapsam dökümü ve kullanıcı düzenlemeli görev özeti/yanıt tercihi.
+- Ağda gerekçeli yeniden inceleme ve yalnız seçili doğrulanmış podcast pasajını önizleme/onayla ekleme; gizli kayıt açılmaz ve hipotez uydurulmaz. Zevk çıkarımının corpus/state/tarihi görünür; açık tekil kaynak yenilemesinde değişiklik, erişim/kimlik belirsizliği ve HTTP 404/410 ayrılır, eski analiz korunur.
+- **164/164** sahiplik/kalıcılık ve **28/28** kaynak odaklı kontrol; son alan/panel/taşıma/plan koşuları da geçti. Örtüşen kontroller toplam diye toplanmaz. **32 JS syntax** temiz. `.wbp` not/özet/gizli pasaj turu, DOM önizleme/onay ve değişmiş kaynak retleri kontrol edildi. Native köprüde düşen komut/alan ve dokuzuncu kart kesimi düzeltildi; bu kontrollü test native görsel kanıt değildir.
+- Kişisel profil/açık uygulama okunmadı/yazılmadı; ikinci yazıcı, Computer Use, agent, dosya erişim penceresi, Actions yok. Açık uygulama kapatılmadı; yeni kod sonraki normal açılışta yüklenir. Canlı sağlayıcı/Letterboxd/GPU ve Windows/ASUS/start.bat görsel kabulü açık.
+- **Kesin sonraki öncelikler yalnız R853:** (1) izole Windows/ASUS görsel/etkileşim kabulü, (2) sentetik içerikte canlı araç keşfi ve tekil permalink kabulü, (3) sonuçları kaydetmek ve yalnız açık komutta Git teslimi. Bu 18 geliştirme yeniden yapılmaz; eski aşağıdaki sonraki listeler tarihsel kayıttır.
+
+## R853 · G10/N01/N07/N08/L07 · medium · 2026-11-11-0025
+
+- **Yerelde uygulandı; Git teslimi yok.** Dal `master`, başlangıç/bitiş HEAD `ded71f4646504f65e5a70ad3fb594c06f010cea1`; ürün/test değişiklikleri commit edilmemiştir. [Devir ve sınırlar](docs/devir/2026-11-11-0025.md). Önceki bütün yerel geliştirmeler ve kişisel manifest/INDEX/CLAUDE_TASK_GUIDE farkları, start.sh silinmesi korundu. R854/Claude paketi uygulanmadı/değiştirilmedi.
+- G10/L04: tema başına alıntı, benzersiz bilinen yazar kimliği, bilinmeyen yazar yorumu, destek/karşıt/karma ayrımı; iki tarafta aynı yazar ve kapsanmamış tema görünür. Sınıflar kayıtlı analizden gelir, bağımsız duygu doğrulaması değildir. L07: özet/uygunluk pasajında gerçekten bulunan doğrulanmış alıntıya mevcut karta bağlantı; eşleşme yoksa anlamsal dayanak doğrulanmamış kalır. Kişisel seçim, tarihsel çıkarım ve koşullu sentez ayrıdır; model çağrısı yok.
+- N01: ileriye dönük gerçek insan karar olayları (son 40 + dışarıda kalan sayı), kayıtlı/güncel kanıt durumu, kaynak/reaction sürümü ve ilişkiyi oluşturan/yeniden kullanan analiz makbuzu. Eski olay uydurulmaz. Aynı manuel ilişkiyi yeniden onaylamanın ret kararını/tarihini silmesi eski/yeni sentetik karşılaştırmayla düzeltildi.
+- N07: 60 düğüm/120 ilişki sınırını genişletmeden görünmeyen eşleşen düğüm, filtre/derinlik dışı komşu, çizilmeyen ilişki ve metadata/user/model sayıları; grup başına 50 öğelik revision bağlı inceleme. Kaynak aramasına geçiş kamera/filtreyi değiştirmez.
+- N08: başlık/etiket/sağlanan metinde harf/aksan duyarsız literal arama; görünür ağ veya bilinen sahip kayıtları; hidden/spoiler gate korunur. En fazla 5.000 kaynak, kaynak başına ilk 100.000 sağlanan karakter; sonuçta köken/scope/sayfa/bölüm ve gerçek UTF-16 eşleşmesi. Sayfalama/okuma/source açma sürüm bağlı; geç yanıt güncel sorguyu ezmez. Dosya seçimi, ağ çekimi ve model yok.
+- **51/51 hedefli Node test + 9 JS syntax** geçti; export→restore ve DOM testleri dahil. İlk paket kontrolü yeni string-ID alanında nesne-array helper kullanıldığını yakaladı; yalnız yeni alan doğrulayıcısı düzeltildi, eşik gevşetilmedi. Başarısız log `tmp/r853-g10-n01-n07-n08-l07-ui.txt`, başarılı `tmp/r853-g10-n01-n07-n08-l07-final.txt`; eski/yeni karar kanıtı `tmp/r853-decision-before-after.txt`.
+- Kişisel profil/açık uygulama kullanılmadı. Native Windows/ASUS/start.bat görseli, canlı site/model/GPU kabulü açık. Yeni kişisel dosya yok; optional edge reviewHistory ve run edgeIds mevcut recall-network.json/.wbp içinde korunur. Free-form iddiaların anlamsal doğruluğu veya bütün eser boyunca tarama vaat edilmez.
+- **Kesin sonraki öneri yalnız R853:** A02 → A01 → A03 → A04 → A13 (tamamı medium; mevcut sahiplerde salt okunur köprüler ve normal gezinme). Yeni sayfalara asistan erişimi; alan seçen zevk okuması; mevcut arşiv kaynaklarını ortak salt-okunur sonuçla sorgulama; kaynak revizyonlu podcast/notebook sayfalama; yanıtın kaynak/kapsam dökümü. Mevcut query_library pagination ve C01–C10 işleri yeniden yapılmaz. G13/N05, N03, A05/A08/A12 ve G15 gibi daha geniş izin/üretim akışları bu öneriye dahil değildir.
+
+
+## R853 · D04/D08/N02/N04/N06 · medium · 2026-11-10-2347
+
+- **Yerelde uygulandı; Git teslimi yok.** Dal `master`, başlangıç/bitiş HEAD `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Devir, dosyalar ve sınırlar](docs/devir/2026-11-10-2347.md). Önceki geliştirmeler, kişisel manifest/INDEX farkları, start.sh silinmesi ve bu tur başında zaten değişmiş CLAUDE_TASK_GUIDE korundu. R854/Claude paketi değiştirilmedi.
+- D04: alan/tarih ile gösterim geçmişini daraltıp en fazla 100 satır seçme; salt okunur JSON dışa aktarım metni; geri bildirim/aktif erteleme etkisiyle owner/revision/token bağlı önizleme ve ayrı kaldırma onayı. Otomatik temizlik yok, puan/not/izlenme ve başka havuz değişmez.
+- D08: gerçek provider/katalog ID, mevcut/yeni tarafsız kayıt, kimlik doğrulaması ve bekleyen/doğrulanmamış/kaydedilmiş koleksiyon üyeliği için oturumluk satır makbuzu. Kısmi kayıtlar korunur; yeniden inceleme aynı seçili kimlikleri tekrar doğrular. Confirmed apply sonrasında sayfa yenileme hatası kaydı başarısız sayılmaz; diyalog kapanınca yeni adım başlatılmaz.
+- N02: model ve metadata dayanağını ayrı ağ okuyucusunda, doğrulanmış UTF-16 aralığıyla vurgulama; asıl kaynak düğmesi ayrı ve açılışta yeniden doğrulanır. Stale/blocked/removed kanıtta zaman/medya hedefi uydurulmaz. N04: Podcast harita filtresi eski RSS `audio` ve raf `podcast` kayıtlarını birlikte gösterir; kimlik/köken/kapsam/tepki ayrı. Yalnız görünür karşı kaynaklarda birebir enclosure adresi adaylığı; açık önizleme/onayla manuel related bağlantısı, birleştirme yok.
+- N06: gizlenen referans listesi/arama, revision bağlı açık geri getirme; mevcut hide/purge yolları için gerçek etki simülasyonu ve token bağlı ayrı onay. Kanıt/ilişki/kavram/hipotez/olay/tepki/not/eş ad/analiz etkisi görünür. Yalnız ağda tutulan notun purge ile silinmesi ayrıca belirtilir; özgün medya/katalog korunur.
+- **59/59 hedefli Node test + 13 JS syntax** geçti. Kontrollü eski/yeni karşılaştırma bağımsız insan bağlantısının purge sonrası kaybolmasını (**false → true görünürlük**) ve podcastId locator kaybını (**false → true korunma**) doğrulayıp onardı. Loglar `tmp/r853-d04-d08-n02-n04-n06-verified.txt`, `tmp/r853-network-before-after.txt`.
+- Kişisel profil/açık uygulama kullanılmadı. Native Windows/ASUS/start.bat görünümü, canlı site/model/GPU kabulü açık. JSON geçmiş dışa aktarımı kullanıcıya gösterilen metindir; otomatik dosya/clipboard veya yeni import/undo yolu yok. Toplu makbuz diyalog/oturum kapsamındadır, süreç yeniden açılışında kalıcılık vaat edilmez. Podcast URL eşliği ses byte/sürüm eşitliği değildir; farklı URL/GUID/başlıkla kimlik varsayılmaz. Yalnız mevcut desteklenen kaynak sahiplerine dönüş vardır, UTF-16 saniye değildir.
+- **Kesin sonraki öneri yalnız R853:** G10 → N01 → N07 → N08 → L07 (tamamı medium; mevcut veriyle açıklama/inceleme kapsamı). Tema başına bilinen/bilinmeyen bağımsız dayanak; ilişki karar/köken geçmişi; çizilmeyen ağ kapsamını inceleme; açık kapsamlı kaynak metni araması; serbest sentezin dayanak/sınırını açma. G10/L04 tek kapsamdır. Geçmiş kayıt uydurma veya otomatik yeni analiz yok; G13/N05, G15 ve yeni üretim/izin akışı gerektiren işler bu gruba katılmadı. Git teslimi için açık komut beklenir.
+
+
+## R853 · G12/D01/D06/L02/L08 · medium · 2026-11-10-2322
+
+- **Yerelde uygulandı; Git teslimi yok.** Dal `master`, başlangıç/bitiş HEAD `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Devir ve sınırlar](docs/devir/2026-11-10-2322.md). Önceki G02/G06/G07/G08/G09 farkları, kişisel manifest/INDEX farkları ve start.sh silinmesi korundu. R854/Claude kaynak paketi değiştirilmedi.
+- G12/D05: kaynak örneğinin eşleşmeme nedenleri, bilinmeyen yıl/çok aday/metadata hatası/6 olumlu–3 olumsuz sınırı ve adayın mevcut kimlik incelemesi. D01: katalog/koleksiyon/günlük/açık profil puan envanteri, alan/puansız/olumlu/olumsuz/karma, hesaplayıcıya geçen ve etkili metadata ayrımı. D06: aday başına gerçek metadata sırası, tekrar ve çeşitlilik indirimi.
+- L02: havuz/sayfa/yazar, bilinmeyen köken ve okuma dışlamaları; son istenen, görünen/gizli yüklü ve gerçekten gönderilecek örnek ayrı. L08: yalnız kesin kayıtlı analiz/snapshot için yararlı/alıntı/uygunluk/dar örnek işareti, revision denetimi ve kaldırma; film puanı/izlenme/zevk/öneri feedback'i değişmez.
+- **52/52 hedefli Node test; 10 JS syntax**, diff/UTF-8/yeni devir bağlantıları kontrol edildi. Kontrollü önce/sonra: aynı sentetik katalogda boş puanın olumsuz sayılması düzeltildi (**2 → 1** olumsuz); RSS puansız sıfırı **0 → null**. Geçerli düşük puan korunur. Testler kişisel profil veya gerçek sağlayıcı kullanmadı.
+- Yeni kişisel dosya yok. `media-enrichment.json.titles[*].history[*].analysisFeedback` mevcut pakete dahil; exact hash analiz/snapshot'a bağlı, eski revision ve farklı film reddedilir. Servis yeniden açılışı, UI kaydet/kaldır ve export→restore doğrulandı. Kişisel açık uygulama/veri okunmadı/yazılmadı. Native Windows/ASUS/start.bat görseli, canlı Letterboxd/AniList ve model/GPU kabulü açık.
+- **Kesin sonraki öneri yalnız R853:** D04 → D08 → N02 → N04 → N06 (tamamı medium). Gösterim geçmişi kapasite yönetimi; toplu arşiv kısmi işlem makbuzu; ağ alıntısı/gerçek kaynağa ayrı dönüş; podcast audio/podcast köken ayrımı; gizlenen ağ kaynakları ve purge etki önizlemesi. Mevcut parçalar yeniden üretilmez; hiçbir temizleme kullanıcı seçimi/önizlemesi/onayı olmadan çalışmaz. G10/L04, G13/N05 ve G15 daha kapsamlı kalan gruptur; bu öneriye karıştırılmaz.
+
+
+## R853 · G02/G06/G07/G08/G09 · medium · 2026-11-10-2310
+
+- **Yerelde uygulandı; Git teslimi yok.** Dal `master`, başlangıç/bitiş HEAD `ded71f4646504f65e5a70ad3fb594c06f010cea1`. [Devir, dosyalar ve sınırlar](docs/devir/2026-11-10-2310.md). R854/Claude çalışması ve kaynak ZIP değiştirilmedi.
+- G02 eksik/şüpheli inceleme sırası ve yalnız seçili terminal hataya retry; G06 tercih kapsamı/geri alma açıklaması; G07 koşul bazlı eksik bilgi/uyumsuzluk ve aynı donmuş örnekte yazmasız filtre önizlemesi; G08 açık seçimle kayıtlı örnek/devam noktası; G09 AI öncesi tam metin/yazar/kaynak farkı.
+- **69/69 hedefli Node test + 16 JS syntax** geçti. İlk EPERM ve üç başarısız test çıktısı `tmp/r853-g02-g09-*` altında korundu. Biri eleme açıklamasının geri bildirim kartıyla aynı sınıfı kullanmasıydı, ayrıldı; diğeri fixture'ın yanlış checkbox seçmesiydi, isimli gerçek kontrolle düzeltildi. Paket turundaki eksik/undefined kimlik alanları da kalıcı JSON ile aynı normalize edildi; gerçek export→restore turu geçti.
+- Kişisel profil/açık uygulama kullanılmadı. Native Windows/ASUS/start.bat görünümü, canlı site/403/oturum ve GPU/model kabulü **açık**; kontrollü JS/servis kanıtı bunların yerine geçmez. İleri ayarlar ve mevcut onay kapıları korunur.
+- G08 `media-enrichment.json.reviewDrafts`: en fazla 10 taslak; her örnek 100 yorum / 120.000 karakter; eski sürümle üzerine yazma reddi. Karma/dengeli örnekte tek devam uydurulmaz; tek sayfa çekimi mevcut erişim sınırlarına tabidir. Manuel kaydetmeden kesilen yeni örnek kalıcı sayılmaz.
+- **Kesin sonraki öneri yalnız R853:** G12 → D01 → D06 → L02 → L08 (tamamı medium). Sırasıyla eşleşmeyen profil kayıtları; puan kaynak envanteri; çeşitlilik/tekrar sıralama gerekçesi; birleşik yorum örneğinin kapsamı; analize özel yararlılık geri bildirimi. G12/D05 aynı iş, ayrı sayılmaz. G10/G13/G15 bu beşliye katılmadı; daha kapsamlı kalan işlerdir. Yeni uygulama/Git yetkisi çıkarılmaz.
+
+
 ## Git teslimi · PR #910 · 2026-11-10-2244
 
 - Açık kullanıcı yetkisiyle birikmiş doğrulanmış ürün/test değişiklikleri `a3f9c1d997b5dd3b8d09555840627b74e530df3d` commit'inde, belgeler ayrı commit'te teslim edilir. [PR #910](https://github.com/dorukakindev/whisper-browser/pull/910); [teslim ve Claude sınırı](docs/devir/2026-11-10-2244.md). [skip ci], gerçek ana dal master. Son push/merge sonucu PR kaydı ve origin/master ile doğrulanır.
 - 177/177 teslim regresyonu ve dahil JS/Python syntax geçti. Native/Windows görsel/GPU/canlı sağlayıcı kabulü açık. Kişisel manifest, start.sh silinmesi ve ilgisiz yerel arşivler korunur; yeni kaynak ZIP yok.
-- **Bizde sonraki yalnız R853:** G02 → G06 → G07 → G08 → G09; tamamı medium, henüz uygulanmadı. **Claude:** R854 ayrı checkout ve taban sürümlü değişiklik paketi; R853 tekrar edilmez. R854 kanıtları kullanıcıdaki evidence854.rar ile ayrıca verilir.
+- **Teslim anındaki sonraki grup** G02/G06/G07/G08/G09, 23:10 yerel uygulamasıyla tamamlandı; güncel sıra bu dosyanın başındadır. **Claude:** R854 ayrı checkout ve taban sürümlü değişiklik paketi; R853 tekrar edilmez. R854 kanıtları kullanıcıdaki evidence854.rar ile ayrıca verilir.
 
 ## R853 medium G03/G04/G05/G11/G14 · 22:37
 
@@ -1349,3 +1451,7 @@ Sahne için mpv canlı kabulü dosya erişim onayı gerektirdiğinden test korum
 ## Çalışma sınırları
 
 Kısa hedefli kontrol; Computer Use ve dosya erişim penceresi yok. GitHub Actions yok; commit/PR/merge başlıklarında `[skip ci]`. Kişisel manifest/indeks/start.sh farkları ile korunan `src/media-source-envelope.js` ve `tests/media-source-envelope.test.js` dosyalarına dokunma. Her yeni işte güncel dal/HEAD ve ilgili son devir kontrol edilir.
+
+### Güncel kullanıcı kararı — yalnız push
+
+Kullanıcı bu teslim için “Şimdilik push yeterli” dedi. Teslim dalı pushlanır; PR/master birleşmesi yapılmaz. Bundan sonra birleştirme için yeni açık komut beklenir. Önceki PR/master sonraki adımları bu kararla beklemeye alınmıştır. Sonraki ürün öncelikleri: gerçek native motor/medya kabulü; mevcut 87 başarısız test dosyasını kök nedenlerine göre ele alma; Stremio depolarının `.wbp` yedek kapsamını açıkça belirleme.

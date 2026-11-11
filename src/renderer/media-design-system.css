@@ -1,5 +1,5 @@
 /* Approved V3 cinema controls. Scoped to media surfaces; no browser chrome reset. */
-:root { --mk-bg:#121314; --mk-surface:#1b1c1e; --mk-text:#eee9e1; --mk-muted:#bab4ab; --mk-line:rgba(238,233,225,.18); --mk-gold:#d5a35c; --mk-ease:cubic-bezier(.16,1,.3,1); --mk-fast:120ms; --mk-state:200ms; --mk-panel:320ms; --mk-hero:600ms; --mk-ambient:900ms; }
+:root { --mk-bg:#121314; --mk-surface:#1b1c1e; --mk-text:#eee9e1; --mk-muted:#bab4ab; --mk-line:rgba(238,233,225,.18); --mk-gold:var(--theme-accent); --mk-ease:cubic-bezier(.16,1,.3,1); --mk-fast:120ms; --mk-state:200ms; --mk-panel:320ms; --mk-hero:600ms; --mk-ambient:900ms; }
 :is(#whisperV3Dialog,#mediaCatalogDialog,#playerSourceCatalogV3,#playerWorkspaceV3,#assistantArtifactDialog) { --bg-0:var(--mk-bg);--bg-1:var(--mk-surface);--bg-2:var(--mk-surface);--bg-3:var(--mk-surface);--text:var(--mk-text);--text-dim:var(--mk-muted);--text-muted:var(--mk-muted);--border:var(--mk-line);--accent:var(--mk-gold);--pw-bg:var(--mk-bg);--pw-surface:var(--mk-surface);--pw-fast:var(--mk-fast);--pw-ease:var(--mk-ease);--mv-fast:var(--mk-fast); }
 :is(#whisperV3Dialog,#mediaCatalogDialog,#playerSourceCatalogV3,#playerWorkspaceV3,#assistantArtifactDialog) * { transition-property:transform,opacity; }
 .mk-dialog,.mk-popup { color:var(--mk-text);font-family:'IBM Plex Sans',sans-serif; font-variant-numeric:tabular-nums; }

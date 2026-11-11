@@ -22,7 +22,21 @@ Whisper Browser is a desktop media library, player and embedded browser, with di
 
 ## Proje bilgisi ve kaldığın yer
 
+**Son çalışma · 2026-11-11 03:49:** [Stremio / Oynatıcı Pro ve Git teslimi](docs/devir/2026-11-11-0349.md). Stremio eklentileri, kaynak/kütüphane/puanlama ve ortak Pro araçları önceki R853/R854 ve sıcak amber korunarak birleştirildi. 14 hedefli dosya ve 38 korunum kontrolü geçti; tam paketin eski başarısızlıkları ve gerçek native kabul sınırları devirde. Kullanıcı Git teslimini yetkilendirdi; güncel push/PR/master durumu BACKLOG'dan doğrulanır.
+
+**Son yerel çalışma · 2026-11-11 03:11:** [R854 kalan uygulama kapsamları](docs/devir/2026-11-11-0311.md). R854-01…12 / G01…G68 için açık ürün uygulama işi kalmadı; hazır parçalar tekrar yazılmadan kalanlar tamamlandı. Sıcak amber ve önceki geliştirmeler korunuyor. 200 hedefli kontrol geçti; gerçek Electron/site/sağlayıcı/GPU ve ASUS kabulü ayrı, Git teslimi yok. Güncel devam için BACKLOG ve bu devir esas alınır; aşağıdaki eski sonraki listeler tarihsel kayıttır.
+
 **Git teslimi:** [PR #910](https://github.com/dorukakindev/whisper-browser/pull/910) · [devir ve Claude sınırı](docs/devir/2026-11-10-2244.md). Birikmiş doğrulanmış geliştirmeler ve R853/R854 belgeleri; 177/177 teslim regresyonu geçti, native/görsel kabul açık. R853 G02/G06/G07/G08/G09 bizde; Claude için R854 ayrı çalışma paketi. Görsel kanıtlar kullanıcıdaki evidence854.rar ile sağlanır.
+
+**Son çalışma · 2026-11-11 01:23:** [R853 kalan 18 kapsam](docs/devir/2026-11-11-0123.md). Alan bağlı asistan/arşiv, kaynak karşılaştırma, gerçek gönderim seçimi, kalıcı görev özeti ve makbuz, yeniden inceleme/seçili podcast pasajı ve tekil yorum yenilemesi. Yerel uygulama ve hedefli testler tamam; Windows/ASUS görseli ve canlı sağlayıcı kabulü açık. Git teslimi yok; R854/Claude paketi ayrı.
+
+**Son çalışma · 2026-11-11 00:25:** [R853 medium G10/N01/N07/N08/L07](docs/devir/2026-11-11-0025.md). Tema/yazar dayanağı ve sentez sınırları; ilişki karar geçmişi; harita dışı kapsam ve sağlanan metinde kaynaklı arama. 51/51 hedefli kontrol; native/görsel/canlı kabul açık. Sonraki A02 → A01 → A03 → A04 → A13 (tamamı medium; mevcut sahiplerde salt okunur köprüler ve normal gezinme). Git teslimi yok.
+
+**Son çalışma · 23:47:** [R853 medium D04/D08/N02/N04/N06](docs/devir/2026-11-10-2347.md). Seçili geçmiş yönetimi, kaynaklı kısmi koleksiyon makbuzu, ağ alıntısı/asıl kaynak ayrımı, RSS/raf podcast kimlik incelemesi ve gizlenen referans/temizlik etkisi. 59/59 hedefli test; native/görsel/canlı kabul açık. Sonraki G10 → N01 → N07 → N08 → L07 (tamamı medium; mevcut veriyle açıklama/inceleme kapsamı). Git teslimi yok.
+
+**Son çalışma · 23:22:** [R853 medium G12/D01/D06/L02/L08](docs/devir/2026-11-10-2322.md). Profil eşleşmeme nedenleri, puan kaynak envanteri, sıralama etkileri, yorum örneğinin kapsam dökümü ve analize özel geri bildirim. 52/52 hedefli kontrol; gerçek site/Windows görsel kabulü açık. Sonraki D04 → D08 → N02 → N04 → N06 (tamamı medium). Git teslimi yok.
+
+**Son çalışma · 23:10:** [R853 medium G02/G06/G07/G08/G09](docs/devir/2026-11-10-2310.md). Seçili hatalı satır retry'si, tercih kapsamı, filtre eleme nedenleri ve sabit örnek önizlemesi; kayıtlı Letterboxd örneği/devamı ve AI öncesi örnek karşılaştırması. 69/69 hedefli test; native/görsel/canlı kabul açık. Sonraki G12 → D01 → D06 → L02 → L08 (tamamı medium). Git teslimi yok.
 
 **Son çalışma · 22:37:** [R853 medium G03/G04/G05/G11/G14](docs/devir/2026-11-10-2237.md). Podcast hedef/işlem özeti, son oynatma sırası, işlem bekleyenler ve salt okunur metin; ağ havuz/filtre/tavan kapsamı. 83/83 + 1/1 hedefli kontrol geçti; native/görsel kabul açık. Sonraki G02/G06/G07/G08/G09, tamamı medium. Git teslimi yok.
 
@@ -100,7 +114,7 @@ Aktif podcastte “bu bölümü yazıya dök” veya “eksik çeviriyi tamamla�
 ## Yeni sohbet için kısa teknik özet
 
 - **Ürün:** Windows üzerinde kişisel film/dizi, müzik, kitap/PDF ve podcast kütüphanesi; yerel oynatıcı, gömülü browser, Keşfet, RSS ve bağlamı bilen asistan.
-- **Arayüz:** Electron + Node.js; ağırlıklı düz JavaScript/HTML/CSS, React değil. Grafit/amber sinematik kimlik ve onaylı Claude v2 kompozisyonları korunur. Browser, ana sayfa, RSS ve yerel girişler ortak Podcast/Çift dilli Sahne'yi kullanır; kaynağın mevcut oynatma sahibi korunur.
+- **Arayüz:** Electron + Node.js; ağırlıklı düz JavaScript/HTML/CSS, React değil. Sıcak amber/grafit, renkli kapak ve dengeli ortam ışığı taşıyan canlı sinematik kimlik ve onaylı Claude v2 kompozisyonları korunur. Browser, ana sayfa, RSS ve yerel girişler ortak Podcast/Çift dilli Sahne'yi kullanır; kaynağın mevcut oynatma sahibi korunur.
 - **Sınırlar:** `src/main.js` ve servisleri dosya/oturum/iş/sağlayıcı ve alt süreçleri yönetir; `src/preload.js` sınırlı `window.api` IPC köprüsüdür; sandbox ve context isolation açık `src/renderer/` arayüz ve özellik modülleridir.
 - **Medya/AI:** Python `backend/`, faster-whisper, CTranslate2, PyTorch/CUDA, opsiyonel WhisperX/konuşmacı ayrımı; FFmpeg, yt-dlp, VoxCPM2. PDF.js, HLS.js, JASSUB; Ghostery ve Dark Reader. Haricî LLM sağlayıcıları mevcut ayarlardan kullanılır. Python ilerlemesi NDJSON → main → IPC → renderer akar.
 - **Tamamlanan yakın işler:** Spotify bağlantısından RSS adayı; Podcast dinleme kuyruğu, kaynaklı transkript araması ve notlar; Keşfet karar akışı ve zevk dayanaklarını düzeltme; asistan kaynak kartları, onay makbuzları ve dublaj iş geçmişi. Son teslimde Browser/Podcast/Çift dilli geçişleri, indirilebilir sesin ortak Whisper hattı, kısmi çevirinin gösterimi, doğrulanmış ses kopyasında zamanlı takip, doğru dublaj paneline devir, kuyruk görünürlüğü ve İleri araçlar düzeltildi. Asistanın “bu ana kadar” sınırı ve kalıcı değişiklik onayları korunur. Ayrıntı ve gerçek kabul sınırları [önceki ürün tesliminde](docs/devir/2026-11-09-1220.md).

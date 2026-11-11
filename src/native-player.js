@@ -27,7 +27,7 @@ function buildNativeText(text,codes,height){
  const line=(content,role)=>codes.start+`{\\r\\an2\\fn${NATIVE_SUBTITLE_FONTS[text.font]}\\fs${font}\\b${text.weight}\\bord${border}\\shad${shadow}\\3c&H000000&\\4c&H000000&\\1c&H${role==='translation'?'8DCCED':'FFFFFF'}&}`+codes.stop+content;
  return[[text.primary,text.primaryRole],[text.secondary,text.secondaryRole]].filter(([content])=>content).sort((a,b)=>(a[1]==='source'?0:1)-(b[1]==='source'?0:1)).map(([content,role])=>line(content,role)).join('\n');
 }
-function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,authorizeMedia,torrents,dialog}){
+function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,authorizeMedia,torrents,dialog,sourceHeaders}){
  let session=null,stopping=null,sequence=0,startEpoch=0;
  const configFile=()=>path.join(app.getPath('userData'),'native-player-engine.json');let configured='';
  try{if(fs.existsSync(configFile())&&fs.statSync(configFile()).size<8192)configured=JSON.parse(fs.readFileSync(configFile(),'utf8')).path||'';}catch{}
@@ -64,7 +64,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
    if(input.action==='start'){
     const epoch=++startEpoch;
     if(process.platform!=='win32')throw Error('Embedded native player currently targets Windows.');if(!fs.existsSync(executable()))throw Error('mpv.exe was not found. The normal player remains available.');
-    let source,headers=[];if(String(input.source||'').startsWith('whisper-media:'))({url:source,headers}=torrents.nativeSource(input.source));else if(/^(?:https?|rtsp):\/\//.test(input.source||'')){const url=new URL(input.source);if(url.username||url.password)throw Error('Embedded URL credentials are not supported.');source=url.href;}else source=await authorizeMedia(input.path);
+    let source,headers=[];if(String(input.source||'').startsWith('whisper-media:'))({url:source,headers}=torrents.nativeSource(input.source));else if(/^(?:https?|rtsp):\/\//.test(input.source||'')){const url=new URL(input.source);if(url.username||url.password)throw Error('Embedded URL credentials are not supported.');source=url.href;try{const extra=typeof sourceHeaders==='function'?sourceHeaders(source):[];headers=(Array.isArray(extra)?extra:[]).map(([name,value])=>name+': '+value);}catch{headers=[];}}else source=await authorizeMedia(input.path);
     if(epoch!==startEpoch)throw Error('Native playback was superseded.');
     await stop();if(epoch!==startEpoch)throw Error('Native playback was superseded.');const host=new BrowserWindow({parent:owner(),show:false,frame:false,skipTaskbar:true,focusable:false,backgroundColor:'#000000',webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
     const handle=host.getNativeWindowHandle(),wid=(handle.length>=8?handle.readBigUInt64LE():BigInt(handle.readUInt32LE())).toString(),pipe='\\\\.\\pipe\\whisper-mpv-'+randomUUID();
@@ -98,7 +98,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
         else if(row.data===true)notifyEnd();
       }
       if(row.event==='property-change'){
-       const map={'time-pos':'time','duration':'duration','pause':'paused','speed':'speed','volume':'volume','mute':'muted','paused-for-cache':'buffering','track-list':'tracks'};
+       const map={'time-pos':'time','duration':'duration','pause':'paused','speed':'speed','volume':'volume','mute':'muted','paused-for-cache':'buffering','track-list':'tracks','chapter-list':'chapters'};
        const key=map[row.name];
        if(key&&((key!=='time'&&key!=='duration')||Number.isFinite(row.data)))s.state[key]=row.name==='volume'?Number(row.data)/100:row.data;
       }
@@ -107,7 +107,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
       if(row.event==='end-file'&&row.reason==='eof')notifyEnd();
     }});
     await command(s,['set_property','http-header-fields',headers]);
-    for(const [i,name]of ['time-pos','duration','pause','speed','volume','mute','paused-for-cache','track-list','eof-reached'].entries())await command(s,['observe_property',i+1,name]);
+    for(const [i,name]of ['time-pos','duration','pause','speed','volume','mute','paused-for-cache','track-list','eof-reached','chapter-list'].entries())await command(s,['observe_property',i+1,name]);
     await command(s,['loadfile',source]);await command(s,['set_property','pause',true]);
     const readyDeadline=Date.now()+12000;while(!s.loaded&&!s.loadError&&Date.now()<readyDeadline&&session===s)await new Promise(r=>setTimeout(r,50));
     if(s.loadError)throw Error(s.loadError);
@@ -149,7 +149,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
      // change; subtitle content such as ${path} is always shown literally.
      await command(s,['raw','show-text',buildNativeText(text,codes,s.bounds?.height),700]);return{ok:true};
     }
-    const allowed={play:()=>['set_property','pause',false],pause:()=>['set_property','pause',true],seek:()=>['seek',Math.max(0,Math.min(s.state.duration||604800,Number(input.value)||0)),'absolute'],speed:()=>['set_property','speed',Math.max(.25,Math.min(4,Number(input.value)||1))],volume:()=>['set_property','volume',Math.max(0,Math.min(100,Number(input.value)*100))],mute:()=>['set_property','mute',!!input.value],audio:()=>['set_property','aid',Number(input.value)]};if(!allowed[input.command])throw Error('Unsupported native command.');await command(s,allowed[input.command]());return {ok:true};
+    const allowed={play:()=>['set_property','pause',false],pause:()=>['set_property','pause',true],seek:()=>['seek',Math.max(0,Math.min(s.state.duration||604800,Number(input.value)||0)),'absolute'],speed:()=>['set_property','speed',Math.max(.25,Math.min(4,Number(input.value)||1))],volume:()=>['set_property','volume',Math.max(0,Math.min(100,Number(input.value)*100))],mute:()=>['set_property','mute',!!input.value],audio:()=>['set_property','aid',Number(input.value)],sub:()=>['set_property','sid',input.value==='no'||input.value===false?'no':Number(input.value)],vprop:()=>{const value=input.value;if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid native property packet.');const spec={brightness:[-100,100],contrast:[-100,100],saturation:[-100,100],gamma:[-100,100],hue:[-100,100],'video-zoom':[-2,2],panscan:[0,1],'audio-delay':[-10,10],'sub-delay':[-30,30],'video-pan-x':[-1,1],'video-pan-y':[-1,1]};const name=String(value.name||'');if(name==='video-rotate')return ['set_property',name,[0,90,180,270].includes(Number(value.value))?Number(value.value):0];if(name==='video-aspect-override'){const v=Number(value.value);return ['set_property',name,Number.isFinite(v)&&v>=0.3&&v<=4?v:-1];}if(!Object.hasOwn(spec,name))throw Error('Unsupported native property.');const [lo,hi]=spec[name],v=Number(value.value);if(!Number.isFinite(v))throw Error('Invalid native property value.');return ['set_property',name,Math.max(lo,Math.min(hi,v))];}};if(!allowed[input.command])throw Error('Unsupported native command.');await command(s,allowed[input.command]());return {ok:true};
    }
    throw Error('Unsupported native player operation.');
   }catch(error){if(opened&&session===opened){try{await stop();}catch(stopError){return {ok:false,error:stopError.message};}}return {ok:false,error:error.message};}

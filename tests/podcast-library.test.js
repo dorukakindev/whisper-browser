@@ -375,3 +375,8 @@ test('G03/G05/G11 exact preview and local saved-text route do not start audio or
 test('G03 shared player summary rejects a previous episode revision and never times untimed text',()=>{
  const model=require('../src/renderer/subtitle-work-status'),player={mediaKey:'A',generation:2,cues:[{start:0,end:3,text:'Fixture'}],cues2:[],workspaceAudio:{mediaKey:'B',generation:1,sourceVersion:'old',transcriptState:'timed'}};assert.equal(model.episode(player).sourceVersion,null);player.workspaceAudio={mediaKey:'A',generation:2,sourceVersion:'current',transcriptState:'untimed'};const summary=model.episode(player);assert.equal(summary.sourceVersion,'current');assert.equal(summary.channels[0].start,null);assert.equal(summary.channels[0].end,null);assert.equal(summary.channels[0].count,1);
 });
+
+
+test('R854 G01/G03 list search precedes the stage and keyboard focus exposes the full program identity without playback',()=>{
+ const h=fixture();try{const search=h.root.querySelector('.pl-list-tools'),stage=h.root.querySelector('.pl-content');assert(search.compareDocumentPosition(stage)&h.w.Node.DOCUMENT_POSITION_FOLLOWING);const program=[...h.root.querySelectorAll('.pl-program')].find(n=>n.dataset.program==='p');program.focus();assert.match(h.root.querySelector('.pl-full-program').textContent,/Actual program/);assert.equal(h.calls.filter(c=>c[0]==='play').length,0);assert(h.root.querySelector('.pl-hero .pl-episode-extras .pl-meta'));}finally{h.dom.window.close();}
+});

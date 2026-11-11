@@ -14,7 +14,7 @@
   if(oldCast){if(oldCast.previousElementSibling?.tagName==='H2')oldCast.previousElementSibling.remove();oldCast.remove();}
   aside.querySelector('.md-cast')?.remove();
   if(story)overview.append(story);overview.append(aside);body.prepend(overview);if(main!==story){for(const child of [...main.children])body.append(child);main.remove();}
-  aside.classList.add('film-dossier-facts');const title=el('h2','film-facts-heading',t('Film details','Filmin künyesi')),existing=aside.querySelector(':scope > dl'),facts=existing||el('dl');
+  aside.classList.add('film-dossier-facts');const title=el('h2','film-facts-heading',(item.kind==='series'?t('Series details','Dizi künyesi'):t('Film details','Filmin künyesi'))),existing=aside.querySelector(':scope > dl'),facts=existing||el('dl');
   const pairs=[[t('Release','Yapım'),[item.year,item.kind==='series'?t('Series','Dizi'):t('Film','Film')].filter(Boolean).join(' · ')],[t('Runtime','Süre'),Number(item.runtime)>0?item.runtime+' '+t('min','dakika'):'']];
   if(!existing){if(item.directors?.length)pairs.unshift([t('Director / creator','Yönetmen / yaratıcı'),item.directors.join(', ')]);if(item.originalTitle&&item.originalTitle!==item.title)pairs.push([t('Original title','Özgün adı'),item.originalTitle]);}
   for(const [label,value]of pairs)if(value)facts.append(el('dt','',label),el('dd','',String(value)));

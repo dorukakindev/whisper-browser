@@ -175,7 +175,15 @@
     scroll.append(sub);
     const tools = node('section', 'bp-tools-existing');
     take(side.querySelector('.side-bottom'), tools); take(byId('browserFeatures'), tools); scroll.append(tools);
-    take(byId('aiChat'), scroll); take(byId('playerLibraryPanel'), scroll);
+    const aiChatEl = byId('aiChat'); take(aiChatEl, scroll); take(byId('playerLibraryPanel'), scroll);
+    // G12: this panel and the floating assistant share a task vocabulary; the bridge says what opening the other surface means.
+    { const chat = aiChatEl;
+      if (chat && window.api?.showAssistant && !chat.querySelector('.bp-assistant-bridge')) {
+        const bridge = node('div','bp-assistant-bridge');
+        const open = button(copy('Açılır asistanda aç','Open in floating assistant'), () => window.api.showAssistant(), 'bp-button');
+        bridge.append(node('span','',copy('Geniş okuma alanı ve kaynak ayrıntıları için. Açılır asistanın sohbet geçmişi ayrıdır; bu panelle otomatik birleştirilmez.','For a wider reading area and source details. The floating assistant keeps its own conversations; nothing is merged with this panel automatically.')), open);
+        chat.prepend(bridge);
+      } }
     // Residual state/utility controls stay attached so existing handlers can reach them.
     const statePool = node('div','bp-state-pool'); statePool.hidden = true;
     take(oldTop, statePool);
@@ -197,15 +205,34 @@
       if (label) item.append(node('span','bp-utility-label',label));
     }
     const layout = node('details','bp-layout-menu');
-    layout.append(node('summary','',copy('Panel yerleşimi','Panel layout')));
-    for (const [name,width] of [['Kompakt',360],['Dengeli',420],['Geniş',500]]) {
-      layout.append(button(name, () => {
-        setSideWidth(width);
-        const host = browserSideRailHost();
-        if (host) { const map = readWidths(); map[host]=width; try { localStorage.setItem('browserPanelWidths',JSON.stringify(map)); } catch (_) {} }
-        menu.open=false;
-      }));
+    // G13: the menu states the current width, its effect on the page, and offers a one-step return to the previous width.
+    const layoutSummary = node('summary','',copy('Panel yerleşimi','Panel layout'));
+    layout.append(layoutSummary);
+    const widthNames = {360:copy('Kompakt','Compact'),420:copy('Dengeli','Balanced'),500:copy('Geniş','Wide')};
+    const layoutNote = node('p','bp-layout-note',copy('Daha geniş panel okuma alanı verir, sayfaya daha az yer bırakır.','A wider panel gives more reading room and leaves less room for the page.'));
+    const layoutButtons = new Map(); let currentWidth = 0, previousWidth = 0, undo = null;
+    const measuredWidth = () => { const w=side.getBoundingClientRect().width; return [360,420,500].reduce((a,b)=>Math.abs(b-w)<Math.abs(a-w)?b:a); };
+    const paintLayout = () => {
+      for (const [width,b] of layoutButtons) b.setAttribute('aria-pressed',String(width===currentWidth));
+      layoutSummary.textContent = copy('Panel yerleşimi','Panel layout')+' · '+widthNames[currentWidth]+' ('+currentWidth+')';
+      undo.hidden = !previousWidth || previousWidth===currentWidth;
+      if (!undo.hidden) undo.textContent = copy('Önceki genişliğe dön','Back to previous width')+' · '+widthNames[previousWidth]+' ('+previousWidth+')';
+    };
+    const applyWidth = (width) => {
+      if (currentWidth && currentWidth!==width) previousWidth = currentWidth;
+      currentWidth = width;
+      setSideWidth(width);
+      const host = browserSideRailHost();
+      if (host) { const map = readWidths(); map[host]=width; try { localStorage.setItem('browserPanelWidths',JSON.stringify(map)); } catch (_) {} }
+      paintLayout();
+    };
+    layout.append(layoutNote);
+    for (const width of [360,420,500]) {
+      const b = button(widthNames[width], () => { applyWidth(width); menu.open=false; });
+      b.setAttribute('aria-pressed','false'); layoutButtons.set(width,b); layout.append(b);
     }
+    undo = button('', () => { const back = previousWidth; if (back) { applyWidth(back); } }); undo.hidden = true; layout.append(undo);
+    layout.addEventListener('toggle', () => { if (layout.open) { currentWidth = measuredWidth(); paintLayout(); } });
     utilities.append(layout);
     refresh();
   }
@@ -261,8 +288,11 @@
     for(const btn of document.querySelectorAll('#subtitleReadingMode button')) {
       if(btn.getAttribute('aria-checked')==='true') byId('subtitleReadingMode').style.setProperty('--bp-selected',String([...btn.parentNode.children].indexOf(btn)));
     }
-    footer.querySelector('.bp-context-status').textContent=player.browserMediaSeen ? copy('Video bağlamı hazır','Video context ready') : copy('Sayfa bağlamı hazır','Page context ready');
-    footer.querySelector('.bp-context-status').prepend(node('i',''));
+    const contextStatus=footer.querySelector('.bp-context-status');
+    // G15: say what is actually known (page/video open, subtitles recorded) — "ready" never implies the content was read or verified.
+    contextStatus.textContent=player.browserMediaSeen ? copy('Video açık','Video open')+' · '+(hasCues?copy('altyazı kayıtlı','subtitles recorded'):copy('altyazı yok','no subtitles')) : copy('Sayfa açık · video algılanmadı','Page open · no video detected');
+    contextStatus.title=copy('Bu durum içeriğin okunduğu veya videonun tamamının doğrulandığı anlamına gelmez. Ayrıntı için Asistan sekmesini aç.','This does not mean the content was read or the whole video was verified. Open the Assistant tab for details.');
+    contextStatus.prepend(node('i',''));
     const layoutKey=tab+'|'+side.dataset.bpState+'|'+rail;
     if(hasCues && layoutKey!==lastLayoutKey) requestAnimationFrame(highlightCueRow);
     lastLayoutKey=layoutKey;

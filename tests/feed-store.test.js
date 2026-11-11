@@ -35,3 +35,16 @@ test('P08 compact retention inventory counts pinned sources without changing sav
 test('G04 listening history survives refresh, unsubscribe and reload without becoming a rating',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'listen-history-'));try{const file=path.join(dir,'feeds.json'),store=createFeedStore(file),entry={kind:'podcast',contentScope:'summary',externalId:'e',title:'Episode',text:'Description',enclosures:[{url:'https://pod.example/a.mp3',type:'audio/mpeg'}]};const feed=store.subscribe({url:'https://pod.example/rss'},[entry]);const row=store.entries().rows[0],version=require('../src/podcast-session').sourceVersion(row);store.podcastListened(row.id,version);const at=store.entry(row.id).lastListenedAt;store.commit(feed.feed.id,{entries:[{...entry,title:'Updated'}]});assert.equal(store.entry(row.id).lastListenedAt,at);store.unsubscribe(feed.feed.id);const again=createFeedStore(file).entry(row.id);assert.equal(again.lastListenedAt,at);assert.equal(again.listened,undefined);assert(require('../src/feed-retention').reasons(again).includes('listening-observation'));}finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('publisher archive keeps separate audio episodes on one page and repeat imports preserve work',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'web-archive-'));try{
+  const file=path.join(dir,'feeds.json'),s=createFeedStore(file),podcast={url:'https://pub.example/archive',title:'Archive',sourceKind:'web-episode'};
+  const input=(number)=>({podcast,episode:{url:`https://audio.example/${number}.mp3`,pageUrl:podcast.url,title:`Recording ${number}`,enclosureType:'audio/mpeg'}});
+  const one=s.ensurePodcastEntry(input(1),{save:true});s.podcastWorkspace(one.id,require('../src/podcast-session').sourceVersion(one),{position:42,rate:1});
+  const protectedOne=s.entry(one.id),two=s.ensurePodcastEntry(input(2),{save:true});
+  assert.notEqual(one.id,two.id);assert.equal(s.snapshot().entries.length,2);assert.deepEqual(s.entry(one.id),protectedOne);
+  assert.equal(s.ensurePodcastEntry(input(1),{save:true}).id,one.id);assert.equal(s.ensurePodcastEntry(input(2),{save:true}).id,two.id);
+  assert.equal(createFeedStore(file).snapshot().entries.length,2);assert.deepEqual(s.entry(one.id),protectedOne);
+  const visible=s.entries({podcastLibrary:true,kind:'podcast'});assert.equal(visible.total,2);assert(visible.rows.every(e=>e.entryIds.length===1));
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

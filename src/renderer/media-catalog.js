@@ -383,7 +383,7 @@
       const episodes = [...(item.episodes || [])].sort((a, b) => Number(a.season) - Number(b.season) || Number(a.number) - Number(b.number));
       if (!episodes.length) list.append($('p', 'mc-empty', 'Henüz bölüm eklenmedi.'));
       for (const episode of episodes) {
-        const row = $('div', 'mc-episode');
+        const row = $('div', 'mc-episode');row.dataset.episodeId=episode.id;if(state.focusTitle===item.id&&state.focusEpisode===episode.id){row.classList.add('mc-episode-target');row.tabIndex=-1;row.append($('p','mc-muted',english()?'Selected episode · link its source below. No file is opened automatically.':'Seçili bölüm · kaynağını aşağıdan bağla. Otomatik dosya açılmaz.'));}
         const top = $('div', 'mc-episode-head'); top.append($('strong', '', `S${episode.season ?? 1} ${english() ? 'E' : 'B'}${episode.number || 1} · ${episode.title || (english() ? 'Episode' : 'Bölüm')}`), $('span', 'mc-muted', episode.progress?.completed ? t('İzlendi') : episode.progress?.position > 0 ? (english() ? 'In progress' : 'Devam ediyor') : t(statusLabels[episode.watchStatus] || statusLabels.unspecified)));
         const controls = $('div', 'mc-episode-actions');
         controls.append(button('Oynat', () => play(item, episode.id), 'mc-primary'), button('Düzenle', () => editEpisode(item, episode)));
@@ -870,15 +870,16 @@
     root.setAttribute('aria-busy', state.busy ? 'true' : 'false');
     if (changedView) dialog.scrollTop = state.mode === 'list' ? state.listScroll.get(viewKey) || 0 : 0;
   }
+  function focusEpisode(id){state.focusEpisode=id||'';state.focusTitle=state.selected;if(!id)return;render();const target=[...root.querySelectorAll('[data-episode-id]')].find(n=>n.dataset.episodeId===id);target?.scrollIntoView?.({block:'center'});target?.focus({preventScroll:true});}
   async function open(options = {}) {
-    if (dialog.open) { if(options.conditions){state.mode='list';state.filtersOpen=true;render();const panel=root.querySelector('.mc-condition-panel');if(panel){panel.scrollIntoView({block:'nearest'});panel.querySelector('button')?.focus();}}else if(options.mode==='package'){cancelPreviewTokens();state.mode='package';render();}else if(options.id&&find(options.id))show(options.id);return; }
+    if (dialog.open) { if(options.conditions){state.mode='list';state.filtersOpen=true;render();const panel=root.querySelector('.mc-condition-panel');if(panel){panel.scrollIntoView({block:'nearest'});panel.querySelector('button')?.focus();}}else if(options.mode==='package'){cancelPreviewTokens();state.mode='package';render();}else if(options.id&&find(options.id)){show(options.id);focusEpisode(options.episodeId);}return; }
     state.session++; state.busy = false; state.opener = options.opener || document.activeElement;
     const sessionId = state.session;
     if (['movie', 'series', 'watchlist'].includes(options.section)) state.section = options.section;
     dialog.showModal();dialog.classList.add('mk-dialog');dialog.tabIndex=-1;dialog.focus({preventScroll:true});if(typeof requestAnimationFrame==='function')window.PlayerUiKit.bindDialog(dialog); if (typeof syncBrowserOcclusion === 'function') syncBrowserOcclusion();
     state.mode = 'list'; state.message = ''; render();dialog.focus({preventScroll:true});
     if (!await reload() || sessionId !== state.session || !dialog.open) return;
-    if (options.id && find(options.id)) show(options.id);
+    if (options.id && find(options.id)) {show(options.id);focusEpisode(options.episodeId);}
     else if (options.mode === 'package') { state.mode='package';render(); }
     else if (options.mode === 'folder') await previewImport('folder-preview');
     if(options.conditions){state.filtersOpen=true;render();const panel=root.querySelector('.mc-condition-panel');if(panel){panel.scrollIntoView({block:'nearest'});panel.querySelector('button')?.focus();}}

@@ -22,6 +22,55 @@ function reviewRows(raw) {
   const parsed=rows.slice(0,100).map((row,i)=>({id:text(row?.id,80)||String(i+1),author:text(row?.author,120),text:text(row?.text,20000),spoiler:!!row?.spoiler,...reviewMetadata(row||{})})).filter(r=>r.text.length>=8);
   if(new Set(parsed.map(r=>r.id)).size!==parsed.length)throw Error('Review IDs must be unique.');return parsed;
 }
+// Review IDs are positions within one sample, never cross-sample identities.
+function compareReviewSamples(before,after){
+ const remaining=before.slice(),changes=[];
+ for(const row of after){
+  const candidates=remaining.map((old,index)=>({old,index})).filter(({old})=>row.permalink?old.permalink===row.permalink:!old.permalink&&old.text===row.text&&(old.authorId||'')===(row.authorId||'')&&old.author===row.author);
+  if(candidates.length!==1){changes.push({kind:'added',after:row});continue;}
+  const {old,index}=candidates[0];remaining.splice(index,1);
+  changes.push({kind:JSON.stringify([old.text,old.author,old.authorId,old.source,old.spoiler,old.rating,old.date])===JSON.stringify([row.text,row.author,row.authorId,row.source,row.spoiler,row.rating,row.date])?'unchanged':'changed',before:old,after:row});
+ }
+ return [...changes,...remaining.map(before=>({kind:'removed',before}))];
+}
+function refreshReviewDiff(before,after,{sameFilm=false}={}){
+ if(!sameFilm)throw Error('Verify the exact film before comparing refreshed reviews.');
+ const remaining=before.slice(),rows=[];
+ for(const row of after){const indices=remaining.map((old,i)=>({old,i})).filter(({old})=>row.permalink&&row.authorId&&old.permalink===row.permalink&&old.authorId===row.authorId);if(indices.length!==1){rows.push({kind:'unmatched',after:row});continue;}const {old,i}=indices[0];remaining.splice(i,1);rows.push({kind:old.text===row.text?'unchanged':'changed',before:old,after:row});}
+ return [...rows,...remaining.map(before=>({kind:'absent-from-refreshed-sample',before}))];
+}
+function reviewCheckpoint(item,input){
+ if(!input||typeof input!=='object'||JSON.stringify(input).length>250000)throw Error('Invalid review draft. / Geçersiz yorum taslağı.');
+ if(!input.identity||decisionIdentityMatch(item,input.identity)!=='matched')throw Error('Draft belongs to another film or identity is unverified. / Taslak başka filme ait veya kimlik doğrulanmadı.');
+ const parser=typeof module==='object'&&module.exports?require('../letterboxd-reviews'):globalThis.LetterboxdReviews;
+ const rows=reviewRows(input.reviews),pages=[...new Set(input.pages||[])];
+ if(!rows.length||pages.length>100||pages.some(url=>!parser.reviewPageSource(url)||parser.reviewPageSource(url).sort==='unknown'))throw Error('Verified review source pages required. / Doğrulanmış yorum kaynak sayfaları gerekli.');
+ const source=parser.reviewPageSource(input.url);if(!source||source.sort==='unknown'||!pages.includes(source.url)||pages.some(url=>new URL(url).pathname.split('/')[2]!==new URL(source.url).pathname.split('/')[2]))throw Error('Draft source changed. / Taslak kaynağı değişti.');
+ if(!['popular','new','high','low','balanced','mixed'].includes(input.sort))throw Error('Invalid review order. / Geçersiz yorum sırası.');
+ return {version:1,identity:Object.fromEntries(Object.entries({kind:item.kind,title:item.title,year:item.year,tmdbId:item.tmdbId,imdbId:item.imdbId}).filter(([,value])=>value!==undefined)),reviews:JSON.stringify(rows),pages,url:source.url,sort:input.sort,partial:input.partial===true,spoiler:input.spoiler===true,incomplete:input.incomplete===true};
+}
+function reviewContinuation(checkpoint){
+ if(['mixed','balanced'].includes(checkpoint.sort))return null;
+ const parser=typeof module==='object'&&module.exports?require('../letterboxd-reviews'):globalThis.LetterboxdReviews,source=parser.reviewPageSource(checkpoint.url);
+ if(!source||source.sort!==checkpoint.sort||source.page>=1000)return null;
+ const page=checkpoint.incomplete?source.page:source.page+1;
+ const url=new URL(source.url);url.search='';url.pathname=url.pathname.replace(/page\/\d+\/$/,'')+(page>1?'page/'+page+'/':'');return url.href;
+}
+function reviewCoverage(rows,source={},sentRows=null){
+ const groups=new Map(),authors=new Set();let unknownAuthors=0,unknownSources=0;
+ for(const row of rows){const meta=reviewMetadata(row),page=meta.source?.url||'',pool=meta.source?.sort||'unknown';if(meta.authorId)authors.add(meta.authorId);else unknownAuthors++;if(!page)unknownSources++;
+  const key=JSON.stringify([pool,page]);if(!groups.has(key))groups.set(key,{pool,page,loaded:0,authors:new Set(),unknownAuthors:0,sent:0});const group=groups.get(key);group.loaded++;if(meta.authorId)group.authors.add(meta.authorId);else group.unknownAuthors++;
+  if(sentRows?.some(sent=>sent.id===row.id))group.sent++;
+ }
+ const excluded=Object.fromEntries(Object.entries(source.excluded||{}).filter(([,n])=>Number.isSafeInteger(n)&&n>0));
+ return {visible:rows.length,identifiedAuthors:authors.size,unknownAuthors,unknownSources,requestedLast:Number.isInteger(source.sampling?.requested)?source.sampling.requested:null,visitedPages:new Set((Array.isArray(source.pages)?source.pages:[]).filter(url=>!!reviewMetadata({source:{url}}).source)).size,sourceExcluded:excluded,sent:sentRows===null?null:sentRows.length,groups:[...groups.values()].map(({authors,...group})=>({...group,identifiedAuthors:authors.size}))};
+}
+const ANALYSIS_FEEDBACK=['useful','quote-issue','fit-issue','narrow-sample'];
+function validateAnalysisFeedback(value){
+ if(value==null)return null;
+ if(typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['kind','at'].includes(key))||!ANALYSIS_FEEDBACK.includes(value.kind)||!Number.isSafeInteger(value.at)||value.at<0)throw Error('Invalid analysis feedback. / Geçersiz analiz geri bildirimi.');
+ return {kind:value.kind,at:value.at};
+}
 function reviewSample(reviews, limit=4500, maxReviews=48) {
  maxReviews=Number.isInteger(maxReviews)?Math.max(1,Math.min(48,maxReviews)):48;
  const selected=[],originals=[],decisions=[];
@@ -46,6 +95,18 @@ function reviewSample(reviews, limit=4500, maxReviews=48) {
  let truncated=0;for(const row of selected){row.text=row.text.trimEnd();const decision=decisions.find(value=>value.id===row.id);decision.sentLength=row.text.length;if(row.text.length<decision.originalLength){decision.reason='shortened';truncated++;}}
  return {reviews:selected,omitted:reviews.length-selected.length,truncated,decisions};
 }
+function reviewTopicEvidence(analysis={},reviews=[]){
+ const byId=new Map(reviews.map(row=>[row.id,row])),verified=[...new Map((analysis.points||[]).filter(point=>typeof point.quote==='string'&&point.quote.length>=4&&byId.get(point.id)?.text.includes(point.quote)).map(point=>[JSON.stringify([point.id,point.topic,point.kind,point.quote]),point])).values()];
+ return ['story','characters','pace','visuals','sound','emotion','other'].map(topic=>{
+  const points=verified.filter(point=>(['story','characters','pace','visuals','sound','emotion'].includes(point.topic)?point.topic:'other')===topic),kinds={};
+  for(const kind of ['praise','criticism','debate']){const ids=[...new Set(points.filter(point=>point.kind===kind).map(point=>point.id))],authors=new Set(),unknown=[];for(const id of ids){const author=reviewMetadata(byId.get(id)).authorId;if(author)authors.add(author);else unknown.push(id);}kinds[kind]={reviews:ids.length,authors:[...authors],unknownReviews:unknown.length};}
+  const positive=new Set(kinds.praise.authors),negative=new Set(kinds.criticism.authors);return {topic,cited:points.length,kinds,overlappingAuthors:[...positive].filter(author=>negative.has(author)),covered:points.length>0,reviewIds:[...new Set(points.map(point=>point.id))]};
+ });
+}
+function synthesisEvidence(analysis={},reviews=[]){
+ const byId=new Map(reviews.map(row=>[row.id,row])),points=(analysis.points||[]).filter(point=>point.quote?.length>=4&&byId.get(point.id)?.text.includes(point.quote));
+ return ['summary','fit'].flatMap(kind=>String(analysis[kind]||'').split(/\n\s*\n/).filter(text=>text.trim()).map(text=>({kind,text,exactQuotes:[...new Map(points.filter(point=>text.includes(point.quote)).map(point=>[JSON.stringify([point.id,point.quote]),{id:point.id,quote:point.quote,topic:point.topic||'other'}])).values()]})));
+}
 function reviewAssessment(reviews, points=[]) {
  const normalize=value=>String(value||'').normalize('NFKC').replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');
  const unique=new Set(reviews.map(r=>normalize(r.text))),quoted=new Set(points.filter(p=>reviews.some(r=>r.id===p.id)).map(p=>normalize(reviews.find(r=>r.id===p.id).text)));
@@ -62,7 +123,7 @@ function personalEvidence(taste={}) {
   if(evidence.length)insights.push({aspect:row.aspect,direction:row.direction,reason:text(row.reason,120),evidence});
  }
  const analysisState=['current','stale','none'].includes(taste.analysisState)?taste.analysisState:'unknown',analysisCorpusRevision=text(taste.analysis?.corpusRevision,100),profileEvidenceRevision=text(taste.evidenceRevision||taste.corpusRevision,100);
- const acceptedAnalysis=insights.length?{summary:text(taste.analysis.summary,400),insights,historical:analysisState!=='current'}:null;
+ const acceptedAnalysis=insights.length?{summary:text(taste.analysis.summary,400),createdAt:text(taste.analysis.createdAt,40),insights,historical:analysisState!=='current'}:null;
  const quiz=typeof module==='object'&&module.exports?require('../taste-quiz'):globalThis.TasteQuiz;
  let questionnaire=null;try{const saved=quiz?.restore(taste.quiz);if(saved)questionnaire={kind:'explicit_choices',answers:saved.answers.flatMap((answer,i)=>{const choice=quiz.questions[i].choices.find(row=>row[0]===answer);return choice?[{question:quiz.questions[i].id,choice:answer,meaning:choice[1]}]:[]})};}catch{}
  const result={preferencesConfigured:configured,preferences,analysisState,analysisCorpusRevision,profileEvidenceRevision,acceptedAnalysis,analysisEvidenceUnavailable:!!taste.analysis&&!acceptedAnalysis,questionnaire};
@@ -124,7 +185,7 @@ function normalizeReviewAnalysis(value) {
    if(evidence.length)insights.push({aspect:row.aspect,direction:row.direction,reason:bounded(row.reason,120),evidence});
   }
   const analysisState=['current','stale','none'].includes(given.analysisState)?given.analysisState:'unknown',analysisCorpusRevision=bounded(given.analysisCorpusRevision,100),profileEvidenceRevision=bounded(given.profileEvidenceRevision,100);
-  const acceptedAnalysis=insights.length?{summary:bounded(given.acceptedAnalysis.summary,400),insights,historical:analysisState!=='current'}:null;
+  const acceptedAnalysis=insights.length?{summary:bounded(given.acceptedAnalysis.summary,400),createdAt:bounded(given.acceptedAnalysis.createdAt,40),insights,historical:analysisState!=='current'}:null;
   let questionnaire=null;const quiz=typeof module==='object'&&module.exports?require('../taste-quiz'):globalThis.TasteQuiz;
   if(given.questionnaire?.kind==='explicit_choices'&&Array.isArray(given.questionnaire.answers)&&quiz){const answers=quiz.questions.flatMap(question=>{const answer=given.questionnaire.answers.find(row=>row?.question===question.id),choice=question.choices.find(row=>row[0]===answer?.choice);return choice?[{question:question.id,choice:choice[0],meaning:choice[1]}]:[];});if(answers.length)questionnaire={kind:'explicit_choices',answers};}
   const profile={preferencesConfigured:configured,preferences,analysisState,analysisCorpusRevision,profileEvidenceRevision,acceptedAnalysis,analysisEvidenceUnavailable:given.analysisEvidenceUnavailable===true||!!given.acceptedAnalysis&&!acceptedAnalysis,questionnaire};
@@ -210,5 +271,5 @@ function eveningPlan(items,history=[],options={}) {
  return {candidates:shown,selected,totalSeconds,budgetSeconds,remainingSeconds:budgetSeconds-totalSeconds,fits:totalSeconds<=budgetSeconds&&!unavailable.length,unknown,eligible,unavailable,partial:candidates.length>200,totalCandidates:candidates.length,breakMinutes};
 }
 
-return Object.freeze({reviewRows,reviewMetadata,reviewSample,reviewAssessment,decisionEvidence,decisionProviderIdentity,decisionIdentityMatch,normalizeReviewAnalysis,reviewAnalysisPrompt,decisionContext,decisionFreshness,validateEvidenceSnapshot,verifyDecision,parseDecisionResponse,tonight,eveningPlan});
+return Object.freeze({reviewTopicEvidence,synthesisEvidence,reviewCoverage,validateAnalysisFeedback,ANALYSIS_FEEDBACK,refreshReviewDiff,compareReviewSamples,reviewCheckpoint,reviewContinuation,reviewRows,reviewMetadata,reviewSample,reviewAssessment,decisionEvidence,decisionProviderIdentity,decisionIdentityMatch,normalizeReviewAnalysis,reviewAnalysisPrompt,decisionContext,decisionFreshness,validateEvidenceSnapshot,verifyDecision,parseDecisionResponse,tonight,eveningPlan});
 });

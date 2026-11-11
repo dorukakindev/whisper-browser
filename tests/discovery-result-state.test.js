@@ -218,3 +218,16 @@ test('watchlist removal waits for the initial personal read before staging the c
   assert(page.querySelector('.pm-preview'),'removal reaches the existing confirmation surface');
   assert.equal(members.size,1,'preview does not remove the record');
 });
+
+
+test('R854 G46 removes only the selected discovery exclusion and preserves the personal record',async t=>{
+ const personal={watchStatus:'completed',reaction:'dislike',personalRating:2,note:'keep'},original=JSON.stringify(personal);let removed=false;
+ const h=fixture(t,async q=>q.action==='feedback-list'?{ok:true,rows:removed?[]:[{...row('tt1111111'),feedback:'hidden',personalMedia:personal}]}:q.action==='feedback'?(removed=true,{ok:true}):{ok:true,rows:[],nextSkip:null});await tick();
+ [...h.root.querySelectorAll('.cn-discover-tab')].find(b=>b.textContent==='Preferences').click();await tick();const undo=h.root.querySelector('.md-restore-preference');assert(undo);assert.match(undo.getAttribute('aria-label'),/tt1111111/);undo.click();await tick();
+ assert.deepEqual(h.calls.filter(q=>q.action==='feedback').map(q=>[q.id,q.kind,q.state]),[['tt1111111','film','none']]);assert.equal(JSON.stringify(personal),original);assert.equal(h.root.querySelector('[data-discovery-id]'),null);assert.match(h.root.querySelector('.md-status').textContent,/history are unchanged/);
+});
+test('R854 G47/G48 distinguish personal, metadata and absent evidence; empty guidance opens existing library without likes',async t=>{
+ let empty=false;const h=fixture(t,async()=>({ok:true,rows:[],nextSkip:null}),()=>({ok:true,needsRatings:empty,rows:empty?[]:[{...row('tt1111111'),recommendationEvidence:{seedTitle:'Saved rating',reaction:'like',genre:'Drama'}},{...row('tt2222222'),because:'Catalog link'},row('tt3333333')]}));const routes=[];h.w.MediaHomeUI={navigate:async p=>routes.push(p)};await tick();
+ const personalTab=[...h.root.querySelectorAll('.cn-discover-tab')].find(b=>b.textContent==='For you');personalTab.click();await tick();const labels=[...h.root.querySelectorAll('.md-reason')].map(n=>n.textContent).join(' ');assert.match(labels,/Saved rating/);assert.match(labels,/No verified personal like/);assert.match(labels,/no saved personal recommendation evidence/);
+ empty=true;personalTab.click();await tick();const open=[...h.root.querySelectorAll('button')].find(b=>b.textContent==='Review library ratings and genres');assert(open);open.click();await tick();assert.deepEqual(routes,['films']);assert(!h.calls.some(c=>c.action==='feedback'));
+});

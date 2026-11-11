@@ -3,7 +3,7 @@
   const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
   const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=String(text);return node;};
   const safe=value=>typeof value==='string'&&value.length<8e6&&/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(value);
-  let dialog,selected,opener,generation=0,item,storyJob,personalView,copyChoice,returnLabel=null,sessionOptions={};
+  let dialog,selected,opener,generation=0,item,storyJob,personalView,copyChoice,seasonChoice,returnLabel=null,sessionOptions={};
   const originalStories=new Set();
   let activePage=null;const pagePositions=new Map();
   // Sayfa kapanınca odak: önce çağıranın verdiği hedef (kart yeniden çizilmiş olabilir), yoksa açan öğe.
@@ -49,7 +49,7 @@
     if(translated)section.append(el('small','mtd-story-state',t('Turkish · AI translation','Türkçe · AI çevirisi')));
     main.append(section);
   }
-  function management(metadata=false){const id=selected;close();const run=metadata?window.MediaCatalogUI.openMetadata(id):window.MediaCatalogUI.open({id}),reopenOptions=sessionOptions;void Promise.resolve(run).then(()=>{document.getElementById('mediaCatalogDialog')?.addEventListener('close',()=>void open(id,reopenOptions),{once:true});});}
+  function management(metadata=false,episodeId){const id=selected;close();const run=metadata?window.MediaCatalogUI.openMetadata(id):window.MediaCatalogUI.open({id,...(episodeId?{episodeId}:{})}),reopenOptions=sessionOptions;void Promise.resolve(run).then(()=>{document.getElementById('mediaCatalogDialog')?.addEventListener('close',()=>void open(id,reopenOptions),{once:true});});}
   async function play(episodeId,voice=false,editionId){
     const current=dialog,id=selected;const result=await request('play',{episodeId,...(editionId===undefined?{}:{editionId})});
     if(current!==dialog||!current?.open||selected!==id)return;
@@ -73,14 +73,17 @@
     const copy=el('div','mtd-copy');
     const heading=el('h1','',item.title);heading.id='mediaTitleHeading';copy.append(heading);
     if(item.originalTitle&&item.originalTitle!==item.title)copy.append(el('p','mtd-original',item.originalTitle));
-    copy.append(el('p','mtd-facts',[item.kind==='series'?t('Series','Dizi'):t('Film','Film'),item.year,item.runtime?item.runtime+' '+t('min','dk'):''].filter(Boolean).join(' · ')));
+    copy.append(el('p','mtd-facts',[item.kind==='series'?t('Series','Dizi'):t('Film','Film'),item.year,item.runtime?item.runtime+' '+t('min','dk')+(item.kind==='series'?t(' / episode',' / bölüm'):''):''].filter(Boolean).join(' · ')));
     const genres=el('div','mtd-genres');for(const name of item.genres||[])genres.append(el('span','',name));copy.append(genres);
     const sourceRating=window.MediaVisual?.ratingOf?.(item),score=value=>window.MediaVisual?.score?.(value)??value;
     const ratings=el('div','mtd-ratings');for(const [label,value,scale]of [['TMDB',score(item.tmdbRating),'/10'],['IMDb',score(item.ratings?.imdb||(sourceRating?.source==='IMDb'?sourceRating.value:'')),'/10'],['Letterboxd',score(item.ratings?.letterboxd),'/5'],[t('Your rating','Puanın'),item.ratings?.personal,'']])if(value){const rate=el('div');rate.append(el('strong','',value+scale),el('span','',label));ratings.append(rate);}copy.append(ratings);
     if(item.tagline)copy.append(el('p','mtd-tagline',item.tagline));
     let editionId=copyChoice?.owner===item.id?copyChoice.id:(item.selectedEditionId||'');
     const actions=el('div','mtd-actions');const episodes=item.episodes||[];const next=[...episodes].sort((a,b)=>a.season-b.season||a.number-b.number).find(ep=>ep.source&&!ep.progress?.completed&&ep.watchStatus!=='completed');
-    if(item.source||item.editions?.length||next){const first=button(next?t('Play next episode','Sıradaki bölümü oynat'):item.progress?.position&&!item.progress.completed?t('Continue watching','İzlemeye devam et'):t('Play film','Filmi oynat'),()=>play(next?.id,false,editionId),true);first.dataset.titleAction='play';actions.append(first,button(t('Watch in Turkish','Türkçe izleme hazırlığı'),()=>play(next?.id,true,editionId)));}
+    const clock=s=>{s=Math.max(0,Math.floor(Number(s)||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return h?h+':'+String(m).padStart(2,'0')+':'+x:m+':'+x;},epTag=ep=>'S'+ep.season+'E'+ep.number;
+    // R854-12: "no unfinished episode" is not "no source" — a fully watched series with linked episode sources offers a watch-again action, never a file picker.
+    const rewatch=!next&&item.kind==='series'?[...episodes].sort((a,b)=>a.season-b.season||a.number-b.number).find(ep=>ep.source):null,target=next||rewatch;
+    if(item.source||item.editions?.length||target){const resumeAt=next?.progress?.position>0&&!next.progress.completed?clock(next.progress.position):'';const first=button(next?t('Play next episode','Sıradaki bölümü oynat')+' · '+epTag(next)+(resumeAt?' · '+t(resumeAt+' resume',resumeAt+"'dan devam"):''):rewatch?t('Watch again from ','Tekrar izle · ')+epTag(rewatch):item.progress?.position&&!item.progress.completed?t('Continue watching','İzlemeye devam et'):t('Play film','Filmi oynat'),()=>play(target?.id,false,editionId),true);first.dataset.titleAction='play';actions.append(first,button(t('Watch in Turkish','Türkçe izleme hazırlığı'),()=>play(target?.id,true,editionId)));}
     else actions.append(button(t('Choose video file','Video dosyası seç'),async()=>{const r=await request('source-file',{});if(!r.canceled)await reload();},true));
     const favorite=button(item.favorite?t('Saved to favorites','Favorilere eklendi'):t('Add to favorites','Favorilere ekle'),async()=>{await request('save',{item:{id:selected,favorite:!item.favorite}});await reload();document.dispatchEvent(new Event('media-library-changed'));});favorite.setAttribute('aria-pressed',String(item.favorite));favorite.dataset.titleAction='favorite';actions.append(favorite);
     window.TitleGalleryUI?.mount(actions,item);
@@ -113,7 +116,7 @@
           manage.onclick=()=>chooseFile?.click();
           return;
         }
-        const caption=row=>row.label||item.title;
+        const sourceKind=row=>row.source?.type==='local'?t('Local video','Yerel video'):row.source?.type==='browser'?t('Web video','Web videosu'):t('Source type unknown','Kaynak türü bilinmiyor');const caption=row=>(row.label||item.title)+' · '+sourceKind(row)+(row.progress?.duration>0?' · '+clock(row.progress.duration):'');
         if(copies.length>1){
           const menu=window.MediaVisual.overflow(copies.map(row=>button(caption(row),()=>{editionId=row.id;copyChoice={owner:item.id,id:row.id};renderSource();})),t('Choose video copy','Video kopyasını seç'));
           menu.querySelector('summary').prepend(el('span','',caption(current)));
@@ -121,14 +124,14 @@
         }else label.append(el('strong','',caption(current)));
         const progress=current.progress;
         const resumed=progress?.position>0&&!progress.completed;
-        const playText=resumed?t('Continue watching','İzlemeye devam et'):t('Play','İzle');
+        const playText=progress?.completed?t('Watch again','Tekrar izle'):resumed?t('Continue watching','İzlemeye devam et'):t('Play','İzle');
         if(playButton){
           const text=playButton.querySelector('span');
           if(text)text.textContent=playText;else playButton.textContent=playText;
-          playButton.setAttribute('aria-label',playText);
+          playButton.setAttribute('aria-label',playText+' · '+caption(current)+(resumed?' · '+clock(progress.position):''));
           playButton.title=playText;
         }
-        const oldMeter=dialog.querySelector('.cn-library-resume');
+        dialog.querySelector('.cn-copy-position')?.remove();const position=el('p','cn-copy-position');position.textContent=t('Selected playback copy: ','Seçili oynatma kopyası: ')+caption(current)+' · '+(progress?.completed?t('Completed · watch again uses the existing restart path; the old end position is history.','Tamamlandı · tekrar izle mevcut baştan başlama yolunu kullanır; eski bitiş konumu geçmiş kaydıdır.'):resumed?clock(progress.position)+(progress.duration>0?' / '+clock(progress.duration):' / '+t('duration unknown','süre bilinmiyor')):t('No recorded resume position','Kayıtlı devam konumu yok'))+'. '+t('The general personal summary may refer to another copy; positions are not copied between versions.','Genel kişisel özet başka kopyaya ait olabilir; konumlar sürümler arasında aktarılmaz.');(playButton?.closest('.cn-hero-actions')||actions).after(position);const oldMeter=dialog.querySelector('.cn-library-resume');
         oldMeter?.remove();
         if(resumed&&progress.duration>0&&playButton){
           const meter=el('progress','cn-library-resume');meter.max=progress.duration;meter.value=progress.position;
@@ -180,7 +183,7 @@
     personal.append(statusLabel,rateLabel,button(t('Save my rating & status','Puanımı ve durumumu kaydet'),async()=>{if(!rate.reportValidity())return;await request('save',{item:{id:selected,watchStatus:statusSelect.value,ratings:{personal:rate.value}}});await reload();document.dispatchEvent(new Event('media-library-changed'));}));aside.append(personal);
     aside.append(button(t('Edit sources & details','Kaynak ve bilgileri düzenle'),()=>management()),button(t('Change TMDB match','TMDB eşleşmesini değiştir'),()=>management(true)));
     const id=/^(movie|tv):(\d+)$/.exec(item.tmdbId||'');if(id)aside.append(button(t('View on TMDB ↗','TMDB’de görüntüle ↗'),()=>window.api.openExternal('https://www.themoviedb.org/'+id[1]+'/'+id[2])));
-    if(episodes.length){const season=el('section','mtd-episodes'),label=el('label','',t('Episodes · season ','Bölümler · sezon ')),select=el('select');for(const num of [...new Set(episodes.map(ep=>ep.season))].sort((a,b)=>a-b)){const option=el('option','',num);option.value=num;select.append(option);}label.append(select);season.append(label);const list=el('div');season.append(list);const drawEpisodes=()=>{list.replaceChildren();for(const ep of episodes.filter(ep=>ep.season===Number(select.value))){const row=el('div','mtd-episode');row.append(el('span','',String(ep.number).padStart(2,'0')),el('strong','',ep.title||t('Episode '+ep.number,ep.number+'. bölüm')));if(ep.source)row.append(button(t('Play','Oynat'),()=>play(ep.id)));else row.append(button(t('Link source','Kaynak bağla'),()=>management()));list.append(row);}};select.onchange=drawEpisodes;drawEpisodes();main.append(season);}
+    if(episodes.length){const season=el('section','mtd-episodes'),label=el('label','',t('Episodes · season ','Bölümler · sezon ')),select=el('select');for(const num of [...new Set(episodes.map(ep=>ep.season))].sort((a,b)=>a-b)){const option=el('option','',num);option.value=num;select.append(option);}label.append(select);season.append(label);if(seasonChoice?.owner===item.id&&[...select.options].some(o=>Number(o.value)===seasonChoice.season))select.value=String(seasonChoice.season);else if(next&&[...select.options].some(o=>Number(o.value)===next.season))select.value=String(next.season);const list=el('div');season.append(list);const drawEpisodes=()=>{list.replaceChildren();for(const ep of episodes.filter(ep=>ep.season===Number(select.value))){const row=el('div','mtd-episode');row.append(el('span','',String(ep.number).padStart(2,'0')),el('strong','',ep.title||t('Episode '+ep.number,ep.number+'. bölüm')));const done=ep.progress?.completed||ep.watchStatus==='completed',partial=!done&&ep.progress?.position>0;if(ep.source&&(done||partial)){const state=el('small','mtd-episode-state'+(done?' is-done':' is-partial'),done?t('Watched','İzlendi'):t(clock(ep.progress.position)+' resume',clock(ep.progress.position)+"'dan devam"));if(partial&&ep.progress.duration>0){const bar=el('i','mtd-episode-meter');bar.style.setProperty('--p',Math.min(100,Math.round(ep.progress.position/ep.progress.duration*100))+'%');state.append(bar);}row.append(state);}if(ep.source)row.append(button(done?t('Watch again','Tekrar izle'):partial?t('Continue','Devam et'):t('Play','Oynat'),()=>play(ep.id)));else row.append(button(t('Link source','Kaynak bağla'),()=>{seasonChoice={owner:item.id,season:ep.season};management(false,ep.id);}));list.append(row);}};select.onchange=()=>{seasonChoice={owner:item.id,season:Number(select.value)};drawEpisodes();};drawEpisodes();main.append(season);}
     window.TitleDiscoveryUI?.mount(main,aside,item);window.FilmContextFeatures?.mount(main,item,((id)=>()=>open(id))(item.id),()=>management(true));
     body.append(main,aside,review);
     if(window.api.feedsRequest){const sourceTitleId=item.id,sourceGeneration=generation;

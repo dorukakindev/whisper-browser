@@ -372,3 +372,38 @@ Tam gerçek renderer/kabuk ve mevcut modüller, izole headless tarayıcı ve sen
 3. **Kalan gerçek kabul:** Asistan/Browser ve iki oynatıcıda native sayfa/video/ses; aynı kaynakta aç/dön, klavye/menü ve kayıt sonuçları. Yerel kontrollü görsel dilimler bu kabulün yerine geçmez. Kullanıcı ayrıca uygulama istemeden R854 kusurları düzeltilmez.
 
 Bu liste uygulama yetkisi vermez. Her devamın yeni kanıtı ve önerileri **aynı R854'e** eklenir. Kullanıcı “bitti” demedi; rapor kapanmadı. Ürün kodu, tasarım veya kişisel veri bu incelemede değiştirilmedi; Git teslimi yapılmadı.
+
+
+### Uygulama sonuçları · 2026-11-10 23:30 (ara teslim 1)
+
+Yukarıdaki inceleme kayıtları tarihsel kanıttır ve değiştirilmedi. Bu tarihten itibaren R854-01…12 uygulama durumu ve ilk geliştirmeler için [devir notu](../devir/2026-11-10-2330.md) geçerlidir.
+
+### Uygulama sonuçları · 2026-11-10 23:59 (ara teslim 2)
+
+R854-01…12 durumu ve G maddelerinin uygulanan/uygulanmayan listesi için [devir notu](../devir/2026-11-10-2359.md) geçerlidir.
+
+### Uygulama sonuçları · 2026-11-11 00:30 (ara teslim 3)
+
+Güncel kusur ve G durumu için [devir notu](../devir/2026-11-11-0030.md) geçerlidir.
+
+### Uygulama sonuçları · 2026-11-11 01:00 (ara teslim 4)
+
+Güncel durum için [devir notu](../devir/2026-11-11-0100.md) geçerlidir.
+
+### Yerel birleşme · 2026-11-11 02:17
+
+Kullanıcının verdiği kümülatif paket mevcut R853 geliştirmeleri korunarak birleştirildi; güncel nötr/sinematik renk kararı uygulandı. Paket kapsamı, gerçek yerel doğrulama, eski test sınırı uyuşmazlığı ve henüz bitmeyen G maddeleri [yerel birleşme devrinde](../devir/2026-11-11-0217.md). Eski inceleme kanıtları değiştirilmedi; rapor topluca kapatılmadı.
+
+### Yerel devam · 2026-11-11 02:48
+
+Kullanıcının daha yeni sıcak amber kararı geçerlidir; önceki nötr karar tarihsel kalır. **G43 uygulandı:** kayıtlı görünüm adı, etkin tarih/alan kapsamı menü kapalıyken görünür; değişiklik işareti ve kaydı/kaynakları yazmadan kayıtlı kapsama/kameraya dönüş eklendi. Açık kaydetme ayrı tutuldu. Zevkim/Seriler/Podcast ve ikinci sezon bölümleri izole Windows Chromium'da gözle incelendi; yeni görsel kusur bulunmadı. Beş odak görünümünde JS hatası 0; 54 hedefli test ve tasarım sözleşmesi geçti. Önceki dokuz farklı paket sürümünde yol/eklenen işlev kaybı bulunmadı; önceki birleşme ve R853 korunuyor. Gerçek Electron/start.bat/ASUS/kişisel kullanım kabulü değildir. [Dosyalar, kanıt ve sınırlar](../devir/2026-11-11-0248.md). Sıradaki medium üçlü **G45 → G46 → G47**; R854 tümüyle kapanmadı.
+
+### Yerel uygulama kapsamı tamam · 2026-11-11 03:11
+
+Kullanıcının yalnız üçlü değil, kalan bütün R854 uygulama kapsamını bitirme talimatı uygulandı. G45 → G46 → G47'den başlandı; G43 dışında önceki dökümdeki 35 kısmi/başlanmamış kayıt güncel kodla karşılaştırıldı. Hazır parçalar yeniden yazılmadı. **R854-01…12 ve G01…G68 için açık ürün uygulama işi kalmadı; gerçek Electron/site/GPU kabulü topluca tamamlanmış sayılmaz.** Önceki inceleme cümleleri ve paket sayıları tarihsel kayıttır; güncel madde bazlı kapsam [tamamlama devrindedir](../devir/2026-11-11-0311.md).
+
+Bu tur: Podcast liste/tam yayın adı, öneri koşul/profil özeti ve hata kurtarma; asistan kaynak/yanıt alanı ve işlem ayrıntısı; gerçek kaynak/çeviri sayıları ve işlem etkisi; ağ adayı/kişisel dayanak ayrımı ve tekil tercih geri alma; yorum JSON/kısmi örnek/önizleme dönüşü; hedef bölüm ve sezona dönüş; devam kökeni ile seçili kopya/tür/konum tamamlandı. Asistanın composer arkasına taşması, hazır çevirilerin sıfır sayılması ve sinematik yeniden kurulumda kopya konumunun kaybı doğrulanıp düzeltildi. Sıcak amber ve önceki R853/R854/Whisper düzeltmeleri korundu.
+
+Son hedefli koşu **200/200**, ayrı etkilenen oyuncu kontrolü **2/2**, 12 JS syntax ve tasarım kontrolü geçti. Dokuz odak görünümünde JS hatası 0; inline örnek kapanıp açıldığında aynı kaldı. Testler örtüştüğünden sayıları toplam diye birleştirilmez. 309 kontrollük oyuncu/asistan koşusundaki tek eski etiket beklentisi ve sonradan yapılan hedefli doğrulama devirde açıkça kayıtlıdır. Kişisel profile/açık uygulamaya dokunulmadı; Git teslimi yok.
+
+**Kalan kabul:** normal açılışta mevcut zamanlı Podcast/üst menüler; izole Electron'da gerçek yerel/web medya, seri ve Browser/asistan geçişleri; canlı site/sağlayıcı/GPU ve ASUS üzerinde kullanım. Bunlar yapılmadan raporun bütün canlı kabulü kapandı denmez. Yeni geliştirme listesi üretme veya bitmiş G maddelerini yeniden yapma; sonraki gerçek kanıtı aynı R854'e kaydet.

@@ -419,4 +419,4 @@ async function downloadSubtitle({ fileId, url, provider, language }, config = {}
   return { text, format, fileName: fileName || `subtitle-${fileId}.${format}` };
 }
 
-module.exports = { searchSubtitles, downloadSubtitle, scoreCandidate };
+module.exports = { searchSubtitles, downloadSubtitle, scoreCandidate, decodeDownloadedSubtitle, downloadedFormat };

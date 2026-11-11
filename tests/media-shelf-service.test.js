@@ -71,6 +71,8 @@ test('shelf main boundary, book progress, shared catalog import, podcast refresh
     const saved = await api('podcast-processing-binding', trackRequest);
     assert.equal(saved.ok, true, saved.error);
     assert.deepEqual(saved.translation.cues.map(cue=>!!cue.translationMissing), [false,true]);
+    const savedShelf=JSON.parse(fs.readFileSync(path.join(dir,'media-shelf.json'),'utf8'));savedShelf.podcasts[0].episodes[0].podcastWorkspace=registryBinding.workspace;fs.writeFileSync(path.join(dir,'media-shelf.json'),JSON.stringify(savedShelf));
+    const diagnostic=await api('assistant-podcast-diagnostics',{podcast_id:pod.id,episode_url:episode.url,source_version:episode.sourceVersion});assert.equal(diagnostic.ok,true,diagnostic.error);assert.equal(diagnostic.sourceMatches,true);assert.equal(diagnostic.translation.provenMissing.length,1);assert.equal(diagnostic.recovery.canRetry,true);assert.equal(diagnostic.nextAction,'review-missing-translation-in-existing-panel');const unchanged=fs.readFileSync(path.join(dir,'media-shelf.json'),'utf8');await api('assistant-work-map');assert.equal(fs.readFileSync(path.join(dir,'media-shelf.json'),'utf8'),unchanged);assert.equal((await api('assistant-podcast-diagnostics',{podcast_id:pod.id,episode_url:episode.url,source_version:'old-version'})).ok,false);
     recovery.translationTextHash = 'stale';
     const unverified = await api('podcast-processing-binding', trackRequest);
     assert.deepEqual(unverified.translation.cues.map(cue=>!!cue.translationMissing), [false,false]);

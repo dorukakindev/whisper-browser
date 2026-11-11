@@ -337,7 +337,7 @@
     content.classList.remove('cn-home-content', 'cv2-home');content.replaceChildren();
     if(parked&&(parked.key!==player.mediaKey||(parked.mode==='browser'&&parked.tabId!==player.browserActiveTabId)))parked=null;
     const status = el('p', 'mh-status'); status.id = 'mhStatus'; status.setAttribute('role', 'status'); content.append(status);
-    if (state.error) report(state.error, true);
+    if (state.error){const panel=el('section','mh-library-load-error media-surface');panel.setAttribute('role','alert');panel.append(el('h2','',t('Some library data is unavailable','Bazı kütüphane verileri kullanılamıyor')),el('p','',state.error),el('p','mh-muted',t('Available data and the last loaded records remain usable. Retry reads only; it does not change ratings, history or sources.','Kullanılabilir veri ve son yüklenen kayıtlar kullanılabilir kalır. Yeniden deneme yalnız okur; puan, geçmiş veya kaynak değiştirmez.')),button(t('Retry library data','Kütüphane verilerini yeniden yükle'),()=>refresh({metadata:false})));content.append(panel);}
     else if (!state.loaded) report(t('Loading your library…', 'Kütüphanen yükleniyor…'));
     if(state.page==='home'&&feedSnapshot?.entryId){
       const resume=el('div','mh-reading-return');resume.append(el('span','',t('Your reading place is saved.','Kaldığın okuma yeri kayıtlı.')),button(t('Return to Feeds','Akışlarda okumaya dön'),()=>page('feeds'),'mh-text-button'));content.append(resume);
@@ -395,6 +395,8 @@
       const currentView=feedsView,currentRender=state.render;void currentView.ready.then(()=>{if(feedsView===currentView&&state.page==='feeds'&&state.render===currentRender&&state.active)host.scrollTop=pagePositions.get('feeds')||0;});
     } else if (state.page === 'discover' && window.MediaDiscoveryUI) {
       const discovery = el('section', 'md-page'); content.append(discovery); window.MediaDiscoveryUI.mount(discovery);
+    } else if (state.page==='stremio'&&window.StremioUI) {
+      const stremio=window.StremioUI.mount(content);virtualDisposers.push(()=>stremio.dispose());
     } else if (state.page==='recommend'&&window.RecommendationHubUI) {
       const recommendations=window.RecommendationHubUI.mount(content);virtualDisposers.push(()=>recommendations.dispose());
     } else if (['watched','anime','manga'].includes(state.page) && window.PersonalLibraryUI) {
@@ -550,12 +552,12 @@
     const outline=document.createElementNS(gear.namespaceURI,'path');let points=[];for(let i=0;i<32;i++){const angle=i*Math.PI/16-Math.PI/2,r=i%4===1||i%4===2?10:8;points.push((12+Math.cos(angle)*r).toFixed(2)+','+(12+Math.sin(angle)*r).toFixed(2));}outline.setAttribute('d','M'+points.join('L')+'Z');const center=document.createElementNS(gear.namespaceURI,'circle');center.setAttribute('cx','12');center.setAttribute('cy','12');center.setAttribute('r','3.2');gear.append(outline,center);settings.append(gear);actions.append(settings);
     const mainPages = [];
     const nav = el('nav', 'mh-nav'); nav.setAttribute('aria-label', t('Media navigation', 'Medya gezinmesi'));
-    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['watched',t('My viewing','İzlediklerim')], ['recommend',t('Recommendations','Öneriler')], ['anime','Anime'], ['manga','Manga / Manhwa'], ['recall', t('Content network', 'İçerik ağı')], ['feeds', t('Feeds (RSS)', 'Akışlar (RSS)')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('My taste','Zevkim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
+    for (const [key, label] of [['home', t('Home', 'Ana sayfa')], ['discover', t('Discover', 'Keşfet')], ['stremio', 'Stremio'], ['films', t('Films', 'Filmler')], ['series', t('Series', 'Diziler')], ['watched',t('My viewing','İzlediklerim')], ['recommend',t('Recommendations','Öneriler')], ['anime','Anime'], ['manga','Manga / Manhwa'], ['recall', t('Content network', 'İçerik ağı')], ['feeds', t('Feeds (RSS)', 'Akışlar (RSS)')], ['radio', t('Radio / podcast', 'Radyo / podcast')], ['taste', t('My taste','Zevkim')], ['web', 'Web'], ['recent', t('Recent', 'Son oynatılanlar')]]) {
       const control = button(label, () => page(key)); control.dataset.homePage = key;
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false');
       if (key === 'home') control.id = 'mhHome';
       control.addEventListener('click', () => setMenu(false));
-      if (['home','discover','watched','recommend','films','series','feeds','taste'].includes(key)) { mainPages.push(control); nav.append(control); }
+      if (['home','discover','stremio','watched','recommend','films','series','feeds','taste'].includes(key)) { mainPages.push(control); nav.append(control); }
       else extraNav.append(control);
     }
     extraNav.append(button(t('Browser scripts','Tarayıcı scriptleri'),()=>window.UserscriptManagerUI.open()),button(t('Browser engine & memory','Tarayıcı motoru ve bellek'),()=>window.BrowserMechanismsUI.open()));
@@ -606,7 +608,7 @@
     if (request !== state.request) return;
     const catalogResult = results[0].status === 'fulfilled' ? results[0].value : null;
     const history = results[1].status === 'fulfilled' && Array.isArray(results[1].value) ? results[1].value : null;
-    state.error = catalogResult?.ok && history ? '' : t('Some library data could not be loaded. Open the library to retry.', 'Bazı kütüphane verileri yüklenemedi. Yeniden denemek için kütüphaneyi açın.');
+    state.error = [!catalogResult?.ok?t('Title catalog could not be loaded.','Yapım kataloğu yüklenemedi.'):'',!history?t('Playback history could not be loaded.','Oynatma geçmişi yüklenemedi.'):''].filter(Boolean).join(' ');
     state.data = model.snapshot(catalogResult?.ok ? catalogResult.items : state.data.items, history || state.data.watch);
     state.loaded = true;
     if (state.active&&!(preserveDiscovery&&state.page==='discover')) {

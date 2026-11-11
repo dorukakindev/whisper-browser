@@ -1,7 +1,7 @@
 /* ═════════ SAHNE · Whisper Browser tam sayfa oynatıcı tasarım sistemi ═════════
    Podcast sahnesi · Çift dilli çalışma sahnesi · Yerel oynatıcı · Podcast kütüphanesi.
    Maketlerde ve uygulamadaki gerçek sahne sayfalarında aynı dosya kullanılır. Yeni font/CDN yok. */
-.sh{--sh-bg:#0b0c0f;--sh-ink:#f4f2ed;--sh-dim:#c0c3cb;--sh-mute:#8d929d;--sh-line:rgba(255,255,255,.11);--sh-line2:rgba(255,255,255,.2);--sh-amber:#e6b567;--sh-amber-ink:#17120a;--sh-tint:#d5a35c;--sh-tint2:#5d7ccf;--sh-glass:rgba(20,22,27,.64);--sh-glass2:rgba(14,15,19,.82);--sh-ease:cubic-bezier(.22,.8,.2,1);--sh-display:'Sora','IBM Plex Sans','Segoe UI',system-ui,sans-serif;--sh-sans:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--sh-p:0%;position:relative;isolation:isolate;overflow:hidden;color:var(--sh-ink);font-family:var(--sh-sans);background:var(--sh-bg);-webkit-font-smoothing:antialiased}
+.sh{--sh-bg:#0b0c0f;--sh-ink:#f4f2ed;--sh-dim:#c0c3cb;--sh-mute:#8d929d;--sh-line:rgba(255,255,255,.11);--sh-line2:rgba(255,255,255,.2);--sh-amber:var(--theme-accent);--sh-amber-ink:var(--theme-accent-contrast);--sh-tint:color-mix(in srgb,var(--theme-accent) 68%,var(--theme-border));--sh-tint2:var(--theme-accent-hover);--sh-glass:rgba(20,22,27,.64);--sh-glass2:rgba(14,15,19,.82);--sh-ease:cubic-bezier(.22,.8,.2,1);--sh-display:'Sora','IBM Plex Sans','Segoe UI',system-ui,sans-serif;--sh-sans:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--sh-p:0%;position:relative;isolation:isolate;overflow:hidden;color:var(--sh-ink);font-family:var(--sh-sans);background:var(--sh-bg);-webkit-font-smoothing:antialiased}
 .sh *,.sh *::before,.sh *::after{box-sizing:border-box}
 :where(.sh) button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
 .sh svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -278,7 +278,7 @@
 .sh-card{overflow:visible}
 
 /* Whisper integration: retain the composition, inherit the actual theme owners. */
-.sh{--sh-bg:var(--theme-bg-0);--sh-ink:var(--theme-text);--sh-dim:var(--theme-text-dim);--sh-mute:var(--theme-text-muted);--sh-line:var(--theme-border);--sh-line2:var(--theme-border-strong);--sh-amber:var(--theme-accent);--sh-amber-ink:var(--theme-accent-contrast);--sh-tint:var(--theme-accent);--sh-tint2:var(--theme-accent);--sh-display:'IBM Plex Sans','Segoe UI',sans-serif;--sh-sans:'IBM Plex Sans','Segoe UI',sans-serif;--sh-glass:color-mix(in srgb,var(--theme-bg-1) 88%,transparent);--sh-glass2:color-mix(in srgb,var(--theme-bg-1) 96%,transparent)}
+.sh{--sh-bg:var(--theme-bg-0);--sh-ink:var(--theme-text);--sh-dim:var(--theme-text-dim);--sh-mute:var(--theme-text-muted);--sh-line:var(--theme-border);--sh-line2:var(--theme-border-strong);--sh-amber:var(--theme-accent);--sh-amber-ink:var(--theme-accent-contrast);--sh-tint:color-mix(in srgb,var(--theme-accent) 68%,var(--theme-border));--sh-tint2:var(--theme-accent-hover);--sh-display:'IBM Plex Sans','Segoe UI',sans-serif;--sh-sans:'IBM Plex Sans','Segoe UI',sans-serif;--sh-glass:color-mix(in srgb,var(--theme-bg-1) 88%,transparent);--sh-glass2:color-mix(in srgb,var(--theme-bg-1) 96%,transparent)}
 .sh-host{background:var(--theme-bg-0)}
 .sh .sh-aurora{animation:none;opacity:.25}.sh .sh-grain{display:none}.sh .sh-cover{animation:none}
 .sh .sh-cover-art{display:grid;place-items:center}.sh-initials{font-size:clamp(44px,7vh,84px);font-weight:600;color:var(--media-on-art)}
@@ -432,7 +432,7 @@ html[data-sahne-hidden=true] .sh *{animation-play-state:paused!important}
 @media (max-height:760px){.sh-browser-study .sh-chaps:not([hidden]){display:flex;max-height:72px}}
 .sh-offset { display: grid; gap: 8px; padding: 8px 0; }
 .sh-offset > div { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
-.sh-offset output { color: var(--sh-amber, #d5a35c); font-variant-numeric: tabular-nums; }
+.sh-offset output { color: var(--sh-amber, var(--theme-accent)); font-variant-numeric: tabular-nums; }
 .sh-offset-actions .sh-btn { flex: 1; white-space: nowrap; }
 
 /* Podcast shows its listening queue too; a soft edge replaces the hard cut of partly scrolled sentences. */
@@ -443,7 +443,7 @@ html[data-sahne-hidden=true] .sh *{animation-play-state:paused!important}
 .sh-meta-next .sh-next-inline{display:inline-flex;align-items:baseline;gap:10px;padding:8px 14px;border:1px solid var(--sh-line2);border-radius:999px;background:transparent;color:var(--sh-dim);font:inherit;cursor:pointer;max-width:min(420px,100%)}
 .sh-meta-next .sh-next-inline small{font-size:10px;letter-spacing:.14em;color:var(--sh-mute)}
 .sh-meta-next .sh-next-inline strong{font-weight:600;color:var(--sh-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sh-meta-next .sh-next-inline:hover,.sh-meta-next .sh-next-inline:focus-visible{border-color:var(--accent,#d6a35c);color:var(--sh-ink)}
+.sh-meta-next .sh-next-inline:hover,.sh-meta-next .sh-next-inline:focus-visible{border-color:var(--accent,var(--theme-accent));color:var(--sh-ink)}
 
 /* Preparation is distinct from a running background job; the interval stays frozen until enqueue finishes. */
 .sh-workbar .sh-btn[aria-busy=true]{position:relative;overflow:hidden;opacity:1;border-color:var(--sh-amber);color:var(--sh-ink)}
@@ -497,3 +497,21 @@ html[data-cinema-motion=off] .sh-workbar .sh-btn[aria-busy=true]::after,html[dat
 @media(max-width:760px){.sh .sh-job[data-r=job]{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:12px}.sh .sh-job[data-r=job] .sh-job-state{grid-column:1/3}.sh .sh-job[data-r=job] .sh-job-t{grid-column:1/-1;grid-row:2}.sh .sh-job[data-r=job] .sh-job-bar{grid-row:3}.sh .sh-job[data-r=job] .sh-chip{grid-row:4}.sh .sh-job[data-r=job] [data-a=jobcancel]{grid-column:2}.sh .sh-job[data-r=job] [data-a=jobretry]{grid-column:3}.sh .sh-job[data-r=job] .sh-job-percent{grid-column:3;grid-row:1}}
 html[data-cinema-motion=off] .sh .sh-job ::before,html[data-cinema-motion=off] .sh .sh-job ::after,html[data-cinema-motion=reduced] .sh .sh-job ::before,html[data-cinema-motion=reduced] .sh .sh-job ::after,html[data-media-window-inactive=true] .sh .sh-job ::before,html[data-media-window-inactive=true] .sh .sh-job ::after{animation:none}
 @media(prefers-reduced-motion:reduce){.sh .sh-job ::before,.sh .sh-job ::after{animation:none}}
+
+/* Warm cinema light, rich graphite glass and a shared amber interaction accent. */
+html:not([data-theme=light]) .sh{--sh-bg:var(--theme-bg-0);--sh-ink:var(--theme-text);--sh-dim:var(--theme-text-dim);--sh-mute:var(--theme-text-muted);--sh-line:var(--theme-border);--sh-line2:var(--theme-border-strong);--sh-amber:var(--theme-accent);--sh-amber-ink:var(--theme-accent-contrast);--sh-tint:color-mix(in srgb,var(--theme-accent) 68%,var(--theme-border));--sh-tint2:var(--theme-accent-hover);--accent:var(--theme-accent);--on-accent:var(--theme-accent-contrast);--accent-hover:var(--theme-accent-hover);--accent-soft:color-mix(in srgb,var(--theme-accent) 12%,transparent)}
+html:not([data-theme=light]) .sh,html:not([data-theme=light]) .sh-browser-study{background:radial-gradient(120% 70% at 50% -12%,color-mix(in srgb,var(--sh-tint) 20%,transparent),transparent 58%),radial-gradient(70% 60% at 100% 100%,color-mix(in srgb,var(--sh-tint2) 9%,transparent),transparent 70%),var(--sh-bg)}
+html:not([data-theme=light]) .sh .sh-top{background:linear-gradient(180deg,color-mix(in srgb,var(--sh-bg) 88%,transparent),transparent)}
+html:not([data-theme=light]) .sh .sh-title{font-size:clamp(24px,2.6vw,42px);font-weight:620;letter-spacing:-.035em}
+html:not([data-theme=light]) .sh .sh-screen{border-color:var(--sh-line2);box-shadow:0 50px 110px -40px black,0 0 0 1px color-mix(in srgb,var(--sh-tint) 10%,transparent),0 0 90px -30px color-mix(in srgb,var(--sh-tint) 35%,transparent)}
+html:not([data-theme=light]) .sh .sh-subs{border-radius:22px;background:linear-gradient(180deg,color-mix(in srgb,var(--sh-ink) 6%,transparent),color-mix(in srgb,var(--sh-ink) 2%,transparent));border-color:var(--sh-line2)}
+html:not([data-theme=light]) .sh .sh-dock{background:linear-gradient(180deg,color-mix(in srgb,var(--sh-ink) 6%,var(--sh-bg)),var(--sh-bg));box-shadow:0 30px 60px -36px black,inset 0 1px color-mix(in srgb,var(--sh-ink) 8%,transparent)}
+html:not([data-theme=light]) .sh .sh-tbtn.play{border-radius:50%;width:56px;height:56px;background:var(--sh-ink);color:var(--sh-bg);box-shadow:0 10px 30px -10px color-mix(in srgb,var(--sh-tint) 70%,transparent)}
+html:not([data-theme=light]) .sh .sh-eyebrow{color:var(--sh-dim);letter-spacing:.24em}
+
+/* The original header and settings drawer must stay above the mounted Sahne. */
+.cp-sahne-on > .player-head{position:relative;z-index:40}
+.cp-sahne-on.settings-open #playerSide{z-index:41;visibility:visible;pointer-events:auto}
+
+/* R854 G22: source and operation effects remain outside the category scroll. */
+.sh-panel-context{margin:0;padding:12px 20px;border-bottom:1px solid var(--border);color:var(--text-dim);font-size:13px;line-height:1.5;overflow-wrap:anywhere}.sh-panel-context+.sh-panel-workspace{min-height:0}

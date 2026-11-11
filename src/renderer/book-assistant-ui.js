@@ -206,6 +206,7 @@
     };
   }
   function active(){const base=globalAssistantContext();return [...readers].reverse().find(row=>row.current()&&row.getSource('summary')?.id===base?.id&&row.getSource('summary')?.chapter===base?.chapter);}
+  const chunkRevision=async(sourceId,hit)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([sourceId,hit.page,hit.offset,hit.text]))))).map(v=>v.toString(16).padStart(2,'0')).join('');
   const assistant={
     state() {
       const row = active(), source = row?.getSource('summary');
@@ -224,7 +225,8 @@
         canPrepare: !!row.onPrepare,
       };
     },
-    async search(args,stale){const row=active();if(!row||stale())throw Error('Book source changed.');if(!row.onSearch)return {status:'blocked',note:'This reader exposes only its active excerpt; full-book search is unavailable here.'};const source=row.getSource('summary'),result=await row.onSearch(args,()=>!stale()&&row.current());if(stale())throw Error('Book source changed.');return {...result,parentContexts:(result.parentContexts||[]).map(context=>({...context,sourceId:source.id})),groups:(result.groups||[]).map(group=>({...group,sourceId:source.id})),matches:(result.matches||[]).map(hit=>({...hit,sourceId:source.id,kind:source.type==='book-page'?'page':'chapter',navigable:!!row.onNavigate}))};},
+    async search(args,stale){const row=active();if(!row||stale())throw Error('Book source changed.');if(!row.onSearch)return {status:'blocked',note:'This reader exposes only its active excerpt; full-book search is unavailable here.'};const source=row.getSource('summary'),result=await row.onSearch(args,()=>!stale()&&row.current());if(stale())throw Error('Book source changed.');for(const hit of result.matches||[])hit.sourceRevision=await chunkRevision(source.id,hit);return {...result,parentContexts:(result.parentContexts||[]).map(context=>({...context,sourceId:source.id})),groups:(result.groups||[]).map(group=>({...group,sourceId:source.id})),matches:(result.matches||[]).map(hit=>({...hit,sourceId:source.id,kind:source.type==='book-page'?'page':'chapter',navigable:!!row.onNavigate}))};},
+    async inspect(citation){const row=[...readers].reverse().find(r=>r.current()&&r.getSource('summary')?.id===citation.sourceId&&r.onSearch);if(!row||!citation.sourceRevision)throw Error('Reopen the exact original document and read this evidence again.');const result=await row.onSearch({query:citation.text.slice(0,120),start:citation.page},()=>row.current());const hit=result.matches?.find(h=>h.id===citation.id&&String(h.text||'').includes(citation.text));if(!row.current()||!hit)throw Error('Book excerpt changed.');const revision=await chunkRevision(citation.sourceId,hit);if(revision!==citation.sourceRevision)throw Error('Book evidence revision changed.');return {id:citation.id,kind:'book',title:row.getSource('summary').title,revision,text:citation.text,translation:'',personalNote:'',locator:{sourceId:citation.sourceId,page:citation.page}};},
     async navigate(citation){
       const row=[...readers].reverse().find(r=>r.current()&&r.getSource('summary')?.id===citation.sourceId&&r.onNavigate);
       if(!row||!Number.isInteger(citation.page)||citation.page<1)throw Error('Open the original document to follow this citation / Alıntı için özgün belgeyi aç.');

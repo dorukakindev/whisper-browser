@@ -86,9 +86,13 @@ function createFeedStore(file,{now=()=>Date.now(),protectedEntryIds=()=>[]}={}){
    if(!feed){if(d.feeds.length>=200)throw Error('Feed subscription limit is 200.');feed={id:randomUUID(),url:feedUrl,effectiveUrl:feedUrl,title:plain(podcast.title,200)||new URL(feedUrl).hostname,folder:'',enabled:false,intervalMinutes:60,language:clean(podcast.language,40),format:web?'web-podcast':'rss',createdAt:now(),initial:'all',state:'pending',lastAttempt:0,lastSuccess:0,lastNew:0,etag:'',lastModified:''};d.feeds.push(feed);}
    // Reuse normal entry normalization while preserving subscription polling and all
    // existing rows. This internal bridge only inserts a missing processing source.
-   const before=structuredClone(feed),row={externalId:guid,url:pageUrl||audioUrl,title:episode.title,imageUrl:web?safeUrl(episode.image):'',summary:episode.description,text:episode.description,contentScope:'summary',kind:'podcast',author:podcast.publisher,language:podcast.language,publishedAt:Number(episode.date)||Date.parse(episode.date)||0,durationSeconds:episode.duration,transcriptDescriptors:(episode.transcriptDescriptors||[]).map(x=>({...x,mime:x.mime||x.type})),enclosures:[{url:audioUrl,type,...(Number(rawLength)>0?{length:Number(rawLength)}:{})}]};
+   // An archive page can publish several recordings. Its page URL alone cannot
+   // identify an episode; use an internal audio-resource key when no GUID exists.
+   const externalId=guid||(web?'whisper:web-audio:'+hash(require('./podcast-session').resourceIdentity(audioUrl)):'');
+   const before=structuredClone(feed),row={externalId,url:pageUrl||audioUrl,title:episode.title,imageUrl:web?safeUrl(episode.image):'',summary:episode.description,text:episode.description,contentScope:'summary',kind:'podcast',author:podcast.publisher,language:podcast.language,publishedAt:Number(episode.date)||Date.parse(episode.date)||0,durationSeconds:episode.duration,transcriptDescriptors:(episode.transcriptDescriptors||[]).map(x=>({...x,mime:x.mime||x.type})),enclosures:[{url:audioUrl,type,...(Number(rawLength)>0?{length:Number(rawLength)}:{})}]};
    commitInto(d,feed.id,{entries:[row]},'all');for(const key of Object.keys(feed))delete feed[key];Object.assign(feed,before);
-   const entry=d.entries.find(e=>e.feedId===feed.id&&(guid?e.externalId===guid:e.url===row.url));
+   const entry=d.entries.find(e=>e.feedId===feed.id&&(externalId?e.externalId===externalId:e.url===row.url));
+   if(web)entry.canonicalId=hash(['web-episode',pageUrl,require('./podcast-session').resourceIdentity(audioUrl)]);
    if(web&&save)entry.saved=true;
    return entry;
   });

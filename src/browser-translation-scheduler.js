@@ -509,8 +509,10 @@ class BrowserTranslationScheduler {
     // hatası aynı girdiye aynı sonucu verir; her çevrimiçi olayında onları
     // yeniden ücretlendirmek "hatalı cümle" döngüsünü besliyordu.
     const onlyTransient = options && options.onlyTransient === true;
+    const selected = options.sentenceIds === undefined ? null : new Set(options.sentenceIds);
+    if (selected && (!Array.isArray(options.sentenceIds) || !selected.size || selected.size > 200 || options.sentenceIds.some(id => typeof id !== 'string' || !this.failures.get(id)?.terminal))) throw Error('Retry selection changed; review again.');
     const failedIds = [...this.failures.entries()]
-      .filter(([, failure]) => failure.terminal
+      .filter(([id, failure]) => (!selected || selected.has(id)) && failure.terminal
         && (!onlyTransient || !failure.kind || failure.kind === 'transient'))
       .map(([sentenceId]) => sentenceId);
     if (!failedIds.length) return 0;
@@ -535,9 +537,9 @@ class BrowserTranslationScheduler {
     // Devre kesici, hiç denenmemiş cümleleri de "başarısız" işaretler
     // (deferred). Onları kuyruğa itmek fiilen "tüm izi çevir" olurdu (200 cümlelik
     // izde 200 istek); onlar yalnız yeniden oynatma penceresine göre planlanır.
-    const failedSet = new Set(failedIds.filter((id) => !this.failures.get(id)?.deferred));
+    const failedSet = new Set(failedIds.filter((id) => selected || !this.failures.get(id)?.deferred));
     for (const sentenceId of failedIds) this.failures.delete(sentenceId);
-    if (wasTripped) this.updatePlayhead(this.playhead);
+    if (wasTripped && !selected) this.updatePlayhead(this.playhead);
     // Gerçekten denenmiş ve düşmüş cümleler pencere dışında olsa bile yeniden
     // denenebilmeli; ancak bu eylem açık bir "tüm izi çevir" talebi değildir.
     const unavailable = new Set([
@@ -953,7 +955,9 @@ class BrowserTranslationScheduler {
   }
 
   snapshot() {
+    const byId = new Map(this.sentences.map(sentence => [sentence.id,sentence]));
     return {
+      generation: this.generation,
       playhead: this.playhead,
       total: this.sentences.length,
       completed: this.results.size,
@@ -962,7 +966,7 @@ class BrowserTranslationScheduler {
       paused: this.paused,
       queued: this.queue.map((sentence) => sentence.id),
       pending: [...this.pending.keys()],
-      failures: [...this.failures.entries()].map(([sentenceId, failure]) => ({ sentenceId, ...failure })),
+      failures: [...this.failures.entries()].map(([sentenceId, failure]) => ({ sentenceId, ...failure, text: byId.get(sentenceId)?.text || '', cueIds: byId.get(sentenceId)?.cueIds || [] })),
       results: [...this.results.values()].map((value) => ({ ...value, cues: value.cues.map((cue) => ({ ...cue })) })),
       reconcile: { ...this.lastReconcile },
       stats: { ...this.stats },

@@ -667,3 +667,46 @@ html[data-theme=light] .sh-browser-study .sh-cover-art{box-shadow:0 16px 34px -1
 .sh-browser-study .sh-tbtn.play{box-shadow:0 0 0 7px color-mix(in srgb,var(--accent) 9%,transparent),0 7px 25px -10px var(--accent)}
 @media(max-width:1099px){.sh-browser-study.sh-audio .sh-audio-summary{gap:24px;padding:24px 12px}.sh-browser-study.sh-audio .sh-audio-summary .sh-cover{width:clamp(150px,23vh,230px)}}
 @media(max-width:760px){.sh-browser-study.sh-audio .sh-audio-summary{flex-direction:column;text-align:center;gap:18px}.sh-browser-study.sh-audio .sh-audio-summary .sh-cover{width:160px}.sh-browser-study.sh-audio .sh-audio-summary .sh-title{font-size:24px}.sh-browser-study .browser-study-transport{padding:14px}.sh-browser-study .sh-live-speech{padding:12px 16px}}
+
+/* R854-03 / R854-04 — top strip and "next item" card stay inside the study layout.
+   The right action group keeps its natural width (queue/dub/tools never sit under the mode switch);
+   when the strip cannot hold all three groups it wraps to a controlled second row. */
+.sh-browser-study .sh-top{grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr)}
+.sh-browser-study .sh-top-r{flex-wrap:nowrap;min-width:max-content}
+.sh-browser-study .sh-top>*{min-width:0}
+.sh-browser-study .sh-top>.sh-top-r{min-width:max-content}
+@media(max-width:1180px){
+ .sh-browser-study .sh-top{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:12px;row-gap:8px}
+ .sh-browser-study .sh-top>:first-child{grid-column:1;grid-row:1}
+ .sh-browser-study .sh-top>.browser-study-modes{grid-column:2;grid-row:1}
+ .sh-browser-study .sh-top>.sh-top-r{grid-column:1/-1;grid-row:2;justify-content:flex-end;flex-wrap:wrap;min-width:0;margin-left:0}
+}
+.sh-browser-study .sh-meta-next{min-width:0;max-width:100%;box-sizing:border-box}
+.sh-browser-study .sh-meta-next .sh-next-inline{min-width:0;max-width:100%;box-sizing:border-box}
+.sh-browser-study .sh-meta-next .sh-next-inline strong{min-width:0;flex:1 1 auto}
+.sh-browser-study .sh-meta{min-width:0}
+
+/* R854-04 (900 px remainder) — the sentence-loop group may wrap instead of exceeding the media column by a pixel. */
+.sh-browser-study .sh-transport,.sh-browser-study .sh-sentence-nav{min-width:0;max-width:100%;flex-wrap:wrap;row-gap:6px}
+
+/* R854 G21 — the focused line names its three local actions; the star saves a passage, it is not a rating/favourite. */
+.sh-browser-study .sh-card.on .acts{flex-wrap:wrap}
+.sh-browser-study .sh-card.on .acts .act[data-short]{width:auto;min-width:32px;padding-inline:9px;display:inline-flex;align-items:center;gap:6px}
+.sh-browser-study .sh-card.on .acts .act[data-short]::after{content:attr(data-short);font-size:11px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+/* R854 G23 — the footer text-size control keeps its visible "Text" label next to the value. */
+.sh-browser-study .bp-footer .sh-reading-size>span{position:static;width:auto;height:auto;overflow:visible;clip:auto;white-space:nowrap}
+
+/* R854 G16 — long dual-language sentences: both channels stay visible (each scrolls on its own) and the full-sentence path is signalled. */
+.sh-browser-study .sh-subs.long{max-height:min(220px,28vh)}
+.sh-browser-study .sh-subs.long .s,.sh-browser-study .sh-subs.long .t:not(:empty){max-height:calc((min(220px,28vh) - 32px) / 2 - 4px);overflow:auto;scrollbar-width:thin;overscroll-behavior:contain}
+.sh-browser-study .sh-read-current.is-suggested:not(:disabled){border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
+
+/* R854 G17/G18 — optional text-first composition: identity shrinks to one line and the reading panel gets the wider column. Session-only; the title and return path stay. */
+.sh-browser-study.sh-text-first .sh-audio-summary .sh-cover,.sh-browser-study.sh-text-first .sh-audio-summary .sh-sub{display:none}
+.sh-browser-study.sh-text-first .sh-audio-summary .sh-title{font-size:18px;margin:2px 0}
+@media(min-width:1100px){
+ .sh-browser-study.sh-text-first .sh-main.browser-study-layout,.sh-browser-study.sh-audio.sh-text-first .sh-main.browser-study-layout{grid-template-columns:minmax(0,.8fr) minmax(420px,1.3fr)}
+}
+
+/* R854 G20 — an active sentence loop shows the range it repeats. */
+.sh-browser-study .sh-chip[data-a=loop][data-scope]::after,.sh-browser-study .sh-tbtn[data-a=loop][data-scope]::after{content:" · " attr(data-scope);font-variant-numeric:tabular-nums}

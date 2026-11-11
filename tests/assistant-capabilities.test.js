@@ -62,3 +62,16 @@ test('Taste tools separate read-only constraints from explicit reviewed global c
 test('recommended title opening is a reviewed action outside the library too',()=>{
  for(const kind of ['video','page','book']){assert(registry.list({kind}).some(tool=>tool.name==='open_library_title'));assert.equal(registry.get('open_library_title').policy,'proposal');}
 });
+
+test('R853 domain tools and new navigation share the real registry; discovery can expand a smaller initial set',()=>{
+ for(const domain of ['film','series','documentary','anime','manga','podcast','book'])for(const name of ['get_taste_profile','recommend_from_taste'])assert.equal(registry.validate(name,{domain},{kind:'library'}).domain,domain);
+ for(const page of ['watched','recommend','anime','manga','recall','feeds','radio'])assert.equal(registry.validate('navigate_workspace',{page},{kind:'library'}).page,page);
+ assert.throws(()=>registry.validate('get_taste_profile',{domain:'unknown'},{kind:'library'}));assert.throws(()=>registry.validate('update_taste_preferences',{domain:'anime'},{kind:'library'}));
+ const owner={kind:'video',hasMedia:true,hasSubtitles:true},initial=registry.initialDefinitions(owner,'What is this?');assert(initial.length<registry.definitions(owner).length);assert(initial.some(t=>t.function.name==='get_action_options'));
+ const {query}=require('../src/assistant-personal-archive');const rows=Array.from({length:10},(_,i)=>({id:'mal:anime:'+i,origin:'collection',domain:'anime',title:'Anime '+i,rating:i===0?0:8,provider:'myanimelist',progress:3,status:'paused'}));rows.push({id:'film',origin:'catalog',title:'Film',kind:'film',ratings:{personal:2},runtime:90});
+ const a=query(rows,{domain:'anime'}),b=query(rows,{domain:'anime',offset:8,snapshot_revision:a.snapshotRevision});assert.equal(a.total,10);assert.equal(b.items.length,2);assert.equal(new Set([...a.items,...b.items].map(r=>r.source_ref)).size,10);assert.equal(a.items[0].rating,null);assert(!a.items[0].item_id);assert.equal(query(rows,{domain:'film'}).items[0].rating,2);assert.equal(query(rows,{domain:'anime',max_duration_minutes:30}).total,0);assert.equal(query(rows,{domain:'anime',max_duration_minutes:30}).unknownDuration,10);rows[0].progress=4;assert.throws(()=>query(rows,{domain:'anime',offset:8,snapshot_revision:a.snapshotRevision}),/changed/);
+});
+
+test('R853 reviewed recommendation and session proposals remain discoverable from book and studio owners',()=>{
+ for(const kind of ['book','studio','library'])for(const [name,args]of [['set_recommendation_feedback',{domain:'anime',id:'real',feedback:'repeat'}],['defer_recommendation',{domain:'film',id:'real',days:7}],['open_work_session',{session_id:'book:real'}]])assert.doesNotThrow(()=>registry.validate(name,args,{kind}));
+});

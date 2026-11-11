@@ -1,4 +1,5 @@
 const { compareBrowserMediaCandidates, browserMediaCandidateRank } = require('./browser-media-selection');
+const themePalette = require('./theme-palette').palette;
 
 /**
  * Cue listeleri start sıralıdır (parse/kurulum sırasında sıralanır). Büyük
@@ -638,7 +639,7 @@ function buildBrowserOverlayScript(payload, findCuesSource) {
         const toggle = document.createElement('button');
         toggle.textContent = 'Altyazı ayarları';
         toggle.setAttribute('aria-expanded', 'false');
-        toggle.style.cssText = 'background:transparent;color:#d5a35c;border:0;padding:6px;cursor:pointer;font:inherit;';
+        toggle.style.cssText = 'background:transparent;color:${themePalette().accent};border:0;padding:6px;cursor:pointer;font:inherit;';
         const controls = document.createElement('div');
         controls.style.cssText = 'display:none;flex-wrap:wrap;gap:6px;width:min(430px,calc(100vw - 34px));max-width:100%;padding-top:6px;';
         const expand = open => { controls.style.display = open ? 'flex' : 'none'; toggle.setAttribute('aria-expanded', String(open)); };

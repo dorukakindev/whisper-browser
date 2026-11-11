@@ -5,3 +5,15 @@
 .whv-owned-art>svg{display:none}
 
 .whv-page .mh-text-button{border:1px solid var(--border);border-radius:7px;padding:8px 12px;background:transparent;color:var(--text)}
+
+/* R854 cinematic redesign — Web videos: a lit resume stage, rounded list cards, quiet neutral chrome. */
+.whv-page .whv-head h1{font-size:clamp(36px,3.6vw,54px);letter-spacing:-.04em;line-height:1.05}
+.whv-page .whv-hero{border-radius:30px;border:1px solid color-mix(in srgb,var(--theme-text) 10%,transparent);background:radial-gradient(90% 120% at 0% 0%,color-mix(in srgb,var(--theme-text) 9%,transparent),transparent 60%),linear-gradient(160deg,var(--theme-bg-2),var(--theme-bg-0));box-shadow:0 50px 90px -60px black;overflow:hidden}
+.whv-page .whv-hero-art{border-radius:20px;box-shadow:0 40px 70px -34px black,0 0 0 1px color-mix(in srgb,var(--theme-text) 10%,transparent)}
+.whv-page .whv-kicker{color:var(--theme-text-dim);letter-spacing:.2em}
+.whv-page .whv-hero-copy .whv-title,.whv-page .whv-hero-copy h2{font-size:clamp(28px,2.8vw,40px);letter-spacing:-.035em;line-height:1.1}
+.whv-page .whv-go,.whv-page .whv-hero .whv-open{border-radius:999px}
+.whv-page .whv-row{border:1px solid transparent;border-radius:20px;padding:12px 14px;margin:6px 0;transition:background .18s,border-color .18s}
+.whv-page .whv-row:hover{background:color-mix(in srgb,var(--theme-text) 6%,transparent);border-color:color-mix(in srgb,var(--theme-text) 10%,transparent)}
+.whv-page .whv-row .whv-art{border-radius:14px;overflow:hidden;box-shadow:0 14px 26px -16px black}
+.whv-page .whv-chip,.whv-page .whv-select{border-radius:999px}

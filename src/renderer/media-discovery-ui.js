@@ -81,7 +81,7 @@
     const actions = el('div', 'mh-actions md-primary-actions');
     const options=el('details','md-detail-options'),preferences=el('section','md-option-group'),preferenceActions=el('div','md-option-actions');
     options.append(el('summary','',t('More actions & viewing preferences','Diğer işlemler ve izleme tercihleri')));
-    preferences.append(el('h3','',t('Your discovery preferences','Keşif tercihlerin')),el('p','md-provider',t('Not interested? Hide this title from discovery. Restore hidden titles in Preferences. Use your viewing status above to mark a title watched.','İlgini çekmedi mi? Yapımı keşiften gizle. Gizlediğin yapımları Tercihler bölümünden geri alabilirsin. İzledim için yukarıdaki izleme durumunu kullan.')),preferenceActions);options.append(preferences);
+    preferences.append(el('h3','',t('Your discovery preferences','Keşif tercihlerin')),el('p','md-provider',t('Hide affects Discover visibility only; restore in Preferences. Recommendation feedback/deferral and personal ratings are separate. Use viewing status above to mark watched.','Gizle yalnız Keşfet görünürlüğünü etkiler; Tercihler’den geri alabilirsin. Öneri geri bildirimi/erteleme ve kişisel puan ayrıdır. İzledim için yukarıdaki izleme durumunu kullan.')),preferenceActions);options.append(preferences);
     for (const [value, label] of [['hidden', t('Not interested', 'İlgilenmiyorum')], ['none', t('Undo preference', 'Tercihi geri al')]]) {
       if (value === 'none' && !row.feedback) continue;
       preferenceActions.append(btn(label, async () => {
@@ -212,7 +212,7 @@
         else if(at?.season!=null&&at?.number!=null)text=t('Season '+at.season+' · Episode '+at.number,'Sezon '+at.season+' · Bölüm '+at.number)+(seconds>0?' · '+clock(seconds):'');
         else if(seconds>0)text=t('Resume at ','Kaldığın yer ')+clock(seconds);
         else text=t('Not started yet','Henüz başlanmadı');
-        resume.cell.dataset.state=seconds>0||at?'active':'idle';resume.value.replaceChildren(el('span','md-strip-main',text));
+        resume.cell.dataset.state=seconds>0||at?'active':'idle';resume.value.replaceChildren(el('span','md-strip-main',text));if(at){resume.value.append(el('small','md-strip-note',(at.origin==='playback'?t('Playback record','Oynatma kaydı'):t('Manual record','Elle kayıt'))+' · '+(Number(at.updatedAt)>0?new Date(Number(at.updatedAt)).toLocaleString(t('en-GB','tr-TR')):t('Date unknown','Tarih bilinmiyor'))));if(item.kind==='series'&&row){const episode=episodes.find(e=>e.id===at.episodeId||e.season===at.season&&e.number===at.number);if(episode)resume.value.append(btn(t('Inspect this episode source','Bu bölümün kaynağını incele'),()=>window.MediaCatalogUI.open({id:row.id,episodeId:episode.id}),'mh-text-button'));}}
       };
       void stripRefresh();
     }
@@ -323,10 +323,10 @@
       card.title=row.title+(row.year?' ('+row.year+')':'');
       card.append(poster, el('span', 'cn-poster-title', window.MediaVisual.title(row.title)), cardMeta);
       window.MediaVisual?.art(poster,row.title);
-      if(row.because||row.profileBecause||row.directorBecause){const basis=recommendationReason(row);card.append(el('span','md-reason',basis.label+' · '+basis.text));}
+      if(state.tab==='personal'||row.because||row.profileBecause||row.directorBecause){const basis=recommendationReason(row),reason=el('span','md-reason',basis.label+' · '+basis.text);reason.title=reason.textContent;card.append(reason);}
       if (row.feedback) card.append(el('span','md-reason', row.feedback === 'watched' ? t('Watched','İzlendi') : t('Not interested','İlgilenilmiyor')));
       if(row.personalMedia&&(row.personalMedia.reaction||row.personalMedia.manualResume||row.personalMedia.effectiveResume||row.personalMedia.note))card.append(el('span','pm-card-summary',window.PersonalMediaUI?.summary(row.personalMedia)||''));
-      if(row.kind==='film'&&window.RecommendationHubUI){const entry=el('article','cn-discover-entry'),recommend=btn(t('Recommend films','Film öner'),()=>window.RecommendationHubUI.open(row),'mh-action md-recommend-button');entry.append(card,recommend);nodes.push(entry);}else nodes.push(card);
+      if(state.tab==='preferences'&&row.feedback){const entry=el('article','cn-discover-entry'),restore=btn(row.feedback==='watched'?t('Remove discovery watched exclusion','Keşifteki izlendi dışlamasını kaldır'):t('Unhide in Discover','Keşfette gizlemeyi kaldır'),async()=>{restore.disabled=true;try{await api('feedback',{id:row.providerId,kind:row.kind,title:row.title,state:'none'});state.rows=state.rows.filter(item=>item.providerId!==row.providerId||item.kind!==row.kind);cards();status(t('Discovery exclusion removed. Personal rating and viewing history are unchanged.','Keşif dışlaması kaldırıldı. Kişisel puan ve izleme geçmişi değişmedi.'));}catch(error){restore.disabled=false;throw error;}},'mh-action md-restore-preference');restore.setAttribute('aria-label',restore.textContent+' · '+row.title);entry.append(card,el('small','md-provider',t('Removes only this discovery exclusion; keeps viewing history and ratings.','Yalnız bu keşif dışlamasını kaldırır; izleme geçmişi ve puanlar korunur.')),restore);nodes.push(entry);}else if(row.kind==='film'&&window.RecommendationHubUI){const entry=el('article','cn-discover-entry'),recommend=btn(t('Recommend similar','Benzerlerini öner'),()=>window.RecommendationHubUI.open(row),'mh-action md-recommend-button');recommend.setAttribute('aria-label',t('Recommend films similar to ','Benzer film öner: ')+row.title);entry.append(card,recommend);nodes.push(entry);}else nodes.push(card);
     }
     if (!state.rows.length && !state.busy && !state.loadError){
       const text=state.tab === 'preferences' ? t('No hidden or watched preferences. You can undo preferences here.', 'Gizlenen veya izlenen tercihi yok. Tercihlerini buradan geri alabilirsin.') : state.tab === 'personal'
@@ -353,7 +353,7 @@
           }, 'cn-button'));
         }
       } else {
-        actions.append(btn(t('Explore titles', 'Yapımları keşfet'), () => state.root.querySelector('.cn-discover-tab')?.click(), 'cn-button'));
+        if(state.tab==='personal'&&state.needsRatings){actions.append(btn(t('Review library ratings and genres','Kütüphanedeki puan ve türleri incele'),()=>window.MediaHomeUI.navigate(state.kind==='series'?'series':'films'),'cn-button'));empty.append(el('p','md-provider',t('Open an existing title to review your own rating, reaction and genre metadata. Nothing is liked or edited automatically.','Kendi puanını, tepkini ve tür bilgisini incelemek için mevcut bir yapımı aç. Otomatik beğeni veya düzenleme yapılmaz.')));}actions.append(btn(t('Explore titles', 'Yapımları keşfet'), () => state.root.querySelector('.cn-discover-tab')?.click(), 'cn-button'));
       }
       empty.append(actions);
       nodes.push(empty);
@@ -433,6 +433,23 @@
     }
     root.classList.add('cn-discover-page','cv2-discover');const dock=el('section','cn-discover-controls'),viewRow=el('div','cn-discover-view-row');dock.setAttribute('aria-label',t('Discovery controls','Keşfet kontrolleri'));dock.append(tabs);root.append(dock);if(state.tab==='browse'){const views=el('div','cn-watch-views');views.setAttribute('aria-label',t('Viewing filter','İzlenme filtresi'));for(const [value,en,tr]of [['unwatched','Unwatched','İzlemediklerim'],['all','Include watched','Tümü'],['watched','Watched','İzlediklerim'],['watchlist','Watchlist','İzleme listem']]){const b=btn(t(en,tr),()=>{state.view=value;state.rows=[];draw();void load();},'cn-watch-choice');b.setAttribute('aria-pressed',String(state.view===value));views.append(b);}viewRow.append(views);}
     viewRow.append(btn(t('Conditional library selection','Koşullu kütüphane seçkisi'),()=>window.MediaCatalogUI.open({conditions:true}), 'cn-watch-choice'));
+    /* G25: the conditions that narrow this list, each removable, plus one way back to the defaults. Counts keep meaning "this loaded response". */
+    let activeChipsRow = null;
+    {
+      const active = [];
+      if (state.loadedQuery) active.push([t('Search: ', 'Arama: ') + state.loadedQuery, () => { state.query = ''; state.loadedQuery = ''; }]);
+      if (state.genre) active.push([t('Genre: ', 'Tür: ') + state.genre, () => { state.genre = ''; }, 'genre']);
+      if (state.tab === 'browse' && state.view !== 'unwatched') active.push([t('Viewing: ', 'Görünüm: ') + ({ all: t('All', 'Tümü'), watched: t('Watched', 'İzlediklerim'), watchlist: t('Watchlist', 'İzleme listem') })[state.view], () => { state.view = 'unwatched'; }]);
+      if (active.length) {
+        const chips = el('div', 'cn-active-filters'); chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', t('Active filters', 'Etkin filtreler'));
+        for (const [label, clear, kind] of active) {
+          const chip = btn(label + ' ×', () => { clear(); state.rows = []; state.next = null; draw(); void load(); }, 'cn-watch-choice cn-active-chip');
+          chip.title = t('Remove this filter', 'Bu filtreyi kaldır'); if (kind) chip.dataset.chip = kind; chips.append(chip);
+        }
+        chips.append(btn(t('Back to defaults', 'Varsayılana dön'), () => { Object.assign(state, { query: '', loadedQuery: '', mode: 'top', genre: '', view: 'unwatched', rows: [], next: null }); draw(); void load(); }, 'cn-watch-choice'));
+        activeChipsRow = chips;
+      }
+    }
     const filters = el('form', 'cn-discover-filters');
     function select(label, value, options, update) {
       const wrap = el('label', 'cn-filter-field'), input = el('select'); wrap.append(el('span', '', label)); input.dataset.discoveryControl = '1';
@@ -444,6 +461,7 @@
     if (state.tab === 'browse') {
       filters.append(select(t('Show', 'Liste'), state.mode, [['top', t('Popular', 'Popüler')], ['year', t('New by year', 'Yıla göre yeni')], ['imdbRating', t('Highly rated', 'Yüksek puanlı')]], value => { state.mode = value; if (value !== 'top') state.query = ''; }));
       const genres = [['', t('All genres', 'Tüm türler')], ['Action', t('Action', 'Aksiyon')], ['Adventure', t('Adventure', 'Macera')], ['Animation', t('Animation', 'Animasyon')], ['Comedy', t('Comedy', 'Komedi')], ['Crime', t('Crime', 'Suç')], ['Documentary', t('Documentary', 'Belgesel')], ['Drama', t('Drama', 'Dram')], ['Fantasy', t('Fantasy', 'Fantastik')], ['Horror', t('Horror', 'Korku')], ['Mystery', t('Mystery', 'Gizem')], ['Romance', t('Romance', 'Romantik')], ['Sci-Fi', t('Sci-Fi', 'Bilim kurgu')], ['Thriller', t('Thriller', 'Gerilim')], ['War', t('War', 'Savaş')]];
+      { const gc = activeChipsRow?.querySelector('[data-chip=genre]'), hit = genres.find(([key]) => key === state.genre); if (gc && hit) gc.textContent = t('Genre: ', 'Tür: ') + hit[1] + ' ×'; }
       if (state.mode !== 'year') filters.append(select(t('Genre', 'Tür'), state.genre, genres, value => { state.genre = value; }));
       else filters.append(select(t('Year', 'Yıl'), String(state.year), Array.from({ length: 70 }, (_, index) => { const year = new Date().getFullYear() - index; return [String(year), String(year)]; }), value => { state.year = +value; }));
       const searchLabel = el('label', 'cn-filter-field cn-filter-search'); searchLabel.append(el('span', '', t('Search', 'Ara'))); const search = el('input'); search.type = 'search'; search.maxLength = 200; search.placeholder = t('Film or series title…', 'Film veya dizi adı…'); search.value = state.query; search.name = 'discoverySearch'; search.dataset.discoveryFocus = 'search'; search.autocomplete = 'off';search.addEventListener('input',()=>{state.query=search.value;}); searchLabel.append(search); filters.append(searchLabel);
@@ -455,7 +473,7 @@
     const footer = el('div', 'cn-discover-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(state.retryAppend), 'mh-action md-retry'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
     const featureSlot=el('div','cn-feature-slot');
     const sectionTitle=el('div','cv2-discover-section-heading');sectionTitle.append(el('h2','',state.tab==='personal'?t('Chosen for you','Sana özel'):state.tab==='preferences'?t('Your discovery preferences','Keşif tercihlerin'):t('Find your next story','Sıradaki hikâyeni bul')));
-    root.append(statusNode,featureSlot,sectionTitle,viewRow,el('p','cn-discover-results'),grid,footer);cards();
+    if(state.tab==='personal')sectionTitle.append(el('p','md-provider',t('Personal evidence: your saved ratings or explicit likes. Catalog and metadata relationships are labelled separately and are not a personal fit guarantee.','Kişisel dayanak: kayıtlı puanın veya açık beğenin. Katalog ve metadata ilişkileri ayrı etiketlenir; kişisel uygunluk garantisi değildir.')));root.append(statusNode,featureSlot,sectionTitle,viewRow,...(activeChipsRow?[activeChipsRow]:[]),el('p','cn-discover-results'),grid,footer);cards();
     if(state.tab==='browse'&&!state.query.trim())void personalShelf(root);
 
   }

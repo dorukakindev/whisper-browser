@@ -59,7 +59,7 @@
   const rgb2hsl = ([r, g, b]) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let h = 0, s = 0; if (mx !== mn) { const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return [h, s, l]; };
   function artSVG(title, tint) {
     let h = 0; for (const c of String(title)) h = (h * 31 + c.charCodeAt(0)) >>> 0; const r = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
-    const [hu] = rgb2hsl(tint || [213, 163, 92]); const c1 = `hsl(${hu} 55% 22%)`, c2 = `hsl(${hu} 62% 52%)`, c3 = `hsl(${(hu + 28) % 360} 85% 74%)`;
+    const c1 = "color-mix(in srgb,var(--theme-accent) 18%,var(--theme-bg-1))", c2 = "color-mix(in srgb,var(--theme-accent) 62%,var(--theme-bg-2))", c3 = "var(--theme-accent-hover)";
     let sil = '', x = 0; while (x < 400) { const w = 14 + r() * 40, ht = 30 + r() * 130; sil += `<rect x="${x.toFixed(1)}" y="${(300 - ht).toFixed(1)}" width="${w.toFixed(1)}" height="${(100 + ht).toFixed(1)}" fill="#07080a" opacity=".93"/>`; x += w * .96; }
     return `<svg class="art" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="g${h}" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset=".6" stop-color="${c2}"/><stop offset="1" stop-color="${c1}"/></linearGradient><radialGradient id="s${h}"><stop offset="0" stop-color="${c3}" stop-opacity=".95"/><stop offset="1" stop-color="${c3}" stop-opacity="0"/></radialGradient></defs><rect width="400" height="400" fill="url(#g${h})"/><circle cx="${140 + r() * 120}" cy="${120 + r() * 50}" r="130" fill="url(#s${h})"/><circle cx="${150 + r() * 100}" cy="${130 + r() * 40}" r="26" fill="${c3}" opacity=".9"/>${sil}</svg>`;
   }
@@ -404,7 +404,7 @@
           case 'back': this.run('seekBy', -10); break; case 'fwd': this.run('seekBy', 10); break;
           case 'rate': { const cur = Number(a.state().rate) || 1, i = RATES.indexOf(cur); this.run('rate', RATES[(i + 1) % RATES.length]); break; }
           case 'loop': this.toggleLoop(); break;
-          case 'focus': this.s.focus = !this.s.focus; this.paint(); break;
+          case 'focus': this.s.focus = !this.s.focus; this.paint(); break; case 'textfirst': { const on = this.root.classList.toggle('sh-text-first'); b.setAttribute('aria-pressed', String(on)); break; }
           case 'sleep': this.setSleep(SLEEP[(SLEEP.indexOf(this.s.sleep) + 1) % SLEEP.length]); break;
           case 'follow': {
             this.followBeforeFullSentence = undefined;
@@ -657,7 +657,7 @@
         processing.hidden = !html;
         const state=this.q('[data-r=processingState]');
         if(state){
-          const label=this.taskPending?T('Hazırlanıyor…','Preparing…'):this.st?.untimed?T('Okuma metni hazır','Reading text ready'):this.st?.rows.length?T('Zamanlı metin hazır','Timed text ready'):this.captionTrackCount?T('Altyazı izi mevcut','Caption track available'):T('Transkript yok','No transcript');
+          const rows=this.st?.rows||[],original=rows.filter(row=>String(row.src||'').trim()).length,translated=rows.filter(row=>Array.isArray(row.trs)?row.trs.some(text=>String(text||'').trim()):String(row.tr||'').trim()).length;const readyLabel=this.st?.untimed?T('Okuma metni','Reading text'):T('Zamanlı metin','Timed text');const label=this.taskPending?T('Hazırlanıyor…','Preparing…'):rows.length?readyLabel+' · '+T('Kaynak: ','Source: ')+original+' · '+T('Çeviri: ','Translation: ')+translated+'/'+rows.length+(job?.state==='running'?' · '+T('Üretim sürüyor; hazır metin ayrı','Generation running; ready text is separate'):''):this.captionTrackCount?T('Altyazı izi mevcut','Caption track available'):T('Transkript yok','No transcript');
           if(state.textContent!==label)state.textContent=label;
           state.dataset.state=this.taskPending?'busy':this.st?.rows.length?'ready':'empty';
         }
@@ -723,10 +723,24 @@
         if (!result?.ok || this.dead || identity !== this.a.identity?.() || revision !== this.a.state().rev) return;
         this.s.loop = on;
         this.s.loopRow = on ? row : -1;
-        this.paint();
+        this.paint(); this.paintLoopScope();
         if (on && jump) await this.run('seekCue', row, revision);
       } finally {
         work.pending=false;const owner=work.owner;if(owner&&!owner.dead)owner.tick();
+      }
+    }
+    /* G20: the loop control names the exact range it repeats (from the cue's own start/end). */
+    paintLoopScope() {
+      const on = this.s.loop && this.s.loopRow >= 0, c = this.rows[this.s.loopRow];
+      const fmt = (t) => { t = Math.max(0, Math.floor(Number(t) || 0)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+      const range = on && c && Number.isFinite(c.start) && Number.isFinite(c.end) ? fmt(c.start) + '–' + fmt(c.end) : '';
+      const base = T('Cümle döngüsü', 'Loop sentence');
+      const label = range ? base + ' · ' + range + ' · ' + T('satır ' + (this.s.loopRow + 1), 'line ' + (this.s.loopRow + 1)) : base;
+      const looped = range ? this.lines[this.s.loopRow]?.querySelector('[data-act=loop]') : null;
+      for (const b of this.root.querySelectorAll('[data-a=loop],[data-act=loop]')) {
+        const mine = b.dataset.a === 'loop' || b === looped;
+        b.title = mine ? label : base; b.setAttribute('aria-label', mine ? label : base);
+        if (range && mine) b.dataset.scope = range; else delete b.dataset.scope;
       }
     }
     paintLoopPending() {
@@ -1112,7 +1126,7 @@
         b.setAttribute('aria-label', label);
         b.title = label;
         b.lastChild.textContent = this.loopPending ? ' '+T('Döngü ayarlanıyor…','Updating loop…') : s.loop && s.loopRow >= 0 && this.rows[s.loopRow]
-          ? ` ${sourceLoop ? label : T('Döngü', 'Loop')} · ${fmt(this.rows[s.loopRow].start)}` : label;
+          ? ` ${sourceLoop ? label : T('Etkin zamanlı kanal', 'Active timed track')} · ${fmt(this.rows[s.loopRow].start)}–${fmt(this.rows[s.loopRow].end)}` : label;
       }
       const range = this.q('[data-r=loopRange]'), loopCue = s.loop ? this.rows[s.loopRow] : null;
       if (range) {
@@ -1168,7 +1182,7 @@
       }
       r.querySelectorAll('[data-a=panel]').forEach(button=>button.setAttribute('aria-pressed', String(s.panel)));
     }
-    setTint(rgb) { const c = rgb || [213, 163, 92]; const [h] = rgb2hsl(c); this.root.style.setProperty('--sh-tint', `rgb(${c.map(Math.round).join(' ')})`); this.root.style.setProperty('--sh-tint2', `hsl(${(h + 150) % 360} 55% 58%)`); }
+    setTint(rgb) { const h = rgb ? rgb2hsl(rgb)[0] : null; this.root.style.setProperty('--sh-tint', h===null?'color-mix(in srgb,var(--theme-accent) 68%,var(--theme-border))':`hsl(${h} 36% 48%)`); this.root.style.setProperty('--sh-tint2', 'var(--theme-accent-hover)'); }
     rowHTML(c, i, study) {
       let src = esc(c.src);
       if (c.words && c.words.length) { let out = '', at = 0; const text = String(c.src); c.words.forEach((w, k) => { out += esc(text.slice(at, w.s)) + `<span class="w" data-k="${k}">${esc(text.slice(w.s, w.e))}</span>`; at = w.e; }); out += esc(text.slice(at)); src = out; }
@@ -1182,7 +1196,7 @@
       }).join('');
       const unc = c.unc && c.unc.length ? `<span class="tr unc"><em>${T('Eşleşme belirsiz', 'Match uncertain')}</em>${c.unc.map((t) => `<span>${esc(t)}</span>`).join('')}</span>` : '';
       const copyLabel = shared ? T('Görünen metni kopyala', 'Copy visible text') : T('Kopyala', 'Copy');
-      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" aria-pressed="false" title="${T('Cümle döngüsü', 'Loop sentence')}" aria-label="${T('Cümle döngüsü', 'Loop sentence')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" title="${copyLabel}" aria-label="${copyLabel}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
+      const acts = study && !shared ? '' : `<span class="acts">${this.caps.loop && c.timed ? `<button type="button" class="act" data-act="loop" data-short="${T('Döngü', 'Loop')}" aria-pressed="false" title="${T('Cümle döngüsü', 'Loop sentence')}" aria-label="${T('Cümle döngüsü', 'Loop sentence')}">${ic('loop')}</button>` : ''}<button type="button" class="act" data-act="copy" data-short="${T('Kopyala', 'Copy')}" title="${copyLabel}" aria-label="${copyLabel}">${ic('copy')}</button>${this.caps.save ? `<button type="button" class="act" data-act="save" data-short="${T('Pasajı kaydet', 'Save passage')}" title="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}" aria-label="${T('Cümleyi veya seçili metni kaydet', 'Save sentence or selected text')}">${ic('star')}</button>` : ''}</span>`;
       const review=c.translationReview&&!c.translationMissing?`<small class="sh-translation-review">${T('Çeviriyi kontrol edin · kaynakla aynı metin veya kalite uyarısı','Review translation · matches source or has a quality warning')}</small>`:'';
       const missing=c.translationMissing?`<small class="sh-translation-missing">${c.translationMissing==='confirmed'
         ? T('Çeviri eksik','Translation missing') : T('Çeviri eksik olabilir','Translation may be missing')}</small>`:'';
@@ -1780,6 +1794,7 @@
       translated.textContent = translation;
       box.classList.toggle('long', source.length + translation.length > 150);
       box.classList.toggle('xlong', source.length + translation.length > 260);
+      this.q('[data-a=readCurrent]')?.classList.toggle('is-suggested', source.length + translation.length > 150);
       box.scrollTop = 0;
     }
     onActive(idx, prev) {
@@ -1863,6 +1878,7 @@
       const status = this.q('[data-r=jobt]');
       const message = j.text || (j.state==='done'?'':['stopped','cancelled'].includes(j.state)?T('Kaydedilmiş sonuçlar korunur.','Saved results are kept.'):j.state==='partial'?T('Kısmi sonuç kaydedildi. Hazır satırlar korunur; İşlemler’den eksikleri tamamlayabilirsiniz.','Partial result saved. Ready lines are kept; complete missing lines in Tasks.'):j.state === 'failed' ? T('İşlem başarısız oldu.', 'The task failed.') : T('İşlem sürüyor…', 'Working…'));
       if (status.textContent !== message) status.textContent = message;
+      const cancelButton = this.q('[data-a=jobcancel]'); if (cancelButton) { const stopLabel = T('Durdur — hazır satırlar korunur', 'Stop — ready lines are kept'); cancelButton.title = stopLabel; cancelButton.setAttribute('aria-label', stopLabel); }
       const running = j.state === 'running';
       const progress = running && Number.isFinite(j.progress) ? Math.round(Math.max(0, Math.min(1, j.progress)) * 100) : null;
       const bar = this.q('[data-r=jobbar]');
@@ -1964,7 +1980,7 @@
       const panelIdentity=this.id0;
       const fieldCurrent=control=>!this.dead&&this.s.panel&&!box.hidden&&box.contains(control)&&control.isConnected&&panelIdentity===this.id0&&panelIdentity===(this.a.identity?.()??'');
       box.append(this.el(`<div class="sh-panel-h"><b>${T('İşlemler', 'Tasks')}</b><button class="sh-btn icon" type="button" data-pclose aria-label="${T('Kapat', 'Close')}">${ic('close')}</button></div>`));
-      box.querySelector('[data-pclose]').onclick=()=>this.togglePanel();
+      const context=this.el('<p class="sh-panel-context"></p>'),info=this.a.info();context.textContent=(info.title||T('Geçerli kaynak','Current source'))+' · '+(this.displayMode()==='tr'?T('Çeviri görünümü','Translation view'):this.displayMode()==='src'?T('Kaynak görünümü','Source view'):T('Kaynak ve çeviri','Source and translation'))+'. '+T('Görünüm ayarları oturumu etkiler. Dosya değişiklikleri kendi kayıt adımını, üretim işleri kendi başlatma/onay adımını kullanır. İleri araçlar klasik uzman denetimlerini açar.','View settings affect this session. File changes use their own save step; generation uses its own start/approval step. Advanced tools open the classic expert controls.');box.append(context);box.querySelector('[data-pclose]').onclick=()=>this.togglePanel();
       const workspace=this.el('<div class="sh-panel-workspace"></div>'),nav=this.el(`<nav class="sh-panel-nav" role="tablist" aria-orientation="vertical" aria-label="${T('İşlem kategorileri','Task categories')}"></nav>`),content=this.el('<div class="sh-panel-content"></div>');workspace.append(nav,content);box.append(workspace);
       this.panelUid ||= 'sh-tools-'+Math.random().toString(36).slice(2);
       const keys=p.sections.map(sec=>sec.id||sec.title);

@@ -1,6 +1,25 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync(require.resolve('../src/renderer/player-source-catalog-integration.js'),'utf8');
+
+test('saved Whisper timing reopens its verified audio copy instead of leaving the same episode read-only',async()=>{
+ const old={entryId:'A',episodeIdentity:'episode-A',mediaKey:'rss:A',generation:2,sourceVersion:'stream'},player={workspaceAudio:old,mediaKey:'rss:A',generation:2};
+ const saved={sourceVersion:'verified',workspace:{transcript:{state:'timed',provenance:'asr',text:'saved srt',timeline:{sha256:'audio-sha'}}}},opens=[];
+ const context={player,t:(_tr,en)=>en,document:{getElementById:()=>({paused:true,classList:{contains:()=>true}})},parseSubtitles:()=>[{text:'Saved words'}],window:{PlayerWorkspaceIntegration:{refresh(){}}},
+  api:async q=>q.action==='podcast-exact-audio'?{available:true,sourceVersion:'verified',sourceBinding:{episodeIdentity:'episode-A',sha256:'audio-sha'}}:saved,
+  openPodcastEntry:async(id,options)=>{opens.push({id,options});player.mediaKey='copy:A';player.generation=3;player.workspaceAudio={...old,mediaKey:player.mediaKey,generation:3,sourceVersion:'verified',exactAudio:true,transcriptState:'timed',sourceBinding:{sha256:'audio-sha'}};}};
+ vm.runInNewContext(source.slice(source.indexOf('  const savedPodcastResultLoads='),source.indexOf('  function podcastTools('))+';globalThis.load=loadSavedPodcastResult;',context);
+ const result=await context.load();assert.equal(opens.length,1);assert.equal(opens[0].options.exactVersion,'verified');assert.equal(opens[0].options.preserveView,true);assert.equal(opens[0].options.autoplay,false);assert.equal(player.workspaceAudio.transcriptState,'timed');assert.equal(result.playbackHandoff.previous.mediaKey,'rss:A');assert.equal(result.playbackHandoff.current.generation,3);
+});
+
+test('a missing or different verified copy cannot enable Whisper seeking or replace a newer playback owner',async()=>{
+ for(const reason of ['missing','different-episode','late']){
+  const audio={entryId:'A',episodeIdentity:'episode-A',mediaKey:'rss:A',generation:2,sourceVersion:'stream'},player={workspaceAudio:audio,mediaKey:'rss:A',generation:2};let opens=0;
+  const saved={sourceVersion:'verified',workspace:{transcript:{state:'timed',provenance:'asr',text:'stored',timeline:{sha256:'audio-sha'}}}};
+  const context={player,t:(_tr,en)=>en,parseSubtitles:()=>[{text:'Saved words'}],window:{PlayerWorkspaceIntegration:{refresh(){}}},openPodcastEntry:async()=>{opens++;},api:async q=>{if(q.action!=='podcast-exact-audio')return saved;if(reason==='late')player.generation++;return {available:reason!=='missing',sourceVersion:'verified',sourceBinding:{episodeIdentity:reason==='different-episode'?'other':'episode-A',sha256:'audio-sha'}};}};
+  vm.runInNewContext(source.slice(source.indexOf('  const savedPodcastResultLoads='),source.indexOf('  function podcastTools('))+';globalThis.load=loadSavedPodcastResult;',context);await context.load();assert.equal(opens,0);assert.notEqual(audio.transcriptState,'timed');assert.equal(audio.sourceVersion,'stream');
+ }
+});
 function publisherFixture({timed=false,translation=null}={}){
  const audio={entryId:'A',revision:'one',mediaKey:'rss:A',generation:2,sourceVersion:'v1',transcriptState:'untimed',transcriptText:'Old source',translationText:'Old translation',transcriptTimingNotice:'Old range notice',transcriptCoverage:{start:30,end:42},translationRetry:{canRetry:true}};
  const player={workspaceAudio:audio,mediaKey:audio.mediaKey,generation:2,subPath:'old.srt',cues2:[{text:'Old timed translation'}]},loads=[];

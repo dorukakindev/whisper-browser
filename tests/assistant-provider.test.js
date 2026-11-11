@@ -151,3 +151,7 @@ test('Aborting a stalled provider error body does not retry the request',async()
  let timer;try{await assert.rejects(Promise.race([pending,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('error body remained pending')),120);})]),/source changed/);}finally{clearTimeout(timer);}
  assert.equal(requests,1);assert.equal(cancelled,1);
 });
+
+test('R853 a discovered real tool is added to the next provider request while registry validation remains authoritative',async()=>{
+ const requests=[];let step=0;await run({question:'Explain this sentence',owner,config,execute:async(name)=>{assert.equal(name,'get_action_options');return {status:'completed',tools:[{name:'set_app_preferences'},{name:'invented_tool'}]};},fetchImpl:async(_,request)=>{const body=JSON.parse(request.body);requests.push(body);return step++?json({role:'assistant',content:'Discovered tool remains subject to approval.'}):json({role:'assistant',tool_calls:[{id:'discover',type:'function',function:{name:'get_action_options',arguments:'{"domain":"settings"}'}}]});}});assert(!requests[0].tools.some(t=>t.function.name==='set_app_preferences'));assert(requests[1].tools.some(t=>t.function.name==='set_app_preferences'));assert(!requests[1].tools.some(t=>t.function.name==='invented_tool'));assert(requests[0].tools.length<require('../src/assistant-capabilities').definitions(owner).length);
+});
