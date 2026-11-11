@@ -1,0 +1,122 @@
+/* Podcast sayfası — sinematik yenileme (yalnız görünüm; DOM, IPC ve işlevler değişmez).
+   podcast-library.css'in üstüne biner; `.pl-v2` kapsamıdır. */
+.pl-v2 { max-width: 1320px; padding: 22px 40px 90px; }
+.pl-v2:before {
+  height: 560px;
+  background:
+    radial-gradient(ellipse 60% 70% at 18% -8%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%),
+    radial-gradient(ellipse 45% 50% at 96% 0, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%);
+}
+
+/* ── Başlık ───────────────────────────────────────────────────────────────── */
+.pl-v2 .pl-heading { align-items: flex-end; margin-bottom: 18px; }
+.pl-v2 .pl-heading h1 { font-size: clamp(40px, 4.2vw, 60px); letter-spacing: -.045em; }
+.pl-v2 .pl-heading p { color: var(--text-dim); }
+.pl-v2 .pl-counts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: 12.5px; color: var(--text-dim); }
+.pl-v2 .pl-head-actions button { min-height: 40px; border-radius: 999px; padding: 0 20px; font-weight: 600; }
+.pl-v2 .pl-head-actions .mh-primary { box-shadow: 0 14px 34px -16px var(--accent); }
+
+/* ── Yayın şeridi: hap kartlar ────────────────────────────────────────────── */
+.pl-v2 .pl-programs { gap: 10px; padding: 6px 2px 12px; }
+.pl-v2 .pl-program {
+  width: auto; min-width: 176px; max-width: 260px; padding: 7px 18px 7px 7px; border-radius: 999px;
+  grid-template-columns: 44px minmax(0, 1fr); gap: 1px 12px;
+  background: color-mix(in srgb, var(--text) 3%, transparent); border-color: var(--border);
+  transition: border-color .2s, background-color .2s, transform .2s;
+}
+.pl-v2 .pl-program:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); transform: translateY(-1px); }
+.pl-v2 .pl-program .pl-art, .pl-v2 .pl-program .pl-all-art { width: 44px; height: 44px; border-radius: 50%; }
+.pl-v2 .pl-program .pl-program-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.pl-v2 .pl-program[aria-pressed=true] {
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--bg-1));
+  box-shadow: 0 12px 28px -18px var(--accent);
+}
+.pl-v2 .pl-full-program { margin: 4px 0 10px 4px; font-size: 12.5px; }
+
+/* ── Bölüm sekmeleri: hap anahtar ─────────────────────────────────────────── */
+.pl-v2 .pl-workspace-nav {
+  display: inline-flex; gap: 4px; padding: 4px; margin: 4px 0 20px; width: max-content; max-width: 100%;
+  border: 1px solid var(--border); border-radius: 999px; background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+.pl-v2 .pl-workspace-nav button { padding: 9px 20px; border-radius: 999px; font-size: 13px; color: var(--text-dim); transition: color .2s, background-color .2s; }
+.pl-v2 .pl-workspace-nav button:hover { color: var(--text); }
+.pl-v2 .pl-workspace-nav button[aria-selected=true] { color: var(--accent-contrast, #17130d); background: var(--accent); box-shadow: 0 10px 24px -14px var(--accent); }
+.pl-v2 .pl-workspace-nav button[aria-selected=true]::after { display: none; }
+
+/* ── Süzgeç ve arama ──────────────────────────────────────────────────────── */
+.pl-v2 .pl-list-tools { gap: 12px; padding: 0; margin: 4px 0 18px; border: 0; }
+.pl-v2 .pl-filters { border-radius: 999px; padding: 4px; }
+.pl-v2 .pl-filters button { border-radius: 999px; padding: 7px 14px; font-size: 12.5px; }
+.pl-v2 .pl-search { height: 40px; border-radius: 999px; padding-inline: 18px; }
+
+/* ── Dinleme sahnesi ──────────────────────────────────────────────────────── */
+.pl-v2 .pl-stage {
+  grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; padding: 28px 32px; border-radius: 30px;
+  box-shadow: 0 40px 90px -50px #000, inset 0 1px 0 rgb(255 255 255 / .05);
+}
+.pl-v2 .pl-hero { grid-template-columns: 200px minmax(0, 1fr); gap: 36px; }
+.pl-v2 .pl-hero h2 { font-size: clamp(28px, 2.6vw, 40px); letter-spacing: -.035em; }
+.pl-v2 .pl-hero .pl-eyebrow { font-size: 11px; letter-spacing: .22em; }
+.pl-v2 .pl-hero .pl-episode-actions { gap: 10px; margin-top: 16px; }
+.pl-v2 .pl-hero .pl-episode-actions button { min-height: 42px; border-radius: 999px; padding: 0 22px; font-weight: 600; }
+.pl-v2 .pl-hero .pl-episode-actions .mh-primary { padding-inline: 28px; font-weight: 700; box-shadow: 0 16px 36px -16px var(--accent); }
+.pl-v2 .pl-hero .pl-progress, .pl-v2 .pl-hero progress { height: 5px; }
+.pl-v2 .pl-side { border-radius: 20px; padding: 18px 20px; }
+.pl-v2 .pl-queue-heading { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim); }
+
+/* ── Bölüm listesi: sakin, taranabilir satırlar ───────────────────────────── */
+.pl-v2 .pl-section-heading h2, .pl-v2 .pl-episodes-title { font-size: 22px; letter-spacing: -.02em; }
+.pl-v2 .pl-episodes>.pl-episode {
+  display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 18px; align-items: start;
+  padding: 16px 18px; margin: 0 0 10px; border-radius: 18px;
+  border: 1px solid var(--border); background: color-mix(in srgb, var(--text) 3%, transparent);
+  transition: border-color .2s, background-color .2s, transform .2s var(--sh-ease, ease);
+}
+.pl-v2 .pl-episodes>.pl-episode:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: color-mix(in srgb, var(--accent) 5%, transparent); transform: translateY(-1px);
+}
+.pl-v2 .pl-episodes>.pl-episode .pl-art { width: 68px; height: 68px; border-radius: 16px; }
+.pl-v2 .pl-episodes .pl-eyebrow { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+.pl-v2 .pl-episodes h3 { font-size: 17px; line-height: 1.3; letter-spacing: -.01em; }
+.pl-v2 .pl-episodes .pl-meta { font-size: 12.5px; color: var(--text-dim); }
+.pl-v2 .pl-episodes .pl-ready { font-size: 12px; color: var(--text-muted); }
+.pl-v2 .pl-episodes .pl-availability, .pl-v2 .pl-episodes .pl-listen-position { font-size: 11.5px; color: var(--text-muted); }
+.pl-v2 .pl-episodes .pl-listen-position { color: var(--accent); }
+.pl-v2 .pl-episodes .pl-progress { height: 4px; border-radius: 99px; }
+.pl-v2 .pl-episodes .pl-episode-actions button { min-height: 36px; border-radius: 999px; padding: 0 16px; font-size: 12.5px; font-weight: 600; }
+.pl-v2 .pl-episodes .pl-episode-actions .mh-primary { box-shadow: 0 10px 24px -14px var(--accent); }
+/* Ayrıntı açılırları: sessiz hap */
+.pl-v2 .pl-episodes .pl-episode-copy > details:not(.pl-episode-extras) {
+  grid-column: 1; justify-self: start; border: 1px solid var(--border); border-radius: 999px; background: transparent;
+}
+.pl-v2 .pl-episodes .pl-episode-copy > details:not(.pl-episode-extras) > summary { padding: 4px 12px; font-size: 11.5px; color: var(--text-dim); }
+.pl-v2 .pl-episodes .pl-episode-copy > details:not(.pl-episode-extras)[open] { justify-self: stretch; border-radius: 14px; padding-bottom: 10px; }
+.pl-v2 .pl-episodes .pl-episode-extras > summary { font-size: 11.5px; }
+@media (max-width: 1000px) {
+  .pl-v2 { padding-inline: 20px; }
+  .pl-v2 .pl-stage { grid-template-columns: minmax(0, 1fr); }
+  .pl-v2 .pl-hero { grid-template-columns: 140px minmax(0, 1fr); gap: 22px; }
+}
+@media (max-width: 600px) {
+  .pl-v2 .pl-episodes>.pl-episode { grid-template-columns: 52px minmax(0, 1fr); gap: 12px; }
+  .pl-v2 .pl-episodes>.pl-episode .pl-art { width: 52px; height: 52px; border-radius: 12px; }
+  .pl-v2 .pl-workspace-nav button { padding: 8px 14px; }
+}
+
+/* ── İnce ayar: sahne yüksekliği ve kuyruk başlığı ─────────────────────────── */
+.pl-v2 .pl-stage { padding: 24px 28px; }
+.pl-v2 .pl-hero { grid-template-columns: 176px minmax(0, 1fr); gap: 32px; }
+.pl-v2 .pl-hero h2 { font-size: clamp(26px, 2.2vw, 34px); }
+.pl-v2 .pl-queue-heading { white-space: nowrap; letter-spacing: .08em; font-size: 11.5px; }
+.pl-v2 .pl-side > :is(header, .pl-queue-head) { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pl-v2 .pl-counts strong, .pl-v2 .pl-counts b { font-size: inherit; }
+
+/* Bölüm satırı sıklaştırma: açılır pill'ler küçük, ikincil satırlar tek ton */
+.pl-v2 .pl-episodes .pl-episode-copy { row-gap: 5px; }
+.pl-v2 .pl-episodes .pl-episode-copy > details:not(.pl-episode-extras) { margin: 2px 0 0; padding: 0; min-height: 0; height: auto; line-height: 1.3; }
+.pl-v2 .pl-episodes .pl-episode-copy > details:not(.pl-episode-extras) > summary { min-height: 0; padding: 3px 12px; line-height: 1.4; }
+.pl-v2 .pl-episodes .pl-episode-copy > .pl-availability { margin: 0; font-size: 11px; opacity: .85; }
+.pl-v2 .pl-episodes .pl-episode-copy > .pl-ready { margin: 0; }
+.pl-v2 .pl-episodes .pl-episode-extras { margin-top: 2px; }
+.pl-v2 .pl-episodes .pl-episode-copy > .pl-episode-actions { grid-row: 1 / 3; align-self: start; }
+.pl-v2 .pl-episodes .pl-episode-copy > .pl-ready { justify-self: start; }

@@ -958,7 +958,7 @@ function setModalBackgroundInert(modal, inert) {
   const app = document.querySelector('.app');
   if (!app) return;
   [...app.children].forEach((child) => {
-    if (child === modal) return;
+    if (child === modal || child.contains(modal)) return;
     child.inert = inert;
   });
 }
@@ -1058,8 +1058,14 @@ function openManagedModal(modal, initialFocus, returnFocus = null) {
   if (_activeModal === modal) return;
   // Shelf Stage is a body-level overlay; the app's isolated stacking context
   // cannot lift its dialogs above it. Preserve the node/listeners in a portal.
-  if(document.body.classList.contains('shelf-sahne-on')&&modal.parentElement!==document.body&&!modal._managedPortalAnchor){
-    const anchor=document.createComment('managed-modal-home');modal.before(anchor);modal._managedPortalAnchor=anchor;document.body.append(modal);
+  const nativeHost=modal.tagName!=='DIALOG'?[...document.querySelectorAll('dialog[open]')].at(-1):null;
+  const portalHost=nativeHost&&!nativeHost.contains(modal)?nativeHost:document.body.classList.contains('shelf-sahne-on')?document.body:null;
+  if(portalHost&&modal.parentElement!==portalHost&&!modal._managedPortalAnchor){
+    const anchor=document.createComment('managed-modal-home');modal.before(anchor);modal._managedPortalAnchor=anchor;portalHost.append(modal);
+    if(portalHost===nativeHost){
+      const cancel=()=>{if(_activeModal===modal){if(modal===$('appDialog'))resolveAppDialog(false);else closeManagedModal(modal);}};
+      modal._managedNativeHost={host:nativeHost,cancel};nativeHost.addEventListener('close',cancel,{once:true,capture:true});
+    }
   }
   _modalReturnFocus = returnFocus
     || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
@@ -1088,6 +1094,7 @@ function closeManagedModal(modal, restoreFocus = true) {
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden', 'true');
   setModalBackgroundInert(modal, false);
+  if(modal._managedNativeHost){const {host,cancel}=modal._managedNativeHost;host.removeEventListener('close',cancel,true);delete modal._managedNativeHost;}
   if(modal._managedPortalAnchor){const anchor=modal._managedPortalAnchor;delete modal._managedPortalAnchor;if(anchor.isConnected)anchor.replaceWith(modal);}
   document.body.classList.remove('modal-open');
   if (wasActive) _activeModal = null;

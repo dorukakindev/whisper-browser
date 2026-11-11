@@ -16,6 +16,9 @@
   const num = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
   let host = null, inst = null, key = '', parked = [], localView = 'cinema', advancedOverlay = null, stageOpener = null;
 
+  // playerMeta başlangıçta genel bir çalışma alanı cümlesi taşır; film alt satırı olarak gösterilmez.
+  const GENERIC_META = new Set(['Bilingual viewing workspace', 'İki dilli görüntüleme çalışma alanı', 'Çift dilli izleme ve çalışma alanı']);
+  const metaLine = () => { const text = ($('playerMeta')?.textContent || '').trim(); return GENERIC_META.has(text) ? '' : text; };
   const headH = () => {
     const origin=layer.getBoundingClientRect().top;
     const selectors=player.workspaceMode==='browser'?['.browser-toolbar','#browserTabStrip']:['.player-head'];
@@ -128,7 +131,7 @@
       const home=doc.querySelector('#playerWorkspaceV3 .pw-stage')||layer.querySelector('.player-body');
       if(home)home.append(st);PW()?.refresh?.(true);bounds();
     }
-    return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => podcast()?.title || window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || '', sub: () => podcast() ? [podcast().publisher,podcast().publisherKind==='web-episode'?T('Yayıncı sayfası','Publisher page'):T('Yayıncı RSS','Publisher RSS')].filter(Boolean).join(' · ') : $('playerMeta')?.textContent || '', cover: () => podcast()?.image || '', timingNotice: () => podcast()?.transcriptTimingNotice || '', eyebrow: () => podcast() ? (podcast().publisherKind==='web-episode'?T('Web podcasti','Web podcast'):T('Podcast · RSS','Podcast · RSS')) : T('Yerel oynatıcı','Local player'), slot, unslot };
+    return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => podcast()?.title || window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || '', sub: () => podcast() ? [podcast().publisher,podcast().publisherKind==='web-episode'?T('Yayıncı sayfası','Publisher page'):T('Yayıncı RSS','Publisher RSS')].filter(Boolean).join(' · ') : metaLine(), cover: () => podcast()?.image || '', timingNotice: () => podcast()?.transcriptTimingNotice || '', eyebrow: () => podcast() ? (podcast().publisherKind==='web-episode'?T('Web podcasti','Web podcast'):T('Podcast · RSS','Podcast · RSS')) : T('Yerel oynatıcı','Local player'), slot, unslot };
   }
 
   function shelfFacade(){

@@ -1,0 +1,308 @@
+/* Sahne sinema üst yapısı — tek, sıcak amber/grafit yüzey.
+   Kapsam: yerel Sahne (Oynatıcı / Podcast / Çift dilli) ve onun üstündeki uygulama çubuğu.
+   Tarayıcı çalışma alanı (.workspace-browser, .sh-browser-study) ve alttaki transport DEĞİŞMEZ.
+   Hiçbir düğme kaldırılmaz; yalnız yerleşim, yüzey, boyut ve görsel hiyerarşi değişir. */
+
+/* Ortak yüzey: uygulama çubuğu + Sahne çubuğu + araç şeridi tek parça görünür. */
+.cp-sahne-on { --sch-surface: color-mix(in srgb, var(--theme-bg-0, #0b0c0f) 94%, var(--theme-accent, #e0a24a) 6%); }
+
+/* ── 1. Uygulama çubuğu: ince, başlık tekrarı yok ───────────────────────────── */
+.cp-sahne-on:not(.workspace-browser) > .player-head {
+  --sch-bar-h: 46px;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: calc(var(--sch-bar-h) + var(--window-controls-safe-height, 0px));
+  padding: calc(6px + var(--window-controls-safe-height, 0px)) 18px 6px 14px;
+  border-bottom: 0;
+  background: var(--sch-surface);
+}
+/* Başlık Sahne çubuğunda zaten var: burada yalnız boş esnek alan kalır. */
+.cp-sahne-on:not(.workspace-browser) > .player-head > .player-head-copy { grid-column: 3; grid-row: 1; visibility: hidden; }
+.cp-sahne-on:not(.workspace-browser) > .player-head > .player-head-copy > * { display: none; }
+.cp-sahne-on:not(.workspace-browser) > .player-head > .player-workspace-switch { grid-column: 2; grid-row: 1; }
+.cp-sahne-on:not(.workspace-browser) > .player-head > .player-head-actions { grid-column: 4; grid-row: 1; }
+.cp-sahne-on:not(.workspace-browser) > .player-head > #playerBack { grid-column: 1; grid-row: 1; }
+
+/* Oynatıcı | Tarayıcı: Sahne içindeki mod anahtarından ayrışsın diye hap değil, alt çizgili sekme. */
+.cp-sahne-on:not(.workspace-browser) .player-workspace-switch {
+  display: inline-flex; gap: 2px; padding: 0; border: 0; background: transparent; border-radius: 0;
+}
+.cp-sahne-on:not(.workspace-browser) .workspace-mode {
+  position: relative; min-height: 32px; padding: 0 12px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-muted, #8d929d); font-size: 12px; font-weight: 600; letter-spacing: .01em;
+  transition: color .2s, background-color .2s;
+}
+.cp-sahne-on:not(.workspace-browser) .workspace-mode:hover { color: var(--text, #f4f2ed); background: rgb(255 255 255 / .05); }
+.cp-sahne-on:not(.workspace-browser) .workspace-mode.active { color: var(--theme-accent, #e0a24a); background: transparent; }
+.cp-sahne-on:not(.workspace-browser) .workspace-mode.active::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 1px; height: 2px; border-radius: 2px;
+  background: var(--theme-accent, #e0a24a); box-shadow: 0 0 12px color-mix(in srgb, var(--theme-accent, #e0a24a) 70%, transparent);
+}
+.cp-sahne-on:not(.workspace-browser) #playerBack { min-height: 32px; height: 32px; padding: 0 12px; border-radius: 8px; font-size: 12px; }
+
+/* Sağ eylemler: sessiz ikonlar; Sahne/Arşiv ince hap. */
+.cp-sahne-on:not(.workspace-browser) .player-head-actions { gap: 4px; }
+.cp-sahne-on:not(.workspace-browser) .player-head-actions .player-head-button { width: 32px; height: 32px; border-radius: 8px; }
+.cp-sahne-on:not(.workspace-browser) .player-head-actions .catalog-entry {
+  min-height: 32px; padding: 0 12px; border-radius: 999px; font-size: 12px;
+  border-color: var(--border, rgb(255 255 255 / .11)); background: rgb(255 255 255 / .03);
+}
+.cp-sahne-on:not(.workspace-browser) .player-head-actions .catalog-entry:hover { border-color: color-mix(in srgb, var(--theme-accent, #e0a24a) 70%, transparent); }
+.cp-sahne-on:not(.workspace-browser) .ph-sep { height: 18px; margin-inline: 4px; }
+
+/* ── 2. Sahne çubuğu: [✕ + başlık]  [mod anahtarı]  [eylemler] ──────────────── */
+.sh:not(.sh-browser-study) > .sh-top {
+  --sch-line: color-mix(in srgb, var(--sh-amber) 20%, var(--sh-line));
+}
+.sh-local > .sh-top {
+  grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1fr);
+  gap: 18px;
+  padding: 10px 24px 10px 20px;
+  background: var(--sch-surface);
+  backdrop-filter: none;
+}
+.sh-local > .sh-top > div:first-child { gap: 14px; }
+.sh-local > .sh-top > div:first-child > .sh-btn {
+  width: 38px; height: 38px; background: rgb(255 255 255 / .05); border-color: var(--sh-line);
+}
+.sh-local > .sh-top > div:first-child > .sh-btn:hover { background: color-mix(in srgb, var(--sh-amber) 14%, transparent); }
+
+.sh-cinema-meta { display: grid; gap: 3px; align-content: center; }
+.sh-cinema-meta h1 {
+  font: 600 clamp(17px, 1.45vw, 22px)/1.2 var(--sh-display); letter-spacing: -.02em; color: var(--sh-ink);
+}
+.sh-cinema-meta p { margin: 0; font-size: 11.5px; letter-spacing: .02em; color: var(--sh-mute); }
+.sh-cinema-meta p:empty { display: none; }
+
+/* Mod anahtarı: ortada, kompakt, amber kayar tutamaç. */
+.sh:not(.sh-browser-study) > .sh-top > .sh-seg {
+  justify-self: center; padding: 3px; background: rgb(255 255 255 / .04); border-color: var(--sh-line);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .04);
+}
+.sh:not(.sh-browser-study) > .sh-top > .sh-seg::before { top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--n)); }
+.sh:not(.sh-browser-study) > .sh-top > .sh-seg button { height: 32px; padding: 0 16px; font-size: 12.5px; }
+.sh:not(.sh-browser-study) > .sh-top > .sh-seg button svg { width: 15px; height: 15px; }
+
+/* Sağ grup: metinli eylemler + ikon-only ikincil eylemler. */
+.sh:not(.sh-browser-study) .sh-top-r { gap: 6px; }
+.sh:not(.sh-browser-study) .sh-top-r .sh-btn {
+  height: 36px; padding: 0 14px; background: transparent; border-color: transparent; backdrop-filter: none; color: var(--sh-dim);
+}
+.sh:not(.sh-browser-study) .sh-top-r .sh-btn:hover { background: rgb(255 255 255 / .07); color: var(--sh-ink); border-color: var(--sh-line); transform: none; }
+.sh:not(.sh-browser-study) .sh-top-r .sh-btn[aria-pressed=true],
+.sh:not(.sh-browser-study) .sh-top-r .sh-btn[aria-expanded=true] {
+  color: var(--sh-amber); background: color-mix(in srgb, var(--sh-amber) 14%, transparent);
+  border-color: color-mix(in srgb, var(--sh-amber) 55%, transparent);
+}
+/* İşlemler birincil: amber çerçeveli. */
+.sh:not(.sh-browser-study) .sh-top-r [data-a=panel] {
+  color: var(--sh-amber); border-color: color-mix(in srgb, var(--sh-amber) 45%, var(--sh-line)); background: color-mix(in srgb, var(--sh-amber) 8%, transparent);
+}
+/* Uyku, Klasik panel, Tam ekran: yalnız simge (erişilebilir ad aria-label'dan gelir). */
+.sh:not(.sh-browser-study) .sh-top-r :is([data-a=sleep], [data-a=classic], [data-a=fullscreen]) {
+  width: 36px; padding: 0; justify-content: center; border-radius: 50%; flex: none;
+}
+.sh:not(.sh-browser-study) .sh-top-r :is([data-a=sleep], [data-a=classic]) > span { display: none; }
+/* Uyku zamanlayıcısı açıkken kalan süre görünür. */
+.sh:not(.sh-browser-study) .sh-top-r [data-a=sleep][aria-pressed=true] { width: auto; padding: 0 12px; border-radius: 999px; }
+.sh:not(.sh-browser-study) .sh-top-r [data-a=sleep][aria-pressed=true] > span { display: inline; font-variant-numeric: tabular-nums; }
+/* Metinli eylemlerle ikonlar arasında ince ayraç. */
+.sh:not(.sh-browser-study) .sh-top-r [data-a=sleep] { margin-inline-start: 10px; position: relative; }
+.sh:not(.sh-browser-study) .sh-top-r [data-a=sleep]::before {
+  content: ""; position: absolute; inset-inline-start: -9px; top: 9px; bottom: 9px; width: 1px; background: var(--sh-line2);
+}
+
+/* ── 3. Altyazı araçları şeridi: aynı yüzeye bağlı, ince ─────────────────────── */
+.sh-local > .sh-workbar {
+  gap: 8px; padding: 0 24px 10px calc(20px + 38px + 14px);
+  background: var(--sch-surface);
+  border-bottom: 1px solid var(--sch-line, var(--sh-line));
+  box-shadow: 0 14px 28px -22px color-mix(in srgb, var(--sh-amber) 55%, transparent);
+  transition: opacity .2s, transform .2s;
+}
+.sh-local > .sh-workbar .sh-btn {
+  height: 30px; padding: 0 12px; font-size: 12px; gap: 7px; backdrop-filter: none;
+  background: rgb(255 255 255 / .04); border-color: var(--sh-line); color: var(--sh-dim);
+}
+.sh-local > .sh-workbar .sh-btn svg { width: 14px; height: 14px; }
+.sh-local > .sh-workbar .sh-btn:hover:not(:disabled) { color: var(--sh-ink); border-color: var(--sh-line2); background: rgb(255 255 255 / .08); transform: none; }
+.sh-local > .sh-workbar .sh-btn.sh-primary,
+.sh-local > .sh-workbar .sh-btn[data-primary=true],
+.sh-local > .sh-workbar .sh-btn.pri {
+  color: var(--sh-amber-ink); background: linear-gradient(180deg, color-mix(in srgb, var(--sh-amber) 100%, #fff 10%), var(--sh-amber));
+  border-color: var(--sh-amber); font-weight: 650;
+}
+/* Üst çubuk hareketsizlikte gizlenince şerit de onunla gizlenir (iş sürüyorsa görünür kalır). */
+.sh-local.controls-idle:not(.panel-open):not(.transcript-open) > .sh-workbar:not(:has([aria-busy=true])) {
+  opacity: 0; pointer-events: none; transform: translateY(4px);
+}
+/* Üst çubuk gizliyken uygulama çubuğu da sönük kalır (odaklanınca geri gelir). */
+.cp-sahne-on:not(.workspace-browser):has(.sh-local.controls-idle:not(.panel-open):not(.transcript-open)) > .player-head:not(:hover):not(:focus-within):not(:has(details[open])) {
+  opacity: .0; transition: opacity .25s;
+}
+.cp-sahne-on:not(.workspace-browser) > .player-head { transition: opacity .2s; }
+
+/* ── 4. Dar ve kısa pencereler ──────────────────────────────────────────────── */
+@media (max-width: 1500px) {
+  .sh:not(.sh-browser-study) .sh-top-r .sh-transcript-toggle > span,
+  .sh:not(.sh-browser-study) .sh-top-r [data-a=listeningQueue] > span { display: none; }
+  .sh:not(.sh-browser-study) .sh-top-r .sh-transcript-toggle, .sh:not(.sh-browser-study) .sh-top-r [data-a=listeningQueue] { width: 36px; padding: 0; justify-content: center; border-radius: 50%; }
+}
+@media (max-width: 1099px) {
+  .cp-sahne-on:not(.workspace-browser) > .player-head { grid-template-columns: auto auto minmax(0, 1fr) auto; padding-inline: 10px; }
+  .sh-local > .sh-top { grid-template-columns: minmax(0, 1fr) auto; padding: 8px 12px; gap: 8px 12px; }
+  .sh:not(.sh-browser-study) > .sh-top > .sh-seg { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+  .sh-local > .sh-workbar { padding-inline: 12px; }
+}
+@media (max-height: 760px) {
+  .sh-local > .sh-top { padding-block: 6px; }
+  .sh-local > .sh-workbar { padding-bottom: 8px; }
+}
+html[data-cinema-motion=off] .sh-local > .sh-workbar,
+html[data-cinema-motion=reduced] .sh-local > .sh-workbar,
+html[data-cinema-motion=off] .cp-sahne-on > .player-head,
+html[data-cinema-motion=reduced] .cp-sahne-on > .player-head { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .sh-local > .sh-workbar, .cp-sahne-on > .player-head { transition: none; }
+}
+
+/* ── 5. İşlemler paneli ─────────────────────────────────────────────────────── */
+/* Hata düzeltmesi: panelde üç satır (başlık, bağlam metni, çalışma alanı) var ama ızgara iki satır
+   tanımlıyordu; bağlam metni esnek satıra düşüp çalışma alanının üstüne biniyordu. */
+.sh-panel:has(> .sh-panel-context) { grid-template-rows: auto auto minmax(0, 1fr); }
+.sh-panel > .sh-panel-context { background: color-mix(in srgb, var(--sh-ink) 3%, transparent); border-bottom-color: var(--sh-line); }
+/* Panel, birleşik üst yapının altından açılır (yalnız yerel Sahne). */
+.sh-local:has(> .sh-workbar:not([hidden])) > .sh-panel { top: 112px; }
+.sh-local > .sh-panel { max-height: none; }
+@media (max-width: 760px) {
+  .sh-local:has(> .sh-workbar:not([hidden])) > .sh-panel { top: 120px; }
+}
+
+/* ── 6. İşlemler paneli: sakin, okunur, amber vurgulu ──────────────────────── */
+.sh .sh-panel {
+  width: min(840px, calc(100% - 32px)); border-radius: 18px;
+  background: color-mix(in srgb, var(--sh-bg) 90%, transparent);
+  box-shadow: 0 50px 110px -34px #000, inset 0 0 0 1px rgb(255 255 255 / .05);
+}
+.sh .sh-panel-h { padding: 14px 16px 14px 24px; font-size: 16px; }
+.sh .sh-panel-h b { display: inline-flex; align-items: center; gap: 10px; font: 600 17px/1.2 var(--sh-display); letter-spacing: -.01em; }
+.sh .sh-panel-h b::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--sh-amber);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--sh-amber) 80%, transparent);
+}
+.sh .sh-panel-h .sh-btn.icon { width: 34px; height: 34px; background: rgb(255 255 255 / .05); }
+.sh .sh-panel > .sh-panel-context {
+  padding: 10px 24px; font-size: 12px; line-height: 1.55; color: var(--sh-mute);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sh .sh-panel-nav { padding: 14px 10px; gap: 4px; background: color-mix(in srgb, var(--sh-bg) 55%, transparent); }
+.sh .sh-panel-nav button { padding: 11px 12px; border-radius: 10px; font-size: 13px; }
+.sh .sh-panel-nav button .i { transform: rotate(180deg); opacity: .3; transition: opacity .2s, transform .2s; }
+.sh .sh-panel-nav button:hover .i { opacity: .7; transform: rotate(180deg) translateX(-2px); }
+.sh .sh-panel-nav button[aria-selected=true] .i { opacity: .9; }
+.sh .sh-panel-content { padding: 22px 26px 26px; }
+.sh .sh-panel-content .sh-psec { gap: 12px; }
+.sh .sh-panel-content .sh-psec h3 { margin: 0 0 2px; padding-bottom: 12px; border-bottom: 1px solid var(--sh-line); font-size: 18px; }
+.sh .sh-panel-content .sh-pbtn {
+  padding: 13px 16px; border-radius: 12px; border: 1px solid var(--sh-line);
+  transition: border-color .2s, background-color .2s, transform .2s var(--sh-ease);
+}
+.sh .sh-panel-content .sh-pbtn:hover:not(:disabled):not(.pri) {
+  border-color: color-mix(in srgb, var(--sh-amber) 55%, var(--sh-line2));
+  background: color-mix(in srgb, var(--sh-amber) 7%, transparent); transform: translateY(-1px);
+}
+.sh .sh-panel-content .sh-pbtn:disabled { opacity: .6; }
+
+/* ── 7. Oynatıcı ⋯ menüsü: simge + etiket satırları ─────────────────────────── */
+.player-layer .ph-more-menu {
+  display: grid; gap: 2px; min-width: 248px; padding: 8px; border-radius: 14px;
+  border: 1px solid var(--border-strong); background: var(--bg-1);
+  box-shadow: 0 28px 70px -24px rgb(0 0 0 / .75), inset 0 1px 0 rgb(255 255 255 / .04);
+}
+.player-layer .ph-more-menu .ph-more-row { display: grid; gap: 2px; padding: 0; }
+.player-layer .ph-more-menu .ph-more-row .btn-icon,
+.player-layer .ph-more-menu > .mh-action,
+.player-layer .ph-more-menu > .btn-icon {
+  width: 100%; height: auto; min-height: 40px; display: flex; align-items: center; justify-content: flex-start; gap: 12px;
+  padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--text);
+  font: 500 13px/1.2 var(--font-body, 'IBM Plex Sans', sans-serif); text-align: left; white-space: nowrap;
+}
+.player-layer .ph-more-menu .ph-more-row .btn-icon::after { content: attr(aria-label); }
+.player-layer .ph-more-menu .ph-more-row .btn-icon svg { color: var(--text-dim); flex: none; }
+.player-layer .ph-more-menu .ph-more-row .btn-icon:hover,
+.player-layer .ph-more-menu > .mh-action:hover,
+.player-layer .ph-more-menu > .btn-icon:hover { background: var(--bg-2); border-color: transparent; }
+.player-layer .ph-more-menu .ph-more-row .btn-icon:hover svg { color: var(--accent); }
+.player-layer .ph-more-menu > .mh-action[aria-pressed=true] { color: var(--accent); }
+.player-layer .ph-more-menu > :not(button):not(.ph-more-row) {
+  padding: 10px 12px 4px; font: 600 10.5px/1 var(--font-body, 'IBM Plex Sans', sans-serif); letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted);
+}
+.player-layer .ph-more-menu .player-task-badge { position: static; margin-left: auto; }
+
+/* Panel alttaki transport'u örtmez (yerel Sahne). */
+.sh-local > .sh-panel { bottom: var(--sh-local-dock-clearance, 140px); }
+.sh-local.sh-native > .sh-panel { bottom: 20px; }
+
+/* ── 8. Oynatıcı ayar çekmecesi: tutarlı denetimler ─────────────────────────── */
+.player-layer .settings-drawer {
+  border-radius: 18px 0 0 18px; border-color: var(--border-strong);
+  box-shadow: -30px 0 80px -30px rgb(0 0 0 / .8);
+}
+.player-layer .settings-drawer .drawer-head { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.player-layer .settings-drawer .drawer-page-tabs { gap: 6px; padding: 10px 14px; }
+.player-layer .settings-drawer .drawer-page-tab { min-height: 34px; padding: 0 14px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.player-layer .settings-drawer .drawer-page-tab.active {
+  color: var(--accent-contrast, #17130d); background: var(--accent); border-color: var(--accent);
+}
+.player-layer .settings-drawer select,
+.player-layer .settings-drawer input:not([type=checkbox]):not([type=radio]):not([type=range]) {
+  min-height: 38px; border-radius: 10px; border: 1px solid var(--border-strong); background-color: var(--bg-1);
+}
+.player-layer .settings-drawer select:hover,
+.player-layer .settings-drawer input:not([type=checkbox]):not([type=radio]):not([type=range]):hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong)); }
+.player-layer .settings-drawer button:not(.btn-icon):not(.drawer-page-tab) { min-height: 36px; border-radius: 10px; }
+
+/* ── 9. Podcast / Çift dilli Sahne çubuğu: sinema çubuğuyla aynı dil ──────────── */
+.sh.sh-browser-study > .sh-top {
+  min-height: 60px; padding: 10px 24px; gap: 16px;
+  background: color-mix(in srgb, var(--sh-bg) 94%, var(--sh-amber) 6%);
+  border-bottom: 1px solid color-mix(in srgb, var(--sh-amber) 20%, var(--sh-line));
+}
+.sh.sh-browser-study > .sh-top > div:first-child .sh-btn {
+  height: 36px; padding: 0 14px; border-radius: 999px; background: rgb(255 255 255 / .05); border-color: var(--sh-line); font-size: 13px;
+}
+.sh.sh-browser-study > .sh-top > .sh-seg,
+.sh.sh-browser-study > .sh-top > .browser-study-modes {
+  padding: 3px; border: 1px solid var(--sh-line); border-radius: 999px; background: rgb(255 255 255 / .04);
+}
+.sh.sh-browser-study > .sh-top > .sh-seg button,
+.sh.sh-browser-study > .sh-top > .browser-study-modes button { height: 32px; padding: 0 16px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+.sh.sh-browser-study > .sh-top > .sh-seg::before { top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--n)); }
+.sh.sh-browser-study .sh-top-r { gap: 6px; }
+.sh.sh-browser-study .sh-top-r .sh-btn {
+  height: 36px; padding: 0 14px; border-radius: 999px; background: transparent; border-color: transparent; color: var(--sh-dim); font-size: 13px;
+}
+.sh.sh-browser-study .sh-top-r .sh-btn:hover { background: rgb(255 255 255 / .07); color: var(--sh-ink); border-color: var(--sh-line); }
+.sh.sh-browser-study .sh-top-r .sh-btn[aria-pressed=true],
+.sh.sh-browser-study .sh-top-r .sh-btn[aria-expanded=true] {
+  color: var(--sh-amber); background: color-mix(in srgb, var(--sh-amber) 14%, transparent); border-color: color-mix(in srgb, var(--sh-amber) 55%, transparent);
+}
+.sh.sh-browser-study .sh-top-r [data-a=panel] {
+  color: var(--sh-amber); border-color: color-mix(in srgb, var(--sh-amber) 45%, var(--sh-line)); background: color-mix(in srgb, var(--sh-amber) 8%, transparent);
+}
+.sh.sh-browser-study .sh-top-r [data-a=sleep] > span { display: none; }
+.sh.sh-browser-study .sh-top-r [data-a=sleep] { width: 36px; padding: 0; justify-content: center; }
+.sh.sh-browser-study .sh-top-r [data-a=sleep][aria-pressed=true] { width: auto; padding: 0 12px; }
+.sh.sh-browser-study .sh-top-r [data-a=sleep][aria-pressed=true] > span { display: inline; font-variant-numeric: tabular-nums; }
+.sh.sh-browser-study > .sh-panel { top: 76px; }
+
+/* Keep the shared assistant entry distinct from the secondary toolbar icons. */
+.sh .sh-top .sh-top-r .sh-btn.sh-assistant-bubble {
+  width: 38px; height: 38px; padding: 0; border-radius: 50%; color: var(--sh-amber);
+  border-color: color-mix(in srgb, var(--sh-amber) 55%, var(--sh-line));
+  background: color-mix(in srgb, var(--sh-amber) 10%, var(--sh-glass));
+}
+.sh .sh-top .sh-top-r .sh-btn.sh-assistant-bubble:hover {
+  color: var(--sh-amber); border-color: var(--sh-amber);
+  background: color-mix(in srgb, var(--sh-amber) 19%, var(--sh-glass));
+}
