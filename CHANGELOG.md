@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11-11 · V4 entegrasyon onarımları
+
+- Geciken eklenti Yenile yanıtı yeni manifest'i ezmez; kapanan kaynak seçici veya panelin bekleyen oynatma işlemi yeni medyayı açamaz. Tamamlanan torrent dosyasını yalnız anahtar/nesil sahibi tek izleyici bağlar. Ertelenmiş yanıt regresyonları geçti.
+- Bağımsız Windows izole Chromium: Stremio 24/24, Sahne 25/25. Asistan/Whisper/report815 85/85, MediaHub/Browser/Cinema/modal 30/30 ve Stremio addon/UI geçti. Canlı/native/GPU kabulü ayrı. [Devir](docs/devir/2026-11-11-1524.md).
+
+## 2026-11-11 · Stremio kaynak seçimi ve Whisper uygunluğu
+
+- Film ayrıntısındaki “Baştan oynat” artık gerçekten baştan başlar. Ortak film sayfasındaki kaynak araçlarının hataları görünür. Kapatılan kaynak seçici gecikmeli yanıtta otomatik oynatmaz.
+- Eklenti Yenile, adres farklı bir eklenti kimliği döndürürse kaydı korur. Eklenti hataları kod bazlı EN/TR açıklanır; ham sağlayıcı metni veya URL gösterilmez.
+- Kaynak seçici oynatılabilirlik özeti, satır nedeni, Whisper uygun rozeti/filtresi ve yeniden arama içerir. Whisper uygunluğu main'de kaynak başına belirlenir. HLS/DASH, yerel http ve torrent kaynakları neden ve “Whisper'a uygun kaynak seç” adımı gösterir.
+- Açık temada Stremio oynatıcı paneli okunur hale geldi.
+- Streaming torrent tamamlanınca yerel dosya Medya merkezi açık olmadan oynatıcıya bağlanır; Whisper/Dublaj sekmeleri bunu yansıtır. Süresi dolan kaynak listesinde “Kaynakları yeniden ara” sunulur.
+- Doğrulama: hedefli Node testleri exit 0; yeni Chromium smoke 24/24, Sahne 25/25, film ayrıntısı 66/67 (1 ilgisiz atlama). Gerçek eklenti/debrid/native/GPU kabulü yapılmadı. [Devir](docs/devir/2026-11-11-1500.md).
+
+
 ## 2026-11-11 · Kümülatif V3 arayüz ve eklenti onayı
 
 - V3 oynatıcı/Podcast/Çift dilli üst yapısı, İşlemler paneli, ayarlar ve Stremio/Podcast yüzeyleri mevcut özelliklerle birleştirildi. Amber asistan baloncuğu ve kapalı eklenti okunurluğu korundu.

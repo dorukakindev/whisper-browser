@@ -79,7 +79,7 @@
   if(usesHls){player.localPath='';setPlayerHls(result.url,result.title,result.key,{localPath:'',autoplay,workKey:result.workKey});}
   else setPlayerSource(result.url,result.title,result.key,{localPath,workKey:result.workKey});player.originalUrl=result.url.startsWith('whisper-media:')?result.key:result.url;
   player.pendingLibrarySeek={key:result.key,generation:currentGeneration(),seconds:Number(seconds)||0};
-  if(result.hash)currentTorrent={hash:result.hash,index:result.index};else currentTorrent=null;
+  if(result.hash){currentTorrent={hash:result.hash,index:result.index};if(!localPath&&!usesHls)watchTorrentLocal(currentTorrent);else stopLocalWatch();}else{currentTorrent=null;stopLocalWatch();}
   if(autoplay&&!usesHls){
    const owner={key:player.mediaKey,generation:currentGeneration()};
    const remote=/^(?:https?|rtsp):/i.test(result.url);
@@ -95,6 +95,27 @@
   if(intent===player.openIntent&&!isCancelled()&&persistence?.persistent===false&&typeof osd==='function')osd(t('Secure source storage is unavailable; reopening after restart may need a fresh source.','Güvenli kaynak kaydı kullanılamıyor; yeniden başlatmadan sonra güncel kaynak seçmen gerekebilir.'));
   return intent===player.openIntent&&!isCancelled();
  }
+ let localWatch=null;
+ // The completed local file of a streaming torrent is attached to the player even when the Media center is closed
+ // (Whisper and timeline previews need it). Owned by the exact media key + generation; replaced or stopped on any change.
+ function stopLocalWatch(){if(localWatch){clearTimeout(localWatch.timer);localWatch.stopped=true;localWatch=null;}}
+ function watchTorrentLocal(target,{interval=5000,limit=8*3600*1000}={}){
+  stopLocalWatch();
+  const key=`torrent:${target.hash}:${target.index}`,generation=currentGeneration(),started=Date.now(),watch={stopped:false,timer:null};localWatch=watch;
+  const owns=()=>!watch.stopped&&localWatch===watch&&player.mediaKey===key&&currentGeneration()===generation;
+  const tick=async()=>{
+   if(!owns())return stopLocalWatch();
+   if(player.localPath)return stopLocalWatch();
+   try{
+    const local=await window.api.mediaTorrents({action:'local',hash:target.hash,index:target.index});
+    if(!owns())return;
+    if(local?.ok&&local.path){player.localPath=local.path;syncPlayerSourceQuick();syncSubtitlePrimaryAction();document.dispatchEvent(new CustomEvent('player-local-file-ready',{detail:{key}}));return stopLocalWatch();}
+   }catch{/* still downloading or engine busy: try again */}
+   if(!owns())return;if(Date.now()-started>limit)return stopLocalWatch();
+   watch.timer=setTimeout(tick,interval);
+  };
+  watch.timer=setTimeout(tick,interval);return watch;
+ }
  async function drawPlayer(body){
   body.append(button(t('Choose mpv.exe…','mpv.exe seç…'),async()=>{const r=await window.api.nativePlayer({action:'choose'});if(!r?.ok)throw Error(r?.error||t('Could not select engine.','Motor seçilemedi.'));if(!r.canceled)draw();}));
   const video=document.getElementById('playerVideo'),status=await window.api.nativePlayer({action:'status'});if(!body.isConnected)return;
@@ -104,9 +125,9 @@
   const chapters=el('section','mhx-chapters');chapters.append(el('h2','',t('Chapters','Bölümler')));for(const chapter of player.chapters||[])chapters.append(button(chapter.title||String(chapter.start||0),()=>{video.currentTime=Number(chapter.start)||0;modal.close();}));body.append(chapters);
   const search=input(t('Find a subtitle line','Altyazı satırı bul'),t('Words from the scene…','Sahneden hatırladığın sözler…'));const results=el('div','mhx-search-results');search.n.oninput=()=>{results.replaceChildren();const q=search.n.value.toLocaleLowerCase().trim();if(!q)return;for(const cue of (player.cues||[]).filter(c=>c.text.toLocaleLowerCase().includes(q)).slice(0,50))results.append(button(`${Math.floor(cue.start/60)}:${String(Math.floor(cue.start%60)).padStart(2,'0')} · ${cue.text}`,()=>{video.currentTime=subtitleVideoTime(cue.start,false);modal.close();}));};body.append(search.wrap,results);
   const scenes=el('section','mhx-scenes');body.append(button(t('Create timeline previews','Zaman çizelgesi önizlemeleri oluştur'),async()=>{if(!player.localPath)throw Error(t('Timeline previews require a completed local video file.','Zaman çizelgesi önizlemesi için tamamlanmış yerel video gerekli.'));const id=++sceneRequest;note(t('Preparing 12 previews…','12 önizleme hazırlanıyor…'));const r=await api('scenes',{path:player.localPath,duration:video.duration});if(id!==sceneRequest||!scenes.isConnected)return;scenes.replaceChildren();for(const frame of r.rows){const n=button('',()=>{video.currentTime=frame.at;modal.close();});const img=el('img');img.src=frame.image;img.alt=t('Video preview','Video önizlemesi');img.width=240;img.height=135;n.append(img,el('span','',`${Math.floor(frame.at/60)}:${String(Math.floor(frame.at%60)).padStart(2,'0')}`));scenes.append(n);}note('');}),scenes);
-  if(currentTorrent){const transfer=el('p','mhx-transfer');body.append(transfer,el('p','mhx-muted',t('Dubbing works with an SRT while streaming. Whisper extraction and timeline previews use the verified local video once its download is complete.','SRT ile dublaj akış sırasında çalışır. Whisper çıkarımı ve zaman çizelgesi önizlemeleri, indirme tamamlanınca doğrulanmış yerel videoyu kullanır.')));const update=async()=>{try{const target={...currentTorrent},r=await torrent('stats',{hash:target.hash});if(transfer.isConnected)transfer.textContent=transferText(r.stats);if(!player.localPath&&player.mediaKey===`torrent:${target.hash}:${target.index}`){const local=await window.api.mediaTorrents({action:'local',hash:target.hash,index:target.index});if(local?.ok&&player.mediaKey===`torrent:${target.hash}:${target.index}`){player.localPath=local.path;syncPlayerSourceQuick();syncSubtitlePrimaryAction();}}}catch(e){if(transfer.isConnected)transfer.textContent=e.message;}};void update();poll=setInterval(update,2000);}
+  if(currentTorrent){const transfer=el('p','mhx-transfer');body.append(transfer,el('p','mhx-muted',t('Dubbing works with an SRT while streaming. Whisper extraction and timeline previews use the verified local video once its download is complete.','SRT ile dublaj akış sırasında çalışır. Whisper çıkarımı ve zaman çizelgesi önizlemeleri, indirme tamamlanınca doğrulanmış yerel videoyu kullanır.')));const update=async()=>{try{const target={...currentTorrent},r=await torrent('stats',{hash:target.hash});if(transfer.isConnected)transfer.textContent=transferText(r.stats);}catch(e){if(transfer.isConnected)transfer.textContent=e.message;}};void update();poll=setInterval(update,2000);}
  }
  async function reopenTorrent(item,seconds){const parts=item.key.split(':');const r=await torrent('reopen',{hash:parts[1],index:Number(parts[2])});await playStream(r,seconds);}
  const entry=document.getElementById('playerMediaCenter');if(entry){entry.dataset.uiUntranslated='';const label=()=>entry.textContent=t('Playback, scenes & sources','Oynatma, sahneler ve kaynaklar');label();document.addEventListener('ui-locale-change',label);entry.onclick=()=>{document.getElementById('playerMore').open=false;open('player');};}
- window.MediaHubUI=Object.freeze({open,playStream,reopenTorrent,installTorrentEngine});
+ window.MediaHubUI=Object.freeze({open,playStream,reopenTorrent,installTorrentEngine,_test:{watchTorrentLocal,stopLocalWatch}});
 })();

@@ -1,3 +1,16 @@
+# V4 entegrasyonu ve ek yarış onarımları · 2026-11-11 15:24
+
+- Kullanıcı V4 entegrasyonu ve commit/push/master teslimini yetkilendirdi. Taban yerel/uzak master 8c649d68; önceki asistan ve Whisper sahipleri korundu. [Bağımsız inceleme ve kabul sınırları](docs/devir/2026-11-11-1524.md).
+- Paket üstüne geciken Yenile manifest sahipliği, kapanan seçici/panelde bekleyen oynatma iptali ve tek nesil kontrollü torrent yerel dosya yazıcısı düzeltildi. Hedefli regresyonlar geçti; gerçek medya/native/GPU kabulü açık. Eski dört taban test dosyası hatası çözülmüş sayılmadı.
+
+# Stremio kaynak seçimi / Whisper uygunluğu · 2026-11-11 15:00
+
+- Taban master `8c649d68`. Kümülatif patch/ZIP teslimi; commit/push yok, yeni Git teslimi açık komut bekler.
+- Tamamlanan doğrulanmış iş: baştan oynatma, film sayfası hata durumu, kapatılan seçicide otomatik oynatma, Yenile kimlik koruması, yerelleştirilmiş eklenti hataları, kaynak özeti ve satır nedenleri, Whisper uygunluk sınıfları ve sonraki adım, açık tema panel okunurluğu. [Devir ve kanıt](docs/devir/2026-11-11-1500.md).
+- **Kalan kabul:** kullanıcının kendi Torrentio/TorBox kaynağında özet ve satır nedenleri, HLS veya torrent Whisper notu, doğrudan kaynakta Whisper → zamanlı altyazı. Gerçek Electron/mpv/GPU denenmedi.
+- **Tamamlandı (ikinci tur):** torrent yerel dosyasının arka planda bağlanması, bayat Whisper notu ve süresi dolan listede yeniden arama.
+- **Sonraki somut işler:** (1) gerçek Electron'da kaynak değişiminde eski Whisper/dublaj çıktısının bağlanmadığının denenmesi (kod incelemesinde hata yok); (2) gerçek kısa torrent/debrid indirmesi bitince otomatik bağlama kabulü.
+
 # V3 üst yapı / Podcast / Stremio birleştirmesi · 2026-11-11 14:23
 
 - files(20) içindeki kümülatif v3,52afe24 tabanına karşı incelenip temiz patch ile uygulandı; v2 ayrıca uygulanmadı.7renderer dosyası nested zip ile normalizeLF eşleşti. Önceki4asistan düzeltmesi+4kişisel fark hash/varlık8/8 korundu. Asistan düzeltmesi789e77c8, V3/onarımlar a5926756 ayrı [skip ci] ürün commitleriyle teslim dalında.

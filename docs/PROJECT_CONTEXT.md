@@ -1,5 +1,9 @@
 # Yeni sohbet için Whisper Browser özeti
 
+2026-11-11 15:24: Kullanıcı V4 entegrasyonu ve commit/push/master teslimini yetkilendirdi. Kaynak seçimi/Whisper uygunluğu paketi ve ek gecikmiş yenileme/oynatma/torrent sahiplik onarımları [1524 devrinde](devir/2026-11-11-1524.md). Önceki asistan ve Whisper korunur; gerçek sağlayıcı/native/GPU kabulü açık. Nihai teslim HEAD'i gerçek Git'ten doğrulanır. Aşağıdaki paket üreticisi kaydı tarihsel aşamadır.
+
+2026-11-11 15:00 güncellemesi: Stremio kaynak seçici oynatılabilirlik/Whisper uygunluğu, baştan oynatma, film sayfası hata durumu, Yenile kimlik koruması ve açık tema panel okunurluğu yerelde tamamlandı; kümülatif patch olarak teslim edildi, Git teslimi yok. [Devir](devir/2026-11-11-1500.md).
+
 2026-11-11 14:27 güncellemesi: V3 ve önceki asistan watched düzeltmesi [PR918 ile master'a teslim edildi](devir/2026-11-11-1423.md); ürün merge'i40d77053, sonuç belge teslimi ürün kodunu değiştirmez. Önceki Whisper/onay/veri sahipleri ve kişisel farklar korunuyor; yeni gerçek model/GPU çağrısı yapılmadı. SonHEAD gerçek Git'ten doğrulanır. Yeni iş/Git teslimi yeni açık komut bekler.
 
 2026-11-11 13:30 güncellemesi: Ortak film ayrıntısı/oturum kapatma/öneri yerleşimi ile önceki asistan-akış Whisper işleri PR916 ile master'a teslim edildi; ürün merge'i 594b6f9c. [Doğrulama ve kalan kabul](devir/2026-11-11-1328.md). Stremio film kartları aynı MediaDiscoveryUI/CinemaUI ayrıntı sahibini kullanır, ikinci film tasarımı yok. Kişisel farklar korundu, Actions koşusu0; yeni Git işi yeni açık komut bekler. Sonuç belge teslimi ürün kodunu değiştirmez; en güncel HEAD gerçek Git durumundan doğrulanır. Aşağıdaki 12:49 teslim/kalan ifadeleri tarihseldir.

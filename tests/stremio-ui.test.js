@@ -359,6 +359,102 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   window.player.generation=(window.player.generation||0)+1;
   finishMeta({ok:true,meta:{type:'movie',id:'tt1234567',name:'Old selection',genres:[],videos:[]}});
   assert.equal((await delayedTitle).cancelled,true);assert.equal(sharedDetailCalls.length,beforeShared);window.api.stremio=originalApi;
+  // “From the beginning” must override the saved resume point; plain play still resumes.
+  await service.handle({},{action:'progress-save',type:'series',id:'tt1',season:1,episode:1,name:'Test Dizisi',position:1200,duration:3000});
+  // Cinemeta was removed above; build the title context the picker receives from the detail page.
+  const metaTt1={type:'series',id:'tt1',name:'Test Dizisi',poster:'',genres:[],videos:[{id:'tt1:1:1',season:1,episode:1,title:'Pilot'},{id:'tt1:1:2',season:1,episode:2,title:'İkinci'}]};
+  const fileRow=(id,extra={})=>({id,addonKey:'k',addonName:'Torrentio',name:'T',label:'T',title:'Dizi',description:'',kind:'url',playable:true,reason:'',resolution:'1080p',seeders:null,sizeBytes:null,provider:'',codec:'',hdr:'',source:'',flags:[],multiAudio:false,notWebReady:false,usesHeaders:false,bingeGroup:'',score:60,tags:[],warns:[],audio:'',channels:'',group:'',filename:'a.mp4',host:'cdn.example',embeddedSubtitles:0,whisperAudio:'ready',...extra});
+  const stubSources=(rows,play)=>{window.api.stremio=q=>q.action==='streams'?Promise.resolve({ok:true,token:'t-'+rows[0].id,videoId:'tt1:1:1',groups:[{addonKey:'k',addonName:'Torrentio',count:rows.length,error:null}],streams:rows})
+    :q.action==='play'?Promise.resolve({ok:true,workKey:'',whisperAudio:rows.find(r=>r.id===q.streamId).whisperAudio,meta:{type:'series',id:'tt1',season:1,episode:1},...play(q)})
+    :q.action==='subtitles'?Promise.resolve({ok:true,token:'s',subtitles:[],groups:[]}):originalApi(q);};
+  // “From the beginning” must override the saved resume point; plain play still resumes.
+  stubSources([fileRow('r1')],()=>({url:'https://cdn.example/a.mp4',key:'stream:'+'d'.repeat(64),resume:{position:1200,duration:3000}}));
+  let picker=await UI.openStreams({...UI._test.baseCtx(metaTt1,1,1),resumeSeconds:0});
+  let before=opened.length;click(picker.querySelector('.sx-best button'));
+  await until(()=>opened.length===before+1,'explicit start opened');assert.equal(opened.at(-1).seconds,0,'explicit start from the beginning');
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));before=opened.length;click(picker.querySelector('.sx-best button'));
+  await until(()=>opened.length===before+1,'resume opened');assert.equal(opened.at(-1).seconds,1200,'default play resumes');
+  assert.equal(UI.whisperStatus().ok,true);assert(UI.whisperSource(),'direct HTTPS file feeds Whisper');window.api.stremio=originalApi;
+  // Source tools on the shared title page surface their errors in the page status.
+  window.api.stremio=q=>q.action==='library-toggle'?Promise.resolve({ok:false,code:'CAPACITY'}):originalApi(q);
+  await UI.openTitle({type:'movie',id:'tt7777777',name:'Film'});await until(()=>document.querySelector('.md-detail .sx-source-personal button'),'title list control');
+  const titleStatus=document.querySelector('.md-detail > p');assert.match(titleStatus.textContent,/Cinemeta/,'missing details explained in the shared status');
+  click(document.querySelector('.md-detail .sx-source-personal button'));
+  await until(()=>/kapasite/.test(titleStatus.textContent),'title page error visible');document.querySelector('.md-detail').close();window.api.stremio=originalApi;
+  // A picker the user closed must never start playback when late addon answers arrive.
+  stubSources([fileRow('r2')],()=>({url:'https://cdn.example/b.mp4',key:'stream:'+'e'.repeat(64),resume:null}));const stubbed=window.api.stremio;
+  let releaseStreams;window.api.stremio=q=>q.action==='streams'?new Promise(r=>{releaseStreams=()=>r(stubbed(q));}):stubbed(q);
+  before=opened.length;const playCalls=[];const lateApi=window.api.stremio;window.api.stremio=q=>{if(q.action==='play')playCalls.push(q);return lateApi(q);};
+  picker=await Promise.race([UI.openStreams({...UI._test.baseCtx(metaTt1,1,2),autoplayBest:true}),tick(30).then(()=>document.querySelector('.sx-streams'))]);
+  await until(()=>!!releaseStreams,'deferred streams');document.querySelector('.sx-streams').close();releaseStreams();await tick(80);
+  assert.equal(playCalls.length,0,'closed picker does not autoplay');assert.equal(opened.length,before);window.api.stremio=originalApi;
+  // Closing a picker also cancels a play reply already in flight, not just its source lookup.
+  stubSources([fileRow('pending-play')],()=>({url:'https://cdn.example/pending.mp4',key:'stream:'+'b'.repeat(64),resume:null}));
+  const pendingApi=window.api.stremio;let releasePlay;
+  window.api.stremio=q=>q.action==='play'?new Promise(resolve=>{releasePlay=()=>resolve(pendingApi(q));}):pendingApi(q);
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));before=opened.length;
+  click(picker.querySelector('.sx-best button'));await until(()=>!!releasePlay,'pending play IPC');picker.close();releasePlay();await tick(60);
+  assert.equal(opened.length,before,'closed picker does not open a delayed play result');window.api.stremio=originalApi;
+  // A different media open while IPC is pending owns the player; the old picker cannot reclaim it.
+  stubSources([fileRow('pending-owner')],()=>({url:'https://cdn.example/pending.mp4',key:'stream:'+'b'.repeat(64),resume:null}));
+  const ownerApi=window.api.stremio;releasePlay=null;
+  window.api.stremio=q=>q.action==='play'?new Promise(resolve=>{releasePlay=()=>resolve(ownerApi(q));}):ownerApi(q);
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));before=opened.length;
+  click(picker.querySelector('.sx-best button'));await until(()=>!!releasePlay,'pending media owner');
+  window.player.generation=(window.player.generation||0)+1;releasePlay();await tick(60);
+  assert.equal(opened.length,before,'new player generation cancels old play reply');picker.close();window.api.stremio=originalApi;
+  // Cancellation remains visible during MediaHub preparation (secure remember/flush), before it sets the source.
+  stubSources([fileRow('pending-hub')],()=>({url:'https://cdn.example/pending.mp4',key:'stream:'+'b'.repeat(64),resume:null}));
+  const realPlayStream=window.MediaHubUI.playStream;let releaseHub,hubCancelled;
+  window.MediaHubUI.playStream=async(result,seconds,options)=>{await new Promise(resolve=>{releaseHub=resolve;});hubCancelled=options.isCancelled();if(hubCancelled)return false;return realPlayStream(result,seconds);};
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));before=opened.length;
+  click(picker.querySelector('.sx-best button'));await until(()=>!!releaseHub,'pending MediaHub preparation');picker.close();releaseHub();await tick(60);
+  assert.equal(hubCancelled,true,'picker cancellation reaches MediaHub');assert.equal(opened.length,before);
+  window.MediaHubUI.playStream=realPlayStream;window.api.stremio=originalApi;
+  // Addon failures are explained per code (EN/TR), never as raw upstream text, with a retry.
+  const failedList={ok:true,token:'t-fail',videoId:'tt1:1:1',groups:[{addonKey:'k',addonName:'Torrentio',count:0,error:{message:'Altyazı alan adı çözümlenemedi',code:'EBROWSER_UNSAFE_URL'}}],streams:[]};
+  let streamCalls=0;window.api.stremio=q=>q.action==='streams'?(streamCalls++,Promise.resolve(failedList)):originalApi(q);
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));
+  assert.match(picker.textContent,/Torrentio: adresi genel bir adres olarak doğrulanamadı \(DNS/);assert(!picker.textContent.includes('Altyazı alan adı'));
+  assert.match(picker.textContent,/Hiçbir eklenti kaynak döndüremedi/);click(picker.querySelector('.sx-retry'));await until(()=>streamCalls===2,'retry searched again');
+  assert(!picker.isConnected,'retry replaces the old picker');document.querySelector('.sx-streams')?.close();window.api.stremio=originalApi;
+  // An HLS source plays but explains why Whisper is unavailable and offers Whisper-ready sources.
+  const hlsKey='stream:'+'c'.repeat(64),hlsRow={id:'hls1',addonKey:'k',addonName:'HLS',name:'HLS',label:'HLS',title:'Live',description:'',kind:'url',playable:true,reason:'',resolution:'1080p',seeders:null,sizeBytes:null,provider:'',codec:'',hdr:'',source:'',flags:[],multiAudio:false,notWebReady:false,usesHeaders:false,bingeGroup:'',score:50,tags:[],warns:[],audio:'',channels:'',group:'',filename:'',host:'cdn.example',embeddedSubtitles:0,whisperAudio:'adaptive'};
+  window.api.stremio=q=>q.action==='streams'?Promise.resolve({ok:true,token:'t-hls',videoId:'tt1:1:1',groups:[{addonKey:'k',addonName:'HLS',count:1,error:null}],streams:[hlsRow]})
+    :q.action==='play'?Promise.resolve({ok:true,url:'https://cdn.example/live/master.m3u8',key:hlsKey,workKey:'',whisperAudio:'adaptive',resume:null,meta:{type:'series',id:'tt1',season:1,episode:1}})
+    :q.action==='subtitles'?Promise.resolve({ok:true,token:'s',subtitles:[],groups:[]}):originalApi(q);
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));assert.match(picker.querySelector('.sx-source-summary').textContent,/1 oynatılabilir · 1 doğrudan\/debrid · 0 Whisper uygun/);
+  assert.match(picker.querySelector('.sx-why').textContent,/HLS\/DASH/);click(picker.querySelector('.sx-best button'));await until(()=>window.player.mediaKey===hlsKey,'hls opened');
+  assert.equal(UI.whisperSource(),null,'adaptive source is not offered to Whisper');const ws=UI.whisperStatus();assert.equal(ws.ok,false);assert.equal(ws.kind,'adaptive');assert.match(ws.message,/HLS\/DASH/);
+  UI.togglePanel('ai');await until(()=>document.querySelector('.sx-whisper-next'),'whisper next step');click(document.querySelector('.sx-whisper-next'));
+  await until(()=>document.querySelector('.sx-player-panel .sx-source-empty'),'whisper-ready filter applied');
+  assert.match(document.querySelector('.sx-player-panel .sx-source-empty').textContent,/Tüm oynatılabilirleri göster/);click([...document.querySelectorAll('.sx-player-panel .sx-source-empty button')].find(b=>/Tüm oynatılabilir/.test(b.textContent)));
+  await until(()=>document.querySelector('.sx-player-panel .sx-stream.is-current'),'all playable shown again');UI.togglePanel();window.api.stremio=originalApi;
+  // Raw torrent: Whisper waits for the download; once the local file is attached the notice flips and the open tab refreshes.
+  const torKey='torrent:'+'f'.repeat(40)+':2',torRow=fileRow('rt',{kind:'torrent',whisperAudio:'torrent',filename:'t.mkv',seeders:50,host:''});
+  stubSources([torRow],()=>({url:'whisper-media://t/video',key:torKey,hash:'f'.repeat(40),index:2,resume:null}));
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));click(picker.querySelector('.sx-best button'));await until(()=>window.player.mediaKey===torKey,'torrent opened');
+  assert.equal(UI.whisperStatus().kind,'torrent');assert.match(UI.whisperStatus().message,/indirme bitince/);
+  UI.togglePanel('ai');await until(()=>document.querySelector('.sx-player-panel .sx-whisper-blocked'),'torrent notice');
+  window.player.localPath='/videos/t.mkv';document.dispatchEvent(new window.CustomEvent('player-local-file-ready',{detail:{key:torKey}}));
+  await until(()=>!document.querySelector('.sx-player-panel .sx-whisper-blocked')&&/tamamlanmış yerel dosyayı/.test(document.querySelector('.sx-player-panel').textContent),'panel refreshed after download');
+  assert.equal(UI.whisperStatus().ok,true);assert.equal(UI.whisperStatus().kind,'local');
+  document.dispatchEvent(new window.CustomEvent('player-local-file-ready',{detail:{key:'torrent:other:0'}}));UI.togglePanel();window.player.localPath='';window.api.stremio=originalApi;
+  // An expired source list explains itself and offers a fresh search instead of a dead row.
+  stubSources([fileRow('rx')],()=>({url:'https://cdn.example/x.mp4',key:'stream:'+'a'.repeat(64),resume:null}));const okStub=window.api.stremio;
+  window.api.stremio=q=>q.action==='play'?Promise.resolve({ok:false,code:'EXPIRED',error:'Kaynak listesinin süresi doldu; yeniden getir.'}):okStub(q);
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));click(picker.querySelector('.sx-best button'));
+  await until(()=>picker.querySelector('.sx-body > .sx-retry'),'expired retry offered');assert.match(picker.textContent,/süresi doldu/);assert.equal(picker.querySelectorAll('.sx-body > .sx-retry').length,1);
+  let reopened=0;window.api.stremio=q=>{if(q.action==='streams')reopened++;return okStub(q);};click(picker.querySelector('.sx-body > .sx-retry'));await until(()=>reopened===1,'expired retry searches again');await tick(40);
+  document.querySelector('.sx-streams')?.close();
+  // Same recovery inside the player's source tab (switching source with an expired list).
+  window.api.stremio=q=>q.action==='play'?Promise.resolve({ok:false,code:'EXPIRED',error:'x'}):okStub(q);
+  picker=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));click(picker.querySelector('.sx-best button'));await until(()=>picker.querySelector('.sx-body > .sx-retry'),'dialog expired');picker.close();
+  stubSources([fileRow('rx'),fileRow('ry',{resolution:'720p',filename:'b.mp4'})],q=>({url:'https://cdn.example/x.mp4',key:'stream:'+'a'.repeat(64),resume:null}));const okStub2=window.api.stremio;
+  window.api.stremio=okStub2;const sw=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));click(sw.querySelector('.sx-best button'));await until(()=>window.player.mediaKey==='stream:'+'a'.repeat(64),'reopened');
+  window.api.stremio=q=>q.action==='play'?Promise.resolve({ok:false,code:'EXPIRED',error:'x'}):okStub2(q);UI.togglePanel('sources');await until(()=>document.querySelector('.sx-player-panel .sx-stream button:not([disabled])'),'panel rows');
+  click(document.querySelector('.sx-player-panel .sx-stream button:not([disabled])'));await until(()=>document.querySelector('.sx-player-panel .sx-panel-body > .sx-retry'),'panel expired retry');UI.togglePanel();
+  window.api.stremio=originalApi;
   console.log('stremio-ui.test.js: OK');
   process.exit(0);
 })().catch((e) => { console.error(e); process.exit(1); });
