@@ -11,3 +11,11 @@ test('Discovery daily and viewing sections receive the exact provider identity, 
   received.length=0;const local={id:'local',title:'Local',kind:'film',imdbId:'tt1234567',providerId:'tt1234567'};h.w.FilmPageEnhancements.enhance(h.page,local);assert.equal(received[0],local);assert.equal(received[1],local);
  }finally{h.dom.window.close();}
 });
+
+test('source-only addon metadata keeps generic film controls without inventing personal/provider identity',()=>{
+ const h=setup();try{let writes=0,readOnly=0;h.w.MediaDailyUI={mountTitle:()=>writes++};h.w.FilmWatchUI={mount:()=>writes++};h.w.AssistantFilmActions={openPicker:()=>writes++};h.w.FilmPageLower={mount:()=>{readOnly++;return {dispose(){}};}};
+ h.w.FilmPageEnhancements.enhance(h.page,{title:'Addon film',kind:'film',providerId:'kitsu:123'},{sourceOnly:true});assert.equal(writes,0);assert.equal(readOnly,1);assert(h.page.querySelector('.film-plot-toggle'));assert(h.page.querySelector('.film-poster-open'));assert(!h.page.textContent.includes('Compare films'));
+ }finally{h.dom.window.close();}
+});
+
+test('film source action opens source selection directly while series opens the shared episode page',()=>{const h=setup();try{const calls=[];h.w.StremioUI={openStreams:r=>calls.push(['streams',r]),openTitle:r=>calls.push(['title',r])};h.w.FilmPageEnhancements.enhance(h.page,{title:'Movie',kind:'film',providerId:'tt1234567'});h.page.querySelector('.film-stremio-open').click();assert.equal(calls[0][0],'streams');assert.equal(calls[0][1].id,'tt1234567');assert.equal(calls[0][1].season,null);h.w.FilmPageEnhancements.enhance(h.page,{title:'Series',kind:'series',providerId:'tt7654321'});h.page.querySelector('.film-stremio-open').click();assert.equal(calls[1][0],'title');}finally{h.dom.window.close();}});

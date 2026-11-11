@@ -22617,11 +22617,13 @@ require('./native-player').registerNativePlayer({app,ipcMain,BrowserWindow,dialo
   const stremioFetch=async(url,init={})=>{if(isLoopbackAddon(url))return fetch(url,init);const pin=await assertPublicBrowserSubtitleUrl(url);return requestPinnedSubtitleBuffer(url,pin,{headers:init.headers,signal:init.signal,maxBytes:4_100_000});};
   const configureAddon=require('./stremio-config-window').createStremioConfigurator({BrowserWindow,owner:()=>mainWindow,title:()=>dt('Eklenti ayarları','Addon settings')});
   app.once('will-quit',()=>configureAddon.dispose());
-  const stremioService=require('./stremio-service').registerStremio({ipcMain,authorized:authorizedBrowserSender,configureAddon,root:()=>app.getPath('userData'),fetch:stremioFetch,
+  const prepareAudio=require('./stremio-whisper-audio').createStreamAudioPreparer({directory:()=>path.join(app.getPath('userData'),'stream-whisper-audio'),ffmpeg:()=>resolveFfTool('ffmpeg'),grantMedia:file=>mediaFileAccess.grant(file),publicPin:require('./feed-service').publicPin});
+  const stremioService=require('./stremio-service').registerStremio({ipcMain,authorized:authorizedBrowserSender,configureAddon,prepareAudio,root:()=>app.getPath('userData'),fetch:stremioFetch,
     assertUrl:async url=>{await assertPublicBrowserSubtitleUrl(url);},torrents:mediaTorrents,
     searchSubtitles:stremioSubtitles.searchSubtitles,downloadSubtitle:stremioSubtitles.downloadSubtitle,decodeSubtitle:stremioSubtitles.decodeDownloadedSubtitle,
     grantSubtitle:file=>subtitleFileAccess.grant(file)});
   stremioHeadersFor=url=>stremioService.headersFor(url);
+  app.once('will-quit',()=>stremioService.dispose());
   // Seçilen akışın istediği (güvenli listedeki) başlıklar yalnız o tam adrese eklenir; başka istek etkilenmez.
   app.whenReady().then(()=>{
     try{

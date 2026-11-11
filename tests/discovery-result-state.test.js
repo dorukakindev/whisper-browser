@@ -12,6 +12,36 @@ function fixture(t,respond,personal=()=>({ok:true,rows:[]})){
 }
 const row=id=>({providerId:id,kind:'film',title:'Film '+id,year:2025,backdrop:'https://images.metahub.space/background/'+id});
 
+test('recommendation is a film-detail option and never a button beneath discovery cards',async t=>{
+ const h=fixture(t,input=>input.action==='detail'?{ok:true,item:detailItem(input.id),catalogId:null}:{ok:true,rows:[row('tt1234567')],nextSkip:null});let recommended;
+ h.w.RecommendationHubUI={open:item=>{recommended=item;}};await tick();h.w.MediaDiscoveryUI.restore({...h.w.MediaDiscoveryUI.snapshot(),rows:[row('tt1234567')]});await tick();
+ assert.equal(h.root.querySelector('.md-recommend-button'),null);assert(!h.root.textContent.includes('Recommend similar'));
+ const page=detailSurface(h);await h.w.MediaDiscoveryUI.openDetail(row('tt1234567'));const option=page().querySelector('[data-discovery-action=recommend]');assert(option);option.click();await tick();assert.equal(recommended.providerId,'tt1234567');
+});
+
+test('shared detail integrates Stremio tools, explicit return and disposal without a second title page',async t=>{
+ const h=fixture(t,input=>input.action==='detail'?{ok:true,item:detailItem(input.id),catalogId:null}:{ok:true,rows:[],nextSkip:null});await tick();const page=detailSurface(h);let ready,returned=0,disposed=0,rendered=0;
+ h.w.CinemaUI={film:()=>rendered++};const result=await h.w.MediaDiscoveryUI.openDetail(row('tt1234567'),{backLabel:()=> 'Back to Stremio',onReturn:()=>returned++,onReady:parts=>{ready=parts;const control=h.w.document.createElement('button');control.textContent='Stremio sources';parts.sourceHost.append(control);return ()=>disposed++;}});
+ assert(result.ok);assert.equal(rendered,1);assert.equal(ready.page,page());assert(page().textContent.includes('Stremio sources'));assert.equal(h.w.document.querySelectorAll('.media-title-page').length,1);
+ page().querySelector('.md-page-back').click();await tick();assert.equal(returned,1);assert.equal(disposed,1);
+});
+
+test('non-IMDb Stremio metadata uses the same detail owner without unsupported discovery mutations',async t=>{
+ const h=fixture(t,input=>({ok:false,error:'IMDb service unavailable'}));await tick();const page=detailSurface(h);let rendered=0,parts;
+ h.w.CinemaUI={film:()=>rendered++};const title={kind:'film',providerId:'kitsu:123',title:'Addon film',genres:['Drama'],cast:['Actor'],synopsis:'Addon synopsis',poster:''};h.calls.length=0;
+ const result=await h.w.MediaDiscoveryUI.openDetail(title,{fallbackDetail:{item:title,catalogId:null},onReady:value=>{parts=value;}});
+ assert(result.ok);assert.equal(rendered,1);assert(page().textContent.includes('Addon synopsis'));assert.equal(h.calls.length,0);assert(!page().querySelector('[data-discovery-action=reviews]'));assert(!page().textContent.includes('Metadata: Cinemeta / IMDb'));assert(parts.sourceHost);
+});
+
+for(const external of [false,true])test('real Stremio entry mounts the actual shared cinema detail with source controls '+(external?'for addon identity':'for IMDb'),async t=>{
+ const id=external?'kitsu:123':'tt1234567',h=fixture(t,input=>input.action==='detail'?{ok:true,item:{...detailItem(id),title:'Shared film'},catalogId:null}:{ok:true,rows:[],nextSkip:null});await tick();realTitlePages(h);const w=h.w,sourceCalls=[];
+ w.player={mediaKey:'',generation:0,openIntent:0,workspaceMode:'player'};w.matchMedia=()=>({matches:true});w.MediaHomeUI.currentPage=()=> 'stremio';w.api.showAssistant=()=>{};w.api.stremio=async input=>{sourceCalls.push(input);if(input.action==='meta')return {ok:true,meta:{id,type:'movie',name:'Shared film',year:2000,description:'Addon story',genres:['Drama'],cast:['Real cast'],director:['Real director'],videos:[]}};if(input.action==='progress-title')return {ok:true,entries:[]};if(input.action==='library-has')return {ok:true,saved:false};if(input.action==='rating-get')return {ok:true,rating:null};throw Error('Unexpected Stremio '+input.action);};
+ const playerLayer=w.document.createElement('div');playerLayer.id='playerLayer';playerLayer.className='hidden';w.document.body.append(playerLayer);w.document.body.classList.add('media-home-active');const nav=w.document.createElement('nav');nav.innerHTML='<button data-home-page="discover" aria-current="false">Discover</button><button data-home-page="stremio" aria-current="page">Stremio</button>';w.document.getElementById('mediaHome').prepend(nav);
+ for(const name of ['film-page-lower.js','film-page-enhancements.js','cinema-ui.js','stremio-ui.js'])w.eval(fs.readFileSync('src/renderer/'+name,'utf8'));
+ const result=await w.StremioUI.openTitle({id,type:'movie',name:'Shared film'});await tick();assert(result.ok);const page=w.document.querySelector('.media-title-page.cn-film-page[data-page-kind=discovery]');assert(page,'uses the existing discovery and cinema detail owners');assert.equal(w.document.querySelectorAll('.media-title-page').length,1);assert.equal(page.querySelector('h1').textContent,'Shared film');assert(page.querySelector('.sx-source-tools'));assert(page.querySelector('.sx-source-personal'));assert(page.querySelector('.cn-cast'));assert(page.querySelector('.cn-hero-actions').textContent.includes('Choose a source'));assert(sourceCalls.some(c=>c.action==='rating-get'));assert(!w.document.querySelector('.sx-title'));
+ assert.equal(w.document.querySelector('[data-home-page=stremio]').getAttribute('aria-current'),'page');assert.equal(w.document.querySelector('[data-home-page=discover]').getAttribute('aria-current'),'false');if(external){assert.equal(h.calls.filter(c=>c.action==='detail').length,0);assert(page.textContent.includes('Real cast'));assert(page.textContent.includes('Real director'));}page.close();await new Promise(resolve=>setTimeout(resolve,100));
+});
+
 test('append failure preserves titles and retries the failed cursor rather than restarting the list',async t=>{
   let failed=false;
   const h=fixture(t,async input=>{if(input.skip===100&&!failed){failed=true;return {ok:false,error:'Controlled network failure'};}return {ok:true,rows:[row(input.skip===100?'tt2222222':'tt1111111')],nextSkip:input.skip===100?null:100};});

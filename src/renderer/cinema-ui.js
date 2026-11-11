@@ -272,7 +272,7 @@
     if (!oldHero) return;
     const isDiscovery = page.dataset.pageKind === "discovery", oldCopy = page.querySelector(".mtd-copy,.md-detail-copy"), oldActions = page.querySelector(".mtd-actions,.md-primary-actions");
     const primary = oldActions?.firstElementChild, poster2 = page.querySelector(".mtd-poster,.md-detail-poster"), backdrop = page.querySelector(".mtd-backdrop,.md-page-backdrop"), back = page.querySelector(".mtd-header button,.md-page-back"), manage = page.querySelector(".mtd-header button:nth-child(2)"), story = page.querySelector(".mtd-story,.md-page-story"), review = page.querySelector(".film-review-section"), cast = page.querySelector(".film-cast-scene"), extras = page.querySelector(".film-extra-section"), episodes = page.querySelector(".mtd-episodes"), status = page.querySelector(".mtd-status,.md-status");
-    const navKey = isDiscovery ? "discover" : item.kind === "series" ? "series" : "films";
+    const navKey = isDiscovery ? page.dataset.filmNavigationPage==='stremio'?'stremio':"discover" : item.kind === "series" ? "series" : "films";
     const tabs = [...document.querySelectorAll("#mediaHome [data-home-page]")];
     const priorTabs = tabs.map(tab => tab.getAttribute("aria-current"));
     const tabValues = tabs.map(tab => tab.dataset.homePage === navKey ? "page" : "false");
@@ -392,7 +392,8 @@
     }
     const plotToggle = page.querySelector(".film-plot-toggle");
     if (plotToggle) rest.push(plotToggle);
-    if (window.AssistantFilmActions) rest.push(action(t("Compare films", "Filmleri kar\u015F\u0131la\u015Ft\u0131r"), () => window.AssistantFilmActions.openPicker(page.dataset.filmItemId), "ghost"));
+    if(!isDiscovery&&item.kind==='film'&&window.RecommendationHubUI&&/^tt\d{7,12}$/.test(item.imdbId||item.providerId||''))rest.push(action(t('Recommend similar','Benzerlerini öner'),()=>window.RecommendationHubUI.open({...item,providerId:item.imdbId||item.providerId}),'ghost'));
+    if (window.AssistantFilmActions&&page.dataset.sourceOnly!=='true') rest.push(action(t("Compare films", "Filmleri kar\u015F\u0131la\u015Ft\u0131r"), () => window.AssistantFilmActions.openPicker(page.dataset.filmItemId), "ghost"));
     if (rest.length) {
       rest.forEach((b) => rebutton(b, "ghost"));
       const more = window.MediaVisual.overflow(rest);

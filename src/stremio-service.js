@@ -42,10 +42,40 @@ function vttToSrt(text) {
   return cues.join('\n\n') + (cues.length ? '\n' : '');
 }
 
-function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, assertUrl, torrents, searchSubtitles, downloadSubtitle, decodeSubtitle, grantSubtitle = () => {}, configureAddon, now = Date.now } = {}) {
+function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, assertUrl, torrents, searchSubtitles, downloadSubtitle, decodeSubtitle, grantSubtitle = () => {}, configureAddon, prepareAudio, now = Date.now } = {}) {
   const addonsFile = () => path.join(root(), 'stremio-addons.json');
   const progressFile = () => path.join(root(), 'stremio-progress.json');
   const previews = new Map(), streamSessions = new Map(), subtitleSessions = new Map(), headerGrants = new Map();
+  const playedSources=new Map();
+  let activePlayback=null,audioPreparation=null;
+  function ownPlayback(token,streamId,key){
+    if(activePlayback?.token!==token||activePlayback?.streamId!==streamId)audioPreparation?.controller.abort();
+    activePlayback={token,streamId,key};
+    const id=token+':'+streamId;playedSources.delete(id);playedSources.set(id,activePlayback);
+    while(playedSources.size>24)playedSources.delete(playedSources.keys().next().value);
+  }
+  async function audioPrepare(input){
+    // A failed renderer source switch restores its prior session. Previously issued
+    // playback grants remain usable; an arbitrary listed/unplayed row is not a grant.
+    const selected=playedSources.get(input.token+':'+input.streamId);
+    if(!selected||selected.token!==input.token||selected.streamId!==input.streamId||selected.key!==input.key)throw err('Reopen the current source before preparing audio.','AUDIO_SOURCE');
+    const row=sessionFor(input.token).rows.get(input.streamId);
+    if(!row?.playable||row.kind!=='url'||!row.url.startsWith('https:'))throw err('Audio preparation requires a direct HTTPS media source.','AUDIO_UNSUPPORTED');
+    if(typeof prepareAudio!=='function')throw err('Audio preparation is unavailable.','AUDIO_UNSUPPORTED');
+    if(typeof input.requestId!=='string'||!/^[a-z0-9_-]{1,80}$/i.test(input.requestId))throw err('Invalid audio request.','BAD_REQUEST');
+    if(audioPreparation)throw err('Audio preparation is already running.','AUDIO_BUSY');
+    activePlayback=selected;
+    const job={id:input.requestId,controller:new AbortController(),progress:{phase:'checking',seconds:null}};
+    audioPreparation=job;
+    try{
+      const result=await prepareAudio({url:row.url,headers:row.requestHeaders||[],signal:job.controller.signal,onProgress:progress=>{
+        job.progress={phase:progress?.phase==='extracting'?'extracting':'checking',seconds:Number.isFinite(progress?.seconds)&&progress.seconds>=0?progress.seconds:null};
+      }});
+      if(job.controller.signal.aborted||activePlayback!==selected){await prepareAudio.discard?.(result.path);throw err('Audio preparation cancelled.','AUDIO_CANCELLED');}
+      return {path:result.path,key:selected.key,requestId:job.id};
+    }catch(error){throw err('Audio could not be prepared. Existing playback and subtitles were kept.',job.controller.signal.aborted?'AUDIO_CANCELLED':/^STREAM_AUDIO_[A-Z_]+$/.test(error?.code||'')?error.code:'AUDIO_FAILED');}
+    finally{if(audioPreparation===job)audioPreparation=null;}
+  }
   const GRANT_TTL = 6 * 3600 * 1000, GRANT_LIMIT = 24;
   // Yalnız oynatma için seçilen tam adrese eklenecek başlıklar (ana süreçte kalır; renderer değerleri görmez).
   function grantHeaders(url, headers) {
@@ -310,6 +340,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
       if (row.requestHeaders?.length) grantHeaders(row.url, row.requestHeaders);
       const result = { ...base, usesHeaders: !!row.requestHeaders?.length, url: row.url, title: str(title, 300) || row.filename || row.title || row.name,
         key: 'stream:' + createHash('sha256').update(row.url).digest('hex') };
+      ownPlayback(token,streamId,result.key);
       return result;
     }
     if (row.kind === 'torrent') {
@@ -324,6 +355,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
       if (!file) throw err('Bu torrentte oynatılabilir video yok.', 'NO_VIDEO');
       const played = await torrents.handler(event, { action: 'play', token: preview.token, index: file.index });
       if (!played?.ok) throw err(played?.error || 'Torrent oynatılamadı.', 'TORRENT');
+      ownPlayback(token,streamId,played.key);
       return { ...base, url: played.url, title: str(title, 300) || played.title, key: played.key, hash: played.hash, index: played.index, torrentFile: file.name };
     }
     throw err('Bu kaynak türü desteklenmiyor.', 'UNPLAYABLE');
@@ -465,6 +497,9 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
       case 'meta': return meta(input, signal);
       case 'streams': return streams(input, signal);
       case 'play': return play(input, event);
+      case 'audio-prepare': return audioPrepare(input);
+      case 'audio-cancel': if(audioPreparation?.id===input.requestId)audioPreparation.controller.abort();return {cancelled:true};
+      case 'audio-status': return {active:audioPreparation?.id===input.requestId,progress:audioPreparation?.id===input.requestId?audioPreparation.progress:null};
       case 'subtitles': return subtitles(input, signal);
       case 'subtitle-save': return subtitleSave(input, signal);
       case 'progress-save': return progressSave(input);
@@ -481,7 +516,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
       default: throw err('Desteklenmeyen Stremio işlemi.', 'BAD_REQUEST');
     }
   }
-  return { handle, headersFor, _internals: { previews, streamSessions, subtitleSessions, headerGrants } };
+  return { handle, headersFor, dispose:()=>audioPreparation?.controller.abort(), _internals: { previews, streamSessions, subtitleSessions, headerGrants } };
 }
 
 function registerStremio({ ipcMain, authorized, ...options }) {

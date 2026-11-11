@@ -43,6 +43,10 @@
     providedCharacters,includedCharacters:included.characters,omittedCharacters,providedUnits,includedUnits:included.units,omittedUnits};
   };
   const safe={};
+  if(context.playback&&typeof context.playback==='object'){
+   const p=context.playback;safe.playback={position:Number.isFinite(p.position)?Math.max(0,p.position):0,duration:Number.isFinite(p.duration)&&p.duration>0?p.duration:null,hasTranscript:p.hasTranscript===true,...(/^work:stremio:[a-f0-9]{64}$/.test(p.workKey||'')?{workKey:p.workKey}:{})};
+   if(/^discovery:(?:film|series):tt\d{7,12}$/.test(p.itemId||''))Object.assign(safe.playback,{itemId:p.itemId,title:text(p.title,300),...(Number.isInteger(p.year)&&p.year>=1870&&p.year<=2200?{year:p.year}:{}),...Object.fromEntries(['season','episode'].filter(key=>Number.isInteger(p[key])&&p[key]>=0&&p[key]<=10000).map(key=>[key,p[key]]))});
+  }
   // Tool arguments need the selected title's public application identity, not
   // an opaque owner token or a guessed ID. Never forward paths or person IDs.
   const itemId=context.item_id||context.catalogId||context.id;

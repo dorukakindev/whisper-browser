@@ -27,6 +27,7 @@
       const bookDescription=suppliedBook?[suppliedBook.sourceTruncated?(tr?'Kısaltılmış bölüm/sayfa metni':'Partial chapter/page text'):(tr?'Tam bölüm/sayfa metni':'Complete chapter/page text'),selectionContext.title,selectionContext.chapter,(tr?'Sağlanan karakter: ':'Characters supplied: ')+(suppliedBook.chapterText?.length||0),suppliedBook.chapterText?.slice(0,900),tr?'Kitabın diğer bölümleri ekli değil.':'Other chapters of the book are not attached.'].filter(Boolean).join('\n'):'';
       const pageContext=!selectionContext&&player.workspaceMode==='browser'&&/^https?:/i.test(player.browserPageUrl||'');
       const videoContext=pageContext&&!!currentBrowserYoutubeUrl();
+      const localPlayback=!selectionContext&&!pageContext&&player.workspaceMode==='player'&&!!player.mediaKey&&!!$('playerLayer')&&!$('playerLayer').classList.contains('hidden');
       const attachedSelection=window.AssistantSourcePreview.hasAttachedSource(selectionContext);
       const podcastTranscript=selectionContext?.workspace==='podcast'&&!!selectionContext.transcript_evidence&&!selectionContext.transcript_evidence.limitations?.includes('untimed-transcript-excluded');
       const transcriptScope=podcastTranscript||!selectionContext&&(player.workspaceMode==='browser'?(typeof aiVideoRows==='function'&&aiVideoRows().length>0):(player.cues?.length>0));
@@ -99,7 +100,7 @@
         && !document.getElementById('playerSide')?.classList.contains('side-rail');
       window.api.updateAssistant({ locale: tr ? 'tr' : 'en', sourceTarget: sourceTarget(), theme: document.documentElement.dataset.theme,
         palette:Object.fromEntries(Object.entries({surface:'--bg-1',raised:'--bg-2',hover:'--bg-3',line:'--border',strong:'--border-strong',text:'--text',muted:'--text-muted',accent:'--accent'}).map(([key,token])=>[key,getComputedStyle(document.body).getPropertyValue(token).trim()])),
-        sourcePreview:window.AssistantSourcePreview.build({locale:tr?'tr':'en',selection:selectionContext,page:pageContext,video:videoContext,transcript:!!transcriptScope,scope:$('aiTranscriptScope')?.value,position:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),sourceLanguage:selectionContext?'':subtitleContextLanguage('source'),targetLanguage:selectionContext?'':subtitleContextLanguage('translation'),range:videoContext?currentBrowserWhisperRange():null}),
+        sourcePreview:window.AssistantSourcePreview.build({locale:tr?'tr':'en',selection:selectionContext,page:pageContext,video:videoContext||localPlayback,localPlayback,transcript:!!transcriptScope,scope:$('aiTranscriptScope')?.value,position:player.workspaceMode==='browser'?Number(player.browserTime)||0:subtitleSourceTime(document.getElementById('playerVideo')?.currentTime||0,false),sourceLanguage:selectionContext?'':subtitleContextLanguage('source'),targetLanguage:selectionContext?'':subtitleContextLanguage('translation'),range:videoContext?currentBrowserWhisperRange():null}),
         suggestions: specs,receipt,sourceToken:commandToken(),pinScope,threads:workspace?.threads||[],activeThread:threadId,
         canRuntimeMessage:!!window.AssistantAgentUI?.status()&&!window.AssistantAgentUI?.status()?.cancelled&&window.AssistantAgentUI?.status()?.phase!=='applying',runtimeMessages:window.AssistantAgentUI?.status()?.runtimeMessages||[],jobs:window.AssistantJobsUI?.snapshot()?.jobs||[],capacity:workspace?.capacity,workspaceError:workspace?.error||toolNotice,draft:workspace?.current?.draft||'',model:assistantProviderSelection().model||'',
         pageContext,videoContext,transcriptScope,blocked:!!((window.AssistantAgentUI?.busy()||window.AssistantVideoCommands?.busy()||window.AssistantPageCommands?.busy()||window.AssistantMediaCommands?.busy())&&!pageTask)||!!(player.job?.kind==='chat'&&(player.job.running||player.job.awaitingExit)),
@@ -114,6 +115,7 @@
         phase: window.AssistantAgentUI?.status()?.phase || 'waiting',
         retry: !!window.AssistantAgentUI?.canRetry() || !!aiChatRetryPacket && aiChatRetryPacket.scope === aiSourceScope(),
         messages: messages,
+        ...(localPlayback&&!transcriptScope?{sourceDescription:tr?'Açık videonun başlığı, oynatma konumu ve süresi bağlama eklenir. Ekli altyazı/döküm yok; asistan görüntü veya ses almamıştır ve sahnedeki konuşmayı biliyormuş gibi yanıtlayamaz.':'The active video title, playback position and duration are attached. No subtitles/transcript are attached; the assistant has not received video frames or audio and cannot claim to know the scene dialogue.'}:{}),
         ...(bookDescription?{sourceDescription:bookDescription}:{}),
       });
     }, 50);

@@ -209,6 +209,7 @@
       }
       this.host.append(root);
       if(study){const toggle=this.el(`<button class="sh-btn sh-transcript-toggle" type="button" data-a="transcript" aria-expanded="false">${ic('classic')}${T('Transkript','Transcript')}</button>`);this.q('.sh-top-r').prepend(toggle);}
+      this.q('.sh-top-r [data-a=panel]').before(this.el(`<button class="sh-btn icon sh-assistant-bubble" type="button" data-a="assistant" aria-label="${T('Asistanı aç','Open assistant')}" title="${T('Asistanı aç','Open assistant')}">${ic('chat')}</button>`));
       if (this.o.intro) requestAnimationFrame(() => requestAnimationFrame(() => { root.classList.add('go'); setTimeout(() => { root.classList.remove('sh-enter', 'go'); root.querySelector('.sh-bars')?.remove(); }, 1900); }));
       const slot = this.q('[data-r=slot]'), el = this.a.slot?.(m); if (slot && el) { slot.textContent = ''; slot.append(el); const mini = this.q('[data-r=mini]'); if (mini) mini.hidden = false; }
       if(cinema){
