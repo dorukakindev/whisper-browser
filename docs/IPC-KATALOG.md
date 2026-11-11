@@ -28,6 +28,7 @@
 | media-shelf | 1 | `media-shelf:request` |
 | media-tools | 1 | `media-tools:request` |
 | media-torrents | 1 | `media-torrents:request` |
+| stremio | 1 | `stremio:request` |
 | media-workflows | 1 | `media-workflows:request` |
 | models | 5 | `models:benchmark`, `models:benchmark:cancel`, `models:benchmark:history`, `models:delete`, `models:status` |
 | music-analysis | 1 | `music-analysis:request` |

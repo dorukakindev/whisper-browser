@@ -9,7 +9,7 @@ colors:
   border: '#383c43'
   text: '#f1f0ed'
   muted: '#b0b4bd'
-  primary: '#d5a35c'
+  primary: '#e2ab5b'
   danger: '#d06b63'
 typography:
   sans:
@@ -33,6 +33,24 @@ components:
 ---
 
 # Whisper Browser tasarım kaydı
+
+## R854 uygulama tamamlaması — 2026-11-11 03:11
+
+Sıcak amber/grafit ve üst medya gezinmesi korunur. Podcast liste kontrolleri devam kartından önce, ikinci bilgiler mevcut bölüm araçlarında; yayın adı klavye odağında tam görünür. Asistan kaynak ayrıntısı yanıtın scroll'unu değiştirmeyen katmandır; Yanıta dön ve açık işlem ayrıntısı vardır. Bağlam seçimi kaynak ayrıntısında kalır. Yorum önizlemesinin yapım/yıl/sayı ve dönüş başlığı üst medya gezinmesinin altında görünür tutulur. Seçili video kopyasının adı/türü/konumu genel kişisel kayıttan ayrı, oynatma eyleminin yanında taşınır ve CinemaUI yeniden kurulumunda korunur. Yeni renk literali veya baskın alternatif palet eklenmedi. Kontrollü Windows Chromium görselleri gerçek Electron/monitör kabulünün yerine geçmez. [Kapsam ve sınırlar](docs/devir/2026-11-11-0311.md).
+
+## Güncel tasarım yönü — 2026-11-11 02:33 · sıcak amber geri döndü
+
+Kullanıcı nötr/siyah-beyaz yönü açıkça geri çekti: **canlı, sıcak ve sinematik bir arayüz** isteniyor. Grafit zemin, bal/amber ana vurgu, renkli kapak ve dengeli ortam ışığı korunur. Vurgu yalnız etkileşim anlarıyla sınırlı değildir; içerik ve tipografi hiyerarşisiyle birlikte kullanılabilir. Soluk, ruhsuz bir gri görünüm hedeflenmez. Tek palet sahipliği ve erişilebilirlik sürer: koyu aksan `#e2ab5b`, hover `#f2c681`, üst yazı `#21170c`; açık tema amberi `#865019`. Sahne'nin üretilmiş kapağı ve ortam ışığı yeniden sıcak renklidir; asistan/Browser aynı aksanı kullanır, ayrı baskın buz mavisi palet açmaz. Aşağıdaki nötr karar önceki tarihsel karardır ve **artık yürürlükte değildir**.
+
+Orijinal oyuncu başlığı Sahne'nin üstünde kalır; ayarlar, kendi modern oyuncu İleri araçlar dialog sahibini açar. Zamanlı Whisper sonucu, zaman kontrolü kaldırılarak değil, aynı bölüme/hash'e ait doğrulanmış ses kopyası açılarak kullanılır. Bunlar görünüm uğruna kaynak/izin kapılarını gevşetmez.
+
+## Önceki tasarım yönü — 2026-11-11 02:17 · yürürlükten kalktı
+
+Kullanıcının güncel kararı önceki amber ve projeksiyon mavisi yönünü geçersiz kılar: **nötr, sinematik zemin; vurgu yalnız etkileşim anlarında (odak, seçili öğe, ilerleme) ve düşük doygunlukta. Amber de buz mavisi de baskın değildir.** Tipografi, genişlik, kapak/afiş, kaynak kimliği, ileri araçlar ve hareket tercihleri korunur. Semantik hata/başarı renkleri ile gerçek kapak/video renkleri dekoratif aksanla karıştırılmaz.
+
+Tek aksan sahibi `src/renderer/theme-palette.css` içindeki `--theme-accent` rolüdür: koyu temada `#b8b6b0`, açık temada `#595c5e`. Hover ve üst yazı karşılıkları aynı palette tanımlanır. Player/Browser/asistan ve küçük oynatıcı ayrı amber/mavi palet açmaz. Üretilen sayfa araçları `src/theme-palette.js` ile aynı CSS kaynağını okur; kullanıcı/site CSS'i bu köprüye alınmaz. Yeni CSS `var(--…)` ve `color-mix(...)` kullanır. R854'ün 571 sabit renk bütçesi aşılmaz; birleştirmede 574'e çıkan sayı token aktarımıyla 566'ya düştü, sayıyı 571'e tamamlamak için renk eklenmedi. Eski 419 eşikli test gevşetilmedi.
+
+Aşağıdaki tarihli kompozisyon kayıtlarında geçen sıcak/amber/mavi tercihleri tarihsel bağlamdır; güncel renk uygulamasında bu bölüm geçerlidir. R854'ün kompozisyonları korunarak 1920×1080 Film/Podcast/Browser ve asistan paneli izole Windows Chromium'da görüldü. Bu, start.bat/Electron/WebContentsView/GPU veya canlı kişisel profil kabulü değildir.
 
 ## Browser kaynak ve durum incelemesi — 2026-11-10 22:09
 
@@ -228,7 +246,7 @@ Değişen akışlar ayrı Electron test profillerinde sınanır. ASS, küçük o
 
 ### Ortak tema sahipliği — R827
 
-Grafit basamaklar `#111215 → #191b1f → #24272d → #2d3037`; ana metin `#f1f0ed`, ikincil `#c1c4cb`, pasif `#b0b4bd`. Sıcak amber `#d5a35c` korunur. Renk kopyaları medya/browser kapsayıcılarında yeniden tanımlanmaz. Asistan bağımsız WebContentsView olduğu için aynı paleti kendi HTML girişinde yükler; ana sayfadan CSS mirası aldığı varsayılmaz. Açık tema mevcut sıcak değerleri kullanır. Video üstü kontrol ve TV kontrast varyantları ayrı, belgeli istisnadır. `design-system/whisper-local-theme.css` eski taşınabilir v1.1 örneğidir, çalışma zamanı kaynağı değildir.
+Grafit basamaklar `#111215 → #191b1f → #24272d → #2d3037`; ana metin `#f1f0ed`, ikincil `#c1c4cb`, pasif `#b0b4bd`. Güncel sıcak amber aksan üstteki 2026-11-11 02:33 kararından gelir. Renk kopyaları medya/browser kapsayıcılarında yeniden tanımlanmaz. Asistan bağımsız WebContentsView olduğu için aynı paleti kendi HTML girişinde yükler; ana sayfadan CSS mirası aldığı varsayılmaz. Açık tema bağımsız kontrastlı sıcak değerleri kullanır. Video üstü kontrol ve TV kontrast varyantları ayrı, belgeli istisnadır. `design-system/whisper-local-theme.css` eski taşınabilir v1.1 örneğidir, çalışma zamanı kaynağı değildir.
 
 Günlük ikincil düğmeler8px, arama10px, panel16px ailesini izler; mod seçicisi ve sohbet balonu bağlama özgü şekillerini korur. Genel ikincil hover nötrdür; tüm butonları amberle çerçevelemez. Kapalı asistan balonu nötr yüzeydir; Send/işin ana eylemi vurguyu taşır. Hero'nun okunabilirlik örtüsü sabit eski siyah yerine güncel sayfa zeminiyle karışır. Klavye odağı silinmez; native testin odak halkası seçim stili sanılıp kaldırılmaz.
 
