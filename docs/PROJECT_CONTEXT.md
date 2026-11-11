@@ -1,6 +1,6 @@
 # Yeni sohbet için Whisper Browser özeti
 
-2026-11-11 13:28 güncellemesi: Kullanıcı ortak film ayrıntısı/oturum kapatma/öneri yerleşimi ile önceki asistan-akış Whisper işlerini commit/push/master'a teslim etmeyi açıkça istedi. [Güncel kapsam ve Git sınırı](devir/2026-11-11-1328.md). Stremio film kartları artık aynı MediaDiscoveryUI/CinemaUI ayrıntı sahibini kullanır, ikinci film tasarımı yok. Aşağıdaki 12:49 teslim/kalan ifadeleri bu nottan öncedir; en güncel sonuç DEVIR indeksi ve gerçek HEAD'dedir.
+2026-11-11 13:30 güncellemesi: Ortak film ayrıntısı/oturum kapatma/öneri yerleşimi ile önceki asistan-akış Whisper işleri PR916 ile master'a teslim edildi; ürün merge'i 594b6f9c. [Doğrulama ve kalan kabul](devir/2026-11-11-1328.md). Stremio film kartları aynı MediaDiscoveryUI/CinemaUI ayrıntı sahibini kullanır, ikinci film tasarımı yok. Kişisel farklar korundu, Actions koşusu0; yeni Git işi yeni açık komut bekler. Sonuç belge teslimi ürün kodunu değiştirmez; en güncel HEAD gerçek Git durumundan doğrulanır. Aşağıdaki 12:49 teslim/kalan ifadeleri tarihseldir.
 
 Güncel kayıt: 2026-11-11 12:49 Europe/Istanbul. Önce kök AGENTS/README/BACKLOG ve DEVIR indeksindeki ilgili son not; bu belge kısa bağlamdır, kodun güncel durumu ayrıca doğrulanır.
 
