@@ -91,7 +91,7 @@
       if (!rows.length) { list.append(el('p', 'sx-empty', t('No addons yet. Add a catalog addon (Cinemeta) and a source addon (Torrentio).', 'Henüz eklenti yok. Bir katalog eklentisi (Cinemeta) ve bir kaynak eklentisi (Torrentio) ekle.'))); return; }
       rows.forEach((a, i) => {
         const row = el('article', 'sx-addon' + (a.enabled ? '' : ' is-off')), copy = el('div', 'sx-addon-copy');
-        if (a.logo) { const img = el('img', 'sx-addon-logo'); img.src = a.logo; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.onerror = () => img.remove(); row.append(img); }
+        if (a.logo) { const img = el('img', 'sx-addon-logo'); img.src = a.logo; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.onerror = () => img.remove(); row.append(img); } else row.append(el('span', 'sx-addon-logo sx-addon-mono', initials(a.name)));
         const badges = el('div', 'sx-badges');
         for (const [key, en, tr] of [['stream', 'Sources', 'Kaynak'], ['subtitles', 'Subtitles', 'Altyazı'], ['catalog', 'Catalog', 'Katalog'], ['meta', 'Details', 'Ayrıntı']]) if (a.resources.includes(key) || (key === 'catalog' && a.catalogs)) badges.append(el('span', 'sx-badge', t(en, tr)));
         if (!a.enabled) badges.append(el('span','sx-badge',t('Disabled','Kapalı')));
@@ -99,17 +99,17 @@
         copy.append(el('h3', '', `${a.name} `), el('small', '', `v${a.version} · ${a.label}`), el('p', '', a.description || ''), badges);
         copy.firstChild.append(el('span', 'sx-order', '#' + (i + 1)));
         const actions = el('div', 'sx-addon-actions');
-        const toggle = button(a.enabled ? t('Turn off', 'Kapat') : t('Turn on', 'Aç'), async () => drawList((await call('addon-toggle', { key: a.key, enabled: !a.enabled })).addons));
-        const up = button('↑', async () => drawList((await call('addon-move', { key: a.key, direction: 'up' })).addons)); up.setAttribute('aria-label', t('Higher priority', 'Önceliği artır')); up.disabled = i === 0;
-        const down = button('↓', async () => drawList((await call('addon-move', { key: a.key, direction: 'down' })).addons)); down.setAttribute('aria-label', t('Lower priority', 'Önceliği azalt')); down.disabled = i === rows.length - 1;
+        const toggle = button(a.enabled ? t('Turn off', 'Kapat') : t('Turn on', 'Aç'), async () => drawList((await call('addon-toggle', { key: a.key, enabled: !a.enabled })).addons), 'mh-action sx-act-toggle' + (a.enabled ? ' is-on' : ''));
+        const up = button('↑', async () => drawList((await call('addon-move', { key: a.key, direction: 'up' })).addons), 'mh-action sx-act-move'); up.setAttribute('aria-label', t('Higher priority', 'Önceliği artır')); up.disabled = i === 0;
+        const down = button('↓', async () => drawList((await call('addon-move', { key: a.key, direction: 'down' })).addons), 'mh-action sx-act-move'); down.setAttribute('aria-label', t('Lower priority', 'Önceliği azalt')); down.disabled = i === rows.length - 1;
         const refresh = button(t('Refresh', 'Yenile'), async () => { drawList((await call('addon-refresh', { key: a.key })).addons); say(status, t('Addon updated.', 'Eklenti güncellendi.')); });
-        const remove = button(t('Remove', 'Kaldır'), async () => { if (!confirm(t(`Remove ${a.name}?`, `${a.name} kaldırılsın mı?`))) return; drawList((await call('addon-remove', { key: a.key })).addons); });
+        const remove = button(t('Remove', 'Kaldır'), async () => { const approved = typeof openAppDialog === 'function' ? await openAppDialog({ title: t('Remove addon', 'Eklentiyi kaldır'), description: t(`Remove ${a.name}? Its sources, subtitles and catalogs will stop appearing.`, `${a.name} kaldırılsın mı? Kaynakları, altyazıları ve katalogları görünmez olur.`), confirmLabel: t('Remove addon', 'Eklentiyi kaldır'), intent: 'danger' }) : false; if (!approved || !dialog.open || !dialog.isConnected) return; drawList((await call('addon-remove', { key: a.key })).addons); }, 'mh-action sx-act-danger');
         if(a.configurable||a.configurationRequired||a.configurationUnknown)actions.append(button(t('Settings','Ayarlar'),()=>configure({key:a.key}),'mh-action sx-addon-settings'));
         actions.append(toggle, up, down, refresh, remove); row.append(copy, actions); list.append(row);
       });
     }
     dialog.addEventListener('sx-error', (e) => say(status, e.detail?.message, true));
-    const listHead = body.querySelector('.sx-h2'); if (listHead) { const refreshAll = button(t('Refresh all', 'Hepsini yenile'), async () => { let ok = 0, bad = 0; for (const a of (await call('status')).addons) { try { await call('addon-refresh', { key: a.key }); ok++; } catch (_) { bad++; } } await drawList(); say(status, t(`${ok} updated, ${bad} failed.`, `${ok} güncellendi, ${bad} başarısız.`), bad > 0); }); refreshAll.classList.add('sx-refresh-all'); listHead.after(refreshAll); }
+    const listHead = body.querySelector('.sx-h2'); if (listHead) { const refreshAll = button(t('Refresh all', 'Hepsini yenile'), async () => { let ok = 0, bad = 0; for (const a of (await call('status')).addons) { try { await call('addon-refresh', { key: a.key }); ok++; } catch (_) { bad++; } } await drawList(); say(status, t(`${ok} updated, ${bad} failed.`, `${ok} güncellendi, ${bad} başarısız.`), bad > 0); }); refreshAll.classList.add('sx-refresh-all'); const headRow = el('div', 'sx-list-head'); listHead.replaceWith(headRow); headRow.append(listHead, refreshAll); }
     async function configure(owner) {
       const request=++previewRequest;previewBtn.disabled=true;say(status,t('Opening addon settings… Save on the addon page, then review the returned addon here.','Eklenti ayarları açılıyor… Eklenti sayfasında kaydet, sonra dönen eklentiyi burada incele.'));
       try {

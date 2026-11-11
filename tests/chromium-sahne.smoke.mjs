@@ -58,6 +58,19 @@ for (const [mode, variant, name] of cases) {
       await shot('cinema-timing-preview');
       const ended=await browser.evaluate(`(() => {CinemaSahne.current.q('[data-pclose]').click();return player.abA===null&&player.abB===null;})()`);
       check('İşlemler kapanınca önizleme döngüsü temizlenir',ended);
+      const header = await browser.evaluate(`(() => {
+        const stage = CinemaSahne.current, rect = el => el.getBoundingClientRect();
+        const names = ['sleep','classic','fullscreen'].map(a => stage.q('.sh-top-r [data-a='+a+']')?.getAttribute('aria-label') || '');
+        const sub = stage.q('.sh-cinema-meta p').textContent;
+        stage.q('.sh-top [data-a=panel]').click();
+        const panel = stage.q('.sh-panel'), context = panel.querySelector('.sh-panel-context'), work = panel.querySelector('.sh-panel-workspace');
+        const overlap = rect(context).bottom > rect(work).top + 1;
+        stage.q('[data-pclose]').click();
+        return {names, sub, overlap, generic: /Bilingual viewing workspace|Çift dilli izleme/.test(sub),
+          bars: Math.round(rect(document.querySelector('.player-head')).height + rect(stage.q('.sh-top')).height + rect(stage.q('.sh-workbar')).height)};
+      })()`);
+      check('Üst yapı: ikon düğmelerinin erişilebilir adı var, genel çalışma alanı cümlesi film alt satırında yok, işlem paneli bağlam metni çalışma alanına binmiyor', header.names.every(Boolean) && !header.generic && !header.overlap, JSON.stringify(header));
+      console.log('  üst yapı toplam yükseklik:', header.bars + 'px');
       continue;
     }
     check(`${name}: görünen metin satırı var ve hiçbiri boş değil, sayfa yatay taşmıyor`, g.visibleCards > 0 && g.blank === 0 && !g.docScrollX, JSON.stringify(g));

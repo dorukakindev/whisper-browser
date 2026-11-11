@@ -336,6 +336,22 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   [...addonDialog.querySelectorAll('.sx-preview button')].find(b=>b.textContent==='Ayarları kaydet').click();await until(()=>JSON.parse(fs.readFileSync(addonFile,'utf8')).addons[torrentIndex].manifestUrl.includes('debrid-fixture'),'explicit configured save');const afterConfig=JSON.parse(fs.readFileSync(addonFile,'utf8'));assert.equal(afterConfig.addons.length,3);assert.equal(afterConfig.addons[torrentIndex].enabled,false);assert.equal(afterConfig.addons[torrentIndex].installedAt,initialConfig.addons[torrentIndex].installedAt);
   await until(()=>addonDialog.querySelector('.sx-preview').hidden,'settings save redraw complete');
   configureMode='cancel';const cancelBytes=fs.readFileSync(addonFile,'utf8');addonDialog.querySelector('.sx-addon-settings').click();await until(()=>configurationOpened===2,'reopen settings');await tick();assert.equal(fs.readFileSync(addonFile,'utf8'),cancelBytes);assert.match(addonDialog.querySelector('.sx-status').textContent,/Mevcut eklenti korundu/);addonDialog.close();
+  // The app-owned approval is asynchronous: no remove before it settles, and
+  // Cancel must preserve the exact addon file rather than merely redraw a row.
+  const removeCalls=[];let removalApproval;
+  window.confirm=()=>{throw Error('Native confirm must not be used for addon removal');};
+  window.api.stremio=request=>{if(request.action==='addon-remove')removeCalls.push(request);return originalApi(request);};
+  window.openAppDialog=options=>new Promise(resolve=>{removalApproval={options,resolve};});
+  UI.openAddons();await until(()=>document.querySelector('.sx-addon .sx-act-danger'),'addon remove action');
+  const removalDialog=document.querySelector('.sx-addons'),beforeRemoval=fs.readFileSync(addonFile,'utf8'),beforeRemovalRows=JSON.parse(beforeRemoval).addons,selectedRemoval=beforeRemovalRows[0];
+  const removeSelected=()=>removalDialog.querySelectorAll('.sx-addon')[0].querySelector('.sx-act-danger');
+  click(removeSelected());await until(()=>!!removalApproval,'app-owned removal approval');
+  assert.equal(removeCalls.length,0);assert.equal(fs.readFileSync(addonFile,'utf8'),beforeRemoval);assert.equal(removalApproval.options.intent,'danger');assert.match(removalApproval.options.description,new RegExp(selectedRemoval.manifest.name));
+  removalApproval.resolve(false);await tick();assert.equal(removeCalls.length,0);assert.equal(fs.readFileSync(addonFile,'utf8'),beforeRemoval);assert.equal(removalDialog.querySelectorAll('.sx-addon').length,beforeRemovalRows.length);
+  removalApproval=null;click(removeSelected());await until(()=>!!removalApproval,'renewed removal approval');assert.equal(removeCalls.length,0);
+  removalApproval.resolve(true);await until(()=>removeCalls.length===1&&removalDialog.querySelectorAll('.sx-addon').length===beforeRemovalRows.length-1,'confirmed selected addon removed');assert.equal(removeCalls[0].key,selectedRemoval.key);assert.deepEqual(JSON.parse(fs.readFileSync(addonFile,'utf8')).addons.map(a=>a.key),beforeRemovalRows.filter(a=>a.key!==selectedRemoval.key).map(a=>a.key));
+  assert(removalDialog.querySelector('.sx-list-head .sx-h2'));assert(removalDialog.querySelector('.sx-list-head .sx-refresh-all'),'refresh-all remains owned by the list heading');removalDialog.close();window.api.stremio=originalApi;
+
   // A late title lookup must not park a newer playback to open its old details.
   const beforeShared=sharedDetailCalls.length;let finishMeta;
   window.api.stremio=request=>request.action==='meta'?new Promise(resolve=>{finishMeta=resolve;}):originalApi(request);

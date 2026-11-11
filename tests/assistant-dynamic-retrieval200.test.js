@@ -18,6 +18,8 @@ function service(fetchImpl){
 const response=message=>new Response(JSON.stringify({choices:[{message,finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
 const tool=(name,args={})=>response({role:'assistant',tool_calls:[{id:name,function:{name,arguments:JSON.stringify(args)}}]});
 
+test('watched local tool pool excludes unfinished cues instead of admitting their early start',()=>{const r=renderer();try{r.w.document.getElementById('aiTranscriptScope').value='watched';r.w.document.getElementById('playerVideo').currentTime=600;r.w.player.cues=[{start:590,end:595,text:'Finished alpha'},{start:596,end:612,text:'Unfinished alpha'},{start:600.5,end:602,text:'Future alpha'}];const packet=r.w.AssistantWorkspace.toolContext();assert.equal(packet.rows.length,1);assert.equal(packet.rows[0].text,'Finished alpha');}finally{r.close();}});
+
 test('dynamic retrieval finds an unsampled tail cue and its U ID remains navigable',async()=>{
  const r=renderer();let turn=0,retrieved;
  const h=service(async(_url,options)=>{const body=JSON.parse(options.body);turn++;if(turn===1)return tool('search_subtitles',{query:'istanbul cig'});if(turn===2){retrieved=JSON.parse(body.messages.filter(message=>message.role==='tool').at(-1).content);return tool('seek_to_time',{source_id:'U3997'});}return response({role:'assistant',content:'Review this matching source.'});});
