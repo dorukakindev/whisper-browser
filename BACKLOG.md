@@ -1,5 +1,9 @@
 # Bekleyen işler
 
+## Güncel teslim — master birleşti · 2026-11-11-0401
+
+Kullanıcının yeni açık komutuyla yalnız-push bekletmesi kalktı. [PR #911](https://github.com/dorukakindev/whisper-browser/pull/911) birleşti; ürün teslimi `e945a3b140a1cf7c685ccf45ad6b904f8f10ec1f`. Yerel master aynı commit’e güncellendi; ilgisiz farklar korundu. Bu sonuç kaydı ayrı belge PR’ıyla teslim edilir. Önceki bağlantı engeli normal GitHub CLI cihaz onayıyla çözüldü; aşağıdaki eski bekletme kayıtları tarihsel kalır. [Devir ve kesin sonraki işler](docs/devir/2026-11-11-0401.md).
+
 ## Stremio / Oynatıcı Pro · birleşti, Git teslimi sürüyor · 2026-11-11-0349
 
 - Verilen HTML'ler ve 14–18 paketleri incelendi; son kümülatif 33 dosyanın SHA-256'ları doğrulandı. Önceki R853/R854, sıcak amber ve Whisper/üst menü düzeltmeleri korunarak Stremio eklenti/katalog/kaynak/kütüphane/puanlama ve Pro paneli eklendi. [Devir, doğrulama ve sınırlar](docs/devir/2026-11-11-0349.md).
