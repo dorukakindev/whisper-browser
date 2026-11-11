@@ -1,3 +1,5 @@
+Güncel yerel geliştirme: [Stremio kaynak seçimi, Whisper uygunluğu, baştan oynatma ve panel okunurluğu](docs/devir/2026-11-11-1500.md)
+Güncel V4 entegrasyonu: [Paket incelemesi, ek yarış onarımları ve Windows doğrulaması](docs/devir/2026-11-11-1524.md)
 Güncel V3 teslim sonucu: [PR918 master — üst yapı, modal onarımı ve korunan asistan bağlamı](docs/devir/2026-11-11-1423.md)
 Güncel kabul/yerel onarım: [Gerçek TorBox CUDA örneği ve izinli canlı asistan kabulü](docs/devir/2026-11-11-1401.md)
 Güncel teslim sonucu: [PR916 master — ortak film sayfası, oturum kapatma ve önceki işler](docs/devir/2026-11-11-1328.md)
