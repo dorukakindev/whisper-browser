@@ -22,6 +22,9 @@ Whisper Browser is a desktop media library, player and embedded browser, with di
 
 ## Proje bilgisi ve kaldığın yer
 
+**Güncel başlangıç · 2026-11-11 12:49:** [Kısa proje/mimari ve çalışma özeti](docs/PROJECT_CONTEXT.md), [son devir](docs/devir/2026-11-11-1249.md). Ürün teslimi PR #913, sonuç belgeleri PR #914 ile master'a birleşti; doğrulanan yerel/uzak HEAD `089f2686bf2fd4b28e0b26e5c8593dce4d13f126`. Actions çalışmadı. Yeni sohbet için AGENTS → README → BACKLOG → güncel devir; yalnız ilgili teknik ayrıntıyı aç. Aşağıdaki önceki durum kayıtları tarihseldir; eski “Git teslimi yok/sonraki” satırları güncel görev değildir.
+
+
 **Son kullanıcı düzeltmesi · 2026-11-11-1235:** [Stremio eklenti/debrid ayarları ve torrent motoru](docs/devir/2026-11-11-1235.md). Eklentiler → Ayarlar → kendi configure sayfası → Ayarları kaydet akışı eklendi. Torrent motoru doğrulanarak kuruldu; kişisel film başlatılmadı. Kullanıcı debrid/film kabulü ve Git teslimi ayrı.
 
 **Son yerel çalışma · 2026-11-11-1147:** [Fable son üçlü](docs/devir/2026-11-11-1147.md). Dublaj hız sahipliği, yapıt/kaynak ayrımı ve film çeviri bağlamı hedefli doğrulandı; Fable aktif uygulama maddeleri bitti, büyük tasarımlar dışarıda. Canlı native/kalite kabulü ayrı; Git teslimi yok. Güncel kanıt/sınırlar BACKLOG ve devirde.
