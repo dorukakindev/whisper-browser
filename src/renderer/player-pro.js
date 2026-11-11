@@ -15,16 +15,33 @@
 
   /* ---------- Durum ---------- */
   const DEFAULTS = Object.freeze({ brightness: 0, contrast: 0, saturation: 0, hue: 0, gamma: 0, sharpen: 0, fit: 'contain', zoom: 0, panX: 0, panY: 0, rotate: 0, flip: false, audioDelay: 0 });
-  let state = { ...DEFAULTS }, remember = true, panel = null, tab = 'video', btn = null, statTimer = null, sleep = null, lastKey = '';
+  let state = { ...DEFAULTS }, remember = true, panel = null, tab = 'video', btn = null, statTimer = null, lastKey = '';
+  const workStoreKey=()=>{try{return /^work:stremio:[a-f0-9]{64}$/.test(player?.workKey||'')?'pp.w.'+player.workKey:'';}catch{return '';}};
   const storeKey = () => { try { return 'pp.v.' + String(player?.mediaKey || ''); } catch (_) { return ''; } };
+  let storageReadFailed=false;
   function load() {
+    storageReadFailed=false;
     state = { ...DEFAULTS }; const k = storeKey(); if (!k || k === 'pp.v.') return;
-    try { const raw = JSON.parse(localStorage.getItem(k) || 'null'); if (raw && typeof raw === 'object') for (const key of Object.keys(DEFAULTS)) if (typeof raw[key] === typeof DEFAULTS[key]) state[key] = raw[key]; state=normalize(state); } catch (_) { /* bozuk kayıt yok sayılır */ }
+    try {
+      const raw=JSON.parse(localStorage.getItem(k)||'null'),work=workStoreKey(),shared=work?JSON.parse(localStorage.getItem(work)||'null'):null;
+      if(raw!==null&&(typeof raw!=='object'||Array.isArray(raw))||shared!==null&&(typeof shared!=='object'||Array.isArray(shared)))throw Error('Invalid preference record');
+      const visual=shared&&typeof shared==='object'?shared:raw;
+      if(visual&&typeof visual==='object')for(const key of Object.keys(DEFAULTS))if(key!=='audioDelay'&&typeof visual[key]===typeof DEFAULTS[key])state[key]=visual[key];
+      if(raw&&Number.isFinite(raw.audioDelay))state.audioDelay=raw.audioDelay;
+      state=normalize(state);
+    } catch (_) { storageReadFailed=true; /* malformed records are neither applied nor overwritten */ }
   }
   function normalize(input){const next={...DEFAULTS},ranges={brightness:[-100,100],contrast:[-100,100],saturation:[-100,100],hue:[-100,100],gamma:[-100,100],sharpen:[0,100],zoom:[-2,2],panX:[-1,1],panY:[-1,1],audioDelay:[-10,10]};for(const [key,[lo,hi]]of Object.entries(ranges))if(Number.isFinite(input[key]))next[key]=Math.min(hi,Math.max(lo,input[key]));if([0,90,180,270].includes(input.rotate))next.rotate=input.rotate;if(['contain','cover','fill','16:9','21:9','4:3','1:1'].includes(input.fit))next.fit=input.fit;next.flip=input.flip===true;return next;}
   function save() {
-    const k = storeKey(); if (!k || k === 'pp.v.' || !remember) return;
+    const k = storeKey(); if (!k || k === 'pp.v.' || !remember || storageReadFailed) return;
     try {
+      const work=workStoreKey();
+      if(work){
+        const source=JSON.parse(localStorage.getItem(k)||'{}');
+        localStorage.setItem(work,JSON.stringify(Object.fromEntries(Object.entries(state).filter(([key])=>key!=='audioDelay'))));
+        if(source&&typeof source==='object'&&!Array.isArray(source))localStorage.setItem(k,JSON.stringify({...source,audioDelay:state.audioDelay}));
+        return;
+      }
       const dirty = Object.keys(DEFAULTS).some((key) => state[key] !== DEFAULTS[key]);
       if (!dirty) { localStorage.removeItem(k); return; }
       localStorage.setItem(k, JSON.stringify(state));
@@ -131,11 +148,12 @@
       audio.append(el('p', 'pp-hint', t('The built-in player cannot shift audio. Switch to the native player to fix lip-sync.', 'Yerleşik oynatıcı sesi kaydıramaz. Dudak senkronu için native oynatıcıya geç.')), btnEl(t('Use native player', 'Native oynatıcıyı kullan'), async () => { if (await window.NativePlayerUI?.start?.()) drawPanel(); else osdSay(t('Native player unavailable', 'Native oynatıcı kullanılamıyor')); }, 'pp-btn pp-primary'));
     }
     const speed = group(t('Speed', 'Hız')), sp = el('div', 'pp-chips');
-    for (const v of [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]) { const c = btnEl(v + '×', () => { video.playbackRate = v; osdSay(`${v}×`); drawPanel(); }, 'pp-chip'); c.setAttribute('aria-pressed', String(Math.abs((video.playbackRate || 1) - v) < 0.01)); sp.append(c); }
+    for (const v of [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]) { const c = btnEl(v + '×', async () => {if(await window.PlayerPlaybackControls?.setRate(v)!==true)return;osdSay(`${v}×`);drawPanel();}, 'pp-chip'); c.setAttribute('aria-pressed', String(Math.abs((video.playbackRate || 1) - v) < 0.01)); sp.append(c); }
     speed.append(sp);
     const sl = group(t('Sleep timer', 'Uyku zamanlayıcı')), sr = el('div', 'pp-chips');
-    for (const m of [0, 15, 30, 45, 60, 90]) { const c = btnEl(m ? t(`${m} min`, `${m} dk`) : t('Off', 'Kapalı'), () => { if (sleep) clearTimeout(sleep.id); sleep = m ? { id: setTimeout(() => { sleep = null; try { video.pause(); } catch (_) { /* oynatıcı yok */ } osdSay(t('Sleep timer: paused', 'Uyku zamanlayıcı: duraklatıldı')); }, m * 60000), at: Date.now() + m * 60000 } : null; osdSay(m ? t(`Pausing in ${m} min`, `${m} dk sonra duraklayacak`) : t('Sleep timer off', 'Zamanlayıcı kapalı')); drawPanel(); }, 'pp-chip'); c.setAttribute('aria-pressed', String(m === 0 ? !sleep : false)); sr.append(c); }
-    sl.append(sr); if (sleep) sl.append(el('p', 'pp-hint', t(`Pauses at ${new Date(sleep.at).toLocaleTimeString()}`, `${new Date(sleep.at).toLocaleTimeString()} saatinde duraklatır`)));
+    const timer=window.PlayerPlaybackControls?.getSleep()||{at:0,mode:''};
+    for (const m of [0, 15, 30, 45, 60, 90]) {const c=btnEl(m?t(`${m} min`,`${m} dk`):t('Off','Kapalı'),()=>{if(window.PlayerPlaybackControls?.setSleep(m)!==true)return;drawPanel();},'pp-chip');c.setAttribute('aria-pressed',String(m===0&&!timer.at&&!timer.mode));sr.append(c);}
+    sl.append(sr);if(timer.at||timer.mode==='end')sl.append(el('p','pp-hint',timer.mode==='end'?t('Pauses at the end of this episode.','Bölüm sonunda duraklatır.'):t(`Pauses at ${new Date(timer.at).toLocaleTimeString()}`,`${new Date(timer.at).toLocaleTimeString()} saatinde duraklatır.`)));
     body.append(subs, audio, speed, sl);
   }
 
@@ -207,11 +225,12 @@
 
   /* ---------- Yaşam döngüsü ---------- */
   function onMedia() {
-    const key = storeKey(); mountButton();
+    const key = workStoreKey()+'|'+storeKey(); mountButton();
     try { remember = localStorage.getItem('pp.remember') !== '0'; } catch (_) { remember = true; }
     if (key !== lastKey) { lastKey = key;if(remember)load();else state={...DEFAULTS}; }
     apply(); if (panel) drawPanel();
   }
+  document.addEventListener('player-work-identity',onMedia);
   document.addEventListener('native-player-state-changed',event=>{try{if(event.detail?.key===player.mediaKey&&event.detail?.generation===player.generation)onMedia();}catch{}});
   video.addEventListener('ratechange',()=>{if(panel&&tab==='sync')drawPanel();});
   for (const ev of ['loadedmetadata', 'emptied']) video.addEventListener(ev, onMedia);
@@ -219,5 +238,6 @@
   new MutationObserver(() => { if (layer.classList.contains('hidden')) { if (panel) closePanel(); } else mountButton(); }).observe(layer, { attributes: true, attributeFilter: ['class'] });
   document.addEventListener('DOMContentLoaded', mountButton); mountButton();
   function workspaceChanged(){const browser=typeof player==='object'&&player.workspaceMode==='browser';if(btn){btn.disabled=browser;btn.title=browser?t('Player tools apply to the local player; use Browser tools here.','Oynatıcı araçları yerel oynatıcı içindir; burada Browser araçlarını kullan.'):t('Player tools (X)','Oynatıcı araçları (X)');}if(browser&&panel)closePanel();}
+  document.addEventListener('player-playback-preferences',()=>{if(panel)drawPanel();});
   window.PlayerPro = Object.freeze({workspaceChanged, open: openPanel, close: closePanel, state: () => ({ ...state }), set, reset: () => set({ ...DEFAULTS }), _test: { DEFAULTS, apply, load, collect } });
 })();

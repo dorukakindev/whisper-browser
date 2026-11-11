@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),net=require('node:net');
-const {spawn}=require('node:child_process');
+const {spawn,execFile}=require('node:child_process');
 const {randomUUID,randomBytes,createHash}=require('node:crypto');
 const {atomicWriteFileSync}=require('./fsync-utils');
 const {withoutSecretEnv}=require('./settings-security');
@@ -11,10 +11,10 @@ function safeFile(row,index){
   if(!Array.isArray(parts)||!parts.length||parts.some(p=>typeof p!=='string'||!p||p==='.'||p==='..'||/[\\/:\0]/.test(p)||/[. ]$/.test(p)||/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(p))||!Number.isSafeInteger(size)||size<0)throw Error('Unsafe torrent file path or size.');
   return {index,name:parts.join('/'),size,video:/\.(mp4|mkv|webm|avi|mov|m4v|ts|m2ts)$/i.test(parts.at(-1))};
 }
-function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,grantMedia,enginePath,fetchImpl=fetch}){
+function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,grantMedia,enginePath,fetchImpl=fetch,checkExecutable=(file)=>new Promise((resolve,reject)=>execFile(file,['--version'],{windowsHide:true,env:withoutSecretEnv(process.env),timeout:8000,maxBuffer:16384},(error,stdout)=>error?reject(error):resolve(String(stdout))))}){
   const root=()=>path.join(app.getPath('userData'),'torrent-media');
   const executable=()=>enginePath?.()||path.join(app.getPath('userData'),'media-engines','rqbit.exe');
-  let proc=null,starting=null,base='',auth='',lastError='',indexError='',closed=false;const previews=new Map(),streams=new Map(),jobs=new Map(),playing=new Set();
+  let proc=null,starting=null,installing=null,checking=null,installProgress={stage:'idle',downloaded:0,total:null},base='',auth='',lastError='',indexError='',closed=false;const previews=new Map(),streams=new Map(),jobs=new Map(),playing=new Set();
   const indexFile=()=>path.join(app.getPath('userData'),'torrent-library.json');
   function persist(){atomicWriteFileSync(indexFile(),JSON.stringify([...jobs.values()]));}
   function rememberStream(token,entry){streams.set(token,entry);while(streams.size>200)streams.delete(streams.keys().next().value);}
@@ -24,13 +24,46 @@ function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,gra
     if(!response.ok)throw Error(`Torrent engine HTTP ${response.status}`);
     const text=(await readLimitedBytes(response,8_000_000,'Torrent')).toString('utf8');return text?JSON.parse(text):{};
   }
+  const fail=(code,error,errorTr)=>Object.assign(Error(error),{code,errorTr});
+  function engineStatus(){
+    let state='missing';
+    if(fs.existsSync(executable())){try{state=fs.statSync(executable()).isFile()&&createHash('sha256').update(fs.readFileSync(executable())).digest('hex')===ENGINE.sha256?'ready':'invalid';}catch{state='invalid';}}
+    return {installed:state==='ready',engineState:installing?'installing':state,installing:!!installing,progress:{...installProgress},version:ENGINE.version};
+  }
+  async function install(){
+    if(closed)throw fail('ENGINE_CLOSED','Torrent service is closed.','Torrent hizmeti kapalı.');
+    if(installing)return installing;
+    if(engineStatus().installed)return {ok:true,...engineStatus(),alreadyInstalled:true};
+    if(process.platform!=='win32')throw fail('ENGINE_PLATFORM','Automatic torrent engine installation currently targets Windows.','Otomatik torrent motoru kurulumu şu anda Windows içindir.');
+    if(proc)throw fail('ENGINE_BUSY','The torrent engine is in use. Keep the current playback and retry after it stops.','Torrent motoru kullanımda. Oynatmayı koru; durduktan sonra yeniden dene.');
+    installing=(async()=>{
+      installProgress={stage:'download',downloaded:0,total:null};
+      let response;try{response=await fetchImpl(ENGINE.url,{signal:AbortSignal.timeout(90000),redirect:'follow'});}catch{throw fail('ENGINE_DOWNLOAD','Torrent engine download could not connect. Check your connection and retry.','Torrent motoru indirilemedi. Bağlantını kontrol edip yeniden dene.');}
+      if(!response.ok)throw fail('ENGINE_DOWNLOAD',`Torrent engine download failed (HTTP ${response.status}). Retry when the connection is available.`,`Torrent motoru indirilemedi (HTTP ${response.status}). Bağlantı hazır olduğunda yeniden dene.`);
+      const total=Number(response.headers.get('content-length'));installProgress.total=Number.isSafeInteger(total)&&total>0?total:null;
+      if(total>30_000_000)throw fail('ENGINE_SIZE','Torrent engine download too large.','Torrent motoru indirmesi boyut sınırını aşıyor.');
+      const chunks=[];let size=0;
+      try{for await(const chunk of response.body){if(closed)throw fail('ENGINE_CLOSED','Torrent service is closed.','Torrent hizmeti kapalı.');size+=chunk.length;if(size>30_000_000)throw fail('ENGINE_SIZE','Torrent engine download too large.','Torrent motoru indirmesi boyut sınırını aşıyor.');chunks.push(chunk);installProgress.downloaded=size;}}catch(error){if(typeof error.code==='string'&&error.code.startsWith('ENGINE_'))throw error;throw fail('ENGINE_DOWNLOAD','Torrent engine download was interrupted. Retry to download it safely again.','Torrent motoru indirmesi kesildi. Güvenli biçimde yeniden indirmek için tekrar dene.');}
+      const bytes=Buffer.concat(chunks);installProgress.stage='verify';
+      if(createHash('sha256').update(bytes).digest('hex')!==ENGINE.sha256)throw fail('ENGINE_CHECKSUM','Torrent engine verification failed. Existing files were kept; retry the download.','Torrent motoru doğrulanamadı. Mevcut dosyalar korundu; indirmeyi yeniden dene.');
+      if(closed)throw fail('ENGINE_CLOSED','Torrent service is closed.','Torrent hizmeti kapalı.');
+      atomicWriteFileSync(executable(),bytes,{encoding:undefined});installProgress.stage='ready';return {ok:true,...engineStatus(),engineState:'ready',installing:false};
+    })();
+    try{return await installing;}catch(error){const problem=typeof error.code==='string'&&error.code.startsWith('ENGINE_')?error:fail('ENGINE_INSTALL','The verified torrent engine could not be saved. Check folder permissions and retry.','Doğrulanmış torrent motoru kaydedilemedi. Klasör izinlerini kontrol edip yeniden dene.');installProgress={...installProgress,stage:'failed',code:problem.code};throw problem;}finally{installing=null;}
+  }
+  async function checkEngine(){
+    if(closed)throw fail('ENGINE_CLOSED','Torrent service is closed.','Torrent hizmeti kapalı.');
+    if(checking)return checking;
+    const state=engineStatus();if(!state.installed)throw fail(state.engineState==='invalid'?'ENGINE_INVALID':'ENGINE_MISSING',state.engineState==='invalid'?'The torrent engine needs repair. Download it again.':'Install torrent support before using a raw torrent source.',state.engineState==='invalid'?'Torrent motoru onarılmalı. Yeniden indir.':'Ham torrent kaynağını kullanmadan önce torrent desteğini kur.');
+    checking=(async()=>{let version;try{version=await checkExecutable(executable());}catch{throw fail('ENGINE_START','The verified torrent engine could not run. Check Windows security/permissions and retry.','Doğrulanmış torrent motoru çalıştırılamadı. Windows güvenlik/izinlerini kontrol edip yeniden dene.');}if(!/rqbit\s+v?9\.0\.1\b/i.test(version))throw fail('ENGINE_VERSION','The torrent engine version could not be confirmed.','Torrent motorunun sürümü doğrulanamadı.');return {ok:true,...engineStatus(),checked:true};})();
+    try{return await checking;}finally{checking=null;}
+  }
   async function start(){
     if(closed)throw Error('Torrent service is closed.');
     if(starting)return starting;
     if(proc&&base)return;
     starting=(async()=>{
-      if(!fs.existsSync(executable()))throw Error('Install the torrent engine from Media open → Torrents first.');
-      if(createHash('sha256').update(fs.readFileSync(executable())).digest('hex')!==ENGINE.sha256)throw Error('Torrent engine integrity check failed.');
+      const status=engineStatus();if(!status.installed)throw fail(status.engineState==='invalid'?'ENGINE_INVALID':'ENGINE_MISSING',status.engineState==='invalid'?'Torrent engine integrity check failed. Repair torrent support first.':'Install torrent support from Media center → Torrents first.',status.engineState==='invalid'?'Torrent motoru doğrulanamadı. Önce torrent desteğini onar.':'Önce Medya merkezi → Torrentler üzerinden torrent desteğini kur.');
       const port=await new Promise((resolve,reject)=>{const s=net.createServer();s.once('error',reject);s.listen(0,'127.0.0.1',()=>{const port=s.address().port;s.close(()=>resolve(port));});});
       if(closed)throw Error('Torrent service is closed.');
       const password=randomBytes(32).toString('hex');auth='Basic '+Buffer.from('whisper:'+password).toString('base64');base=`http://127.0.0.1:${port}`;
@@ -61,16 +94,10 @@ function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,gra
   const handler=async(event,input={})=>{
     if(!authorized(event))return {ok:false,error:'Unauthorized request.'};
     try{
-      if(indexError&&input.action!=='install')throw Error(indexError);
-      if(input.action==='status')return {ok:true,installed:fs.existsSync(executable()),running:!!proc,version:ENGINE.version,root:root(),jobs:[...jobs.values()]};
-      if(input.action==='install'){
-        if(process.platform!=='win32')throw Error('Automatic torrent engine installation currently targets Windows.');
-        const response=await fetchImpl(ENGINE.url,{signal:AbortSignal.timeout(90000)});if(!response.ok)throw Error('Torrent engine download failed.');
-        if(Number(response.headers.get('content-length'))>30_000_000)throw Error('Torrent engine download too large.');
-        const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>30_000_000)throw Error('Torrent engine download too large.');chunks.push(chunk);}const bytes=Buffer.concat(chunks);
-        if(createHash('sha256').update(bytes).digest('hex')!==ENGINE.sha256)throw Error('Torrent engine checksum mismatch.');
-        atomicWriteFileSync(executable(),bytes,{encoding:undefined});return {ok:true,version:ENGINE.version};
-      }
+      if(input.action==='status')return {ok:true,...engineStatus(),running:!!proc,root:root(),jobs:[...jobs.values()],...(indexError?{libraryError:indexError}:{})};
+      if(input.action==='install')return await install();
+      if(input.action==='check-engine')return await checkEngine();
+      if(indexError)throw Error(indexError);
       await start();
       if(input.action==='preview'){
         let source=String(input.magnet||'').trim(),bytes;
@@ -104,7 +131,7 @@ function registerMediaTorrents({app,ipcMain,authorized,dialog,owner,protocol,gra
       if(input.action==='forget'){await api(`/torrents/${job.hash}/forget`,'POST');jobs.delete(job.hash);for(const [id,stream]of streams)if(stream.hash===job.hash)streams.delete(id);persist();return {ok:true};}
       if(input.action==='reopen'){const selected=(job.selections||[job]).find(row=>row.index===Number(input.index??job.index));if(!selected)throw Error('Torrent file was not previously selected.');if(job.paused){await api(`/torrents/${job.hash}/start`,'POST');job.paused=false;persist();}const token=randomBytes(24).toString('hex');rememberStream(token,{hash:job.hash,route:`/torrents/${job.hash}/stream/${selected.index}`});return {ok:true,url:`whisper-media://${token}/video`,hash:job.hash,index:selected.index,title:selected.name.split('/').at(-1),key:`torrent:${job.hash}:${selected.index}`};}
       throw Error('Unsupported torrent operation.');
-    }catch(error){return {ok:false,error:error.message};}
+    }catch(error){return {ok:false,error:error.message,...(error.code?{code:error.code}:{}),...(error.errorTr?{errorTr:error.errorTr}:{})};}
   };
   ipcMain.handle('media-torrents:request',handler);
   const close=()=>{closed=true;proc?.kill();};app.on('before-quit',close);

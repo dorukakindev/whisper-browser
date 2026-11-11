@@ -390,11 +390,22 @@ test('kapanış son ayar değişikliğini senkron kaydeder ve çalışma alanı 
     'çalışma alanı değişince gecikmiş canlı altyazı çizimi iptal edilmiyor');
 });
 
-test('oynatıcı kısayolları odaklı düğme ve bağlantılarda çalışmaz', () => {
-  const shortcuts = js.slice(js.indexOf('// Klavye: oynatıcı açıkken'),
-    js.indexOf('// Gecikme/hiz/ses'));
-  assert(/tag === 'button'/.test(shortcuts) && /tag === 'a'/.test(shortcuts),
-    'etkileşimli öğe odağı genel oynatıcı kısayollarından korunmuyor');
+test('oynatıcı kısayolları düğmede çalışır; etkinleştirme, metin ve menü tuşlarını korur', () => {
+  const strict=require('node:assert/strict'),vm=require('node:vm'),{JSDOM}=require('jsdom');
+  const dom=new JSDOM('<div id="playerLayer"><video id="playerVideo"></video><button id="play">Play</button><a id="link" href="#">Link</a><summary id="summary">More</summary><input id="input"><div contenteditable="plaintext-only" id="edit"></div><div role="menu"><button id="menuitem">Menu</button></div><div role="tablist"><button id="tab">Tab</button></div><button id="fullscreenBtn"></button></div>');
+  const doc=dom.window.document,video=doc.getElementById('playerVideo');video.currentTime=30;let fullscreen=0;doc.getElementById('fullscreenBtn').onclick=()=>fullscreen++;
+  const context={document:doc,window:{},$:(id)=>doc.getElementById(id),player:{workspaceMode:'player'},showControls(){},updateSeekVisuals(){},osd(){},togglePlayerMute(){video.muted=!video.muted;}};
+  vm.createContext(context);vm.runInContext(js.slice(js.indexOf('function playerShortcutTargetOwnsKey('),js.indexOf('// Gecikme/hiz/ses')),context);
+  const press=(id,key,options={})=>{const event=new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options});doc.getElementById(id).dispatchEvent(event);return event;};
+  try {
+    assert(press('play','j').defaultPrevented);strict.equal(video.currentTime,20);
+    press('link','l');strict.equal(video.currentTime,30);press('summary','ArrowRight');strict.equal(video.currentTime,35);
+    press('play','m');strict.equal(video.muted,true);press('play','f');strict.equal(fullscreen,1);
+    for(const id of ['play','link','summary'])for(const key of [' ','Enter'])strict.equal(press(id,key).defaultPrevented,false);
+    for(const id of ['input','edit','menuitem','tab']){press(id,'j');press(id,'ArrowRight');}strict.equal(video.currentTime,35);
+    press('play','j',{ctrlKey:true});strict.equal(video.currentTime,35);
+    const owned=new dom.window.KeyboardEvent('keydown',{key:'j',bubbles:true,cancelable:true});owned.preventDefault();doc.getElementById('play').dispatchEvent(owned);strict.equal(video.currentTime,35);
+  } finally {dom.window.close();}
 });
 
 test('sekme kapatma ve çalışma alanı açma eşzamanlı istekleri tekilleştiriliyor', () => {
@@ -2101,7 +2112,7 @@ test('R58-15: klavye önceliği — katman > düzenlenebilir > tarayıcı > oyna
     closePlayerDetailsMenus: rec('closePlayerDetailsMenus'),
     console,
   });
-  vm.runInContext(js.slice(keyStart, keyEnd), ctx);
+  vm.runInContext(js.slice(js.indexOf('function playerShortcutTargetOwnsKey('), js.indexOf('// Klavye: oynatıcı açıkken')) + js.slice(keyStart, keyEnd), ctx);
   const handler = ctx.__keyHandler;
   assert(typeof handler === 'function', 'keydown işleyicisi yakalanamadı');
   const key = (props) => handler({
@@ -2227,7 +2238,7 @@ test('R146: O tuşu izleme politikasını çevrimler ve tek vuruşta tek adım a
     setBrowserModalOpen: rec('setBrowserModalOpen'), closeYoutubeLogin: rec('closeYoutubeLogin'),
     console,
   });
-  vm.runInContext(js.slice(keyStart, keyEnd), ctx);
+  vm.runInContext(js.slice(js.indexOf('function playerShortcutTargetOwnsKey('), js.indexOf('// Klavye: oynatıcı açıkken')) + js.slice(keyStart, keyEnd), ctx);
   const key = (props) => ctx.__keyHandler({
     preventDefault: rec('preventDefault'),
     target: { tagName: 'DIV', isContentEditable: false, closest: () => null },

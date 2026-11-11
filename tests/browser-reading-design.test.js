@@ -134,6 +134,7 @@ function fakeButton() {
   const sourceContext = loadBetween('function syncPlayerSourceQuick()', 'function setPlayerSource', {
     document: { querySelector: () => sourceRow },
     player,
+    syncSubtitlePrimaryAction() {},
   });
   sourceContext.syncPlayerSourceQuick();
   assert.equal(sourceRow.classList.contains('hidden'), false);
@@ -153,10 +154,11 @@ function fakeButton() {
   const controls = { makeSubsBtn: create, makeTransBtn: translate, exportTranslationBtn: exportButton };
   const state = { running: false, queueRunning: false };
   player.workspaceMode = 'browser';
-  const actionContext = loadBetween('function syncSubtitlePrimaryAction()', 'function updateMakeTransState', {
+  const actionContext = loadBetween('function playerSubtitleCreationState()', 'function updateMakeTransState', {
     document: { querySelector: () => row },
     $: (id) => controls[id],
     browserSubtitleRoleCues: () => roles,
+    interfaceChoice: (tr,en) => en,
     currentBrowserYoutubeUrl: () => 'https://youtube.test/watch?v=1',
     player,
     state,

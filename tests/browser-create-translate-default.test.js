@@ -43,9 +43,11 @@ const ctx = {
   startProgressiveChunk: async (job) => { chunkJobs.push(job); },
   startBrowserYoutubeWhisper: (translate) => { browserCalls.push(translate); },
   currentBrowserYoutubeUrl: () => '',
+  currentBrowserWhisperAudio:()=>null,interfaceChoice:(tr,en)=>en,
   logLine() {}, setBrowserSignal() {}, updatePlayerTaskCenter() {}, updateBrowserWhisperActions() {},
 };
 vm.createContext(ctx);
+vm.runInContext(section('function playerSubtitleCreationState()', 'function syncSubtitlePrimaryAction()'), ctx);
 vm.runInContext(section('function configureSpeechTranslation(', 'async function startBrowserYoutubeWhisper('), ctx);
 vm.runInContext(section('function translationReadyForCreate(', 'function openTranslationKeySetup('), ctx);
 ctx.URL = URL;

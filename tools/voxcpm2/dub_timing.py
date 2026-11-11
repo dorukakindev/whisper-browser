@@ -384,6 +384,8 @@ def build_fixed_timeline(cues, paths, sr, total_s, max_hiz, tmp_dir, log=print,
     timing = {'version': 2, 'accelerated_groups': sigdirildi, 'clipped_groups': kirpildi,
               'overflow_groups': len(overflows), 'groups': reports}
     (Path(tmp_dir) / 'timing_report.json').write_text(json.dumps(timing, indent=2), encoding='utf-8')
+    log(json.dumps({'type': 'timing', 'version': 1, 'accelerated': sigdirildi,
+                    'clipped': kirpildi, 'overflow': len(overflows)}))
     log(f"Zamanlama: {sigdirildi} grup hizlandirildi, {kirpildi} grup kirpildi, {len(overflows)} grup tasiyor.")
     if overflows:
         raise ValueError(f"{len(overflows)} grup pencereye sigmadi; nihai WAV yazilmadi. "

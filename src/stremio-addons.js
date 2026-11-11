@@ -54,6 +54,12 @@ function normalizeAddonUrl(input) {
   const base=new URL(url);base.pathname=base.pathname.slice(0,-'/manifest.json'.length);const baseUrl=base.href.replace(/\/$/,'');
   return { manifestUrl, baseUrl, host: url.hostname.toLowerCase(), loopback, key: addonKey(manifestUrl) };
 }
+/** Standard addon configuration endpoint; never expose this secret-bearing URL in renderer lists. */
+function addonConfigureUrl(manifestUrl) {
+  const parsed=normalizeAddonUrl(manifestUrl),url=new URL(parsed.manifestUrl);
+  url.pathname=url.pathname.replace(/\/manifest\.json$/i,'/configure');
+  return url.href;
+}
 const addonKey = (manifestUrl) => createHash('sha256').update(String(manifestUrl)).digest('hex').slice(0, 16);
 /** Gösterim için: yol (gizli anahtar taşıyabilir) asla gösterilmez. */
 const publicLabel = (manifestUrl) => { try { return new URL(manifestUrl).host + '/…'; } catch { return ''; } };
@@ -441,6 +447,12 @@ function normalizeMetaPreview(raw, addon = {}) {
     runtime: text(String(raw.runtime ?? ''), 40), addonKey: addon.key || '',
   };
 }
+function metadataEpisodeNumber(value) {
+  // Number(null/false/[]) is 0, but missing metadata is not an actual special.
+  if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return null;
+  const number = Number(value);
+  return Number.isInteger(number) ? number : null;
+}
 function normalizeMeta(raw, addon = {}) {
   const base = normalizeMetaPreview(raw, addon);
   if (!base) return null;
@@ -449,8 +461,8 @@ function normalizeMeta(raw, addon = {}) {
     if (!video || typeof video !== 'object') continue;
     const id = text(video.id, 200);
     if (!ID_PATTERN.test(id)) continue;
-    const season = Number.isInteger(Number(video.season)) ? Number(video.season) : null;
-    const episode = Number.isInteger(Number(video.episode ?? video.number)) ? Number(video.episode ?? video.number) : null;
+    const season = metadataEpisodeNumber(video.season);
+    const episode = metadataEpisodeNumber(video.episode ?? video.number);
     const released = typeof video.released === 'string' && !Number.isNaN(Date.parse(video.released)) ? new Date(video.released).toISOString() : '';
     videos.push({ id, title: text(video.title || video.name, 300), season, episode, released,
       thumbnail: safeImage(video.thumbnail, String(addon.host || '').toLowerCase()), overview: text(video.overview || video.description, 1200) });
@@ -470,7 +482,7 @@ const episodeId = (seriesId, season, episode) => `${seriesId}:${season}:${episod
 
 module.exports = {
   sanitizeRequestHeaders, scoreStream,
-  LIMITS, AddonError, isLoopbackHost, normalizeAddonUrl, addonKey, publicLabel, safeImage, safeHttpUrl, validateManifest, supports,
+  LIMITS, AddonError, isLoopbackHost, normalizeAddonUrl, addonConfigureUrl, addonKey, publicLabel, safeImage, safeHttpUrl, validateManifest, supports,
   buildResourceUrl, fetchJson, fetchBuffer, normalizeLanguage, languageMatches, normalizeInfoHash, buildMagnet, parseStreamText,
   normalizeStream, rankStreams, chooseTorrentFile, normalizeSubtitle, normalizeMetaPreview, normalizeMeta, parseEpisodeId, episodeId, videoKey,
 };

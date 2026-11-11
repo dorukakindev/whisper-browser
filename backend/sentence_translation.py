@@ -821,6 +821,11 @@ def _translated_non_name_anchor(name, source, translated):
     """Bounded lexical aliases, never a general permission to rename people."""
     key = str(name).strip('.').lower()
     translated = normalized_text(translated)
+    # A mixed-case speaker label is not stripped by the all-caps SDH parser.
+    # Translate the discourse adverb after that label, without globally treating
+    # a person called Certainly ("I met Certainly") as a stopword.
+    if key == 'certainly' and re.search(r"^[A-ZÇĞİÖŞÜ][\w'’ -]{0,60}:\s*Certainly\s*,", source):
+        return bool(re.search(r'\b(?:elbette|kesinlikle|tabii)\b', translated, re.I))
     if key in {'t-shirt', 't-shirts'}:
         return bool(re.search(r'\btişört\w*\b', translated, re.I))
     if key == 'l.a':
@@ -1778,6 +1783,8 @@ def translation_meaning_issues(source_text, translated_text, target_lang='tr', s
     negative_target = translated
     if lang == 'tr':
         for source_pattern, target_pattern in (
+            # Remove only the lexical stem: sessizleşmedi must retain leşmedi.
+            (r'\b(?:quiet(?:ly)?|silent(?:ly)?|silence)\b', r'\bsessiz'),
             (r'\bundecided\b', r'\bkararsız\w*\b'),
             (r'\bunpredictab(?:le|ility)\b', r'\böngörülemez(?:lik)?(?:liği|liğiyle|lik)?\b'),
             (r'\bruthless(?:ly|ness)?\b', r'\bacımasız(?:ca|lık)?\b'),

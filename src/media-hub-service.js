@@ -10,8 +10,19 @@ function versionKey(name){
  const title=stem.replace(/[ ._-]+(?:2160p|1080p|1080i|720p|480p|4k|bluray|blu-ray|web-dl|webrip|bdrip|x264|x265|hevc)(?:[ ._-].*)?$/i,'').replace(/[._]+/g,' ').trim();
  return path.join(dir,title||stem).toLowerCase();
 }
-function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,authorizeMedia,grantMedia,catalogStore,ffmpeg,ffprobe,relinkHistory}){
+function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,authorizeMedia,grantMedia,catalogStore,ffmpeg,ffprobe,relinkHistory,safeStorage}){
  const relinkUndos=new Map();
+ const sourceVault=new (require('./secret-store').SafeSecretStore)({filePath:path.join(app.getPath('userData'),'stream-sources.safe.json'),fields:['sources'],safeStorage});
+ const streamSources=new Map();let sourcesLoaded=false,vaultWritable=false;
+ function loadSources(){if(sourcesLoaded)return;sourcesLoaded=true;const saved=sourceVault.load();if(!saved.ok)return;try{const data=JSON.parse(saved.secrets.sources||'{}');if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).length>2000)return;for(const [key,value]of Object.entries(data)){if(!/^stream:[a-f0-9]{64}$/.test(key)||typeof value!=='string')return;streamUrl(value);}vaultWritable=true;for(const [key,value]of Object.entries(data))streamSources.set(key,value);}catch(_){}}
+ function streamUrl(raw){const url=new URL(String(raw||'').trim());if(!['https:','http:','rtsp:'].includes(url.protocol)||url.username||url.password||url.href.length>8192)throw Error('Use an HTTP/HTTPS/RTSP media URL without embedded credentials.');return url;}
+ function rememberStream(input){
+  const raw=String(input.url||'').trim(),url=streamUrl(raw),hash=value=>'stream:'+createHash('sha256').update(value).digest('hex'),key=input.key||hash(url.href);
+  loadSources();if(key!==hash(raw)&&key!==hash(url.href)&&streamSources.get(key)!==url.href)throw Error('Stream identity does not match its source.');
+  if(!streamSources.has(key)&&streamSources.size>=2000)return {ok:true,key,persistent:false};
+  streamSources.set(key,url.href);const saved=vaultWritable?sourceVault.save({sources:JSON.stringify(Object.fromEntries(streamSources))}):{ok:false};return {ok:true,key,persistent:!!saved.ok};
+ }
+
  let metadataBusy=false;
  let relinkBusy=false;
  const sourceAt=(item,episodeId)=>episodeId?item?.episodes?.find(ep=>ep.id===episodeId)?.source:item?.source;
@@ -184,7 +195,8 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
   }
    }finally{relinkBusy=false;}
   }
-  if(input.action==='network'){const url=new URL(String(input.url||'').trim());if(!['https:','http:','rtsp:'].includes(url.protocol)||url.username||url.password||url.href.length>8192)throw Error('Use an HTTP/HTTPS/RTSP media URL without embedded credentials.');return {ok:true,url:url.href,key:'stream:'+createHash('sha256').update(url.href).digest('hex'),title:url.pathname.split('/').pop()||url.hostname};}
+  if(input.action==='remember-stream')return rememberStream(input);
+  if(input.action==='network'){loadSources();const stored=input.key?streamSources.get(input.key):null;if(input.key&&!stored)throw Error('Saved stream address is unavailable; open a fresh source.');const url=streamUrl(stored||input.url);return {ok:true,url:url.href,key:input.key||'stream:'+createHash('sha256').update(url.href).digest('hex'),title:url.pathname.split('/').pop()||url.hostname};}
   if(input.action==='scenes'){const file=await authorizeMedia(input.path);const duration=Number(input.duration);if(!Number.isFinite(duration)||duration<=0||duration>604800)throw Error('Invalid video duration.');const out=path.join(app.getPath('temp'),'whisper-scenes-'+randomUUID());await fsp.mkdir(out,{recursive:true});const rows=[];try{for(let i=0;i<12;i++){const at=Math.max(0,Math.min(duration-.05,duration*(i+.5)/12)),target=path.join(out,`${i}.jpg`);await run(ffmpeg(),['-hide_banner','-loglevel','error','-ss',String(at),'-i',file,'-frames:v','1','-vf','scale=240:-2','-q:v','5',target],undefined,undefined,15000);const bytes=await fsp.readFile(target);if(bytes.length>500000)throw Error('Preview image too large.');rows.push({at,image:'data:image/jpeg;base64,'+bytes.toString('base64')});}return {ok:true,rows};}finally{for(const name of await fsp.readdir(out).catch(()=>[]))await fsp.unlink(path.join(out,name)).catch(()=>{});await fsp.rmdir(out).catch(()=>{});}}
   throw Error('Unsupported media operation.');
  }catch(e){return {ok:false,error:e.message};}};

@@ -3,8 +3,10 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
+const {providerCredentialScope,providerKeyForScope}=require('../src/provider-api-keys');
 const { app, safeStorage } = require('electron');
-const { SafeSecretStore, secretStorePath } = require('../src/secret-store');
+const { SafeSecretStore } = require('../src/secret-store');
 const {
   sentenceTranslationGenerationParameters,
   sentenceTranslationMessageRole,
@@ -15,6 +17,7 @@ const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 function translationEndpoint(raw) {
   const url = new URL(String(raw || '').trim());
   assert.equal(url.protocol, 'https:', 'Canli saglayici smoke yalniz HTTPS endpoint kullanir.');
+  assert.ok(!url.username&&!url.password,'Canli saglayici adresi gomulu kimlik bilgisi iceremez.');
   const pathname = url.pathname.replace(/\/+$/u, '');
   url.pathname = /\/chat\/completions$/iu.test(pathname)
     ? pathname : `${pathname}/chat/completions`;
@@ -24,17 +27,27 @@ function translationEndpoint(raw) {
 }
 
 async function run() {
+  // The configured profile is read-only. Chromium must never open it as a second writer.
   const userData = process.env.WHISPER_LIVE_USER_DATA
-    || path.join(app.getPath('appData'), 'whisper-altyazi');
-  app.setPath('userData', userData);
+    || path.join(app.getPath('appData'), require('../package.json').name);
+  const isolated = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-provider-live-'));
+  app.setPath('userData', isolated);
+  if(process.platform==='win32') {
+    const stateFile=path.join(userData,'Local State');
+    if(fs.existsSync(stateFile)){const crypt=JSON.parse(fs.readFileSync(stateFile,'utf8')).os_crypt;
+      if(typeof crypt?.encrypted_key==='string')fs.writeFileSync(path.join(isolated,'Local State'),JSON.stringify({os_crypt:{encrypted_key:crypt.encrypted_key}}));}
+  }
+  // Only the temporary encrypted context is removed, never anything in the real profile.
+  process.once('exit',()=>{try{const ownState=path.join(isolated,'Local State');if(fs.existsSync(ownState))fs.unlinkSync(ownState);}catch{}});
   await app.whenReady();
 
   const settings = JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8'));
-  const loaded = new SafeSecretStore({ safeStorage, filePath: secretStorePath(app) }).load();
+  const loaded = new SafeSecretStore({ safeStorage, filePath: path.join(userData, 'secrets.safe.json'), fields:['translate.apiKey','translate.apiKeyProfiles'] }).load();
   assert.equal(loaded.ok || loaded.partial, true, 'Guvenli anahtar kasasi okunamadi.');
 
   const translate = settings.translate || {};
-  const apiKey = loaded.secrets?.['translate.apiKey'] || '';
+  const scope=providerCredentialScope(translate.endpointPreset,translate.customBaseUrl);
+  const apiKey = providerKeyForScope(loaded.secrets?.['translate.apiKeyProfiles']||'',scope) || loaded.secrets?.['translate.apiKey'] || '';
   const endpointBase = translate.endpointPreset === 'custom'
     ? translate.customBaseUrl : translate.endpointPreset;
   const endpoint = translationEndpoint(endpointBase);
@@ -77,6 +90,6 @@ async function run() {
 }
 
 run().catch((error) => {
-  console.error(error.message);
+  console.error(JSON.stringify({check:'provider-live',failed:true,category:error.name}));
   app.exit(1);
 });

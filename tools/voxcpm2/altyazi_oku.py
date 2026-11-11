@@ -270,6 +270,7 @@ async def uret(args, cues, paths, prompt_text):
         total = len(cues)
         done = sum(1 for i, p in enumerate(paths) if p.is_file() and args.group_keys[i] not in args.force_groups)
         if total:
+            print(json.dumps({'type': 'progress', 'version': 1, 'done': done, 'total': total}), flush=True)
             print(f"[{done}/{total}]" + (" Kayitli satirlar kullaniliyor." if done else ""), flush=True)
         cached = done
         results = []
@@ -574,6 +575,7 @@ async def uret(args, cues, paths, prompt_text):
                 print('DUB_GROUP ' + json.dumps({k: metric[k] for k in
                     ('group', 'key', 'status', 'verification', 'rewritten', 'naturalEdited', 'referenceMode', 'verificationRetryMode') if k in metric}), flush=True)
                 done += 1
+                print(json.dumps({'type': 'progress', 'version': 1, 'done': done, 'total': total}), flush=True)
                 print(f"[{done}/{total}]", flush=True)
 
         tasks = [asyncio.ensure_future(gen(i, t, p))
@@ -901,6 +903,7 @@ def main(argv=None, runtime=None):
     else:
         sr = sf.info(str(paths[0])).samplerate
         print("Tum satirlar hazir; zaman cizelgesi kuruluyor.", flush=True)
+        print(json.dumps({'type': 'progress', 'version': 1, 'done': len(paths), 'total': len(paths)}), flush=True)
         print(f"[{len(paths)}/{len(paths)}] Kayitli satirlar kullaniliyor.", flush=True)
         print('DUB_METRICS ' + json.dumps({'attempts': 0, 'retries': 0,
               'cached_groups': len(paths), 'generated_groups': 0,
@@ -942,6 +945,8 @@ def main(argv=None, runtime=None):
             timeline, timing, sync = build_adaptive_timeline(timeline_cues, render_paths, sr, total_s,
                 args.max_hiz, parts_dir, args.bosluk_pay_ms)
             (parts_dir / 'timing_report.json').write_text(json.dumps(timing, indent=2), encoding='utf-8')
+            print(json.dumps({'type': 'timing', 'version': 1, 'accelerated': timing['accelerated_groups'],
+                              'clipped': 0, 'overflow': 0}), flush=True)
             print(f"Zamanlama: {timing['accelerated_groups']} grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.", flush=True)
         else:
             timeline, timing = build_timeline(timeline_cues, render_paths, sr, total_s, args.max_hiz, parts_dir,

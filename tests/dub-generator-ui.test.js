@@ -5,13 +5,14 @@ const root = path.join(__dirname, '..');
 const dom = new JSDOM(fs.readFileSync(path.join(root,'src/renderer/index.html'),'utf8'), {runScripts:'outside-only'});
 const w = dom.window, el = id => w.document.getElementById(id);
 let onEvent, request, cancelOK = true;
-let attached = false, opened, latestQuery, savedDictionary;
+let attached = false, opened, latestQuery, savedDictionary,approveRehearsal=false,rehearsalPrompts=0;
 let globalDictionary=[];const sourceDictionaries=new Map();
 w.BrowserDubAudioUI = { context: () => ({ mode:'player', tabId:'player-video', mediaKey:'fixture',
   currentTime:42, backgroundSource:'fixture.mp4', visible:true, hasMedia:true }),
   attachGenerated: async (_file, context) => { attached = context.mode === 'player'; return true; } };
 w.HTMLMediaElement.prototype.pause = w.HTMLMediaElement.prototype.load = () => {};
 w.syncBrowserOcclusion = () => {};
+w.openAppDialog=async options=>{assert.match(options.title,/Provadan|rehearsal/i);rehearsalPrompts++;return approveRehearsal;};
 w.api = {
   dubConfig: async () => ({ok:true,ready:true,engine:'fixture',storageRoot:'voice-folder',reference:'voice.wav',transcript:'voice.txt',pronunciations:globalDictionary}),
   openPath: async value => { opened=value; },
@@ -51,6 +52,11 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubGrouping').value,'satir');
   el('dubPresetCareful').click();
   assert.match(el('dubVerificationAtStart').textContent,/Her grubu Whisper/);
+  const prepared=await w.DubGeneratorUI.prepareWithPreset({preset:'Fast'});assert.equal(prepared.ok,true);assert.equal(el('dubProfile').value,'fast');assert.equal(el('dubVerification').value,'fast');assert.equal(request,undefined,'preparing never starts production');
+  assert.equal((await w.DubGeneratorUI.prepareWithPreset({preset:'Careful',isCurrent:()=>false})).code,'source-changed');assert.equal(el('dubVerification').value,'fast');
+  assert.equal((await w.DubGeneratorUI.prepareWithPreset({preset:'Careful'})).ok,true);assert.equal(el('dubVerification').value,'detailed');
+  const configApi=w.api.dubConfig;w.api.dubConfig=async()=>({ok:false,error:'fixture configuration unavailable'});assert.equal((await w.DubGeneratorUI.prepareWithPreset({preset:'Fast'})).code,'configuration-unavailable');assert.equal(el('dubVerification').value,'detailed');assert.equal(request,undefined);w.api.dubConfig=configApi;assert.equal((await w.DubGeneratorUI.prepareWithPreset({preset:'Careful'})).ok,true);
+
   el('dubNaturalRecommend').click();
   assert.equal(el('dubVerification').value,'balanced');
   w.dispatchEvent(new w.CustomEvent('workflow-merge-change',{detail:{enabled:true}}));assert.equal(el('dubGrouping').value,'anlatim');
@@ -325,7 +331,8 @@ const tick = () => new Promise(setImmediate);
   assert.equal(el('dubGeneratorUse').classList.contains('hidden'),true);
   assert.match(el('dubGeneratorStart').textContent,/Dublajı başlat/);
   assert.match(el('dubResultTitle').textContent,/Kısa örnek hazır/);
-  el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'done',name:'no-report.wav',url:'file:///no-report.wav',qualityUnavailable:true,qualityIncomplete:true,quality:{groups:[{key:'1',group:1,status:'ready'}]}});await tick();assert.equal(el('dubGeneratorDialog').dataset.phase,'partial');assert.match(el('dubStartNext').textContent,/Sonucu incele/);assert.doesNotMatch(el('dubStartRequirement').textContent,/0 parça üretilemedi/);assert.equal(el('dubNaturalReviewOpen').textContent,'Mevcut grupları incele');assert.equal(el('dubNaturalReviewOpen').disabled,false);
+  const beforeFull=request.id;el('dubGeneratorStart').click();await tick();assert.equal(request.id,beforeFull,'refusing full-production approval cannot start a job');assert.equal(rehearsalPrompts,1);approveRehearsal=true;
+  el('dubGeneratorStart').click();await tick();assert.notEqual(request.id,beforeFull);onEvent({id:request.id,type:'done',name:'no-report.wav',url:'file:///no-report.wav',qualityUnavailable:true,qualityIncomplete:true,quality:{groups:[{key:'1',group:1,status:'ready'}]}});await tick();assert.equal(el('dubGeneratorDialog').dataset.phase,'partial');assert.match(el('dubStartNext').textContent,/Sonucu incele/);assert.doesNotMatch(el('dubStartRequirement').textContent,/0 parça üretilemedi/);assert.equal(el('dubNaturalReviewOpen').textContent,'Mevcut grupları incele');assert.equal(el('dubNaturalReviewOpen').disabled,false);
   el('dubGeneratorStart').click();await tick();onEvent({id:request.id,type:'cancelled',canResume:true});await tick();assert.equal(el('dubGeneratorDialog').dataset.phase,'stopped');
   const savedSubtitle=w.DubGeneratorUI.experience().srt;
   w.dispatchEvent(new w.CustomEvent('dub-workspace:loaded',{detail:{id:'saved-project',subtitle:savedSubtitle,name:'saved.wav',url:'file:///saved.wav',quality:{groups:[{key:'1',group:1,status:'ready'}]}}}));await tick();
@@ -353,6 +360,14 @@ const tick = () => new Promise(setImmediate);
   assert.equal((await w.DubGeneratorBridge.load('bridge-saved')).ok,true);assert.equal(el('dubGeneratorDetails').textContent,'');assert.equal(el('dubGeneratorTiming').textContent,'1 / 0');assert.equal(el('dubQualityGroup').value,'new-ready');w.api.latestDub=priorLatest;
 
   el('dubGeneratorStart').click();await tick();rangeContext={...rangeContext,mediaId:'different-video'};onEvent({id:request.id,type:'error',error:'late failure'});await tick();assert.equal(el('dubGeneratedPreview').getAttribute('src'),null,'never restore old video audio into a new source');
+  // DUB-01: reuse the existing review/retry surface, adding timing reasons and a bound source jump.
+  rangeContext={mode:'player',tabId:'player-video',mediaKey:'fixture',visible:true,hasMedia:true,currentTime:42};
+  w.dispatchEvent(new w.CustomEvent('dub-workspace:loaded',{detail:{id:'timing-review',subtitle:savedSubtitle,name:'timing.wav',url:'fixture.wav',quality:{groups:[{key:'timed',group:1,text:'fixture speech',status:'review',clipped:true,tempoFallback:true,sourceStart:12,sourceEnd:14,audioStart:1,audioEnd:2}]}}}));await tick();
+  [...w.document.querySelectorAll('[data-quality-filter]')].find(b=>b.dataset.qualityFilter==='timing').click();assert.equal(el('dubQualityGroup').options.length,1);assert.match(el('dubQualityReasons').textContent,/kesildi/);assert.match(el('dubQualityReasons').textContent,/esnetme/);
+  assert.equal(el('dubSeekSource').disabled,true,'an arbitrary project load is not source-match evidence');
+  const timingOutput=w.DubGeneratorUI.experience().output,lookupApi=w.api.latestDub;w.api.latestDub=async()=>({ok:true,output:timingOutput});assert.equal((await w.DubGeneratorBridge.load('timing-review')).ok,true);w.api.latestDub=lookupApi;
+  const seeks=[];w.PlayerWorkspaceIntegration={executeExisting:async command=>{seeks.push(command);return {ok:true};}};el('dubSeekSource').click();await tick();assert.equal(seeks[0].time,12);assert.equal(seeks[0].mediaKey,'fixture');
+  const sourceContext=w.BrowserDubAudioUI.context;w.BrowserDubAudioUI.context=()=>({...sourceContext(),mediaKey:'different',mediaId:'different-again'});el('dubSeekSource').click();await tick();assert.equal(seeks.length,1,'old timing report cannot seek another source');w.BrowserDubAudioUI.context=sourceContext;
   dom.window.close();
   console.log('dub-generator-ui: selected background range, confirmed stop and failed stop passed');
 })().catch(e=>{dom.window.close();console.error(e);process.exitCode=1;});

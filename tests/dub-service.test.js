@@ -299,6 +299,11 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.deepEqual(events.at(-1),{id:'test',type:'progress',done:2,total:7});
     const validProgressCount=events.filter(e=>e.type==='progress').length;for(const line of ['[8/7]','[0/0]','[999999999999999999999/7]'])child.stdout.emit('data',line+'\n');assert.equal(events.filter(e=>e.type==='progress').length,validProgressCount);
     child.stdout.emit('data','Zamanlama: 2 grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.\nSes: 2.0 dk | Islem: 1.1 dk\n');
+    child.stdout.emit('data','{"type":"progress","version":1,"done":3,');
+    child.stdout.emit('data','"total":7,"secret":"discard"}\n');assert.deepEqual(events.at(-1),{id:'test',type:'progress',done:3,total:7});
+    let progressEvents=events.filter(e=>e.type==='progress').length;child.stdout.emit('data','[1/7] legacy duplicate\n{"type":"progress","version":1,"done":8,"total":7}\n{"type":"progress","version":2,"done":1,"total":7}\n');assert.equal(events.filter(e=>e.type==='progress').length,progressEvents);
+    child.stdout.emit('data','{"type":"timing","version":1,"accelerated":3,"clipped":1,"overflow":0,"secret":"discard"}\n');assert.deepEqual(events.at(-1),{id:'test',type:'timing',accelerated:3,clipped:1,overflow:0});
+    let timingEvents=events.filter(e=>e.type==='timing').length;child.stdout.emit('data','Zamanlama: 1 grup hizlandirildi, 0 grup kirpildi, 0 grup tasiyor.\n{"type":"timing","version":1,"accelerated":-1,"clipped":0,"overflow":0}\n{bad json}\n');assert.equal(events.filter(e=>e.type==='timing').length,timingEvents);
     child.stdout.emit('data','DUB_STAGE {"stage":"model_load","seconds":2.5}\n');
     child.stdout.emit('data','DUB_PHASES {"synthesis_seconds":4,"normalization_seconds":0.8,"wall_seconds":7,"unknown_seconds":12,"verification_seconds":-1}\n');
     assert.deepEqual(events.at(-1).phases,{model_load_seconds:2.5,synthesis_seconds:4,normalization_seconds:0.8,wall_seconds:7});
@@ -328,8 +333,8 @@ const call = (name,...args)=>{if(name==='dub:start')args[0]={keepEngine:false,..
     assert.equal(summary.metrics.retries, 1);
     assert.equal(summary.metrics.unexpected, undefined);
     assert.equal(summary.settings.steps, 15);
-    assert.equal(summary.timing.clipped, 0);
-    assert.deepEqual(summary.progress, { done:2, total:7 });
+    assert.deepEqual(summary.timing, {accelerated:3,clipped:1,overflow:0});
+    assert.deepEqual(summary.progress, { done:3, total:7 });
     assert.ok(summary.elapsedSeconds >= 0); assert.ok(Date.parse(summary.finishedAt) >= Date.parse(summary.startedAt));
     const records = fs.readFileSync(finished.logPath.replace(/\.json$/, '.ndjson'), 'utf8');
     assert.match(records, /"type":"progress"/); assert.doesNotMatch(records, /private subtitle text/);

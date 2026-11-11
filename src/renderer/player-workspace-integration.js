@@ -285,9 +285,15 @@
       view.querySelector('.pw-panel__tools')?.after(paging);
     }
     const toolsMenu=view.querySelector('.pw-tools__menu');
+    if(player.workspaceMode!=='browser')for(const [id,tr,en]of [['playerProBtn','Görüntü ve eşitleme (Pro)','Picture and sync (Pro)'],['playerStremioBtn','Stremio kaynak ve oynatma araçları','Stremio source and playback tools']]){
+      const target=document.getElementById(id);if(!target||target.hidden||target.disabled)continue;
+      const button=document.createElement('button');button.type='button';button.className='pw-btn';button.dataset.playerTool=id;button.textContent=text(tr,en);
+      button.onclick=()=>{const current=document.getElementById(id);if(player.workspaceMode==='browser'||player.mediaKey!==snap.mediaKey||player.generation!==snap.generation||!current||current.hidden||current.disabled)return;view.querySelector('.pw-tools').__close();current.click();};toolsMenu.append(button);
+    }
+
     const volumeLabel=document.createElement('label'); volumeLabel.textContent=text('Ses düzeyi','Volume');
     const volume=document.createElement('input');volume.type='range';volume.min='0';volume.max='1';volume.step='.01';volume.value=String(video.volume);volume.className='pw-runtime-volume';volume.setAttribute('aria-label',volumeLabel.textContent);volume.addEventListener('input',()=>void send('setVolume',{volume:Number(volume.value)}));volumeLabel.append(volume);toolsMenu.append(volumeLabel);
-    for(const [id,tr,en] of [['playerMediaCenter','Oynatma, sahneler ve kaynaklar','Playback, scenes and sources'],['playerMore','Diğer oynatma işlemleri','More playback actions']]){const button=document.createElement('button');button.type='button';button.className='pw-btn';button.textContent=text(tr,en);button.onclick=()=>{if(id==='playerMore'){openAdvanced();document.getElementById('playerMediaCenter')?.click()}else document.getElementById(id)?.click()};toolsMenu.append(button);}
+    for(const [id,tr,en] of [['playerMediaCenter','Oynatma, sahneler ve kaynaklar','Playback, scenes and sources'],['playerMore','Altyazı ve ileri araçlar','Subtitles and advanced tools']]){const button=document.createElement('button');button.type='button';button.className='pw-btn';button.textContent=text(tr,en);button.onclick=()=>{if(player.workspaceMode==='browser'||player.mediaKey!==snap.mediaKey||player.generation!==snap.generation)return;view.querySelector('.pw-tools').__close();if(id==='playerMore')openAdvanced();else document.getElementById(id)?.click()};toolsMenu.append(button);}
     const healthButton=document.createElement('button');
     healthButton.type='button';healthButton.className='pw-btn';
     healthButton.textContent=text('Oynatma sağlığı','Playback health');
@@ -320,7 +326,8 @@
     if (nextOwner !== owner) { ambient?.dispose();ambient=null;owner = nextOwner; query = ''; issueFilter='all'; selection = null; evidence = null; page = 0; tab = 'transcript'; follow = true;panelOpen=false; }
     const [source, secondary] = tracks(); const stamp = `${player.workspaceAudio?.transcriptState||''}:${owner}:${source.id}:${source.revision}:${source.offsetSeconds}:${secondary.id}:${secondary.revision}:${secondary.offsetSeconds}`;
     if (rowStamp !== stamp) { rowStamp = stamp; issueFilter='all'; page=0; rows = player.workspaceAudio?.transcriptState==='untimed'?[]:PlayerTranscriptModel.buildTranscriptRows({ sourceTrack: source, secondaryTrack: secondary, mediaKey: player.mediaKey, generation: player.generation }); indexedRows=rows.map(row=>({start:row.videoStart,end:row.videoEnd,text:row.sourceText+'\n'+row.secondaryText})); if (selection) { selection = null; evidence = null; } }
-    const key = `${stamp}:${document.getElementById('maxCps')?.value}:${document.getElementById('maxLineWidth')?.value}:${document.getElementById('timelineQcProfile')?.value}:${document.getElementById('timelineQcFps')?.value}:${locale()}:${video.paused}:${video.duration}:${video.playbackRate}:${currentSubtitleMode()}:${player.abA}:${player.abB}:${player.savedCues.join('|')}:${player.subLang}:${player.sub2Lang}:${video.videoWidth}:${video.videoHeight}:${window.NativePlayerUI?.active()}:${document.getElementById('playerTitle')?.textContent}`;
+    const toolStamp=['playerProBtn','playerStremioBtn'].map(id=>{const b=document.getElementById(id);return b?`${!b.hidden}:${!b.disabled}`:'absent';}).join('|');
+    const key = `${stamp}:${document.getElementById('maxCps')?.value}:${document.getElementById('maxLineWidth')?.value}:${document.getElementById('timelineQcProfile')?.value}:${document.getElementById('timelineQcFps')?.value}:${locale()}:${video.paused}:${video.duration}:${video.playbackRate}:${currentSubtitleMode()}:${player.abA}:${player.abB}:${player.savedCues.join('|')}:${player.subLang}:${player.sub2Lang}:${video.videoWidth}:${video.videoHeight}:${window.NativePlayerUI?.active()}:${document.getElementById('playerTitle')?.textContent}:${toolStamp}`;
     if (force || structural !== key) { structural = key; draw(); }
     ambient?.sync();if(video.paused)revealControls();
     const time = Number(video.currentTime) || 0, duration = Number(video.duration) || 0;

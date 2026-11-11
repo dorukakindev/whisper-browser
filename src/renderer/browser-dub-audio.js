@@ -178,7 +178,10 @@
       }
     }
     setBaseRate(rate) {
-      if (this.session?.sync && Number.isFinite(Number(rate))) this.session.baseRate = Math.max(.25,Math.min(4,Number(rate)));
+      if (this.session?.sync && Number.isFinite(Number(rate))) {
+        this.session.baseRate = Math.max(.25,Math.min(4,Number(rate)));
+        this.tick();
+      }
     }
     videoRate(s, desired, release = false) {
       if (s.ratePending || (desired === s.requestedRate && release === s.requestedRelease && this.now() - s.rateAt < 700)) return;

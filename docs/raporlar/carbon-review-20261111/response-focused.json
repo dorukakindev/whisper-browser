@@ -1,0 +1,70 @@
+{
+  "status": 200,
+  "data": {
+    "id": "chatcmpl-202611110739295316993568268d9d6wXSKdbyx",
+    "object": "chat.completion",
+    "created": 1794382855,
+    "model": "gemini-4-carbon",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```json\n{\n  \"findings\": [\n    {\n      \"id\": \"F1\",\n      \"title\": \"Null or empty video season/episode fields coerce to 0 instead of null\",\n      \"severity\": \"medium\",\n      \"lines\": [452, 453, 464],\n      \"trigger\": \"normalizeMeta receives a video entry where season is null/\\\"\\\" (e.g., { id: \\\"v1\\\", season: null, episode: 1 } or { id: \\\"v1\\\", season: null, number: null } or { id: \\\"v1\\\", season: \\\"\\\", episode: \\\"\\\" }).\",\n      \"reason\": \"Number(null), Number(\\\"\\\"), and Number(false) all evaluate to 0, so Number.isInteger(Number(...)) returns true and assigns 0 instead of null. This turns missing season/episode metadata into season 0 / episode 0 and causes videoKey() to return \\\"0:0\\\" (or \\\"0:<ep>\\\") rather than falling back to video.id, colliding non-episodic or flat-numbered videos.\",\n      \"repro_hint\": \"Call normalizeMeta({ id: \\\"tt1\\\", type: \\\"movie\\\", name: \\\"Test\\\", videos: [{ id: \\\"clip1\\\", season: null, number: null }] }) and pass videos[0] to videoKey(); season and episode become 0 and videoKey returns \\\"0:0\\\" instead of \\\"clip1\\\".\"\n    },\n    {\n      \"id\": \"F2\",\n      \"title\": \"Null or blank imdbRating coerces to 0 instead of null\",\n      \"severity\": \"low\",\n      \"lines\": [439],\n      \"trigger\": \"normalizeMetaPreview (or normalizeMeta) receives raw.imdbRating as null, \\\"\\\", or whitespace-only string.\",\n      \"reason\": \"Number(null) and Number(\\\"\\\") evaluate to 0, which passes Number.isFinite(...), normalizing unrated items with null or empty-string ratings to an explicit 0 rating instead of null.\",\n      \"repro_hint\": \"Call normalizeMetaPreview({ id: \\\"tt1\\\", type: \\\"movie\\\", name: \\\"Test\\\", imdbRating: \\\"\\\" }) (or imdbRating: null) and observe imdbRating === 0.\"\n    }\n  ],\n  \"limitations\": [\n    \"External helpers and constants (safeHttpUrl, text, normalizeLanguage, createHash, ID_PATTERN, TYPE_PATTERN, safeImage, LIMITS) are not shown and assumed to behave as specified.\",\n    \"Call sites are not visible, so it is uncertain whether null is ever passed for optional object parameters with = {} defaults (stream in chooseTorrentFile, addon in normalizeSubtitle/normalizeMetaPreview) or how parseEpisodeId callers handle series IDs containing extra colons.\"\n  ]\n}\n```"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 2261,
+      "completion_tokens": 8202,
+      "total_tokens": 10463,
+      "completion_tokens_details": {
+        "reasoning_tokens": 7572,
+        "text_tokens": 630,
+        "audio_tokens": 0,
+        "image_tokens": 0
+      },
+      "billing_usage": {
+        "source": "gemini_chat",
+        "semantic": "gemini",
+        "gemini_usage_metadata": {
+          "promptTokenCount": 2261,
+          "toolUsePromptTokenCount": 0,
+          "candidatesTokenCount": 630,
+          "totalTokenCount": 10463,
+          "thoughtsTokenCount": 7572,
+          "cachedContentTokenCount": 0,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2261
+            }
+          ],
+          "toolUsePromptTokensDetails": [],
+          "candidatesTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 630
+            }
+          ]
+        }
+      },
+      "prompt_tokens_details": {
+        "text_tokens": 2261,
+        "audio_tokens": 0,
+        "image_tokens": 0
+      },
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "claude_cache_creation_5_m_tokens": 0,
+      "claude_cache_creation_1_h_tokens": 0
+    }
+  },
+  "elapsedMs": 86419,
+  "source": "https://raw.githubusercontent.com/dorukakindev/whisper-browser/a03e62451906698848982428b46946cdaa855d8a/src/stremio-addons.js",
+  "sourceLines": [
+    394,
+    469
+  ]
+}

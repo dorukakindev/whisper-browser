@@ -64,6 +64,7 @@
     const wrapper = h('div', {class:'pw-tools'}, button, menu);
     menu.addEventListener('toggle',event=>{if(event.newState==='closed'){menu.hidden=true;wrapper.removeAttribute('data-pw-occludes-native');wrapper.classList.remove('pw-tools-is-open');button.setAttribute('aria-expanded','false');}});
     wrapper.__open=()=>setOpen(true);
+    wrapper.__close=()=>setOpen(false);
     wrapper.addEventListener('keydown',event=>{if(event.key==='Escape'){setOpen(false);button.focus();event.stopPropagation();}});
     return wrapper;
   }
