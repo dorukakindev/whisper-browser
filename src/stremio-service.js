@@ -61,6 +61,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     if(!selected||selected.token!==input.token||selected.streamId!==input.streamId||selected.key!==input.key)throw err('Reopen the current source before preparing audio.','AUDIO_SOURCE');
     const row=sessionFor(input.token).rows.get(input.streamId);
     if(!row?.playable||row.kind!=='url'||!row.url.startsWith('https:'))throw err('Audio preparation requires a direct HTTPS media source.','AUDIO_UNSUPPORTED');
+    if(audioSupport(row)==='adaptive')throw err('Adaptive HLS/DASH streams cannot be prepared for Whisper; choose a direct file source.','STREAM_AUDIO_FORMAT');
     if(typeof prepareAudio!=='function')throw err('Audio preparation is unavailable.','AUDIO_UNSUPPORTED');
     if(typeof input.requestId!=='string'||!/^[a-z0-9_-]{1,80}$/i.test(input.requestId))throw err('Invalid audio request.','BAD_REQUEST');
     if(audioPreparation)throw err('Audio preparation is already running.','AUDIO_BUSY');
@@ -237,7 +238,16 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     if (!record) throw err('Eklenti bulunamadı.', 'NOT_FOUND');
     const addon = ctx(record);
     const manifest = A.validateManifest(await call(addon, record.manifestUrl, { maxBytes: A.LIMITS.manifestBytes, signal }));
-    return addonMutate({ key }, (data, i) => { data.addons[i].manifest = manifest; });
+    // The saved address may now serve a different addon (domain reuse, misconfigured
+    // proxy). Never silently replace the user's record with another identity.
+    if (manifest.id !== record.manifest.id) throw err('The addon at this address now reports a different identity; the saved addon was kept.', 'REFRESH_ID');
+    return addonMutate({ key }, (data, i) => {
+      const current = data.addons[i];
+      // Keep a newer refresh or explicitly confirmed reinstall at the same address.
+      // Enabled state and list order may change independently while this request runs.
+      if (current.manifestUrl !== record.manifestUrl || JSON.stringify(current.manifest) !== JSON.stringify(record.manifest)) throw err('Addon changed while refreshing; existing settings were kept.', 'CONFIG_STALE');
+      current.manifest = manifest;
+    });
   }
 
   /* ---- Katalog / meta / arama ---- */
@@ -297,6 +307,18 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
   /* ---- Akışlar ---- */
   const videoIdFor = (type, id, season, episode) => (type === 'series' && season != null && episode != null ? A.episodeId(id, season, episode) : id);
   const hostOf = (url) => { try { return new URL(url).hostname; } catch { return ''; } };
+  // Whisper audio preparation capability, decided where the private URL lives.
+  // ready: direct HTTPS file; adaptive: HLS/DASH manifest; insecure: local http addon;
+  // torrent: raw torrent (local file only after download); none: not playable here.
+  const audioSupport = (row) => {
+    if (!row?.playable) return 'none';
+    if (row.kind === 'torrent') return 'torrent';
+    if (row.kind !== 'url') return 'none';
+    let url; try { url = new URL(row.url); } catch { return 'none'; }
+    if (url.protocol !== 'https:') return 'insecure';
+    if (/\.(?:m3u8|mpd)$/i.test(url.pathname)) return 'adaptive';
+    return 'ready';
+  };
   async function streams({ type, id, season = null, episode = null }, signal) {
     const videoId = videoIdFor(type, id, int(season), int(episode));
     const records = enabledFor('stream', type, videoId);
@@ -316,7 +338,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
         id: r.id, addonKey: r.addonKey, addonName: r.addonName, name: r.name, label: r.label, title: r.title, description: r.description.slice(0, 600),
         kind: r.kind, playable: r.playable, reason: r.reason, resolution: r.resolution, seeders: r.seeders, sizeBytes: r.sizeBytes, provider: r.provider,
         codec: r.codec, hdr: r.hdr, source: r.source, flags: r.flags, multiAudio: r.multiAudio, notWebReady: r.notWebReady, usesHeaders: r.usesHeaders === true, bingeGroup: r.bingeGroup || '', score: r.score, tags: r.tags, warns: r.warns, audio: r.audio, channels: r.channels, group: r.group, filename: r.filename,
-        host: r.kind === 'url' ? hostOf(r.url) : r.kind === 'external' ? hostOf(r.externalUrl) : '', embeddedSubtitles: r.subtitles.length,
+        host: r.kind === 'url' ? hostOf(r.url) : r.kind === 'external' ? hostOf(r.externalUrl) : '', embeddedSubtitles: r.subtitles.length, whisperAudio: audioSupport(r),
       })),
     };
   }
@@ -335,7 +357,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     const workKey=workScope?'work:stremio:'+createHash('sha256').update(JSON.stringify(workScope)).digest('hex'):'';
     const base = { ok: true, workKey, streamToken: token, streamId, meta: { type: session.type, id: session.id, season: session.season, episode: session.episode },
       resume: position && !position.completed && position.position > 5 ? { position: position.position, duration: position.duration } : null,
-      notWebReady: row.notWebReady, filename: row.filename };
+      notWebReady: row.notWebReady, filename: row.filename, whisperAudio: audioSupport(row) };
     if (row.kind === 'url') {
       if (row.requestHeaders?.length) grantHeaders(row.url, row.requestHeaders);
       const result = { ...base, usesHeaders: !!row.requestHeaders?.length, url: row.url, title: str(title, 300) || row.filename || row.title || row.name,

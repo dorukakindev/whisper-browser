@@ -150,6 +150,10 @@ function harness({ torrentStatus = { ok: true, installed: true }, files, configu
   assert.equal(listed.groups.length, 1);
   assert.ok(listed.streams.some((s) => s.reason === 'needs-headers' && !s.playable));
   assert.ok(listed.streams.some((s) => s.kind === 'youtube' && !s.playable));
+  // Whisper audio readiness is decided in main from the private URL and exposed only as a class.
+  assert.equal(byKind('torrent')[0].whisperAudio, 'torrent');
+  assert.equal(listed.streams.find((s) => s.filename === 'v.mkv').whisperAudio, 'ready');
+  assert.equal(listed.streams.find((s) => s.kind === 'youtube').whisperAudio, 'none');
 
   // --- Oynatma: URL
   const direct = listed.streams.find((s) => s.kind === 'url' && s.playable);
@@ -333,5 +337,44 @@ function harness({ torrentStatus = { ok: true, installed: true }, files, configu
   await new Promise(resolve=>setImmediate(resolve));await audioHarness.service.handle({},{action:'audio-cancel',requestId:'audio-2'});
   await assert.rejects(cancelAudio,e=>e.code==='AUDIO_CANCELLED'&&!e.message.includes('secret'));
   assert.equal((await audioHarness.service.handle({},{action:'audio-status',requestId:'audio-2'})).active,false);
+  // Adaptive HLS sources play, but are refused for Whisper before any network/ffmpeg work.
+  let hlsPrepared=0;
+  const hlsManifest={id:'hls',name:'HLS',version:'1',types:['movie'],resources:['stream'],catalogs:[]};
+  const hls=harness({prepareAudio:async()=>{hlsPrepared++;return {path:'x.wav'};},extraManifests:{'https://hls.example/manifest.json':hlsManifest,'https://hls.example/stream/movie/tt7654321.json':{streams:[{name:'HLS\n1080p',url:'https://cdn.example/live/master.m3u8'},{name:'File\n720p',url:'https://cdn.example/file.mp4'}]}}});
+  await hls.install('https://hls.example/manifest.json');
+  const hlsList=await hls.service.handle({},{action:'streams',type:'movie',id:'tt7654321'});
+  const hlsRow=hlsList.streams.find(s=>s.resolution==='1080p'),fileRow=hlsList.streams.find(s=>s.resolution==='720p');
+  assert.equal(hlsRow.whisperAudio,'adaptive');assert.equal(fileRow.whisperAudio,'ready');assert(!JSON.stringify(hlsList).includes('master.m3u8'),'adaptive URL stays in main');
+  const hlsPlay=await hls.service.handle({},{action:'play',token:hlsList.token,streamId:hlsRow.id});assert.equal(hlsPlay.whisperAudio,'adaptive');
+  await assert.rejects(hls.service.handle({},{action:'audio-prepare',token:hlsList.token,streamId:hlsRow.id,key:hlsPlay.key,requestId:'hls-1'}),e=>e.code==='STREAM_AUDIO_FORMAT');
+  assert.equal(hlsPrepared,0,'HLS never reaches the audio preparer');
+  // Refresh must not replace a saved addon with a different identity served from the same address.
+  const swapManifests={'https://swap.example/manifest.json':{id:'swap-a',name:'Swap',version:'1',types:['movie'],resources:['stream'],catalogs:[]}};
+  const swap=harness({extraManifests:swapManifests});const installedSwap=(await swap.install('https://swap.example/manifest.json')).addons[0];
+  await swap.service.handle({},{action:'addon-toggle',key:installedSwap.key,enabled:false});
+  const swapFile=path.join(swap.root,'stremio-addons.json'),beforeSwap=fs.readFileSync(swapFile,'utf8');
+  swapManifests['https://swap.example/manifest.json']={id:'other-addon',name:'Other',version:'9',types:['movie'],resources:['stream'],catalogs:[]};
+  await assert.rejects(swap.service.handle({},{action:'addon-refresh',key:installedSwap.key}),e=>e.code==='REFRESH_ID');
+  assert.equal(fs.readFileSync(swapFile,'utf8'),beforeSwap,'identity change keeps the exact saved bytes');
+  swapManifests['https://swap.example/manifest.json']={id:'swap-a',name:'Swap',version:'2',types:['movie'],resources:['stream'],catalogs:[]};
+  const refreshed=(await swap.service.handle({},{action:'addon-refresh',key:installedSwap.key})).addons[0];
+  assert.equal(refreshed.version,'2');assert.equal(refreshed.enabled,false,'refresh keeps the user’s off state');assert.equal(refreshed.key,installedSwap.key);
+  // A delayed refresh owns its original manifest, not a later refresh or explicit reinstall.
+  for (const reinstall of [false, true]) {
+    const originalManifest = { ...swapManifests['https://swap.example/manifest.json'] };
+    let releaseRefresh, markFetching;
+    const fetching = new Promise(resolve => { markFetching = resolve; });
+    const response = new Promise(resolve => { releaseRefresh = resolve; });
+    const delayed = createStremioService({ root: () => swap.root, assertUrl: async () => {}, fetch: async () => { markFetching(); return response; } });
+    const pending = delayed.handle({}, { action: 'addon-refresh', key: installedSwap.key });
+    await fetching;
+    swapManifests['https://swap.example/manifest.json'] = { ...originalManifest, version: '3', ...(reinstall ? { id: 'confirmed-replacement' } : {}) };
+    if (reinstall) await swap.install('https://swap.example/manifest.json');
+    else await swap.service.handle({}, { action: 'addon-refresh', key: installedSwap.key });
+    const currentBytes = fs.readFileSync(swapFile, 'utf8');
+    releaseRefresh(json(originalManifest));
+    await assert.rejects(pending, error => error.code === 'CONFIG_STALE');
+    assert.equal(fs.readFileSync(swapFile, 'utf8'), currentBytes, 'delayed refresh preserves the exact newer confirmed record');
+  }
   console.log('stremio-addons.test.js: OK');
 })().catch((e) => { console.error(e); process.exit(1); });

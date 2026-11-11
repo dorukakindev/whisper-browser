@@ -13,9 +13,29 @@
     CONFIG_STALE:()=>t('The addon changed while settings were open. Reopen its settings.','Ayarlar açıkken eklenti değişti. Ayarlarını yeniden aç.'),
     CONFIG_CONFLICT:()=>t('That configured addon is already installed. Both entries were kept.','Bu yapılandırılmış eklenti zaten yüklü. İki kayıt da korundu.'),
   })[code]?.();
+  const stremioError = code => ({
+    NO_ADDONS:()=>t('No enabled addon provides sources for this title. Add or turn on a source addon such as Torrentio.','Bu yapım için kaynak veren etkin eklenti yok. Torrentio gibi bir kaynak eklentisi ekle veya aç.'),
+    NO_META:()=>t('No enabled addon provides details for this title. Add a catalog addon such as Cinemeta.','Bu yapım için ayrıntı veren etkin eklenti yok. Cinemeta gibi bir katalog eklentisi ekle.'),
+    EXPIRED:()=>t('This source list expired. Search the sources again.','Kaynak listesinin süresi doldu. Kaynakları yeniden ara.'),
+    NOT_FOUND:()=>t('That item is no longer available. Refresh the list.','Bu öğe artık yok. Listeyi yenile.'),
+    UNPLAYABLE:()=>t('This source cannot play in the app. Choose another source.','Bu kaynak uygulamada oynatılamıyor. Başka bir kaynak seç.'),
+    NEEDS_TORRENT_ENGINE:()=>t('Raw torrent sources need the torrent engine. Install it once or choose a direct/debrid source.','Ham torrent kaynakları torrent motoru ister. Bir kez kur veya doğrudan/debrid kaynak seç.'),
+    NO_VIDEO:()=>t('This torrent has no playable video for this title.','Bu torrentte bu yapım için oynatılabilir video yok.'),
+    TIMEOUT:()=>t('did not answer in time','zamanında yanıt vermedi'),
+    NETWORK:()=>t('could not be reached','erişilemedi'),
+    HTTP:()=>t('returned a server error','sunucu hatası döndürdü'),
+    TOO_LARGE:()=>t('sent an oversized reply','çok büyük yanıt gönderdi'),
+    BAD_JSON:()=>t('sent an unreadable reply','okunamayan yanıt gönderdi'),
+    REDIRECT:()=>t('redirected to an unsafe address','güvensiz bir adrese yönlendirdi'),
+    EBROWSER_UNSAFE_URL:()=>t('address could not be verified as public (DNS or private network)','adresi genel bir adres olarak doğrulanamadı (DNS veya özel ağ)'),
+    UNSAFE:()=>t('address could not be verified as public (DNS or private network)','adresi genel bir adres olarak doğrulanamadı (DNS veya özel ağ)'),
+    REFRESH_ID:()=>t('This address now reports a different addon. The saved addon was kept.','Bu adres artık farklı bir eklenti bildiriyor. Kayıtlı eklenti korundu.'),
+  })[code]?.();
+  // Short, per-addon reason for source/subtitle fan-out notes; never the raw upstream text.
+  const groupReason = error => stremioError(error?.code) || t('failed','başarısız oldu');
   const call = async (action, values = {}) => {
     const r = await window.api.stremio({ action, ...values });
-    if (!r?.ok) { const e = new Error((configError(r?.code)||(r?.code==='CAPACITY'?t('Storage capacity reached; your existing records were kept.','Kayıt kapasitesi doldu; mevcut kayıtların korundu.'):r?.code==='STORAGE_READ'?t('Saved data could not be read; the existing file was kept.','Kayıtlı veri okunamadı; mevcut dosya korundu.'):r?.error)) || t('Stremio action failed.', 'Stremio işlemi başarısız.')); e.code = r?.code; throw e; }
+    if (!r?.ok) { const e = new Error((configError(r?.code)||(['NO_ADDONS','NO_META','EXPIRED','NOT_FOUND','UNPLAYABLE','NEEDS_TORRENT_ENGINE','NO_VIDEO','REFRESH_ID'].includes(r?.code)?stremioError(r.code):'')||(r?.code==='CAPACITY'?t('Storage capacity reached; your existing records were kept.','Kayıt kapasitesi doldu; mevcut kayıtların korundu.'):r?.code==='STORAGE_READ'?t('Saved data could not be read; the existing file was kept.','Kayıtlı veri okunamadı; mevcut dosya korundu.'):r?.error)) || t('Stremio action failed.', 'Stremio işlemi başarısız.')); e.code = r?.code; throw e; }
     return r;
   };
   const SUGGESTED = [
@@ -334,6 +354,7 @@
     const left = el('div', 'sx-res sx-res-' + (s.resolution === '2160p' ? '4k' : s.resolution === '1080p' ? 'fhd' : s.resolution === '720p' ? 'hd' : 'other'), s.resolution ? (s.resolution === '2160p' ? '4K' : s.resolution) : s.kind === 'torrent' ? 'P2P' : '—');
     const copy = el('div', 'sx-stream-copy');
     copy.append(el('strong', '', s.filename || s.title || s.name));
+    if (s.playable) { const why = el('small', 'sx-why'); why.dataset.kind = s.kind === 'torrent' ? 'torrent' : s.whisperAudio || 'none'; why.append(el('span', 'sx-why-text', playabilityText(s))); if (s.whisperAudio === 'ready') why.append(el('span', 'sx-badge sx-whisper-ok', t('Whisper ready', 'Whisper uygun'))); copy.append(why); }
     const meta = el('div', 'sx-meta');
     if (s.score != null && s.playable) { const ring = el('span', 'sx-score ' + (s.score >= 75 ? 'is-great' : s.score >= 55 ? 'is-good' : 'is-fair'), String(s.score)); ring.style.setProperty('--p', s.score + '%'); ring.title = t('Source score (resolution, seeders, source type, compatibility)', 'Kaynak puanı (çözünürlük, seeder, kaynak türü, uyumluluk)'); ring.setAttribute('aria-label', t('Score ', 'Puan ') + s.score); meta.append(ring); }
     for (const v of [s.addonName, s.provider, s.kind === 'torrent' ? 'Torrent' : s.kind === 'url' ? (s.host || t('Direct', 'Doğrudan')) : '', s.seeders != null ? '● ' + s.seeders : '', fmtSize(s.sizeBytes), s.codec, s.hdr, s.source]) if (v) meta.append(el('span', '', v));
@@ -352,8 +373,20 @@
     const act = button(current ? t('Playing', 'Oynuyor') : t('Play', 'Oynat'), () => onPlay(s), 'mh-action' + (s.playable ? ' mh-primary' : '')); act.disabled = !s.playable || current;
     row.append(left, copy, act); return row;
   }
+  // Plain-language reason a row can (or cannot directly) play; no URL or token is shown.
+  function playabilityText(s) {
+    if (s.kind === 'torrent') return t('Raw torrent · plays through the torrent engine; Whisper after the download finishes', 'Ham torrent · torrent motoruyla oynar; Whisper indirme bitince');
+    if (s.whisperAudio === 'adaptive') return t('Adaptive stream (HLS/DASH) · plays now; Whisper needs a direct file', 'Uyarlamalı akış (HLS/DASH) · hemen oynar; Whisper doğrudan dosya ister');
+    if (s.whisperAudio === 'insecure') return t('Local addon link · plays now; Whisper needs HTTPS', 'Yerel eklenti bağlantısı · hemen oynar; Whisper HTTPS ister');
+    const where = s.notWebReady || /\.(mkv|avi|wmv|ts|m2ts|flv)$/i.test(s.filename || '') ? t('native player recommended', 'native oynatıcı önerilir') : t('built-in player', 'yerleşik oynatıcı');
+    return t(`Direct link · plays now (${where})`, `Doğrudan bağlantı · hemen oynar (${where})`);
+  }
+  function streamSummary(streams) {
+    const playable = streams.filter((s) => s.playable), direct = playable.filter((s) => s.kind === 'url').length, torrent = playable.filter((s) => s.kind === 'torrent').length, whisper = playable.filter((s) => s.whisperAudio === 'ready').length, off = streams.length - playable.length;
+    return { playable: playable.length, direct, torrent, whisper, off };
+  }
   function filterStreams(rows, f) {
-    let out = rows.filter((s) => (!f.res || (f.res === 'other' ? !RES_ORDER.slice(0, 4).includes(s.resolution) : s.resolution === f.res)) && (!f.addon || s.addonKey === f.addon)
+    let out = rows.filter((s) => (!f.whisper || s.whisperAudio === 'ready') && (!f.res || (f.res === 'other' ? !RES_ORDER.slice(0, 4).includes(s.resolution) : s.resolution === f.res)) && (!f.addon || s.addonKey === f.addon)
       && (!f.q || (s.filename + ' ' + s.title + ' ' + s.name + ' ' + s.provider).toLowerCase().includes(f.q)) && (!f.playableOnly || s.playable) && (!f.multi || s.multiAudio) && (!f.subs || s.embeddedSubtitles > 0));
     if (f.sort === 'seeders') out = [...out].sort((a, b) => (b.seeders ?? -1) - (a.seeders ?? -1));
     if (f.sort === 'size') out = [...out].sort((a, b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0));
@@ -361,9 +394,9 @@
     if (f.sort === 'small') out = [...out].sort((a, b) => (a.sizeBytes ?? Infinity) - (b.sizeBytes ?? Infinity));
     return out;
   }
-  function mountStreamList(host, data, { onPlay, currentId, status }) {
+  function mountStreamList(host, data, { onPlay, currentId, status, onRetry, whisperOnly = false }) {
     const KEY = 'stremio.streamFilters'; let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (_) { saved = {}; }
-    const f = { res: ['2160p', '1080p', '720p', 'other'].includes(saved.res) ? saved.res : '', addon: '', q: '', sort: ['recommended', 'seeders', 'size', 'small', 'score'].includes(saved.sort) ? saved.sort : 'recommended', playableOnly: true, multi: !!saved.multi, subs: !!saved.subs };
+    const f = { res: ['2160p', '1080p', '720p', 'other'].includes(saved.res) ? saved.res : '', addon: '', q: '', sort: ['recommended', 'seeders', 'size', 'small', 'score'].includes(saved.sort) ? saved.sort : 'recommended', playableOnly: true, multi: !!saved.multi, subs: !!saved.subs, whisper: !!whisperOnly };
     const remember = () => { try { localStorage.setItem(KEY, JSON.stringify({ res: f.res, sort: f.sort, multi: f.multi, subs: f.subs })); } catch (_) { /* saklanamazsa atla */ } };
     const bar = el('div', 'sx-filters'), list = el('div', 'sx-stream-list'), notes = el('div', 'sx-notes'), cmpBox = el('section', 'sx-compare-box'); cmpBox.hidden = true; cmpBox.setAttribute('aria-label', t('Source comparison', 'Kaynak karşılaştırma'));
     const picked = new Map();
@@ -398,17 +431,32 @@
     const q = el('input'); q.type = 'search'; q.placeholder = t('Filter sources…', 'Kaynaklarda filtrele…'); q.setAttribute('aria-label', q.placeholder);
     const only = el('label', 'sx-check'), cb = el('input'); cb.type = 'checkbox'; cb.checked = true; only.append(cb, el('span', '', t('Playable only', 'Yalnız oynatılabilenler')));
     const mkCheck = (label, key) => { const l = el('label', 'sx-check'), c = el('input'); c.type = 'checkbox'; c.checked = f[key]; c.onchange = () => { f[key] = c.checked; remember(); draw(); }; l.append(c, el('span', '', label)); return l; };
-    bar.append(resSel, addonSel, sortSel, q, mkCheck(t('Multi audio', 'Çoklu ses'), 'multi'), mkCheck(t('Has subtitles', 'Altyazılı'), 'subs'), only);
+    const whisperCheck = mkCheck(t('Whisper ready', 'Whisper uygun'), 'whisper'); whisperCheck.title = t('Direct HTTPS files whose audio can be prepared for Whisper without downloading the whole film.', 'Filmin tamamı indirilmeden sesi Whisper için hazırlanabilen doğrudan HTTPS dosyaları.');
+    bar.append(resSel, addonSel, sortSel, q, mkCheck(t('Multi audio', 'Çoklu ses'), 'multi'), mkCheck(t('Has subtitles', 'Altyazılı'), 'subs'), whisperCheck, only);
+    const sum = streamSummary(data.streams), summary = el('p', 'sx-source-summary'); summary.setAttribute('role', 'note');
+    if (data.streams.length) {
+      const parts = [['playable', t(`${sum.playable} playable`, `${sum.playable} oynatılabilir`)]];
+      if (sum.direct) parts.push(['direct', t(`${sum.direct} direct/debrid`, `${sum.direct} doğrudan/debrid`)]); if (sum.torrent) parts.push(['torrent', t(`${sum.torrent} raw torrent`, `${sum.torrent} ham torrent`)]);
+      parts.push(['whisper', t(`${sum.whisper} Whisper ready`, `${sum.whisper} Whisper uygun`)]); if (sum.off) parts.push(['off', t(`${sum.off} not playable here`, `${sum.off} burada oynatılamaz`)]);
+      parts.forEach(([kind, label], i) => { if (i) { const sep = el('span', 'sx-sum-sep', ' · '); sep.setAttribute('aria-hidden', 'true'); summary.append(sep); } const item = el('span', 'sx-sum-item', label); item.dataset.kind = kind; summary.append(item); });
+    } else summary.hidden = true;
+    const failed = data.groups.filter((g) => g.error);
+    const emptyBox = (message) => { const box = el('div', 'sx-source-empty'); box.append(el('p', 'sx-empty', message)); const acts = el('div', 'sx-actions');
+      if (f.playableOnly && data.streams.some((s) => !s.playable)) acts.append(button(t('Show sources that cannot play here', 'Burada oynatılamayanları göster'), () => { f.playableOnly = false; cb.checked = false; draw(); }));
+      if (f.whisper) acts.append(button(t('Show all playable sources', 'Tüm oynatılabilirleri göster'), () => { f.whisper = false; whisperCheck.querySelector('input').checked = false; draw(); }));
+      if (typeof onRetry === 'function' && (!data.streams.length || failed.length)) acts.append(button(t('Search sources again', 'Kaynakları yeniden ara'), onRetry, 'mh-action mh-primary sx-retry'));
+      if (acts.children.length) box.append(acts); return box; };
     const draw = () => {
       list.replaceChildren(); const rows = filterStreams(data.streams, f);
       for (const s of rows.slice(0, 150)) list.append(streamRow(s, onPlay, s.id === currentId, compare));
-      if (!rows.length) list.append(el('p', 'sx-empty', data.streams.length ? t('No source matches these filters.', 'Bu filtrelere uyan kaynak yok.') : t('No sources found. Try another addon or check again later.', 'Kaynak bulunamadı. Başka bir eklenti dene veya sonra yeniden bak.')));
+      if (!rows.length) list.append(emptyBox(data.streams.length ? t('No source matches these filters.', 'Bu filtrelere uyan kaynak yok.') : failed.length && failed.length === data.groups.length ? t('No addon could return sources. Check your connection or addon settings, then search again.', 'Hiçbir eklenti kaynak döndüremedi. Bağlantını veya eklenti ayarlarını kontrol edip yeniden ara.') : t('No sources found. Try another addon or check again later.', 'Kaynak bulunamadı. Başka bir eklenti dene veya sonra yeniden bak.')));
       if (rows.length > 150) list.append(el('p', 'sx-hint', t(`Showing 150 of ${rows.length}. Filter to narrow the list.`, `${rows.length} kaynaktan 150'si gösteriliyor. Daralmak için filtrele.`)));
     };
     resSel.onchange = () => { f.res = resSel.value; remember(); draw(); }; addonSel.onchange = () => { f.addon = addonSel.value; draw(); }; sortSel.onchange = () => { f.sort = sortSel.value; remember(); draw(); };
     q.oninput = () => { f.q = q.value.trim().toLowerCase(); draw(); }; cb.onchange = () => { f.playableOnly = cb.checked; draw(); };
-    for (const g of data.groups) if (g.error) notes.append(el('p', 'sx-note', t(`${g.addonName} did not respond: ${g.error.message}`, `${g.addonName} yanıt vermedi: ${g.error.message}`)));
-    host.append(bar, notes, cmpBox, list); draw(); void status; return { draw };
+    for (const g of failed) notes.append(el('p', 'sx-note', `${g.addonName}: ${groupReason(g.error)}`));
+    if (failed.length && data.streams.length && typeof onRetry === 'function') notes.append(button(t('Ask failed addons again', 'Başarısız eklentilere yeniden sor'), onRetry, 'mh-action sx-retry'));
+    host.append(bar, summary, notes, cmpBox, list); draw(); void status; return { draw };
   }
   const SUBTITLE_LANGUAGE_KEY = 'stremio.subtitleLanguage';
   const subtitleLanguageCode = value => /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(String(value || '')) ? String(value).toLowerCase().split('-')[0] : '';
@@ -458,15 +506,16 @@
     }
     body.append(details);
   }
-  async function playStreamRow(ctxLike, data, s, { seconds } = {}) {
+  async function playStreamRow(ctxLike, data, s, { seconds, isCancelled = () => false } = {}) {
+    if (isCancelled()) return false;
     rememberWorkTracks();
-    const request = ++playRequest;
+    const request = ++playRequest, owner = { key: player.mediaKey, generation: player.generation, intent: player.openIntent };
     const result = await call('play', { token: data.token, streamId: s.id, title: ctxLike.name + (ctxLike.season != null ? ` · ${epLabel(ctxLike.season, ctxLike.episode)}` : '') });
     const start = seconds != null ? seconds : (result.resume?.position || 0);
-    if(request !== playRequest)return false;
-    const nextSession = { ctx: ctxLike, workKey:result.workKey, key: result.key, streamToken: data.token, streamId: s.id, sourceLabel: `${s.addonName}${s.resolution ? ' · ' + s.resolution : ''}`, torrent: !!result.hash, filename: s.filename || '', notWebReady: !!result.notWebReady, bingeGroup: s.bingeGroup || '', addonKey: s.addonKey || '', resolution: s.resolution || '', profile: detectProfile(ctxLike) };
-    const opened = await window.MediaHubUI.playStream(result, start);
-    if(opened === false || request !== playRequest || (typeof player !== 'undefined' && player.mediaKey !== result.key))return false;
+    if(request !== playRequest || isCancelled() || player.mediaKey !== owner.key || player.generation !== owner.generation || player.openIntent !== owner.intent)return false;
+    const nextSession = { ctx: ctxLike, workKey:result.workKey, key: result.key, streamToken: data.token, streamId: s.id, sourceLabel: `${s.addonName}${s.resolution ? ' · ' + s.resolution : ''}`, torrent: !!result.hash, whisperAudio: result.whisperAudio || s.whisperAudio || 'none', filename: s.filename || '', notWebReady: !!result.notWebReady, bingeGroup: s.bingeGroup || '', addonKey: s.addonKey || '', resolution: s.resolution || '', profile: detectProfile(ctxLike) };
+    const opened = await window.MediaHubUI.playStream(result, start, { isCancelled: () => request !== playRequest || isCancelled() });
+    if(opened === false || request !== playRequest || isCancelled() || (typeof player !== 'undefined' && player.mediaKey !== result.key))return false;
     session = nextSession;
     if(typeof syncSubtitlePrimaryAction==='function')syncSubtitlePrimaryAction();
     if(typeof player!=='undefined'&&player.mediaKey===result.key){player.workKey=validWorkKey(result.workKey)?result.workKey:'';document.dispatchEvent(new CustomEvent('player-work-identity'));}
@@ -487,6 +536,11 @@
       addSubtitleOption(saved.filePath, `${saved.label} · ${saved.addonName}`, { role: 'source', language: saved.language });
       await loadSubtitle(saved.filePath); toast(t('Subtitle added automatically', 'Altyazı otomatik eklendi') + ' · ' + (saved.language || '').toUpperCase());
     } catch (_) { /* otomatik altyazı isteğe bağlıdır */ }
+  }
+  // Expired lists and vanished rows are fixed by asking the addons again, not by clicking the same row.
+  function offerRetry(host, error, retry) {
+    if (!['EXPIRED', 'NOT_FOUND'].includes(error?.code) || !host.isConnected || host.querySelector(':scope > .sx-retry')) return;
+    host.prepend(button(t('Search sources again', 'Kaynakları yeniden ara'), retry, 'mh-action mh-primary sx-retry'));
   }
   async function openStreams(ctxLike) {
     let dialog;
@@ -512,19 +566,24 @@
       install.disabled=!window.MediaHubUI?.installTorrentEngine;
       box.append(message,install,retryButton,button(t('Addon / debrid settings','Eklenti / debrid ayarları'),()=>{dialog.close();openAddons();}),button(t('Open torrent setup','Torrent kurulumunu aç'),()=>{dialog.close();window.MediaHubUI?.open('torrents');}));body.prepend(box);
     };
+    // Retry reopens the same title/episode context (never autoplays), replacing this picker.
+    const retry = () => { if (!dialog.isConnected) return; dialog.close(); return openStreams({ ...ctxLike, autoplayBest: false }); };
     say(status, t('Asking your addons…', 'Eklentilere soruluyor…')); const skeleton = el('div', 'sx-skeleton'); body.append(skeleton);
     try {
       const data = await call('streams', { type: ctxLike.type, id: ctxLike.id, season: ctxLike.season, episode: ctxLike.episode });
       skeleton.remove(); say(status, '');
-      const onPlay = async (s) => { say(status, t('Opening source…', 'Kaynak açılıyor…')); try { if(await playStreamRow(ctxLike, data, s))dialog.close(); } catch (e) { say(status, e.message, true); if (e.code === 'NEEDS_TORRENT_ENGINE') showEngineHelp(()=>onPlay(s)); } };
+      // An explicit start (e.g. “From the beginning”) overrides the saved resume point.
+      const explicitStart = { isCancelled: () => !dialog.isConnected || !dialog.open, ...(Number.isFinite(ctxLike.resumeSeconds) && ctxLike.resumeSeconds >= 0 ? { seconds: ctxLike.resumeSeconds } : {}) };
+      const onPlay = async (s) => { say(status, t('Opening source…', 'Kaynak açılıyor…')); try { if(await playStreamRow(ctxLike, data, s, explicitStart))dialog.close(); } catch (e) { say(status, e.message, true); if (e.code === 'NEEDS_TORRENT_ENGINE') showEngineHelp(()=>onPlay(s)); else offerRetry(body, e, retry); } };
       const best = pickPreferred(data.streams, ctxLike.prefer) || data.streams.find((s) => s.playable);
       if (best) {
         const top = el('div', 'sx-best'); const label = [best.addonName, best.resolution, best.provider, best.seeders != null ? '👤 ' + best.seeders : ''].filter(Boolean).join(' · ');
         top.append(button(t('Play best source', 'En iyi kaynakla oynat'), () => onPlay(best), 'mh-action mh-primary'), el('small', '', label + (best.score != null ? ' · ' + t('score ', 'puan ') + best.score : ''))); body.append(top);
-        if (ctxLike.autoplayBest) void onPlay(best);
+        // The user may have closed this picker while addons were answering; never start playback then.
+        if (ctxLike.autoplayBest && dialog.isConnected && dialog.open) void onPlay(best);
       }
-      mountStreamList(body, data, { onPlay, status });
-    } catch (e) { skeleton.remove(); say(status, e.message, true); if (e.code === 'NO_ADDONS') { body.append(button(t('Add an addon', 'Eklenti ekle'), () => { dialog.close(); openAddons(); }, 'mh-action mh-primary')); } }
+      mountStreamList(body, data, { onPlay, status, onRetry: retry });
+    } catch (e) { skeleton.remove(); say(status, e.message, true); if (e.code === 'NO_ADDONS') { body.append(button(t('Add an addon', 'Eklenti ekle'), () => { dialog.close(); openAddons(); }, 'mh-action mh-primary')); } else if (dialog.isConnected) body.append(button(t('Search sources again', 'Kaynakları yeniden ara'), retry, 'mh-action mh-primary sx-retry')); }
     return dialog;
   }
 
@@ -547,13 +606,13 @@
         personal.append(el('summary','',t('My Stremio list & review','Stremio listem ve değerlendirmem')),libraryButton(meta),ratingPanel(meta));body.append(personal);sourceHost.append(body);
         if(error)say(status,error,true);
         const current=()=>!disposed&&page.open&&request===titleRequest;
-        void mountTitleSources(meta,page,actions,body,sourceActions,current).catch(e=>{if(current())say(status,e.message,true);});
+        void mountTitleSources(meta,page,actions,body,sourceActions,current,status).catch(e=>{if(current())say(status,e.message,true);});
         const externalDispose=options.onReady?.({page,actions,sourceHost,status});
         return ()=>{disposed=true;if(typeof externalDispose==='function')externalDispose();};
       }
     });
   }
-  async function mountTitleSources(meta,page,heroActions,body,actions,current) {
+  async function mountTitleSources(meta,page,heroActions,body,actions,current,status) {
     let entries = []; try { entries = (await call('progress-title', { type: meta.type, id: meta.id })).entries; } catch (_) { /* ilerleme okunamazsa sıfırdan */ }
     if(!current())return;
     const byKey = new Map(entries.map((e) => [e.season != null ? e.season + ':' + e.episode : 'movie', e]));
@@ -566,6 +625,7 @@
       else actions.append(button(e ? t('Watch again', 'Yeniden izle') : t('Play', 'Oynat'), () => play(null, null, 0), 'mh-action mh-primary'));
       if (e && !e.completed) body.append(progressBar(e));
       heroPlay(t('Choose a source', 'Kaynak seç ve oynat'), () => play(null,null));
+      page.addEventListener('sx-error', (ev) => { if (status) say(status, ev.detail?.message, true); });
       return;
     }
 
@@ -607,7 +667,7 @@
     for (const b of pills.children) { const sn = Number(b.dataset.s), total = eps.filter((x) => x.season === sn).length, done = eps.filter((x) => x.season === sn && byKey.get(sn + ':' + x.episode)?.completed).length; b.textContent = (sn === 0 ? t('Specials', 'Özel') : `S${sn}`) + (done ? ` · ${done}/${total}` : ''); }
     picker.onchange(); body.append(pills, picker, list);
 
-    page.addEventListener('sx-error', (ev) => say(status, ev.detail?.message, true));
+    page.addEventListener('sx-error', (ev) => { if (status) say(status, ev.detail?.message, true); });
   }
   function progressBar(e) { const wrap = el('div', 'sx-progress'), bar = el('span'); bar.style.width = Math.min(100, Math.round((e.position / e.duration) * 100)) + '%'; wrap.append(bar); wrap.setAttribute('role', 'progressbar'); wrap.setAttribute('aria-valuenow', String(Math.round((e.position / e.duration) * 100))); return wrap; }
 
@@ -1016,12 +1076,12 @@
   window.addEventListener('resize',queueNativeTools);
   new MutationObserver(queueNativeTools).observe(document.getElementById('playerLayer')||document.body,{subtree:true,childList:true});
   function closePanel() { panel?.remove(); panel = null; button$?.setAttribute('aria-expanded', 'false'); }
-  function togglePanel(tab = 'sources') {
-    if (panel) return closePanel();
+  function togglePanel(tab = 'sources', options = {}) {
+    if (panel) { if (options.keepOpen) return drawPanel(tab, options); return closePanel(); }
     panel = el('div', 'sx-player-panel'); panel.dataset.uiUntranslated = ''; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', t('Stremio player menu', 'Stremio oynatıcı menüsü'));
-    (document.getElementById('playerLayer') || document.body).append(panel); button$?.setAttribute('aria-expanded', 'true'); drawPanel(tab);
+    (document.getElementById('playerLayer') || document.body).append(panel); button$?.setAttribute('aria-expanded', 'true'); drawPanel(tab, options);
   }
-  function drawPanel(tab) {
+  function drawPanel(tab, options = {}) {
     if (!panel) return; panel.replaceChildren();
     const tabs = el('div', 'sx-tabs'); tabs.setAttribute('role', 'tablist');
     for (const [id, en, tr] of [['sources', 'Sources', 'Kaynaklar'], ['subs', 'Subtitles', 'Altyazı'], ['audio', 'Audio', 'Ses'], ['play', 'Playback', 'Oynatma'], ['dub', 'Dubbing', 'Dublaj'], ['ai', 'AI tools', 'Yapay zekâ']]) {
@@ -1035,15 +1095,17 @@
     const close = el('button', 'sx-tab sx-tab-close', '×'); close.type = 'button'; close.setAttribute('aria-label', t('Close', 'Kapat')); close.onclick = closePanel; const head=el('div','sx-panel-head');head.append(tabs,close);
     const body = el('div', 'sx-panel-body'), status = statusNode(); body.id = 'sxTabPanel'; body.setAttribute('role', 'tabpanel'); body.setAttribute('aria-labelledby', 'sxTab-' + tab); panel.append(head, status, body);
     panel.addEventListener('sx-error', (e) => say(status, e.detail?.message, true));
-    ({ sources: panelSources, subs: panelSubs, audio: panelAudio, play: panelPlay, dub: panelDub, ai: panelAi })[tab](body, status);
+    ({ sources: panelSources, subs: panelSubs, audio: panelAudio, play: panelPlay, dub: panelDub, ai: panelAi })[tab](body, status, options);
   }
-  async function panelSources(body, status) {
+  async function panelSources(body, status, options = {}) {
     say(status, t('Loading sources…', 'Kaynaklar yükleniyor…'));
+    const owner = session, retry = () => { if (panel && session === owner) drawPanel('sources', options); };
     try {
-      const c = session.ctx, data = await call('streams', { type: c.type, id: c.id, season: c.season, episode: c.episode }); say(status, '');
-      const onPlay = async (s) => { const v = videoEl(), at = v?.currentTime || 0; say(status, t('Switching source…', 'Kaynak değiştiriliyor…')); try { if(await playStreamRow(c, data, s, { seconds: at }))closePanel(); } catch (e) { say(status, e.message, true); } };
-      mountStreamList(body, data, { onPlay, currentId: session.streamId, status });
-    } catch (e) { say(status, e.message, true); }
+      const c = owner.ctx, data = await call('streams', { type: c.type, id: c.id, season: c.season, episode: c.episode });
+      if (!body.isConnected || session !== owner) return; say(status, '');
+      const onPlay = async (s) => { if (!body.isConnected || session !== owner || !sessionActive()) return; const v = videoEl(), at = v?.currentTime || 0; say(status, t('Switching source…', 'Kaynak değiştiriliyor…')); try { if(await playStreamRow(c, data, s, { seconds: at, isCancelled: () => !body.isConnected || session !== owner }))closePanel(); } catch (e) { say(status, e.message, true); offerRetry(body, e, retry); } };
+      mountStreamList(body, data, { onPlay, currentId: owner.streamId, status, onRetry: retry, whisperOnly: options.whisperOnly === true });
+    } catch (e) { if (!body.isConnected) return; say(status, e.message, true); body.append(button(t('Search sources again', 'Kaynakları yeniden ara'), retry, 'mh-action mh-primary sx-retry')); }
   }
   const trackLabel = (r) => { const name = r.title || r.lang || '#' + r.id, extra = [r.title && r.lang ? r.lang : '', r.codec, r.external ? t('external', 'harici') : '', r.default ? t('default', 'varsayılan') : ''].filter(Boolean).join(' · '); return extra ? `${name} — ${extra}` : name; };
   async function panelSubs(body, status) {
@@ -1146,11 +1208,14 @@
     body.append(el('p', 'sx-hint', `${PROFILES[prof].note()} ${t('Translation style', 'Çeviri üslubu')}: ${reg}.`));
     const go = button(t('Open dubbing studio', 'Dublaj stüdyosunu aç'), async () => { if(session!==owner||!sessionActive())return; if (!sub) return say(status, t('Choose or create a subtitle first.', 'Önce bir altyazı seç veya üret.'), true); closePanel(); await openDubStudio(profSel.value, presetSel.value); }, 'mh-action mh-primary');
     body.append(go, button(t('Add a dub audio file…', 'Dublaj ses dosyası ekle…'), () => document.getElementById('playerDubAdd')?.click()));
-    if (session.torrent) body.append(el('p', 'sx-hint', t('Torrent: Whisper and the dub timeline use the local file once the download finishes; an existing subtitle dubs right away.', 'Torrent: Whisper ve dublaj zaman çizelgesi, indirme bitince yerel dosyayı kullanır; var olan altyazı hemen dublajlanır.')));
+    const w = whisperStatus();
+    if (session.torrent && !(w && w.ok)) body.append(el('p', 'sx-hint', t('Torrent: Whisper and the dub timeline use the local file once the download finishes; an existing subtitle dubs right away.', 'Torrent: Whisper ve dublaj zaman çizelgesi, indirme bitince yerel dosyayı kullanır; var olan altyazı hemen dublajlanır.')));
+    else if (w && !w.ok) body.append(el('p', 'sx-hint sx-whisper-blocked', w.message));
   }
   function panelAi(body, status) {
-    const hint = session.torrent ? t('Torrent: Whisper uses the local file once the download finishes. Subtitle translation and dubbing work while streaming.', 'Torrent: Whisper, indirme bitince yerel dosyayı kullanır. Altyazı çevirisi ve dublaj akış sırasında çalışır.') : t('Whisper prepares the first audio track from an accessible direct HTTPS file, then creates subtitles. The full video is not saved. Protected links and HLS/DASH are not supported by audio preparation.', 'Whisper, erişilebilir doğrudan HTTPS dosyasının ilk ses izini hazırlar, ardından altyazı oluşturur. Videonun tamamı kaydedilmez. Korumalı bağlantılar ve HLS/DASH ses hazırlığında desteklenmez.');
-    body.append(el('p', 'sx-hint', hint));
+    const w = whisperStatus();
+    body.append(el('p', 'sx-hint' + (w && !w.ok ? ' sx-whisper-blocked' : ''), w ? w.message : t('Whisper prepares audio from the current source, then creates subtitles.', 'Whisper mevcut kaynaktan sesi hazırlar, ardından altyazı oluşturur.')));
+    if (w && !w.ok && w.action === 'sources') body.append(button(t('Choose a Whisper-ready source', 'Whisper’a uygun kaynak seç'), () => drawPanel('sources', { whisperOnly: true }), 'mh-action mh-primary sx-whisper-next'));
     const act = (label, id, desc) => { const b = button(label, () => { const target = document.getElementById(id); if (!target || target.disabled) { say(status, t('This action is not available for the current source yet.', 'Bu eylem şu anki kaynak için henüz kullanılamıyor.'), true); return; } closePanel(); target.click(); }, 'mh-action sx-ai'); const w = el('div', 'sx-ai-row'); w.append(b, el('small', '', desc)); body.append(w); };
     act(t('Translate subtitle', 'Altyazıyı çevir'), 'makeTransBtn', t('Translate the loaded source subtitle', 'Yüklü kaynak altyazıyı çevirir'));
     act(t('Transcribe with Whisper', 'Whisper ile altyazı çıkar'), 'makeSubsBtn', t('Create a subtitle from the audio', 'Sesten altyazı üretir'));
@@ -1159,15 +1224,28 @@
   }
 
   document.addEventListener('ui-locale-change', () => { paintProgressFailure();if (button$) { button$.title = t('Sources, audio, subtitles & AI', 'Kaynaklar, ses, altyazı ve yapay zekâ'); button$.setAttribute('aria-label', button$.title); } });
+  document.addEventListener('player-local-file-ready',e=>{if(!sessionActive()||e.detail?.key!==session.key)return;const tab=panel?.querySelector('.sx-tab[aria-selected="true"]')?.id;if(tab==='sxTab-ai'||tab==='sxTab-dub')drawPanel(tab.slice(6));});
   document.addEventListener('player-playback-preferences',()=>{if(panel?.querySelector('#sxTab-play[aria-selected="true"]'))drawPanel('play');});
   document.addEventListener('DOMContentLoaded', hookVideo);
   hookVideo();
-  const whisperSource=()=>sessionActive()&&!session.torrent&&typeof player!=='undefined'&&player.workspaceMode!=='browser'?{token:session.streamToken,streamId:session.streamId,key:session.key}:null;
+  const whisperSource=()=>sessionActive()&&!session.torrent&&session.whisperAudio==='ready'&&typeof player!=='undefined'&&player.workspaceMode!=='browser'?{token:session.streamToken,streamId:session.streamId,key:session.key}:null;
+  // Why the current Stremio source can or cannot feed Whisper, with the applicable next step.
+  function whisperStatus() {
+    if(!sessionActive()||typeof player==='undefined'||player.workspaceMode==='browser')return null;
+    // A finished torrent download is attached as the player's local file: Whisper then uses it directly.
+    if(session.torrent&&player.localPath)return {ok:true,kind:'local',message:t('The download finished. Whisper uses the completed local file; the full film is not downloaded again.','İndirme bitti. Whisper tamamlanmış yerel dosyayı kullanır; film yeniden indirilmez.')};
+    const kind=session.torrent?'torrent':session.whisperAudio||'none';
+    if(kind==='ready')return {ok:true,kind,message:t('Whisper prepares the first audio track of this direct HTTPS file, then creates subtitles. The full video is not saved.','Whisper bu doğrudan HTTPS dosyasının ilk ses izini hazırlar, ardından altyazı oluşturur. Videonun tamamı kaydedilmez.')};
+    if(kind==='torrent')return {ok:false,kind,action:'sources',message:t('Raw torrent: Whisper becomes available when the download finishes (Media center → Torrents shows progress). For Whisper now, choose a direct/debrid source.','Ham torrent: Whisper indirme bitince kullanılabilir (ilerleme Medya merkezi → Torrentler’de). Hemen Whisper için doğrudan/debrid kaynak seç.')};
+    if(kind==='adaptive')return {ok:false,kind,action:'sources',message:t('This source is an adaptive HLS/DASH stream; its audio cannot be prepared for Whisper. Choose a direct file source. Loaded subtitles can still be translated.','Bu kaynak uyarlamalı HLS/DASH akışı; sesi Whisper için hazırlanamaz. Doğrudan dosya kaynağı seç. Yüklü altyazılar yine çevrilebilir.')};
+    if(kind==='insecure')return {ok:false,kind,action:'sources',message:t('This local addon link is not HTTPS, so Whisper audio preparation is unavailable. Choose an HTTPS direct source.','Bu yerel eklenti bağlantısı HTTPS değil; Whisper ses hazırlığı kullanılamaz. HTTPS doğrudan kaynak seç.')};
+    return {ok:false,kind,action:'sources',message:t('This source cannot be prepared for Whisper. Choose a direct HTTPS source.','Bu kaynak Whisper için hazırlanamaz. Doğrudan HTTPS kaynak seç.')};
+  }
   function assistantMetadata() {
     if(!sessionActive()||typeof player==='undefined'||player.workspaceMode==='browser'||!validWorkKey(session.workKey)||player.workKey!==session.workKey)return null;
     const c=session.ctx;if(!c||!['movie','series'].includes(c.type)||!/^tt\d{7,12}$/.test(c.id||''))return null;
     const kind=c.type==='movie'?'film':'series',year=Number(c.meta?.year);
     return {itemId:'discovery:'+kind+':'+c.id,title:String(c.name||'').replace(/\0/g,'').slice(0,300),...(Number.isInteger(year)&&year>=1870&&year<=2200?{year}:{}),...(kind==='series'?Object.fromEntries(['season','episode'].filter(key=>Number.isInteger(c[key])&&c[key]>=0&&c[key]<=10000).map(key=>[key,c[key]])):{})};
   }
-  window.StremioUI = Object.freeze({ mount, openAddons, openTitle, openStreams, togglePanel, whisperSource, assistantMetadata, _test: { nextOf, filterStreams, baseCtx, session: () => session } });
+  window.StremioUI = Object.freeze({ mount, openAddons, openTitle, openStreams, togglePanel, whisperSource, whisperStatus, assistantMetadata, _test: { nextOf, filterStreams, streamSummary, baseCtx, session: () => session } });
 })();

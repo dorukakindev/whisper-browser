@@ -27792,7 +27792,9 @@ function playerSubtitleCreationState() {
   if(player.workspaceMode==='browser')return {available:!!(currentBrowserYoutubeUrl()||currentBrowserWhisperAudio()),reason:interfaceChoice('Whisper için bir YouTube videosu veya erişilebilir bölüm sesi açın. Diğer sitelerde Canlı Whisper kullanılabilir.','Open a YouTube video or accessible episode audio for Whisper. Other sites can use Live Whisper.')};
   if(String(player.mediaKey||'').startsWith('youtube:'))return {available:!!(player.ytInfo?.sourceUrl||$('playerYtUrl')?.value?.trim()),reason:interfaceChoice('Önce geçerli bir YouTube videosu yükleyin.','Load a valid YouTube video first.')};
   const path=String(player.localPath||'').trim();
-  if(!path){const stream=window.StremioUI?.whisperSource?.();if(stream)return {available:true,stream,reason:''};}
+  if(!path){const stream=window.StremioUI?.whisperSource?.();if(stream)return {available:true,stream,reason:''};
+    // An active Stremio source that cannot feed Whisper explains why and what to choose instead.
+    const blocked=window.StremioUI?.whisperStatus?.();if(blocked&&!blocked.ok)return {available:false,reason:blocked.message,stremio:blocked.kind};}
   return {available:!!path&&!['Seçilmedi','Not selected'].includes(path),reason:player.mediaKey?interfaceChoice('Whisper için tamamlanmış yerel medya dosyası gerekli. Akışı önce indirin veya yerel dosya açın. Yüklü altyazıyı çevirebilirsiniz.','Whisper needs a completed local media file. Download the stream or open a local file first. Loaded subtitles can still be translated.'):interfaceChoice('Whisper için önce yerel medya dosyası veya YouTube videosu açın.','Open a local media file or YouTube video for Whisper first.')};
 }
 
