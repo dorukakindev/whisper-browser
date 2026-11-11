@@ -280,3 +280,19 @@ html[data-theme="light"] .media-home img { outline-color: rgb(var(--media-scrim-
 .media-home::-webkit-scrollbar-thumb,.media-home ::-webkit-scrollbar-thumb{border-radius:999px;background:var(--border);border:2px solid transparent;background-clip:padding-box}
 .media-home::-webkit-scrollbar-thumb:hover,.media-home ::-webkit-scrollbar-thumb:hover{background-color:var(--border-strong,var(--text-dim))}
 .media-home::-webkit-scrollbar-button,.media-home ::-webkit-scrollbar-button{display:none;width:0;height:0}
+
+/* R854 cinematic redesign — library pages (Films, Series, ...): centred poster wall under a large title. */
+.mh-content:has(>.mh-filterbar){max-width:1480px;margin-inline:auto;padding:44px 44px 90px}
+.mh-content>.mh-filterbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 6px;padding:0}
+.mh-content>.mh-filterbar select,.mh-content>.mh-filterbar .mh-action{border-radius:999px;padding:9px 18px;font-size:13px;background:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid color-mix(in srgb,var(--text) 11%,transparent)}
+.mh-content>.mh-filterbar .mh-action:last-child{margin-left:auto}
+.mh-content>.mh-filterbar~.mh-section .mh-section-head h2{font-size:clamp(34px,3.6vw,56px);letter-spacing:-.04em;line-height:1.05;margin:18px 0 26px}
+.mh-content>.mh-filterbar~.mh-section .mh-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:34px 26px}
+.mh-content>.mh-filterbar~.mh-section .mh-card{display:flex;flex-direction:column;gap:6px;text-align:left;background:none;border:0;padding:0}
+.mh-content>.mh-filterbar~.mh-section .mh-card .mh-art{aspect-ratio:2/3;border-radius:16px;overflow:hidden;box-shadow:0 24px 44px -26px black,0 0 0 1px color-mix(in srgb,var(--text) 9%,transparent);transition:transform .24s ease,box-shadow .24s ease}
+html:not([data-motion=off]):not([data-motion=reduce]) .mh-content>.mh-filterbar~.mh-section .mh-card:hover .mh-art,html:not([data-motion=off]):not([data-motion=reduce]) .mh-content>.mh-filterbar~.mh-section .mh-card:focus-visible .mh-art{transform:translateY(-6px) scale(1.015);box-shadow:0 40px 60px -28px black,0 0 0 1px color-mix(in srgb,var(--text) 22%,transparent)}
+.mh-content>.mh-filterbar~.mh-section .mh-card-title{margin-top:8px;font-size:15px;font-weight:600;letter-spacing:-.01em}
+.mh-content>.mh-filterbar~.mh-section .mh-card-meta{font-size:12.5px;color:var(--text-muted,var(--text-dim))}
+
+/* R854 G07: partial read failures belong to the page, alongside the usable content. */
+.mh-library-load-error{max-width:1350px;margin:18px auto;padding:20px 24px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:12px;background:var(--bg-1)}.mh-library-load-error h2{font-size:20px;margin:0 0 10px}.mh-library-load-error p{line-height:1.6;max-width:72ch}

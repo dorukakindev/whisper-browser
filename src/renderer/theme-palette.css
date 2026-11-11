@@ -7,11 +7,9 @@
   --media-highlight-rgb: 255 255 255;
   --media-feature-ink-rgb: 8 9 12;
   --media-transport-ink-rgb: 8 9 11;
-  /* Fixed media-plane accents are independent of the surrounding UI theme.
-     Keep the two established amber hues distinct; translucent effects reuse
-     these channels with their original opacity, rather than changing hue. */
-  --media-player-accent-rgb: 243 189 79;
-  --media-art-accent-rgb: 213 163 92;
+  /* Compatibility channel aliases derive from the single interactive accent. */
+  --media-player-accent-rgb: from var(--theme-accent) r g b;
+  --media-art-accent-rgb: from var(--theme-accent) r g b;
   --media-status-success-rgb: 105 181 139;
   --media-on-art: #f1f0ed;
   --media-on-art-white: #fff;
@@ -30,16 +28,16 @@
   --theme-text: #f1f0ed;
   --theme-text-dim: #c1c4cb;
   --theme-text-muted: #b0b4bd;
-  --theme-accent: #d5a35c;
-  --theme-accent-hover: #e0b574;
-  --theme-accent-contrast: #18130d;
+  --theme-accent: #e2ab5b;
+  --theme-accent-hover: #f2c681;
+  --theme-accent-contrast: #21170c;
   --theme-scrollbar-track: var(--theme-bg-1);
   --theme-scrollbar-thumb: var(--theme-border-strong);
   --theme-scrollbar-thumb-hover: var(--theme-text-muted);
   --theme-scrollbar-thumb-active: var(--theme-text-dim);
 }
 
-/* Preserve the existing qualified warm light palette and scrollbar contrast. */
+/* Warm light surfaces retain independently contrasted text and controls. */
 html[data-theme="light"] {
   --theme-bg-0: #f1ede5;
   --theme-bg-1: #f7f4ed;
@@ -50,11 +48,11 @@ html[data-theme="light"] {
   --theme-text: #28231f;
   --theme-text-dim: #514a43;
   --theme-text-muted: #625b54;
-  --theme-accent: #7f4c15;
+  --theme-accent: #865019;
   --theme-accent-hover: #6a3e0f;
-  --theme-accent-contrast: #fffaf0;
+  --theme-accent-contrast: #ffffff;
   --theme-scrollbar-track: #e9e3d9;
-  --theme-scrollbar-thumb: #b9afa1;
-  --theme-scrollbar-thumb-hover: #978c7f;
-  --theme-scrollbar-thumb-active: #756b61;
+  --theme-scrollbar-thumb: #b4b5b1;
+  --theme-scrollbar-thumb-hover: #929490;
+  --theme-scrollbar-thumb-active: #71736f;
 }

@@ -328,7 +328,7 @@ header{padding-inline:16px;gap:12px}
 #panel:has(.empty) #suggestions{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
 
 .source-return{display:inline-flex;margin-top:4px;padding:2px 9px;min-height:24px;font-size:11px;letter-spacing:.02em;border-radius:12px;background:transparent;border:1px solid var(--line);color:var(--accent)}
-.source-return:hover,.source-return:focus-visible{border-color:var(--accent);background:rgba(213,163,92,.08)}
+.source-return:hover,.source-return:focus-visible{border-color:var(--accent);background:color-mix(in srgb,var(--theme-accent) 8%,transparent)}
 #tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;align-items:center}
 .context-scope-hint{grid-column:1/-1;line-height:1.45;color:var(--muted);font-size:11px;max-width:65ch}
 #suggestions,#panel:has(.empty) #suggestions{flex-wrap:wrap;min-width:0}
@@ -485,3 +485,27 @@ html[data-theme=light] .tool-card[data-status=pending] .tool-status,html[data-th
 .sources .source-card[open] .source-tags{flex-wrap:wrap;justify-content:flex-end}
 
 .conversation-capacity{font-size:11px;line-height:1.5;color:var(--muted);margin:6px 16px}.flow-result-review,.runtime-delivery,.action-card-history{margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}.flow-result-review>summary,.runtime-delivery>summary,.action-card-history>summary{cursor:pointer;color:var(--accent);font-size:12px}.flow-result-review p,.runtime-delivery p{font-size:12px;line-height:1.6;overflow-wrap:anywhere}.flow-result-review small{display:block;color:var(--muted);line-height:1.6}.action-card-history .tool-card{margin-top:12px}
+
+/* R854 G08/G09/G11 — reading area keeps priority over secondary detail; source summary may use two lines. */
+#assistantWorkspace>#log{flex-basis:max(100px,38vh);min-height:max(100px,38vh)}
+.source-detail-content{max-height:min(176px,24vh)}
+#sourceBox>summary{white-space:normal}
+#sourceBox>summary #sourceLabel{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#sourceBox>summary #sourcePreview{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;overflow-wrap:anywhere;margin-top:1px;color:var(--text)}
+#conversationMenu .conversation-capacity{margin:8px 0 0}
+#runtimeMessageStatus{display:block;flex-basis:100%;line-height:1.45;font-size:10.5px}
+#sourceBox>summary{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:7px;align-items:start}
+#sourceBox>summary::before{grid-row:1;grid-column:1;margin-right:0}
+#sourceBox>summary #sourceLabel{grid-column:2;grid-row:1}
+#sourceBox>summary #sourcePreview{grid-column:2;grid-row:2}
+
+/* R854 cinematic palette — the assistant shares the players' projector light (dark theme only): ice-blue accent, deeper glass, calmer header. */
+html:not([data-theme=light]){--accent:var(--theme-accent);--accent-hover:var(--theme-accent-hover);--on-accent:var(--theme-accent-contrast)}
+html:not([data-theme=light]) body{background:radial-gradient(110% 60% at 50% -10%,color-mix(in srgb,var(--theme-accent) 8%,transparent),transparent 60%),var(--theme-bg-0)}
+
+/* R854 G08/G09: one bounded answer viewport; evidence opens above it without moving its reading position. */
+#assistantWorkspace{overflow:hidden;position:relative}#assistantWorkspace>#log{flex:1 1 180px;min-height:100px;overflow:auto}
+#agentProgress{flex:none;padding-block:9px}#agentProgress:not(.progress-expanded) #progressDetail,#agentProgress:not(.progress-expanded) .progress-steps{display:none}
+#progressDetailsToggle{border:0;background:none;color:var(--accent);font:inherit;font-size:12px;text-align:left;padding:4px 0;cursor:pointer}#progressDetailsToggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#sourceBox{position:static;flex:none}#sourceBox[open] .source-detail-content{position:absolute;z-index:6;top:70px;left:16px;right:16px;max-height:calc(100% - 92px);overflow:auto;background:var(--surface);border:1px solid var(--line);box-shadow:0 14px 30px -12px var(--bg)}
+#sourceBack{display:block;position:sticky;top:0;margin-bottom:12px;background:var(--raised);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer}

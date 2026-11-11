@@ -1,4 +1,5 @@
 'use strict';
+const themePalette=require('./theme-palette').palette;
 
 const HINT_ALPHABET = 'asdfghjklqwertyuiopzxcvbnm';
 
@@ -89,7 +90,7 @@ function buildBrowserLinkHintsScript(options = {}) {
       label.textContent = code.toUpperCase();
       Object.assign(label.style, { position: 'fixed', left: Math.max(0, candidate.offsetX + rect.left) + 'px',
         top: Math.max(0, candidate.offsetY + rect.top) + 'px', padding: '2px 4px', border: '1px solid #08090a',
-        borderRadius: '3px', color: '#08090a', background: '#d5a35c', boxShadow: '0 1px 4px #000a' });
+        borderRadius: '3px', color: '#08090a', background: '${themePalette().accent}', boxShadow: '0 1px 4px #000a' });
       layer.appendChild(label);
       return { element, label, code };
     });

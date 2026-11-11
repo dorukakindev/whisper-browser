@@ -17,8 +17,8 @@ function createResearchNotes({notes,manifest,validateOwner=()=>true,now=Date.now
  function read(sender,input){prune();const owner=ownerOf(input),args=input.args||{};
   if(input.action==='search'){
    const query=String(args.query||'').trim();if(!query||query.length>400)return fail('query-required','Enter a literal text query / Düz metin sorgusu girin.');
-   const rows=notes.list({query,...(args.media_type?{mediaType:args.media_type}:{})},9);
-   return {ok:true,matches:rows.slice(0,8).map(row=>snapshot(row,sender,owner)),more:rows.length>8,limit:8,scope:'Literal local notebook text search; source quotations, saved translations and personal notes are separate. AI interpretations are not source facts. Unreturned notes were not read.'};
+   const rows=notes.list({query,...(args.media_type?{mediaType:args.media_type}:{})},Infinity).sort((a,b)=>String(a.id).localeCompare(String(b.id))),revision=require('node:crypto').createHash('sha256').update(JSON.stringify([query,args.media_type||null,rows.map(row=>[row.id,annotationRevision(row)])])).digest('hex'),offset=args.offset||0;if(!Number.isSafeInteger(offset)||offset<0||offset>50000)throw Error('Invalid note offset.');if(args.snapshot_revision&&args.snapshot_revision!==revision)return changed();
+   return {ok:true,matches:rows.slice(offset,offset+8).map(row=>snapshot(row,sender,owner)),offset,total:rows.length,snapshotRevision:revision,nextOffset:offset+8<rows.length?offset+8:null,more:offset+8<rows.length,limit:8,scope:'Literal local notebook text search; source quotations, saved translations and personal notes are separate. AI interpretations are not source facts. Unreturned notes were not read.'};
   }
   if(input.action==='read'){
    const ids=args.note_ids;if(!Array.isArray(ids)||!ids.length||ids.length>8||new Set(ids).size!==ids.length)return fail('invalid-selection','Select 1–8 distinct notes / 1–8 farklı not seçin.');

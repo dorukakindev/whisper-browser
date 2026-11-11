@@ -153,7 +153,7 @@ html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="li
 .film-section-link { min-height:42px; padding:8px 2px; background:none; border:0; border-radius:4px; color:var(--text-dim); font-size:14px; line-height:1.5; cursor:pointer; }
 .film-section-link:hover,.film-section-link:focus-visible { color:var(--text); }
 .film-plot-toggle { margin-left:auto; }
-.media-title-page [id^="film-section-"] { scroll-margin-top:28px; }
+.media-title-page [id^="film-section-"] { scroll-margin-top:calc(var(--window-controls-safe-height,38px) + var(--mv-header-height,72px) + 20px); }
 .media-title-page .mtd-poster,.media-title-page .md-detail-poster { position:relative; }
 .film-poster-open { position:absolute; bottom:10px; left:10px; right:10px; min-height:40px; border:1px solid rgb(var(--media-highlight-rgb) / 30%); border-radius:8px; background:rgb(var(--media-scrim-rgb) / 78%); color:var(--media-on-art-white); font:500 13px/1.4 'IBM Plex Sans',sans-serif; cursor:pointer; }
 .film-poster-open:disabled { display:none; }
@@ -412,3 +412,10 @@ html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="li
 .media-title-page .film-review-content .mrv-opinion-heading h3{margin:0;line-height:1.45;font-size:16px}
 .media-title-page .film-review-content .mrv-point>.mrv-quote-preview{background:none;border:0;border-radius:0;padding:0;margin:0 0 12px;line-height:1.75;font-size:13px}
 @media(min-width:1150px){.media-title-page .film-review-content .mrv-opinions{grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}.media-title-page .film-review-content .mrv-opinions>section:last-child:nth-child(odd){grid-column:auto}}
+
+.mtd-episode-state{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.02em;color:var(--text-dim);white-space:nowrap}
+.mtd-episode-state.is-done{color:var(--accent)}
+.mtd-episode-meter{display:inline-block;width:56px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--accent) var(--p,0%),color-mix(in srgb,var(--text) 18%,transparent) 0)}
+
+/* R854 G56/G65–G68: copy identity and exact recorded position stay beside Play. */
+.cn-copy-position{font-size:13px;line-height:1.6;max-width:72ch;padding:12px 16px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--bg-1));border-radius:8px;overflow-wrap:anywhere}.mc-episode-target{outline:2px solid var(--accent);outline-offset:3px}.pm-resume-provenance{font-size:13px;line-height:1.6;margin:10px 0}.pm-resume-provenance summary{cursor:pointer;color:var(--accent)}.pm-resume-provenance p{max-width:72ch;overflow-wrap:anywhere}

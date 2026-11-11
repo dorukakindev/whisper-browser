@@ -38,7 +38,7 @@ function citationsOf(raw){return !Array.isArray(raw)?[]:raw.slice(0,40).flatMap(
  if(c?.kind==='research-draft'&&/^D[a-f0-9-]{36}$/.test(c.id||'')&&c.draftId===c.id)return [{id:c.id,kind:c.kind,draftId:c.id,title:text(c.title,300),text:text(c.text,8000),sourceCount:Math.min(8,Math.max(1,Number(c.sourceCount)||1))}];
  if(c?.kind==='podcast'){const card=require('./renderer/assistant-podcast-sources').cleanOne(c);return card?[card]:[];}
  if(c?.kind==='film-review')return /^F[a-f0-9]{20}$/.test(c.id||'')&&/^(catalog:[\w-]{1,120}|discovery:(film|series):tt\d{7,12})$/.test(c.itemId||'')&&typeof c.reviewId==='string'&&c.reviewId.length>0&&c.reviewId.length<=200&&!c.reviewId.includes('\0')&&/^[a-f0-9]{64}$/.test(c.revision||'')&&typeof c.text==='string'&&c.text.length>0&&c.text.length<=2000&&!c.text.includes('\0')?[{id:c.id,kind:'film-review',itemId:c.itemId,reviewId:c.reviewId,revision:c.revision,text:c.text,title:text(c.title,300),author:text(c.author,200)}]:[];
- return c&&/^B[0-9]+-[0-9]+$/.test(c.id)&&typeof c.sourceId==='string'&&c.sourceId.length>0&&c.sourceId.length<=500&&!c.sourceId.includes('\0')&&Number.isInteger(c.page)&&c.page>0&&c.page<=100000?[{id:c.id,sourceId:c.sourceId,page:c.page,kind:c.kind==='page'?'page':'chapter',text:text(c.text,600)}]:[];
+ return c&&/^B[0-9]+-[0-9]+$/.test(c.id)&&typeof c.sourceId==='string'&&c.sourceId.length>0&&c.sourceId.length<=500&&!c.sourceId.includes('\0')&&Number.isInteger(c.page)&&c.page>0&&c.page<=100000?[{id:c.id,sourceId:c.sourceId,page:c.page,...(c.sourceRevision?{sourceRevision:text(c.sourceRevision,100)}:{}),kind:c.kind==='page'?'page':'chapter',text:text(c.text,600)}]:[];
  });}
 
 function actionsOf(raw){
@@ -47,7 +47,7 @@ function actionsOf(raw){
   return raw.flatMap(row=>{
     if(row?.kind==='app_action'){
       if(!id(row.proposalId)||require('./assistant-capabilities').get(row.tool)?.policy!=='proposal')return [];
-      return [{kind:'app_action',proposalId:row.proposalId,tool:row.tool,label:text(row.label,120),summary:text(row.summary,1000),
+      return [{kind:'app_action',proposalId:row.proposalId,tool:row.tool,label:text(row.label,120),summary:text(row.summary,1000),...(row.sourceBasis?{sourceBasis:require('./assistant-context-manifest').publicContext(row.sourceBasis)}:{}),...(row.reviewedOptions?{reviewedOptions:text(row.reviewedOptions,4000),optionsTruncated:row.optionsTruncated===true}:{}),
         resultStatus:['applying','accepted','partial','completed','failed','stopped','unknown'].includes(row.resultStatus)?row.resultStatus:'',refreshable:row.resultStatus==='failed'&&row.refreshable===true,resultText:text(row.resultText,500),...(/^[a-zA-Z0-9_:.-]{1,120}$/.test(row.jobId||'')?{jobId:row.jobId}:{})}];
     }
     if(!row||!['seek_to_time','preview_translation_change','open_voice_preparation'].includes(row.kind))return [];
@@ -67,12 +67,12 @@ function cleanThread(raw){
   if(!raw||!id(raw.id)||typeof raw.sourceKey!=='string'||!raw.sourceKey||raw.sourceKey.length>6000||!Array.isArray(raw.messages)||raw.messages.length>200)throw Error('Invalid assistant conversation.');
   const messages=parentsFirst(raw.messages.map(row=>{
     if(!row||!id(row.id)||row.parentId!==null&&!id(row.parentId)||!['user','assistant'].includes(row.role)||typeof row.text!=='string'||row.text.length>32000)throw Error('Invalid assistant message.');
-    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,artifacts:artifactRefs(row.artifacts),runtimeMessages:runtimeMessagesOf(row.runtimeMessages),status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),pageEvidence:pageEvidenceOf(row.pageEvidence),feedEvidence:feedEvidenceOf(row.feedEvidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps),citations:citationsOf(row.citations),basis:basisOf(row.basis)};
+    return {id:row.id,parentId:row.parentId,role:row.role,text:row.text,artifacts:artifactRefs(row.artifacts),runtimeMessages:runtimeMessagesOf(row.runtimeMessages),status:['complete','streaming','stopped','failed'].includes(row.status)?row.status:'complete',evidence:evidenceOf(row.evidence),pageEvidence:pageEvidenceOf(row.pageEvidence),feedEvidence:feedEvidenceOf(row.feedEvidence),actions:actionsOf(row.actions),steps:require('./assistant-run-steps').clean(row.steps),citations:citationsOf(row.citations),basis:basisOf(row.basis),scopeReceipt:require('./assistant-work-records').scope(row.scopeReceipt)};
   }));
   const seen=new Set();for(const row of messages){if(seen.has(row.id)||row.parentId!==null&&!seen.has(row.parentId))throw Error('Conversation contains a cycle, duplicate or missing parent.');seen.add(row.id);}
   if(raw.headId!==null&&!seen.has(raw.headId))throw Error('Conversation head is missing.');
   return {id:raw.id,sourceKey:raw.sourceKey,title:text(raw.title,200)||'Conversation',parentThreadId:id(raw.parentThreadId)?raw.parentThreadId:null,
-    headId:raw.headId,messages,createdAt:Number.isFinite(raw.createdAt)&&raw.createdAt>0?raw.createdAt:Date.now(),updatedAt:Number.isFinite(raw.updatedAt)&&raw.updatedAt>0?raw.updatedAt:Date.now(),revision:Number.isSafeInteger(raw.revision)&&raw.revision>=0?raw.revision:0};
+    brief:require('./assistant-work-records').brief(raw.brief),headId:raw.headId,messages,createdAt:Number.isFinite(raw.createdAt)&&raw.createdAt>0?raw.createdAt:Date.now(),updatedAt:Number.isFinite(raw.updatedAt)&&raw.updatedAt>0?raw.updatedAt:Date.now(),revision:Number.isSafeInteger(raw.revision)&&raw.revision>=0?raw.revision:0};
 }
 function validateEnvelope(raw){if(!raw||raw.version!==1||!Array.isArray(raw.threads)||raw.threads.length>200)throw Error('Invalid assistant archive.');const seen=new Set();return {version:1,threads:raw.threads.map(row=>{const cleaned=cleanThread(row);if(seen.has(cleaned.id))throw Error('Duplicate conversation ID.');seen.add(cleaned.id);return cleaned;})};}
 function copiedArtifact(thread, message, doc, threads) {
@@ -100,6 +100,8 @@ function registerAssistantThreads({app,ipcMain,authorized}){
       if(!input||typeof input!=='object'||typeof input.sourceKey!=='string'||!input.sourceKey||input.sourceKey.length>6000)throw Error('Conversation source is missing.');
       const data=read();
       const capacity=()=>({archiveThreads:data.threads.length,archiveLimit:200,bytes:Buffer.byteLength(JSON.stringify(data)),byteLimit:32000000});
+      if(input.action==='session-map')return {ok:true,rows:data.threads.slice().sort((a,b)=>b.updatedAt-a.updatedAt).map(t=>({id:t.id,title:t.title,sourceKey:t.sourceKey,revision:require('node:crypto').createHash('sha256').update(JSON.stringify([t.id,t.sourceKey])).digest('hex'),updatedAt:t.updatedAt,brief:t.brief,receipts:t.messages.flatMap(m=>m.actions).filter(a=>a.resultStatus).slice(-8)}))};
+      if(input.action==='evidence-inventory'){const offset=input.offset??0;if(!Number.isSafeInteger(offset)||offset<0||offset>10000)throw Error('Invalid evidence offset.');const rows=data.threads.sort((a,b)=>b.updatedAt-a.updatedAt).flatMap(thread=>thread.messages.flatMap(message=>[...message.citations,...message.feedEvidence.filter(c=>c.nodeId)].map(card=>({card,threadId:thread.id,threadTitle:thread.title,messageId:message.id}))));const revision=require('node:crypto').createHash('sha256').update(JSON.stringify(rows)).digest('hex');if(input.revision&&input.revision!==revision)throw Error('Evidence inventory changed; refresh.');return {ok:true,rows:rows.slice(offset,offset+40),total:rows.length,nextOffset:offset+40<rows.length?offset+40:null,revision};}
       if(input.action==='list')return {ok:true,capacity:capacity(),threads:data.threads.filter(row=>row.sourceKey===input.sourceKey).sort((a,b)=>b.updatedAt-a.updatedAt).map(row=>({...row,messages:row.messages.map(m=>m.status==='streaming'?{...m,status:'stopped'}:m)}))};
       if(input.action==='save'){
         const thread=cleanThread(input.thread);if(thread.sourceKey!==input.sourceKey)throw Error('Conversation source changed.');

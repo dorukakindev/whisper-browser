@@ -253,6 +253,22 @@
     const result=saved.workspace?.[role==='translation'?'translation':'transcript'];
     if(!result?.text)throw Error(t('Bu kaynak için kayıtlı sonuç yok.','No saved result is available for this source.'));
     const requiresExactAudio=result.provenance==='asr'||!!result.timeline||saved.workspace?.transcript?.provenance==='asr';
+    // Whisper already produced timed text. Attach it to the verified bytes it
+    // actually heard, rather than treating an open RSS stream as that copy.
+    if(requiresExactAudio&&result.state==='timed'&&result.timeline?.sha256&&audio.episodeIdentity
+      &&(!audio.exactAudio||audio.sourceVersion!==saved.sourceVersion||audio.sourceBinding?.sha256!==result.timeline.sha256)
+      &&typeof openPodcastEntry==='function'){
+      const exact=await api({action:'podcast-exact-audio',entryId:audio.entryId}).catch(()=>null);if(!valid())return;
+      if(exact?.available&&exact.sourceVersion===saved.sourceVersion&&exact.sourceBinding?.episodeIdentity===audio.episodeIdentity&&exact.sourceBinding.sha256===result.timeline.sha256){
+        const video=typeof document==='undefined'?null:document.getElementById('playerVideo');
+        const previous={entryId:audio.entryId,mediaKey:audio.mediaKey,generation:audio.generation,sourceVersion:audio.sourceVersion};
+        await openPodcastEntry(audio.entryId,{exactVersion:saved.sourceVersion,reload:true,preserveView:true,autoplay:video?.paused===false});
+        const current=player.workspaceAudio;
+        if(current?.entryId===audio.entryId&&current.exactAudio&&current.sourceVersion===saved.sourceVersion&&current.sourceBinding?.sha256===result.timeline.sha256&&current.mediaKey===player.mediaKey&&current.generation===player.generation)
+          return {ok:true,playbackHandoff:{previous,current:{entryId:current.entryId,mediaKey:current.mediaKey,generation:current.generation,sourceVersion:current.sourceVersion}}};
+        return {stale:true};
+      }
+    }
     if(saved.sourceVersion===audio.sourceVersion&&(!requiresExactAudio||audio.exactAudio&&!!result.timeline?.sha256&&result.timeline.sha256===audio.sourceBinding?.sha256)&&result.state==='timed'){
       const materialized=await api({action:'podcast-materialize',entryId:audio.entryId,sourceVersion:saved.sourceVersion,role});if(!valid())return;
       const loaded=await loadSubtitle(materialized.path,role==='translation',{silent:true,select:true,role,isCancelled:()=>!valid()});if(!valid())return;
@@ -295,7 +311,7 @@
     action(t('Yayıncı RSS ekle','Add publisher RSS'),()=>{dialog.close();return window.MediaHomeUI.navigate('feeds');});action(t('Kapat','Close'),()=>dialog.close());dialog.append(title,note,urlField,controls,message,results);document.body.append(dialog);window.PlayerUiKit?.bindDialog?.(dialog);dialog.addEventListener('close',()=>{dialog.remove();if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();},{once:true});dialog.showModal();if(typeof syncBrowserOcclusion==='function')void syncBrowserOcclusion();
   }
   let podcastOpenIntent=0;
-  async function openPodcastEntry(entryId,{view='podcast',restart=false,reload=false,isCancelled=()=>false,presentation,exactVersion,autoplay=true}={}){
+  async function openPodcastEntry(entryId,{view='podcast',restart=false,reload=false,isCancelled=()=>false,presentation,exactVersion,autoplay=true,preserveView=false}={}){
     if(typeof entryId!=='string'||!entryId||!['podcast','bilingual'].includes(view))throw Error(t('Geçerli bir RSS bölümü seçin.','Choose a valid RSS episode.'));
     if(isCancelled())return;
     const intent=++podcastOpenIntent,cancelled=isCancelled;
@@ -322,9 +338,9 @@
       if(typeof presentation.publisher==='string')player.workspaceAudio.publisher=presentation.publisher.slice(0,300);
       if(typeof presentation.image==='string'&&/^https:\/\//i.test(presentation.image)&&presentation.image.length<=4096)player.workspaceAudio.image=presentation.image;
     }
-    window.PlayerWorkspaceIntegration.setPodcastMode(view==='podcast');
+    if(!preserveView)window.PlayerWorkspaceIntegration.setPodcastMode(view==='podcast');
     window.PlayerWorkspaceIntegration.refresh(true);
-    window.CinemaSahne?.open({mode:view==='podcast'?'podcast':'study'});
+    if(!preserveView)window.CinemaSahne?.open({mode:view==='podcast'?'podcast':'study'});
   }
   const podcastButton=document.createElement('button');podcastButton.type='button';podcastButton.className='mh-action';podcastButton.textContent=t('Podcast araçları','Podcast tools');podcastButton.onclick=podcastTools;header.append(podcastButton);
   const podcastMenuButton=podcastButton.cloneNode(true);podcastMenuButton.onclick=podcastTools;document.querySelector('#playerHeadMore .ph-more-body, #playerHeadMore [role=menu]')?.append(podcastMenuButton);

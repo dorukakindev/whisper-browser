@@ -63,7 +63,7 @@ function profile(diary = [], catalog = [], saved = {}, reviewEntries = []) {
   function signals(field) {
     return ranking(field).map(group=>{
       const evidence=rated.filter(row=>values(metadataFor(row),field).includes(group.name)).map(row=>{
-        const item=metadataFor(row),ratingSource=validRating(item?.ratings?.personal)?'catalog':'diary';return {title:row.title,year:row.year,rating:row.rating,ratingSource,...(ratingSource==='diary'?{ratingRecordId:diaryRecordId(row),...(row.watchedDate?{ratingDate:row.watchedDate}:{})}:{}),...(item?.id?{itemId:item.id}:{})};
+        const item=metadataFor(row),ratingSource=validRating(item?.ratings?.personal)?item.portraitSource||'catalog':'diary';return {title:row.title,year:row.year,rating:row.rating,ratingSource,...(ratingSource==='diary'?{ratingRecordId:diaryRecordId(row),...(row.watchedDate?{ratingDate:row.watchedDate}:{})}:{}),...(item?.id?{itemId:item.id}:{})};
       }).sort((a,b)=>String(a.title).localeCompare(String(b.title))||String(a.year).localeCompare(String(b.year))||String(a.itemId||'').localeCompare(String(b.itemId||'')));
       const delta=group.average-average;
       // Absolute high/low ratings remain visible, but contrary votes prevent a

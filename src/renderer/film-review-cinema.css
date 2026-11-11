@@ -237,3 +237,48 @@ html[data-cinema-motion=off] .mrv-job::after,html[data-cinema-motion=reduced] .m
 
 .film-review-section > .film-review-heading{flex-wrap:wrap;}
 .film-review-heading .film-review-title-block{flex:1;min-width:min(260px,100%);}
+
+/* R853: source accounting and analysis feedback stay within the review workspace. */
+.mrv-sample-coverage{padding:12px 16px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1);margin:12px 0}
+.mrv-coverage-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;line-height:1.65}
+.mrv-coverage-table th,.mrv-coverage-table td{padding:8px;text-align:start;vertical-align:top;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
+.mrv-coverage-table th:first-child{width:48%}
+.mrv-analysis-feedback{padding:12px 16px;border:1px solid var(--border);border-radius:12px;margin:16px 0;background:var(--bg-1)}
+.mrv-analysis-feedback select{max-width:100%;margin:8px 12px 8px 0}
+.mrv-analysis-feedback button{margin:4px 8px 4px 0}
+
+.mrv-topic-evidence,.mrv-synthesis-evidence{padding:14px 18px;border:1px solid var(--border);border-radius:12px;margin:14px 0;background:var(--bg-1)}
+.mrv-topic-support+.mrv-topic-support,.mrv-synthesis-claim+.mrv-synthesis-claim{border-top:1px solid var(--border);padding-top:10px;margin-top:10px}
+.mrv-topic-support h4{margin:8px 0;font-size:14px}
+.mrv-topic-support a,.mrv-synthesis-claim a{display:inline-block;margin:4px 12px 4px 0}
+.mrv-point:focus{outline:2px solid var(--accent,var(--theme-accent));outline-offset:5px}
+
+/* R854 G28–G31 — short evidence-less fit card, topic filter, quote identity, closed sample-change group. */
+.media-title-page .film-review-content .film-analysis-scene>.mrv-fit.mrv-fit-sparse,.media-title-page .cv2-review-analysis .mrv-fit.mrv-fit-sparse{align-self:start;padding:20px 22px}
+.mrv-fit-sparse>h2{margin-bottom:10px}
+.mrv-fit-sparse>p:not(.mrv-fit-limited){font-size:14px;line-height:1.7}
+.mrv-fit-sparse .mrv-fit-open{margin-top:14px}
+button.cv2-topic-row{width:calc(100% + 16px);margin:4px -8px;padding:6px 8px;border:0;border-radius:8px;background:none;font:inherit;font-size:12px;text-align:left;cursor:pointer}
+button.cv2-topic-row:hover,button.cv2-topic-row[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--text)}
+button.cv2-topic-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mrv-topic-filter{margin:10px 0 0;font-size:12.5px;line-height:1.6;color:var(--text-dim)}
+.mrv-topic-filter button{padding:0;border:0;background:none;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.mrv-opinions .mrv-point[hidden],.mrv-opinions>[data-topic-empty=true]{display:none!important}
+.cv2-source-id{display:block;margin:2px 0 8px;font-size:12px;line-height:1.5;letter-spacing:.01em;color:var(--text-dim)}
+.cv2-source-quote .mrv-source-jump{margin-top:10px}
+.mrv-control-room .mrv-sample-change{padding:14px 20px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1)}
+.mrv-control-room .mrv-sample-change>summary{min-height:34px;display:flex;align-items:center;gap:9px;list-style:none;cursor:pointer;font-size:14px;font-weight:600}
+.mrv-control-room .mrv-sample-change>summary::-webkit-details-marker{display:none}
+.mrv-control-room .mrv-sample-change>summary::before{content:'›';font-size:20px;transition:transform .15s}
+.mrv-control-room .mrv-sample-change[open]>summary::before{transform:rotate(90deg)}
+.mrv-control-room .mrv-sample-change[open]>:not(summary){margin-top:12px}
+
+/* R854 cinematic pass — analysis: status as one quiet strip, soft framed cards, calmer evidence blocks. */
+.media-title-page .film-review-content .cv2-topic-chart,.media-title-page .film-review-content .mrv-fit{border-radius:20px;background:linear-gradient(160deg,var(--bg-2),var(--bg-1));border:1px solid color-mix(in srgb,var(--text) 9%,transparent)}
+.media-title-page .film-review-content .mrv-scope-line{border-radius:10px}
+.media-title-page .film-review-content .mrv-point{border-radius:16px}
+.media-title-page .film-review-content .cv2-source-quote blockquote{font-size:15px;line-height:1.75}
+
+/* R854 G49–G52: keep sample identity and return beside the reading task. */
+.mrv-preview-head{position:sticky;top:var(--mrv-sticky-top,0px);z-index:3;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 16px;background:var(--bg-1);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius,8px)}
+.mrv-preview-head h2{margin:0}.mrv-preview-head .mrv-selection-count{flex:1 1 260px;margin:0}.mrv-source-alternatives{flex-basis:100%;padding:10px 0}.mrv-source-alternatives>summary{cursor:pointer;color:var(--accent);margin-bottom:12px}.mrv-source-alternatives[open]{display:block}.mrv-source-alternatives>button{margin:4px}.mrv-format-info,.mrv-browser-context{line-height:1.6;overflow-wrap:anywhere;max-width:72ch}

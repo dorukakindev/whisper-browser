@@ -223,7 +223,7 @@ async function abHarness(t,{playerOn}){
  vm.runInContext('const subtitleOutputContract=window.SubtitleOutputContract;\n'+code+';globalThis.persist=persistPodcastJobOutputs;',ctx);
  const binding={entryId:A.id,sourceVersion:vA,outputRole:'translation',sourceTranscriptText:srcA,targetLanguage:'tr',playbackOwner:'player',mediaKey:'rss:A',generation:2,expectedTranslation:true};
  const event2={outputs:[{role:'translation',path:'C:/out/A.tr.srt',status:'complete'}]};
- return {api,A,B,vA,vB,srcA,srcB,trA,player,spies,binding,event:event2,persist:()=>ctx.persist(event2,binding)};
+ return {api,A,B,vA,vB,srcA,srcB,trA,player,spies,binding,context:ctx,event:event2,persist:()=>ctx.persist(event2,binding)};
 }
 test('A job queued for A that finishes after the user moved to B is saved to A only; B is untouched and A reopens with the result',async t=>{
  const h=await abHarness(t,{playerOn:'B'});
@@ -243,4 +243,24 @@ test('the same job finishing while A is still the open episode loads its transla
  const h=await abHarness(t,{playerOn:'A'});
  await h.persist();
  assert.deepEqual(h.spies.loaded,['translation']);
+});
+
+// A verified copy is an intentional playback handoff, never permission to bind another episode.
+test('verified same-episode audio handoff keeps the completed job attached to its new playback generation',async t=>{
+ const h=await abHarness(t,{playerOn:'A'});
+ h.context.window.PlayerSourceCatalogIntegration.loadSavedPodcastResult=async()=>{
+  const previous={entryId:h.A.id,mediaKey:h.player.mediaKey,generation:h.player.generation,sourceVersion:h.vA};
+  h.player.mediaKey='copy:A';h.player.generation=4;h.player.workspaceAudio={entryId:h.A.id,mediaKey:'copy:A',generation:4,sourceVersion:h.vA,exactAudio:true};
+  return {ok:true,playbackHandoff:{previous,current:{entryId:h.A.id,mediaKey:'copy:A',generation:4,sourceVersion:h.vA}}};
+ };
+ await h.persist();assert.equal(h.binding.persistence,'saved');assert.equal(h.binding.mediaKey,'copy:A');assert.equal(h.binding.generation,4);assert.equal(h.binding.outputReceipts.translation.applied,true);
+});
+
+test('a mismatched playback handoff cannot retarget the job to a later unrelated owner',async t=>{
+ const h=await abHarness(t,{playerOn:'A'});
+ h.context.window.PlayerSourceCatalogIntegration.loadSavedPodcastResult=async()=>{
+  h.player.mediaKey='rss:B';h.player.generation=9;h.player.workspaceAudio={entryId:h.B.id,mediaKey:'rss:B',generation:9,sourceVersion:h.vB,exactAudio:true};
+  return {ok:true,playbackHandoff:{previous:{entryId:h.A.id,mediaKey:'unrelated',generation:2,sourceVersion:h.vA},current:{entryId:h.B.id,mediaKey:'rss:B',generation:9,sourceVersion:h.vB}}};
+ };
+ await h.persist();assert.equal(h.binding.mediaKey,'rss:A');assert.equal(h.binding.generation,2);assert.equal(h.binding.outputReceipts.translation.applied,null);assert.equal(h.player.workspaceAudio.entryId,h.B.id);
 });

@@ -18235,8 +18235,16 @@ ipcMain.handle('browser:translation:retryFailed', async (event, request) => {
   // temizlenip oynatma penceresine göre yeniden planlanır; sayaç 0 dönse de
   // hata kaydı silinmiştir. Eskiden bu durum "hatalı cümle yok" hatası
   // gösterip düğmeyi eski sayıda bırakıyordu.
-  const hadFailures = tab.translationScheduler.snapshot().failures.some((failure) => failure.terminal);
-  const retried = tab.translationScheduler.retryFailed();
+  const state = tab.translationScheduler.snapshot();
+  const selected = request.sentenceIds !== undefined;
+  if(selected && (request.trackId !== tab.translationTrackId || request.generation !== state.generation
+    || request.tabGeneration !== tab.generation || request.acquisitionId !== (tab.acquisitionId || '') || request.mediaId !== (tab.mediaId || '')
+    || !Array.isArray(request.sentenceIds) || !request.sentenceIds.length || request.sentenceIds.length > 200
+    || new Set(request.sentenceIds).size !== request.sentenceIds.length
+    || request.sentenceIds.some(id => typeof id !== 'string' || !state.failures.some(f => f.sentenceId === id && f.terminal))))
+    return {ok:false,error:'Retry selection changed; review again. / Yeniden deneme seçimi değişti; yeniden incele.'};
+  const hadFailures = state.failures.some((failure) => failure.terminal);
+  const retried = tab.translationScheduler.retryFailed(selected ? {sentenceIds:request.sentenceIds} : {});
   if (retried > 0) return { ok: true, retried };
   return hadFailures
     ? { ok: true, retried: 0, deferred: true }
@@ -22600,7 +22608,32 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
 
 const mediaTorrents = require('./media-torrents').registerMediaTorrents({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,protocol,grantMedia:file=>mediaFileAccess.grant(file),
   enginePath:()=>process.env.WHISPER_TORRENT_TEST==='1'&&process.env.WHISPER_RQBIT_PATH ? process.env.WHISPER_RQBIT_PATH : path.join(app.getPath('userData'),'media-engines','rqbit.exe')});
-require('./native-player').registerNativePlayer({app,ipcMain,BrowserWindow,dialog,owner:()=>mainWindow,authorized:authorizedBrowserSender,authorizeMedia:authorizeMediaFile,torrents:mediaTorrents});
+let stremioHeadersFor=()=>[];
+require('./native-player').registerNativePlayer({app,ipcMain,BrowserWindow,dialog,owner:()=>mainWindow,authorized:authorizedBrowserSender,authorizeMedia:authorizeMediaFile,torrents:mediaTorrents,sourceHeaders:url=>stremioHeadersFor(url)});
+// Stremio eklentileri: adresler/akış URL'leri yalnız ana süreçte; ağ DNS-pinli ve genel adreslerle sınırlı.
+{
+  const stremioSubtitles=require('./browser-subtitle-search');
+  const isLoopbackAddon=url=>{try{const h=new URL(url).hostname.replace(/^\[|\]$/g,'').toLowerCase();return h==='localhost'||h.endsWith('.localhost')||h==='::1'||/^127\./.test(h);}catch{return false;}};
+  const stremioFetch=async(url,init={})=>{if(isLoopbackAddon(url))return fetch(url,init);const pin=await assertPublicBrowserSubtitleUrl(url);return requestPinnedSubtitleBuffer(url,pin,{headers:init.headers,signal:init.signal,maxBytes:4_100_000});};
+  const stremioService=require('./stremio-service').registerStremio({ipcMain,authorized:authorizedBrowserSender,root:()=>app.getPath('userData'),fetch:stremioFetch,
+    assertUrl:async url=>{await assertPublicBrowserSubtitleUrl(url);},torrents:mediaTorrents,
+    searchSubtitles:stremioSubtitles.searchSubtitles,downloadSubtitle:stremioSubtitles.downloadSubtitle,decodeSubtitle:stremioSubtitles.decodeDownloadedSubtitle,
+    grantSubtitle:file=>subtitleFileAccess.grant(file)});
+  stremioHeadersFor=url=>stremioService.headersFor(url);
+  // Seçilen akışın istediği (güvenli listedeki) başlıklar yalnız o tam adrese eklenir; başka istek etkilenmez.
+  app.whenReady().then(()=>{
+    try{
+      // Tek gerçek dinleyici sessionMux'ta; Stremio yalnız kendi 'stremio' yuvasını kullanır.
+      require('./session-webrequest-mux').sessionMux(session.defaultSession).set('stremio','onBeforeSendHeaders',{urls:['https://*/*','http://*/*']},(details,callback)=>{
+        const extra=['media','xhr','other'].includes(details.resourceType)?stremioHeadersFor(details.url):[];
+        if(!extra.length)return callback({});
+        const headers={...details.requestHeaders};
+        for(const [name,value] of extra){for(const key of Object.keys(headers))if(key.toLowerCase()===name.toLowerCase())delete headers[key];headers[name]=value;}
+        callback({requestHeaders:headers});
+      });
+    }catch{/* oturum yoksa başlık eklenmez */}
+  });
+}
 async function translateMediaTextToTurkish(text,signal,kind='synopsis'){
     const config=browserTranslationConfig({targetLanguage:'tr',register:'natural prose'});
     if(browserTranslationConfigProblem(config))throw Error('Önce Ayarlar → Asistan ve çeviri bölümünde sağlayıcını yapılandır.');

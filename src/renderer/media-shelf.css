@@ -105,7 +105,7 @@ body.media-shelf-player-open .ms-dock { display: none; }
 @media(prefers-reduced-motion:reduce){.ms-saved-queue {transition:none;}}
 
 /* One deliberate player surface; native audio remains the playback engine. */
-.ms-dock {--accent:#d5a35c;display:grid;grid-template-columns:minmax(180px,1fr) minmax(300px,1.5fr) minmax(250px,1fr);gap:14px 26px;padding:14px 26px;min-height:78px;box-sizing:border-box;}
+.ms-dock {--accent:var(--theme-accent);display:grid;grid-template-columns:minmax(180px,1fr) minmax(300px,1.5fr) minmax(250px,1fr);gap:14px 26px;padding:14px 26px;min-height:78px;box-sizing:border-box;}
 .ms-dock.hidden,.ms-dock audio[hidden] {display:none;}.ms-now {display:flex;gap:14px;align-items:center;min-width:0;}.ms-now-art {width:48px;height:48px;flex:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--bg-2);}.ms-now-art img {display:block;width:100%;height:100%;object-fit:cover;}.ms-now-copy {min-width:0;}.ms-now-copy strong {display:block;font-size:13px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.ms-now-copy small {display:block;color:var(--text-dim);font-size:11px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ms-playback-center {min-width:0;}.ms-playback-keys {display:flex;gap:16px;align-items:center;justify-content:center;}.ms-icon-button {display:inline-grid;place-items:center;width:34px;height:34px;padding:7px;border:0;background:none;color:var(--text-dim);border-radius:50%;cursor:pointer;transition:color 140ms ease-out,background-color 140ms ease-out,transform 140ms ease-out;}.ms-icon-button svg,.ms-player-options>summary svg {display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}.ms-icon-button:hover {color:var(--text);background:var(--bg-2);}.ms-icon-button:active {transform:scale(.94);}.ms-play-toggle {background:var(--accent);color:var(--bg-0,#101014);width:36px;height:36px;}.ms-play-toggle:hover {background:var(--accent);color:#17130d;}.ms-play-toggle svg {margin-left:1px;}.ms-playback-keys .mh-text-button {font-size:10px;padding:6px;min-height:32px;}
 .ms-timeline {display:flex;align-items:center;gap:10px;margin-top:5px;}.ms-timeline>span {color:var(--text-dim);font-size:10px;font-variant-numeric:tabular-nums;min-width:34px;}.ms-timeline>span:last-child {text-align:right;}.ms-seek {flex:1;min-width:0;height:18px;accent-color:var(--accent);cursor:pointer;}.ms-dock .ms-transport {justify-content:flex-end;gap:12px;margin:0;}.ms-dock .ms-queue-open {min-height:34px;padding:8px 13px;font-size:11px;}.ms-volume {display:flex;align-items:center;gap:4px;}.ms-volume-range {width:70px;accent-color:var(--accent);height:18px;}.ms-player-options>summary {border:0;min-width:34px;min-height:34px;}.ms-player-options>.ms-track-menu-panel {top:auto;bottom:calc(100% + 20px);width:240px;gap:16px;padding:18px;}.ms-player-field {display:grid;gap:8px;font-size:12px;color:var(--text-dim);}.ms-player-field select {width:100%;}.ms-dock .ms-status {grid-column:1/-1;font-size:12px;}.ms-dock :is(button,input,summary,select):focus-visible {outline:2px solid var(--accent);outline-offset:3px;}
@@ -153,3 +153,26 @@ body.media-shelf-player-open .ms-dock { display: none; }
 .ms-podcast-workspace :is(.ms-podcast-identity,.ms-podcast-transcript)::-webkit-scrollbar-thumb{border-radius:8px;background:rgb(var(--media-highlight-rgb) / .14)}
 .ms-podcast-workspace :is(.ms-podcast-identity,.ms-podcast-transcript)::-webkit-scrollbar-thumb:hover{background:rgb(var(--media-highlight-rgb) / .28)}
 .ms-podcast-workspace :is(.ms-podcast-identity,.ms-podcast-transcript)::-webkit-scrollbar-button{display:none;width:0;height:0}
+
+/* R854 cinematic redesign — shelves (Books, Music, Radio): a centred wall under a large title; covers share one proportion, actions stay quiet. */
+.mh-content:has(>.ms-shelf){max-width:1480px;margin-inline:auto;padding:44px 44px 90px}
+.mh-content>.mh-page-title{font-size:clamp(36px,3.8vw,60px);letter-spacing:-.04em;line-height:1.05;margin:0 0 22px}
+.ms-shelf>.mh-action,.ms-shelf .mh-filterbar .mh-action{border-radius:999px;padding:9px 18px;font-size:13px;background:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid color-mix(in srgb,var(--text) 11%,transparent)}
+.ms-shelf .ms-book-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:36px 26px;align-items:start}
+.ms-shelf .ms-book-grid>div{display:flex;flex-direction:column;min-width:0}
+.ms-shelf .ms-book-grid .mh-card{display:flex;flex-direction:column;gap:6px;text-align:left;background:none;border:0;padding:0}
+.ms-shelf .ms-book-grid .mh-art{aspect-ratio:2/3;width:100%;height:auto;border-radius:6px 14px 14px 6px;display:flex;align-items:center;justify-content:center;font-size:13px;letter-spacing:.2em;color:var(--text-dim);background:linear-gradient(135deg,color-mix(in srgb,var(--text) 12%,var(--bg-2)),var(--bg-1));box-shadow:0 24px 44px -26px black,inset 3px 0 0 color-mix(in srgb,var(--text) 14%,transparent),0 0 0 1px color-mix(in srgb,var(--text) 9%,transparent);transition:transform .24s ease}
+html:not([data-motion=off]):not([data-motion=reduce]) .ms-shelf .ms-book-grid .mh-card:hover .mh-art{transform:translateY(-6px)}
+.ms-shelf .ms-book-grid .mh-card-title{margin-top:8px;font-size:15px;font-weight:600;letter-spacing:-.01em}
+.ms-shelf .ms-book-actions{grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.ms-shelf .ms-book-actions .mh-action{border-radius:999px;padding:8px 10px;font-size:12.5px}
+.ms-shelf .ms-book-actions>.mh-text-button,.ms-shelf .ms-book-audiobook{font-size:12px;color:var(--text-muted,var(--text-dim));text-align:left}
+.ms-shelf .ms-music-filters select{border-radius:999px;padding:9px 34px 9px 16px;font-size:13px;background-color:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid color-mix(in srgb,var(--text) 11%,transparent)}
+.ms-shelf .ms-albums>h2{font-size:22px;letter-spacing:-.02em;margin:26px 0 14px}
+.ms-shelf .ms-album-rail{display:flex;gap:22px;overflow-x:auto;padding:6px 2px 18px;scrollbar-width:thin}
+.ms-shelf .ms-album-card{flex:0 0 190px;display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:22px;border:1px solid transparent;background:none;transition:background .2s,border-color .2s}
+.ms-shelf .ms-album-card:hover{background:color-mix(in srgb,var(--text) 6%,transparent);border-color:color-mix(in srgb,var(--text) 10%,transparent)}
+.ms-shelf .ms-album-card>:first-child{width:100%;aspect-ratio:1;border-radius:16px;font-size:44px;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,color-mix(in srgb,var(--text) 14%,var(--bg-2)),var(--bg-1));box-shadow:0 22px 40px -24px black,0 0 0 1px color-mix(in srgb,var(--text) 9%,transparent)}
+.ms-shelf .ms-track-list{display:grid;gap:4px}
+.ms-shelf .ms-track{border:1px solid transparent;border-radius:16px;padding:8px 12px;transition:background .18s,border-color .18s}
+.ms-shelf .ms-track:hover{background:color-mix(in srgb,var(--text) 6%,transparent);border-color:color-mix(in srgb,var(--text) 9%,transparent)}

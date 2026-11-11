@@ -14,21 +14,29 @@ function filtersOf(raw={}){
  for(const k of ['formats','avoid'])if(!Array.isArray(f[k])||f[k].length>24||f[k].some(v=>typeof v!=='string'||!v.trim()||v.length>100))throw Error('Invalid topic/format condition. / Geçersiz konu/format koşulu.');
  for(const k of ['yearFrom','yearTo'])if(f[k]!==null&&(!Number.isInteger(f[k])||f[k]<1880||f[k]>2200))throw Error('Invalid year condition. / Geçersiz yıl koşulu.');if(f.yearFrom!==null&&f.yearTo!==null&&f.yearFrom>f.yearTo)throw Error('Conflicting years. / Çelişen yıllar.');return f;
 }
-function rank(rows,diversity='balanced',penalty=()=>0){
+function rank(rows,diversity='balanced',penalty=()=>0,explain=false){
  if(!['off','balanced','varied'].includes(diversity))throw Error('Invalid diversity setting. / Geçersiz çeşitlilik ayarı.');
- const weight={off:0,balanced:.15,varied:.45}[diversity],pool=rows.slice(),chosen=[];
+ const weight={off:0,balanced:.15,varied:.45}[diversity],pool=rows.slice(),chosen=[],base=rows.slice().sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0)||String(a.title).localeCompare(String(b.title))),baseline=new Map(base.map((r,i)=>[r,i+1]));
  const overlap=(a,b)=>Math.max(cosine(features(a),features(b)),a.metadata?.franchiseId&&a.metadata.franchiseId===b.metadata?.franchiseId?1:0);
- while(pool.length){const value=r=>(Number(r.score)||0)-penalty(r)-weight*Math.max(0,...chosen.map(c=>overlap(r,c)));pool.sort((a,b)=>value(b)-value(a)||String(a.title).localeCompare(String(b.title)));chosen.push(pool.shift());}return chosen;
+ while(pool.length){
+  const factors=r=>{const repeated=penalty(r),similar=chosen.map(c=>({id:c.id,value:overlap(r,c)})).sort((a,b)=>b.value-a.value)[0],diversityPenalty=weight*(similar?.value||0);return {repeatPenalty:repeated,diversityPenalty,similarTo:diversityPenalty>0?similar.id:null,adjustedScore:(Number(r.score)||0)-repeated-diversityPenalty};};
+  const scored=new Map(pool.map(r=>[r,factors(r)]));pool.sort((a,b)=>scored.get(b).adjustedScore-scored.get(a).adjustedScore||String(a.title).localeCompare(String(b.title)));const row=pool.shift();chosen.push(explain?{...row,rankingReason:{baseRank:baseline.get(row),finalRank:chosen.length+1,baseScore:Number(row.score)||0,...scored.get(row)}}:row);
+ }
+ return chosen;
 }
-function matches(row,f){const m=row.metadata||row,year=m.year||row.year,minutes=m.duration||row.runtime,format=m.format||row.format||(row.domain==='film'?'FILM':'');
- if(f.finishedOnly&&!['FINISHED','ENDED','RELEASED'].includes(String(m.status||row.releaseStatus||'').toUpperCase()))return false;
- if(f.maxMinutes!==null&&(!(minutes>0)||minutes>f.maxMinutes))return false;
- if(f.formats.length&&!f.formats.some(v=>fold(v)===fold(format)))return false;
- if(f.yearFrom!==null&&(!(year>0)||year<f.yearFrom)||f.yearTo!==null&&(!(year>0)||year>f.yearTo))return false;
+
+function conditionReasons(row,f){
+ const m=row.metadata||row,year=m.year||row.year,minutes=m.duration||row.runtime,format=m.format||row.format||(row.domain==='film'?'FILM':''),status=String(m.status||row.releaseStatus||'').toUpperCase(),reasons=[];
+ if(f.finishedOnly&&!['FINISHED','ENDED','RELEASED'].includes(status))reasons.push(status?'unfinished':'status-unknown');
+ if(f.maxMinutes!==null&&(!(minutes>0)||minutes>f.maxMinutes))reasons.push(minutes>0?'duration-over':'duration-unknown');
+ if(f.formats.length&&!f.formats.some(v=>fold(v)===fold(format)))reasons.push(format?'format-mismatch':'format-unknown');
+ if((f.yearFrom!==null||f.yearTo!==null)&&!(year>0))reasons.push('year-unknown');
+ else if(f.yearFrom!==null&&year<f.yearFrom||f.yearTo!==null&&year>f.yearTo)reasons.push('year-outside');
  const topics=[...(m.genres||[]),...(m.themes||[]).filter(v=>typeof v==='string'||!v.isMediaSpoiler&&!v.isGeneralSpoiler).map(v=>typeof v==='string'?v:v.name)].map(fold);
- // Avoided topics require source tags; missing metadata cannot prove absence.
- if(f.avoid.length&&(!topics.length||f.avoid.some(v=>topics.includes(fold(v)))))return false;return true;
+ if(f.avoid.length&&(!topics.length||f.avoid.some(v=>topics.includes(fold(v)))))reasons.push(topics.length?'topic-avoided':'topics-unknown');return reasons;
 }
+function matches(row,f){return conditionReasons(row,f).length===0;}
+
 function validate(data){if(data?.version!==1||!Array.isArray(data.entries)||data.entries.length>2000||Buffer.byteLength(JSON.stringify(data))>2000000||new Set(data.entries.map(key)).size!==data.entries.length||data.entries.some(r=>!DOMAINS.includes(r.domain)||typeof r.id!=='string'||!r.id||r.id.length>500||!Number.isSafeInteger(r.shownAt)||!Number.isSafeInteger(r.shownCount)||r.shownCount<1||![null,'accurate','repeat','unsuitable'].includes(r.feedback)||r.deferUntil!==null&&(!Number.isSafeInteger(r.deferUntil)||r.deferUntil<0)))throw Error('Invalid recommendation history. / Geçersiz öneri geçmişi.');}
 function create({root,now=Date.now}={}){
  const file=()=>path.join(typeof root==='function'?root():root,'recommendation-history.json');
@@ -41,11 +49,18 @@ function create({root,now=Date.now}={}){
  function defer(input){if(![0,1,7,30,90].includes(input.days))throw Error('Choose a deferral period. / Erteleme süresi seç.');return change(input,r=>{r.deferUntil=input.days?now()+input.days*86400000:null;});}
  function apply(rows,{domain,filters={},diversity='balanced',repeat='reduce',limit=18,historySnapshot=null,asOf=now()}={}){
   if(!DOMAINS.includes(domain)||!['reduce','show'].includes(repeat)||!Number.isInteger(limit)||limit<1||limit>24)throw Error('Invalid recommendation controls. / Geçersiz öneri kontrolleri.');
-  const f=filtersOf(filters),history=new Map((historySnapshot||read().entries).filter(r=>r.domain===domain).map(r=>[r.id,r])),reasons={conditions:0,deferred:0,unsuitable:0};
-  const pool=rows.filter(r=>{const old=history.get(r.id);if(old?.deferUntil>asOf){reasons.deferred++;return false;}if(old?.feedback==='unsuitable'){reasons.unsuitable++;return false;}if(!matches(r,f)){reasons.conditions++;return false;}return true;});
-  const selected=rank(pool,diversity,r=>repeat==='reduce'?Math.min(history.get(r.id)?.shownCount||0,5)*.08+(history.get(r.id)?.feedback==='repeat'?.2:0):0).slice(0,limit);
-  return {rows:selected.map(r=>({...r,recommendationHistory:history.get(r.id)||null})),controls:{filters:f,diversity,repeat,excluded:reasons,sample:rows.length,metadataOnly:true}};
+  const f=filtersOf(filters),history=new Map((historySnapshot||read().entries).filter(r=>r.domain===domain).map(r=>[r.id,r])),reasons={conditions:0,deferred:0,unsuitable:0},conditionCounts={};
+  const pool=rows.filter(r=>{const old=history.get(r.id);if(old?.deferUntil>asOf){reasons.deferred++;return false;}if(old?.feedback==='unsuitable'){reasons.unsuitable++;return false;}const failed=conditionReasons(r,f);if(failed.length){reasons.conditions++;for(const reason of failed)conditionCounts[reason]=(conditionCounts[reason]||0)+1;return false;}return true;});
+  const selected=rank(pool,diversity,r=>repeat==='reduce'?Math.min(history.get(r.id)?.shownCount||0,5)*.08+(history.get(r.id)?.feedback==='repeat'?.2:0):0,true).slice(0,limit);
+  return {rows:selected.map(r=>({...r,recommendationHistory:history.get(r.id)||null})),controls:{filters:f,diversity,repeat,excluded:reasons,conditionCounts,sample:rows.length,metadataOnly:true}};
  }
- return {list,record,feedback,defer,apply};
+ function removalPreview(input){
+  const d=read();if(input.revision!==C.hash(d))throw Error('Recommendation history changed; reload. / Öneri geçmişi değişti; yenile.');
+  if(!DOMAINS.includes(input.domain)||!Array.isArray(input.ids)||!input.ids.length||input.ids.length>100||new Set(input.ids).size!==input.ids.length)throw Error('Select 1–100 history rows in one pool. / Bir havuzdan 1–100 geçmiş satırı seç.');
+  const entries=input.ids.map(id=>d.entries.find(r=>r.id===id&&r.domain===input.domain));if(entries.some(r=>!r))throw Error('History selection changed. / Geçmiş seçimi değişti.');
+  return {revision:input.revision,domain:input.domain,entries,impact:{records:entries.length,feedback:entries.filter(r=>r.feedback).length,activeDeferrals:entries.filter(r=>r.deferUntil>now()).length,ratingsChanged:false,watchStatusChanged:false}};
+ }
+ function removeShown(input){const preview=removalPreview(input),d=read(),ids=new Set(input.ids);if(C.hash(d)!==input.revision)throw Error('Recommendation history changed; reload. / Öneri geçmişi değişti; yenile.');d.entries=d.entries.filter(r=>r.domain!==input.domain||!ids.has(r.id));write(d);return {removed:preview.entries.length,...list()};}
+ return {list,record,feedback,defer,apply,removalPreview,removeShown};
 }
-module.exports={create,validate,filtersOf,rank,matches,franchiseAnnotator};
+module.exports={create,validate,filtersOf,rank,matches,conditionReasons,franchiseAnnotator};

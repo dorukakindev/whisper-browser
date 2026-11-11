@@ -91,3 +91,7 @@ test('persisted notebook citations reopen after a new agent instance using only 
 test('saved draft references filter exact note IDs after reopening, including empty and missing selections',t=>{
  const h=researchWorld(t);const reopened=new BrowserNoteStore(h.file);assert.deepEqual(reopened.filter({noteIds:['note-b']},8).map(row=>row.id),['note-b']);assert.deepEqual(reopened.filter({noteIds:[]},8),[]);assert.deepEqual(reopened.filter({noteIds:['missing']},8),[]);assert.equal(reopened.filter({noteIds:['note-a','note-b'],mediaType:'podcast'},8).length,1);
 });
+
+test('R853 notebook pages reach the ninth real note and reject an intervening source revision',t=>{
+ const h=researchWorld(t);for(let i=0;i<10;i++)h.writer.save({id:'paged-'+i,mediaId:'episode-'+i,mediaType:'podcast',mediaTitle:'Paged '+i,source:'Unique paging phrase '+i,note:'Separate interpretation',timed:false});const first=h.read('search',{query:'Unique paging phrase'}),second=h.read('search',{query:'Unique paging phrase',offset:first.nextOffset,snapshot_revision:first.snapshotRevision});assert.equal(first.matches.length,8);assert.equal(second.matches.length,2);assert.equal(new Set([...first.matches,...second.matches].map(c=>c.noteId)).size,10);const old=h.writer.get('paged-0');h.writer.save({...old,source:'Changed paging source'});assert.equal(h.read('search',{query:'Unique paging phrase',offset:first.nextOffset,snapshot_revision:first.snapshotRevision}).ok,false);
+});

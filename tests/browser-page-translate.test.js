@@ -378,7 +378,7 @@ const sourceReveal = vm.runInNewContext(pageContextRevealScript('S1'), {
   window: sourceWindow, Map, String, clearTimeout() {}, setTimeout() { return 1; },
 });
 assert.deepEqual(sourceReveal, { ok: true, id: 'S1' });
-assert.equal(sourceElement.style.outline, '3px solid #d5a35c');
+assert.equal(sourceElement.style.outline, '3px solid #e2ab5b');
 assert.equal(sourceElement.scrollOptions.block, 'center');
 assert.deepEqual(vm.runInNewContext(pageContextRevealScript('bad'), { window: sourceWindow }),
   { ok: false, message: 'Geçersiz sayfa kaynağı.' });

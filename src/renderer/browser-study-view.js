@@ -76,6 +76,7 @@
           <footer class="bp-footer">
             ${button('assistant', 'chat', T('Asistana sor', 'Ask Assistant'))}
             ${button('focus', 'focus', T('Okuma odağı','Reading focus'), 'aria-pressed="false"')}
+            ${button('textfirst', 'classic', T('Metin odaklı','Text focus'), 'aria-pressed="false"')}
             <label class="sh-reading-size"><span>${T('Metin','Text')}</span><select data-r="readingSize" aria-label="${T('Transkript yazı boyutu','Transcript text size')}"><option value="small">${T('Küçük','Small')}</option><option value="normal" selected>${T('Normal','Default')}</option><option value="large">${T('Büyük','Large')}</option></select></label>
             <details class="sh-key-guide"><summary>${T('Kısayollar','Shortcuts')}</summary>
               <dl><div><dt><kbd>/</kbd></dt><dd>${T('Transkriptte ara','Search transcript')}</dd></div><div><dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>${T('Önceki / sonraki cümle','Previous / next sentence')}</dd></div><div><dt><kbd>${T('Boşluk','Space')}</kbd></dt><dd>${T('Oynat / duraklat','Play / pause')}</dd></div><div><dt><kbd>F</kbd></dt><dd>${T('Okuma odağı','Reading focus')}</dd></div></dl>

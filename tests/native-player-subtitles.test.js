@@ -66,3 +66,10 @@ test('renderer projection follows source roles, user font settings and all subti
  mode='off';assert.equal(project().primary,'');assert.equal(project().secondary,'');
  dom.window.close();
 });
+
+
+test('Player Pro native properties use the nested value packet, clamp values and refuse unknown or stale writes',async()=>{
+ const h=harness(),request=value=>h.service.handler({},{action:'command',key:'m',generation:1,command:'vprop',value});
+ for(const [name,value,want]of [['brightness',12,12],['video-zoom',99,2],['audio-delay',-.25,-.25],['video-rotate',90,90],['video-aspect-override',-1,-1]]){const r=await request({name,value});assert.equal(r.ok,true,JSON.stringify(r));assert.deepEqual(h.sent.at(-1),['set_property',name,want]);}
+ const count=h.sent.length;assert.equal((await request({name:'script',value:'unsafe'})).ok,false);assert.equal((await request({name:'brightness',value:'NaN'})).ok,false);assert.equal((await h.service.handler({},{action:'command',key:'old',generation:0,command:'vprop',value:{name:'brightness',value:10}})).ok,false);assert.equal(h.sent.length,count);
+});

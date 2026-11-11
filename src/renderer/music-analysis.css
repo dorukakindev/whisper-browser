@@ -1,6 +1,6 @@
-.music-lab { --accent:#d5a35c; box-sizing:border-box; width:min(1320px,calc(100vw - 48px)); height:min(940px,calc(100vh - 48px)); max-width:none; max-height:none; padding:0; margin:auto; border:1px solid var(--border-strong); border-radius:20px; background:var(--bg-1); color:var(--text); font-family:'IBM Plex Sans','Segoe UI',sans-serif; box-shadow:0 24px 100px rgb(var(--media-scrim-rgb) / calc(136 / 255)); }
+.music-lab { --accent:var(--theme-accent); box-sizing:border-box; width:min(1320px,calc(100vw - 48px)); height:min(940px,calc(100vh - 48px)); max-width:none; max-height:none; padding:0; margin:auto; border:1px solid var(--border-strong); border-radius:20px; background:var(--bg-1); color:var(--text); font-family:'IBM Plex Sans','Segoe UI',sans-serif; box-shadow:0 24px 100px rgb(var(--media-scrim-rgb) / calc(136 / 255)); }
 .music-lab[open] { display:flex; flex-direction:column; }
-html:not([data-theme="light"]) .music-lab.media-surface { --accent:#d5a35c; }
+html:not([data-theme="light"]) .music-lab.media-surface { --accent:var(--theme-accent); }
 html[data-theme="light"] .music-lab.media-surface { --accent:#7f4c15; }
 .music-lab::backdrop { background:rgb(var(--media-scrim-rgb) / .72); }
 .music-lab [hidden] { display:none; }

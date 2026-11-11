@@ -58,6 +58,8 @@ function validate(name, data) {
     for (const [key, max] of Object.entries({edges:6000,evidence:10000,events:2000,notes:2000,entities:10000,hypotheses:2000,runs:100,views:30})) {
       const entries = array(data[key], max, ['edges','evidence'].includes(key)); unique(entries);
     }
+    for(const edge of data.edges||[]){if(edge.reviewHistory!==undefined)for(const event of array(edge.reviewHistory,40)){check(object(event)&&Number.isSafeInteger(event.at)&&event.at>=0&&event.kind==='human-review'&&['proposed','accepted','rejected','stale'].includes(event.from)&&['accepted','rejected','stale'].includes(event.to));check(Array.isArray(event.evidenceIds)&&event.evidenceIds.length<=100&&event.evidenceIds.every(id=>text(id,250)));}if(edge.reviewHistoryOmitted!==undefined)check(Number.isSafeInteger(edge.reviewHistoryOmitted)&&edge.reviewHistoryOmitted>=0);}
+    for(const run of data.runs||[])for(const field of ['edgeIds','newEdgeIds'])if(run[field]!==undefined)check(Array.isArray(run[field])&&run[field].length<=50&&run[field].every(id=>text(id,250)));
     for (const key of ['reactions','positions','aliases']) if (data[key] !== undefined) check(object(data[key]));
   } else if (name === 'personal-smart-shelves.json') {
     for (const r of rows) { check(text(r.name, 100)); require('./personal-library-views').filterOf(r.filter); }

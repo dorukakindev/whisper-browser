@@ -184,7 +184,7 @@ let dom;try{
  dom=new JSDOM('<body><div id="aiChatLog"></div><div id="aiChatEmpty"></div><textarea id="aiChatText"></textarea></body>',{runScripts:'outside-only'});const w=dom.window;
  const M=require('../src/assistant-context-manifest'),card=i=>({kind:'app_action',proposalId:'card-'+i,tool:'navigate_workspace',label:'Open page '+i,summary:'Synthetic review card'});
  let runs=0;Object.assign(w,{structuredClone,player:{source:'source-A',chatHistory:[],cues:[],cues2:[]},globalAssistantContext:()=>null,aiSourceScope:()=> 'scope-A',aiChatPreparing:null,subtitleSourceTime:v=>v,browserSubtitleRoleCues:()=>({source:[],translation:[]}),
-  UiLocale:{get:()=> 'en'},AssistantSourceContext:{conversation:p=>p.source},AssistantContextManifest:M,AssistantRunSteps:require('../src/assistant-run-steps'),AssistantFlowState:require('../src/assistant-flow-state'),
+  UiLocale:{get:()=> 'en'},AssistantSourceContext:{conversation:p=>p.source},AssistantContextManifest:M,AssistantWorkRecords:require('../src/assistant-work-records'),AssistantRunSteps:require('../src/assistant-run-steps'),AssistantFlowState:require('../src/assistant-flow-state'),
   updateAiChatActions(){},autoGrowChatBox(){},saveAppSettings:async()=>true,renderAiText:(node,text)=>node.textContent=text,aiChatContext:()=>({})});
  w.AssistantAppActions={snapshot:()=>M.clean({kind:'studio',owner:'source-A',thread:w.AssistantWorkspace?.activeId()||''}),current:o=>M.same(o,w.AssistantAppActions.snapshot())};
  w.aiChatAdd=(role,text)=>{const n=w.document.createElement('div');n.className='ai-msg ai-msg-'+(role==='user'?'user':'ai');n._sourceScope=w.aiSourceScope();n._assistantThreadId=w.AssistantWorkspace.activeId();n.textContent=text;w.document.getElementById('aiChatLog').append(n);return n;};

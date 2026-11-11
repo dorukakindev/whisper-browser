@@ -38,6 +38,7 @@ function tonight(items, history=[], options={}) {
 }
 function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ffprobe,readOpenReviews,resolveDiscovery,collectBrowserReviews,getReviewConfig,getReviewTaste=()=>({}),fetchImpl=fetch,grantSubtitle,grantMedia,saveWatch}) {
   const root=()=>app.getPath('userData'), file=()=>path.join(root(),'media-enrichment.json');
+  const analysisKey=entry=>require('./personal-collection').hash({identity:entry.identity||null,analysis:entry.analysis,reviews:entry.reviews,evidenceSnapshot:entry.evidenceSnapshot||null});
   const read=()=>{if(!fs.existsSync(file()))return {version:1,titles:{}};if(fs.statSync(file()).size>16000000)throw Error('Media notes exceed 16 MB.');const value=JSON.parse(fs.readFileSync(file(),'utf8'));if(value.version!==1||!value.titles||typeof value.titles!=='object'||Array.isArray(value.titles))throw Error('Media notes are damaged. Original file was preserved.');return value;};
   const save=value=>{const json=JSON.stringify(value);if(Buffer.byteLength(json)>16000000)throw Error('Media notes exceed 16 MB.');atomicWriteFileSync(file(),json);};
   let scan=null, backingUp=false,scheduleIntent=0;const jobs=new Map(),stoppedReviews=new Set();
@@ -128,6 +129,16 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         const snapshot=JSON.stringify([item.kind,item.title,item.year,item.tmdbId,item.imdbId]);
         try{const result=await readOpenReviews({signal:controller.signal});controller.signal.throwIfAborted();const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');return {ok:true,...require('./letterboxd-reviews').pageSample(item,result,{count:input.count,spoilers:input.spoilers===true,sort:input.sort,url:result.url})};}finally{jobs.delete(id);}
       }
+      if(action==='reviews-draft-get'||action==='reviews-draft-save'){
+        const model=require('./renderer/media-tools-model'),selected=await reviewItem(event,input),data=read(),drafts=data.reviewDrafts||[],hash=value=>require('node:crypto').createHash('sha256').update(JSON.stringify(value||null)).digest('hex');
+        if(!Array.isArray(drafts)||drafts.length>10)throw Error('Invalid saved review drafts.');
+        const index=drafts.findIndex(row=>row.itemId===selected.id),existing=index<0?null:drafts[index];
+        if(action==='reviews-draft-get')return {ok:true,value:existing?model.reviewCheckpoint(selected,existing.value):null,revision:hash(existing)};
+        if(input.revision!==hash(existing))throw Error('Saved draft changed; preview it again. / Kayıtlı taslak değişti; yeniden önizle.');
+        const value=model.reviewCheckpoint(selected,input.value),entry={itemId:selected.id,value,at:Date.now()};
+        if(index<0){if(drafts.length>=10)throw Error('Ten review drafts already saved. / On yorum taslağı zaten kayıtlı.');drafts.push(entry);}else drafts[index]=entry;
+        data.reviewDrafts=drafts;save(data);return {ok:true,value,revision:hash(entry)};
+      }
       if(action==='reviews-stop'){jobs.get(input.id)?.abort();stoppedReviews.add(input.id);while(stoppedReviews.size>100)stoppedReviews.delete(stoppedReviews.values().next().value);return {ok:true};}
       if(action==='reviews-file'){const picked=await dialog.showOpenDialog(owner(),{properties:['openFile'],filters:[{name:'Reviews TXT / JSON',extensions:['txt','json']}]});if(picked.canceled)return {ok:true,canceled:true};const target=picked.filePaths[0];if(fs.statSync(target).size>500000)throw Error('Review file is too large.');return {ok:true,reviews:reviewRows(fs.readFileSync(target,'utf8').replace(/^\uFEFF/,''))};}
       if(action==='reviews-auto'||action==='reviews-analyze'){
@@ -155,6 +166,9 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
         }
         finally{jobs.delete(id);}
       }
+      if(action==='reviews-refresh-exact'){
+       const item=await reviewItem(event,input),snapshot=JSON.stringify([item.kind,item.title,item.year,item.tmdbId,item.imdbId]),id=text(input.id,80);if(!id||jobs.size||stoppedReviews.has(id))throw Error('Review request unavailable.');const controller=new AbortController();jobs.set(id,controller);try{const result=await require('./review-source-refresh').refresh({item,entries:Object.values(read().titles).flatMap(v=>v.history||[]),permalink:input.permalink,authorId:input.authorId,oldText:input.oldText,spoilers:input.spoilers===true,fetchImpl,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(20000)])});const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('Film identity changed; refresh again.');return {ok:true,...result};}finally{jobs.delete(id);}
+      }
       if(action==='reviews-fetch'){
         const selected=await reviewItem(event,input);const allowedUrl=require('./letterboxd-reviews').publicFilmUrl(input.url);if(!allowedUrl)throw Error('Use a public Letterboxd reviews URL.');const url=new URL(allowedUrl);
         const snapshot=JSON.stringify([selected.kind,selected.title,selected.year,selected.tmdbId,selected.imdbId]);
@@ -166,6 +180,15 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
           controller.signal.throwIfAborted();const current=await reviewItem(event,input);if(JSON.stringify([current.kind,current.title,current.year,current.tmdbId,current.imdbId])!==snapshot)throw Error('The film match changed. Load its reviews again.');
           if(!parsed.reviews.length)throw Error('No readable reviews found. The site may require access or its format changed; paste or import reviews.');return {ok:true,...reviewsModule.pageSample(selected,{...parsed,partial:!!parsed.excluded?.incomplete,warning:parsed.excluded?.incomplete?'Some full review continuations could not be loaded; incomplete excerpts were excluded.':'',url:url.href},{count:input.count,spoilers:input.spoilers===true,sort:input.sort,url:url.href})};
         }finally{jobs.delete(id);}
+      }
+      if(action==='decision-analysis-feedback'){
+        const model=require('./renderer/media-tools-model'),selected=await reviewItem(event,input),data=read(),entries=[];
+        if(typeof input.analysisKey!=='string'||!/^[a-f0-9]{64}$/.test(input.analysisKey)||input.kind!==null&&!model.ANALYSIS_FEEDBACK.includes(input.kind))throw Error('Choose feedback for a saved analysis. / Kayıtlı analiz için geri bildirim seç.');
+        for(const value of Object.values(data.titles))for(const entry of value.history||[])if(model.decisionIdentityMatch(selected,entry.identity||{})==='matched'&&analysisKey(entry)===input.analysisKey)entries.push(entry);
+        if(!entries.length)throw Error('Analysis or film identity changed; reopen it. / Analiz veya film kimliği değişti; yeniden aç.');
+        const latest=entries.map(entry=>model.validateAnalysisFeedback(entry.analysisFeedback)).filter(Boolean).sort((a,b)=>b.at-a.at)[0]||null;
+        if(input.revision!==require('./personal-collection').hash(latest))throw Error('Analysis feedback changed; reopen it. / Analiz geri bildirimi değişti; yeniden aç.');
+        const feedback=input.kind===null?null:{kind:input.kind,at:Date.now()};for(const entry of entries){if(feedback)entry.analysisFeedback=feedback;else delete entry.analysisFeedback;}save(data);return {ok:true,feedback,revision:require('./personal-collection').hash(feedback)};
       }
       if(action==='decision-get'){
         const selected=await reviewItem(event,input),data=read(),own=Object.hasOwn(data.titles,selected.id)?data.titles[selected.id]:{},model=require('./renderer/media-tools-model'),current=model.decisionProviderIdentity(selected);
@@ -182,7 +205,9 @@ function registerMediaTools({app,ipcMain,authorized,dialog,owner,catalogStore,ff
             if(['imdbId','tmdbId'].some(key=>current[key]&&current[key]===saved[key]))history.push({entry,savedFrom:key.startsWith('discovery:')?'discovery':'library'});
           }
         }
-        const seen=new Set(),merged=history.filter(({entry})=>{const key=JSON.stringify(entry);if(seen.has(key))return false;seen.add(key);return true;}).sort((a,b)=>(Number(b.entry?.analysis?.at)||0)-(Number(a.entry?.analysis?.at)||0)).slice(0,8).map(({entry,savedFrom})=>({...entry,savedFrom}));
+        const seen=new Map();for(const row of history){const key=analysisKey(row.entry),old=seen.get(key);if(!old||(Number(row.entry.analysisFeedback?.at)||0)>(Number(old.entry.analysisFeedback?.at)||0))seen.set(key,row);}
+        const merged=[...seen.values()].sort((a,b)=>(Number(b.entry?.analysis?.at)||0)-(Number(a.entry?.analysis?.at)||0)).slice(0,8).map(({entry,savedFrom})=>({...entry,savedFrom,analysisKey:analysisKey(entry),analysisFeedbackRevision:require('./personal-collection').hash(model.validateAnalysisFeedback(entry.analysisFeedback)),analysisFeedbackAvailable:model.decisionIdentityMatch(selected,entry.identity||{})==='matched'}));
+
         const linked=sharedFeedback.sort((a,b)=>(Number(b.feedback.at)||0)-(Number(a.feedback.at)||0))[0];
         // Unbound legacy notes stay local. Verified records use latest timestamp; ties prefer this surface.
         const useLinked=linked&&(!ownFeedback||own.feedbackIdentity&&Number(linked.feedback.at)>Number(ownFeedback.at||0));

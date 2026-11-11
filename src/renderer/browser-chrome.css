@@ -1980,3 +1980,30 @@ details.browser-translate-split.hidden { display: none !important; }
   color: var(--text);
   border: 1px solid var(--border);
 }
+
+/* R854-02 — The address field keeps a usable budget when the Browser area is narrow (side panel open).
+   Navigation + address stay on the first row; the subtitle/translate/mode actions move to a controlled
+   second row instead of drawing over the address. No action is removed or shrunk below its normal size. */
+@container browser-workspace (max-width: 1180px) {
+  .player-layer.workspace-browser:not(.browser-chrome-collapsed) .browser-toolbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 6px;
+  }
+  .player-layer.workspace-browser:not(.browser-chrome-collapsed) .browser-nav { grid-column: 1; grid-row: 1; }
+  .player-layer.workspace-browser:not(.browser-chrome-collapsed) .browser-address-wrap { grid-column: 2; grid-row: 1; min-width: 0; }
+  .player-layer.workspace-browser:not(.browser-chrome-collapsed) .browser-toolbar-actions {
+    grid-column: 1 / -1; grid-row: 2; min-width: 0; flex-wrap: wrap; justify-content: flex-end; row-gap: 4px;
+  }
+  .player-layer.workspace-browser:not(.browser-chrome-collapsed) .browser-find { grid-row: 3; grid-column: 1 / -1; }
+}
+
+.bp-layout-note{margin:6px 0 8px;font-size:12px;line-height:1.45;opacity:.75;max-width:30ch}
+.bp-layout-menu button[aria-pressed="true"]{color:var(--accent);font-weight:700}
+
+.bp-assistant-bridge{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 10px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-1);font-size:12px;line-height:1.45;color:var(--text-dim,var(--text))}
+.bp-assistant-bridge>span{flex:1 1 200px;min-width:0}
+
+/* R854 cinematic palette — the Browser side panel shares the players' projector light (dark theme only). */
+html:not([data-theme=light]) .bp-panel{--accent:var(--theme-accent);--accent-hover:var(--theme-accent-hover);--on-accent:var(--theme-accent-contrast);--accent-soft:color-mix(in srgb,var(--theme-accent) 12%,transparent);background:radial-gradient(120% 60% at 50% -10%,color-mix(in srgb,var(--accent) 6%,transparent),transparent 60%),var(--bg-0)}
+html:not([data-theme=light]) .bp-panel .bp-tabs [aria-selected=true],html:not([data-theme=light]) .bp-panel [role=tab][aria-selected=true]{color:var(--text);border-color:var(--accent)}

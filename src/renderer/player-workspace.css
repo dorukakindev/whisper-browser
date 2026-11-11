@@ -3,14 +3,14 @@
    Yeni renk/font/CDN yok. Geometri: ETKILESIM §4 (içerik alanı genişliği W, kapsayıcı sorgusuyla). */
 .pw-root {
   --pw-bg: var(--bg-0, #111215);
-  --pw-surface: color-mix(in srgb, var(--bg-1, #191b1f) 94%, var(--accent, #d5a35c));
-  --pw-raised: color-mix(in srgb, var(--bg-2, #24272d) 96%, var(--accent, #d5a35c));
-  --pw-raised-2: color-mix(in srgb, var(--bg-3, #2d3037) 94%, var(--accent, #d5a35c));
+  --pw-surface: color-mix(in srgb, var(--bg-1, #191b1f) 94%, var(--accent, var(--theme-accent)));
+  --pw-raised: color-mix(in srgb, var(--bg-2, #24272d) 96%, var(--accent, var(--theme-accent)));
+  --pw-raised-2: color-mix(in srgb, var(--bg-3, #2d3037) 94%, var(--accent, var(--theme-accent)));
   --pw-line: var(--border, #383c43);
   --pw-text: var(--text, #f1f0ed);
   --pw-dim: var(--text-dim, #c1c4cb);
   --pw-muted: var(--text-muted, #b0b4bd);
-  --pw-accent: var(--accent, #d5a35c);
+  --pw-accent: var(--accent, var(--theme-accent));
   --pw-accent-soft: color-mix(in srgb, var(--pw-accent) 14%, transparent);
   --pw-accent-line: color-mix(in srgb, var(--pw-accent) 55%, transparent);
   --pw-on-accent: var(--accent-contrast, #18130d);

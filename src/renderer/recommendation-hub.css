@@ -4,3 +4,43 @@
 .rhub-controls{margin:20px 0;border-top:1px solid var(--border);padding-top:16px}.rhub-page summary{cursor:pointer;line-height:1.6}.rhub-page summary:hover{color:var(--accent)}.rhub-control-grid,.rhub-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.rhub-control-grid .rhub-field{justify-content:start}.rhub-control-grid .rhub-field:has(input[type=checkbox]){flex-direction:row;align-items:center}.rhub-control-grid input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}.rhub-page select,.rhub-experiment input{min-height:40px;max-width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-0);color:var(--text);font:inherit}.rhub-feedback,.rhub-experiment,.rhub-history{padding:18px 0;border-top:1px solid var(--border);margin-top:20px}.rhub-feedback[open]{display:flex;flex-wrap:wrap;gap:8px}.rhub-feedback>summary{width:100%;font-size:13px;color:var(--text-dim)}.rhub-experiment>select{max-width:min(100%,420px);margin:12px 8px 12px 0}.rhub-experiment>input{width:90px;margin-right:8px}.rhub-experiment .mh-action{margin:8px 8px 8px 0}.rhub-history-row{padding:18px 0;border-bottom:1px solid var(--border)}.rhub-history-row .mh-action{margin-right:8px}.rhub-page :is(select,summary):focus-visible{outline:2px solid var(--accent);outline-offset:3px}@media(max-width:600px){.rhub-control-grid,.rhub-comparison{grid-template-columns:1fr}.rhub-feedback{padding-top:14px}}
 
 .rhub-model-json{display:block;width:100%;box-sizing:border-box;min-height:130px;max-height:300px;resize:vertical;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-0);color:var(--text);font:12px/1.6 Consolas,monospace;margin:12px 0}.rhub-model-json[hidden]{display:none}.rhub-model-comparison h3{overflow-wrap:anywhere}
+
+.rhub-identity{margin:2px 0 4px;font-size:13px;font-weight:650;letter-spacing:.02em;color:var(--accent)}
+.rhub-reason-label{margin:8px 0 2px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.72}
+
+/* R854-09 / G24 — poster tops share one axis; the stretched card button no longer centres its content vertically. */
+.cn-discover-entry>.cn-poster{display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;text-align:left}
+.cn-discover-entry>.cn-poster .md-reason{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+.cn-active-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:var(--cn-max);width:calc(100% - var(--cn-gutter)*2);margin:-14px auto 22px}
+.cn-active-filters .cn-watch-choice{min-height:32px;padding:5px 12px;font-size:12.5px}
+.cn-active-filters .cn-watch-choice:not(.cn-active-chip){border-style:dashed;color:var(--cn-dim)}
+.cn-active-filters .cn-watch-choice:not(.cn-active-chip):hover,.cn-active-filters .cn-watch-choice:not(.cn-active-chip):focus-visible{color:var(--cn-text)}
+.cn-active-chip{border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+
+/* R854 G04 cinematic pass — the start screen becomes one balanced composition: statement on the left, the single decision card on the right. */
+@media(min-width:1100px){
+.rhub-page:not(.has-results){display:grid;grid-template-columns:minmax(0,1.05fr) minmax(440px,560px);column-gap:64px;align-items:center;min-height:min(620px,calc(100vh - 180px));align-content:center;row-gap:0;padding-inline:30px;background:radial-gradient(ellipse 38% 52% at 24% 46%,color-mix(in srgb,var(--accent) 15%,transparent),transparent)}
+.rhub-page:not(.has-results)>.rhub-hero{grid-column:1;grid-row:1/span 2;align-self:center;padding:0;border-bottom:0;background:none}
+.rhub-page:not(.has-results)>.rhub-hero h1{font-size:clamp(44px,4.6vw,76px);line-height:1.05;margin-bottom:24px}
+.rhub-page:not(.has-results)>.rhub-hero p{font-size:17px;max-width:46ch}
+.rhub-page:not(.has-results)>.rhub-source-tools{grid-column:2;grid-row:1;margin:0}
+.rhub-page:not(.has-results)>.rhub-source-tools .rhub-form{margin:0;max-width:none;border-radius:24px;background:linear-gradient(160deg,var(--bg-2),var(--bg-1));box-shadow:0 40px 80px -50px black,inset 0 1px color-mix(in srgb,var(--text) 7%,transparent)}
+.rhub-page:not(.has-results)>:not(.rhub-hero):not(.rhub-source-tools){grid-column:2;justify-self:start;margin-top:14px}
+}
+.rhub-page.has-results .rhub-hero{padding:4px 0 14px;border-bottom:0;background:none}
+.rhub-page.has-results .rhub-hero h1{font-size:30px;margin:0 0 6px}
+.rhub-page.has-results .rhub-hero p{font-size:14px;margin:0;max-width:none}
+
+/* R854 cinematic pass — Discover: quiet secondary action, lifted poster on hover/focus, calmer filter line. */
+.cn-discover-entry .md-recommend-button{background:transparent;border:1px solid color-mix(in srgb,var(--accent) 38%,var(--border));border-radius:999px;color:var(--accent);padding:8px 14px;font-size:13px;min-height:36px}
+.cn-discover-entry .md-recommend-button:hover,.cn-discover-entry .md-recommend-button:focus-visible{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--text)}
+html:not([data-motion=off]):not([data-motion=reduce]) .cn-discover-entry>.cn-poster{transition:transform .22s ease,box-shadow .22s ease}
+html:not([data-motion=off]):not([data-motion=reduce]) .cn-discover-entry>.cn-poster:hover,html:not([data-motion=off]):not([data-motion=reduce]) .cn-discover-entry>.cn-poster:focus-visible{transform:translateY(-4px);box-shadow:0 26px 44px -26px black}
+.cv2-discover-section-heading h2{font-size:clamp(28px,2.6vw,40px);letter-spacing:-.035em}
+.cn-discover-view-row{margin-bottom:18px}
+.cv2-discover .cn-watch-views .cn-watch-choice{border-color:transparent;background:color-mix(in srgb,var(--text) 6%,transparent)}
+.cv2-discover .cn-watch-views .cn-watch-choice[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 18%,transparent);border-color:var(--accent)}
+
+/* R854 G05/G06: context can wrap without losing source or constraints. */
+.rhub-source-tools>summary{overflow-wrap:anywhere;line-height:1.6}.rhub-deferrals{display:flex;flex-wrap:wrap;gap:10px;margin-block:8px 16px}.rhub-deferrals>button{flex:1 1 130px}.cn-discover-entry>.md-provider{display:block;padding:10px 6px;line-height:1.5}.md-restore-preference{width:100%}.cv2-discover-section-heading>.md-provider{font-size:13px;line-height:1.6;max-width:72ch}

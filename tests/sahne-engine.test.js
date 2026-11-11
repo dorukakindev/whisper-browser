@@ -258,8 +258,8 @@ test('captured tracks replace the empty transcript prompt and open the caption s
 test('transcript task summary distinguishes missing, ready and pending text without hiding actions',async t=>{
  let finish;const f=mount(t,{empty:true,actions:[{id:'transcribe',label:'Whisper',run:()=>new Promise(r=>finish=r)}]});
  assert.equal(f.sh.q('[data-r=processingState]').textContent,'Transkript yok');
- const state=f.sh.a.state;f.sh.a.state=()=>({...state(),rows:f.rows});f.sh.tick();assert.equal(f.sh.q('[data-r=processingState]').textContent,'Zamanlı metin hazır');
- const pending=f.sh.startTask('transcribe');assert.equal(f.sh.q('[data-r=processingState]').textContent,'Hazırlanıyor…');finish({ok:true});await pending;assert.equal(f.sh.q('[data-r=processingState]').textContent,'Zamanlı metin hazır');
+ const state=f.sh.a.state;f.sh.a.state=()=>({...state(),rows:f.rows});f.sh.tick();assert.equal(f.sh.q('[data-r=processingState]').textContent,'Zamanlı metin · Kaynak: 2 · Çeviri: 1/2');
+ const pending=f.sh.startTask('transcribe');assert.equal(f.sh.q('[data-r=processingState]').textContent,'Hazırlanıyor…');finish({ok:true});await pending;assert.equal(f.sh.q('[data-r=processingState]').textContent,'Zamanlı metin · Kaynak: 2 · Çeviri: 1/2');
  assert.equal(f.sh.q('[data-task=transcribe]').disabled,false);
 });
 test('automatically expanded transcript tasks give reading space back when text arrives',t=>{
@@ -1997,4 +1997,9 @@ test('Tasks sentence checkbox is keyboard-native, keeps focus and rejects an obs
  let input=f.sh.q('[data-pid="sentence-merge"]');assert.equal(input.type,'checkbox');input.focus();input.click();
  assert.deepEqual(values,[true]);input=f.sh.q('[data-pid="sentence-merge"]');assert(input.checked);assert.equal(f.w.document.activeElement,input);
  f.sh.a.identity=()=> 'other-source';input.click();assert.deepEqual(values,[true]);
+});
+
+
+test('R854 G17/G19/G22 text focus is visual only, translation readiness counts real channels and task context states its effects',t=>{
+ const h=mount(t,{study:true,audio:true,processing:true,actions:[{id:'translate',label:'Translate'}],sections:[{id:'captions',title:'Subtitles',items:[]}]});h.sh.tick();const button=h.sh.root.querySelector('[data-a=textfirst]');assert(button);button.click();assert(h.sh.root.classList.contains('sh-text-first'));assert.equal(h.commands.length,0);const state=h.sh.root.querySelector('[data-r=processingState]');assert.match(state.textContent,/Kaynak: 2.*Çeviri: 1\/2/);h.sh.togglePanel();assert.match(h.sh.root.querySelector('.sh-panel-context').textContent,/Bölüm.*Dosya değişiklikleri.*onay/);assert.equal(h.commands.length,0);
 });

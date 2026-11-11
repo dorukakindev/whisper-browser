@@ -109,3 +109,8 @@ html[data-theme="light"] .md-detail-poster img { outline-color: rgb(var(--media-
 .md-footer .md-retry[hidden],.md-footer .md-more[hidden]{display:none}
 
 .md-page .md-card .mh-card-title{min-height:0;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere}.md-page .md-grid{align-items:start}
+
+/* R853 explicit partial-result receipt; kept inside the existing media dialog. */
+.md-batch-receipt{border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px;background:var(--bg-1);overflow-wrap:anywhere}
+.md-batch-receipt h3{margin:0 0 12px;font-size:15px}
+.md-batch-receipt p+p{border-top:1px solid var(--border);padding-top:10px}

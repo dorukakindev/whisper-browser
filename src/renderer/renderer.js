@@ -13923,6 +13923,7 @@ function setWorkspaceMode(mode, persist = true) {
   if (mode === 'browser' && player.viewMode === 'cinema') setViewMode(player.lastSideMode || 'reading');
   if (mode !== 'browser' && player.settingsPage !== 'source') setSettingsPage('source');
   player.workspaceMode = mode;
+  window.PlayerPro?.workspaceChanged?.();
   if (mode !== 'browser' && player.sideTab === 'tools') setSideTab('subs');
   if (mode === 'browser') {
     startBrowserMangaLookaheadTimer();
@@ -18513,7 +18514,7 @@ function drawTimeline() {
     ctx.fillText(pSecToTime(t), x + 4, 13);
   }
 
-  for(const cut of player.timeline.analysis?.shots||[]){if(cut<view.start||cut>view.start+span)continue;const x=(cut-view.start)/span*w;ctx.strokeStyle=getComputedStyle(canvas).getPropertyValue('--accent')||'#d5a35c';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+  for(const cut of player.timeline.analysis?.shots||[]){if(cut<view.start||cut>view.start+span)continue;const x=(cut-view.start)/span*w;ctx.strokeStyle=getComputedStyle(canvas).getPropertyValue('--accent')||getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim()||'GrayText';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
   // Gerçek yerel dalga biçimi. YouTube akışında dosya yoksa blok yoğunluğu yine görünür.
   const points = player.timeline.waveform;
   if (points.length) {
@@ -18577,7 +18578,7 @@ function drawTimeline() {
   if (tlRange && player.cues.length) {
     const lo = Math.max(0, Math.min(tlRange.a, tlRange.b));
     const hi = Math.min(player.cues.length - 1, Math.max(tlRange.a, tlRange.b));
-    ctx.fillStyle = 'rgba(213,163,92,.85)';
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || 'GrayText';
     for (let i = lo; i <= hi; i++) {
       const cue = player.cues[i];
       if (!cue) continue;
@@ -20449,7 +20450,7 @@ function renderResearchLibraryBody(drafts) {
     card.append(note, extra);
     appendResearchConflict(card, annotation);
     appendResearchOpenNote(card, annotation);
-    if(annotation.researchSources?.length){const evidence=document.createElement('button');evidence.className='link-btn research-evidence-open';evidence.textContent=interfaceChoice(`AI taslağı · ${annotation.researchSources.length} dayanağı incele`,`AI draft · inspect ${annotation.researchSources.length} references`);evidence.onclick=()=>window.AssistantResearchNotesUI?.sources(annotation);card.append(evidence);}
+    if(annotation.researchSources?.length||annotation.comparisonSources?.length){const evidence=document.createElement('button');evidence.className='link-btn research-evidence-open';evidence.textContent=interfaceChoice(`AI taslağı · ${annotation.researchSources?.length||annotation.comparisonSources?.length} dayanağı incele`,`AI draft · inspect ${annotation.researchSources?.length||annotation.comparisonSources?.length} references`);evidence.onclick=()=>window.AssistantResearchNotesUI?.sources(annotation);card.append(evidence);}
     if ((annotation.tags || []).length) {
       const tagList = document.createElement('div');
       for (const tag of annotation.tags) {
@@ -25160,6 +25161,19 @@ function setSettingsDrawer(open) {
   // Eskiden 'sidebar-collapsed' kaldiriliyordu ve dislye basinca arkada
   // istenmeden transkript paneli de aciliyordu.
   d.classList.toggle('hidden', !open);
+  // The modern player parks the original sidebar in its advanced-tools dialog.
+  // A header settings action must open that owner, not toggle an invisible child.
+  const adoptedDialog = player.workspaceMode === 'player' ? d.closest?.('dialog.pw-existing-tools') : null;
+  if (open && adoptedDialog && !adoptedDialog.open) {
+    adoptedDialog.dataset.settingsEntry = 'true';
+    adoptedDialog.addEventListener('close', () => {
+      delete adoptedDialog.dataset.settingsEntry;
+      if (!d.classList.contains('hidden')) setSettingsDrawer(false);
+    }, { once: true });
+    window.PlayerWorkspaceIntegration?.openAdvanced?.();
+  } else if (!open && adoptedDialog?.open && adoptedDialog.dataset.settingsEntry === 'true') {
+    adoptedDialog.close();
+  }
   if (window.matchMedia(player.workspaceMode === 'browser' ? '(max-width: 1099px)' : '(max-width: 1020px)').matches) {
     player.narrowPanelTakeover = !!open;
   }
@@ -29798,10 +29812,27 @@ async function openReviewIssue(issue) {
   else player.activeIdx=player.cues.indexOf(cue);
   openBrowserQuickEditor(descriptor.secondary,{channel:issue.channel,index:issue.index});
 }
+let browserSubtitleReviewVersion=0;
 function renderBrowserSubtitleReview() {
+  const reviewVersion=++browserSubtitleReviewVersion;
   if(player.workspaceMode!=='browser')return;
   const issues=window.BrowserSubtitleReview.issues(reviewDisplayChannels());
   const list=$('browserReviewIssues');list.replaceChildren();
+  const owner={tabId:player.browserActiveTabId,trackId:player.browserTranslationTrackId,mediaKey:player.mediaKey,generation:currentGeneration()};
+  const reviewCurrent=()=>reviewVersion===browserSubtitleReviewVersion&&list.isConnected&&player.workspaceMode==='browser'&&owner.tabId===player.browserActiveTabId&&owner.trackId===player.browserTranslationTrackId&&owner.mediaKey===player.mediaKey&&owner.generation===currentGeneration();
+  let issueCursor=-1;
+  const next=document.createElement('button');next.type='button';next.className='btn btn-secondary btn-sm';next.textContent=interfaceChoice('Sonraki eksik / şüpheli satır','Next missing / suspect row');next.disabled=!issues.length;next.onclick=()=>{if(!reviewCurrent())return;issueCursor=(issueCursor+1)%issues.length;void openReviewIssue(issues[issueCursor]).catch(()=>{});};list.append(next);
+  const inspect=document.createElement('button');inspect.type='button';inspect.className='btn btn-secondary btn-sm';inspect.textContent=interfaceChoice('Yeniden denenebilir satırları seç','Select retryable rows');list.append(inspect);
+  inspect.onclick=async()=>{
+    const snapshot=await window.api.getBrowserTranslationSnapshot(owner.tabId).catch(()=>null);
+    if(!reviewCurrent()||!snapshot?.ok||snapshot.trackId!==owner.trackId)return;
+    const panel=document.createElement('section'),selected=new Set(),failures=(snapshot.state?.failures||[]).filter(f=>f.terminal).slice(0,200);
+    list.querySelector('[data-selected-retries]')?.remove();panel.dataset.selectedRetries='';
+    const note=document.createElement('p');note.textContent=interfaceChoice('Seçim üretim başlatmaz. Yalnız seçili başarısız cümleler mevcut çeviri ayarlarıyla yeniden denenir; başarılı satırlar ve zamanlar korunur. Kalite uyarısıyla kabul edilen satırlar elle incelenir.','Selection starts no production. Only selected failed sentences retry with existing translation settings; successful rows and timings stay intact. Accepted quality warnings require manual review.');panel.append(note);
+    for(const failure of failures){const label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.onchange=()=>check.checked?selected.add(failure.sentenceId):selected.delete(failure.sentenceId);label.append(check,document.createTextNode(String(failure.text||failure.sentenceId).slice(0,240)));panel.append(label,document.createElement('br'));}
+    const retry=document.createElement('button');retry.type='button';retry.className='btn btn-secondary btn-sm';retry.textContent=interfaceChoice('Seçili cümleleri yeniden dene','Retry selected sentences');retry.disabled=!failures.length;
+    retry.onclick=async()=>{if(!reviewCurrent()||!panel.isConnected||!selected.size)return;retry.disabled=true;const result=await window.api.retryFailedBrowserTranslation(owner.tabId,{trackId:owner.trackId,generation:snapshot.state.generation,tabGeneration:snapshot.generation,acquisitionId:snapshot.acquisitionId,mediaId:snapshot.mediaId,sentenceIds:[...selected]}).catch(()=>null);if(!reviewCurrent()||!panel.isConnected)return;note.textContent=result?.ok?interfaceChoice('Seçili cümleler yeniden deneme yoluna gönderildi.','Selected sentences sent to the retry path.'):(result?.error||interfaceChoice('Seçim değişti; yeniden incele.','Selection changed; review again.'));};panel.append(retry);if(!failures.length)note.textContent=interfaceChoice('Yeniden denenebilir başarısız cümle yok; kalite uyarılarını aşağıdan elle incele.','No retryable failed sentences; review quality warnings manually below.');inspect.after(panel);
+  };
   const activeScopes=new Set(subtitleFindDescriptors().map(row=>reviewSourceScope(row.track,row.path)));
   const conflicts=[...browserReviewConflicts.entries()].filter(([scope,value])=>activeScopes.has(scope)&&value.mediaKey===player.mediaKey)
     .flatMap(([scope,value])=>value.conflicts.map(conflict=>({...conflict,scope,path:value.path})));
@@ -29811,7 +29842,7 @@ function renderBrowserSubtitleReview() {
     button.textContent=`${pSecToTime(issue.start)} · ${issue.reasons.map(reason=>reason==='quality-warning'?interfaceChoice('Sağlayıcı kalite uyarısı; elle inceleyin','Provider quality warning; review manually'):reason).join(' · ')}\n${String(issue.text||'').slice(0,180)}`;
     button.addEventListener('click',()=>void openReviewIssue(issue).catch(()=>logLine('Altyazı satırına gidilemedi.','warn')));list.append(button);
   }
-  if(!issues.length)list.textContent='Mevcut izlerde hızlı okuma, çakışma veya eksik çeviri uyarısı yok.';
+  if(!issues.length){const empty=document.createElement('p');empty.textContent=interfaceChoice('Mevcut izlerde inceleme uyarısı yok.','No review warnings in the current tracks.');list.append(empty);}
   const box=$('browserReviewConflicts');box.replaceChildren();
   for(const conflict of conflicts.slice(0,50)){
     const block=document.createElement('div');block.className='browser-review-conflict';
@@ -35298,7 +35329,10 @@ async function persistPodcastJobOutputs(event,binding){
   }catch(error){receipt.saveError=String(error.message).slice(0,500);errors.push(receipt.saveError);continue;}
   try{
    if(binding.playbackOwner==='media-shelf')window.MediaShelfUI?.setPodcastRecovery?.(binding,response.translationRetry||null);
-   if(binding.playbackOwner==='player'&&podcastQueueOwnerCurrent(binding)&&player.workspaceAudio?.entryId===binding.entryId&&window.PlayerSourceCatalogIntegration?.loadSavedPodcastResult){const applied=await window.PlayerSourceCatalogIntegration.loadSavedPodcastResult(kind);receipt.applied=podcastQueueOwnerCurrent(binding)&&player.workspaceAudio?.entryId===binding.entryId?applied?.ok!==false&&!applied?.stale:null;if(receipt.applied===false)throw Error(applied?.error||'Saved result was not attached / Kayıtlı sonuç ekrana bağlanamadı.');}
+   if(binding.playbackOwner==='player'&&podcastQueueOwnerCurrent(binding)&&player.workspaceAudio?.entryId===binding.entryId&&window.PlayerSourceCatalogIntegration?.loadSavedPodcastResult){const applied=await window.PlayerSourceCatalogIntegration.loadSavedPodcastResult(kind);
+    const handoff=applied?.playbackHandoff,current=player.workspaceAudio;
+    if(handoff&&current?.exactAudio&&handoff.previous.entryId===binding.entryId&&handoff.previous.mediaKey===binding.mediaKey&&handoff.previous.generation===binding.generation&&handoff.previous.sourceVersion===(binding.playbackSourceVersion||binding.sourceVersion)&&handoff.current.entryId===binding.entryId&&handoff.current.mediaKey===player.mediaKey&&handoff.current.generation===player.generation&&handoff.current.sourceVersion===binding.sourceVersion&&current.entryId===binding.entryId&&current.mediaKey===handoff.current.mediaKey&&current.generation===handoff.current.generation&&current.sourceVersion===handoff.current.sourceVersion){binding.mediaKey=current.mediaKey;binding.generation=current.generation;binding.playbackSourceVersion=current.sourceVersion;}
+    receipt.applied=podcastQueueOwnerCurrent(binding)&&player.workspaceAudio?.entryId===binding.entryId?applied?.ok!==false&&!applied?.stale:null;if(receipt.applied===false)throw Error(applied?.error||'Saved result was not attached / Kayıtlı sonuç ekrana bağlanamadı.');}
    if(binding.playbackOwner==='media-shelf'){
     const snapshot=window.MediaShelfUI?.readSnapshot?.();
     if(snapshot?.mediaKey===binding.mediaKey&&snapshot?.generation===binding.generation&&(snapshot?.sourceVersion===binding.sourceVersion||snapshot?.sourceVersion===binding.playbackSourceVersion)&&window.MediaShelfUI?.applyPodcastOutput){const applied=await window.MediaShelfUI.applyPodcastOutput({binding,role:kind,text:result.text,timed:true,format:/\.vtt$/i.test(item.path)?'vtt':'srt',status:receipt.status});const current=window.MediaShelfUI.readSnapshot?.();receipt.applied=current?.mediaKey===binding.mediaKey&&current?.generation===binding.generation&&(current?.sourceVersion===binding.sourceVersion||current?.sourceVersion===binding.playbackSourceVersion)?applied?.ok!==false&&!applied?.stale:null;if(receipt.applied===false)throw Error(applied?.error||'Saved result was not attached / Kayıtlı sonuç ekrana bağlanamadı.');}

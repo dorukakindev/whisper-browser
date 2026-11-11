@@ -20,6 +20,7 @@ function normalizeAnnotationBinding(raw) {
   return result;
 }
 
+function comparisonLocator(raw={}){const result={};for(const key of ['noteId','itemId','reviewId','nodeId','sourceId','episode','sourceVersion','reactionRevision','scope','query','showName','role'])if(typeof raw[key]==='string'&&!/^(?:[a-z]:[\\/]|file:|\\\\)/i.test(raw[key]))result[key]=raw[key].slice(0,key==='query'?200:500);for(const key of ['page','seconds','end'])if(Number.isFinite(raw[key])&&raw[key]>=0)result[key]=raw[key];if(/^[a-f0-9]{64}$/.test(raw.token||''))result.token=raw.token;return result;}
 function normalizeAnnotation(raw = {}) {
   const type = ['quote', 'word', 'note'].includes(raw.type) ? raw.type : 'note';
   const rawMediaId = String(raw.mediaId || '').slice(0, 240);
@@ -34,6 +35,7 @@ function normalizeAnnotation(raw = {}) {
   const fingerprint = crypto.createHash('sha1').update(identity + trackIdentity + (anchor ? JSON.stringify(anchor) : ''), 'utf8').digest('hex').slice(0, 16);
   const review = normalizeReviewState(raw);
   return {
+    ...(Array.isArray(raw.comparisonSources)&&raw.comparisonSources.length?{comparisonSources:raw.comparisonSources.slice(0,8).filter(r=>r&&typeof r.id==='string'&&typeof r.revision==='string').map(r=>({id:r.id.slice(0,100),shortened:r.shortened===true||String(r.personalNote||'').length>4000,locator:comparisonLocator(r.locator),role:r.role==='translation'?'translation':'source',origin:r.origin==='ai-draft'?'ai-draft':'saved-source',kind:String(r.kind||'').slice(0,40),revision:r.revision.slice(0,100),title:String(r.title||'').slice(0,300),text:String(r.text||'').slice(0,4000),translation:String(r.translation||'').slice(0,4000),personalNote:String(r.personalNote||'').slice(0,4000)}))}:{}),
     researchSources: Array.isArray(raw.researchSources)?raw.researchSources.slice(0,8).filter(r=>r&&typeof r.noteId==='string'&&/^[a-f0-9]{24}$/.test(r.revision||'')).map(r=>({noteId:r.noteId.slice(0,180),revision:r.revision})):[],
     id: String(raw.id || `annotation:${fingerprint}`).slice(0, 180),
     type,

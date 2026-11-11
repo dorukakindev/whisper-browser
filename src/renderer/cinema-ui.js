@@ -411,6 +411,7 @@
       if (basis) copy.append(basis);
       if (synopsis) copy.append(synopsis);
     }
+    const copyPosition=page.querySelector(".cn-copy-position");if(copyPosition)copy.append(copyPosition);
     const resume = page.querySelector(".cn-library-resume");
     if (resume) copy.append(resume);
     if (personal) {
@@ -527,6 +528,8 @@
     for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [sources, "Sources & status", "Kaynak ve durum"], [extras, "Details", "Ayr\u0131nt\u0131lar"]]) if (section&&!section.hidden) {
       const b = action(t(en, tr), () => {
         if (section === sources) advanced.open = true;
+        const stickyHeader = document.querySelector(".media-home .mh-header");
+        if (stickyHeader) page.style.setProperty("--cv2-sticky-top", Math.ceil(stickyHeader.getBoundingClientRect().height) + "px");
         section.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       }, "ghost");
       b.dataset.filmSection = '';
