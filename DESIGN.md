@@ -34,6 +34,10 @@ components:
 
 # Whisper Browser tasarım kaydı
 
+## Kümülatif V3 üst yapı / Podcast / Stremio — 2026-11-11
+
+Onaylı paket sıcak amber/grafit kimliğiyle uygulanır: tek uygulama/Sahne/altyazı üst yüzeyi, ortada mod anahtarı; Transkript/İşlemler önde, Uyku/Klasik/Tam ekran erişilebilir simgeler. İşlemler bağlam satırı kategori/içerik ızgarasından ayrılır ve transport'un üstünde kalır. Podcast yayın/sekme/filtre ve Stremio eklenti/kaynak yüzeyleri mevcut bileşenleriyle biçimlenir; alt transport/büyük Sahne-Raf yeniden tasarımı yapılmaz. Üstteki asistan baloncuğu amber38px yuvarlak kalır, kapalı eklenti yazıları tüm satır opacity'siyle soldurulmaz. Yeni CSS dosyaları scoped; mevcut araçlar/kuyruk/saat/kaynak sahipliği korunur.
+
 ## Ortak yapım ayrıntısı ve görünür eylemler — 2026-11-11
 
 Stremio film kartları ayrı film tasarımı üretmez; Keşfet'in mevcut MediaDiscoveryUI/CinemaUI ayrıntı sayfasını açar. Kaynak seçimi ortak hero'nun birincil eylemi, kütüphane eylemi ikincildir; eklenti kaynak/bölüm/listem/değerlendirme araçları ortak kaynak alanındadır. Benzer film önerisi yalnız film ayrıntısındaki bir seçenek olarak sunulur, Keşfet kartlarının altında veya sağ tık menüsünde tekrarlanmaz. Ana sayfa açık oturum kartı görünür erişilebilir X ile kapatılabilir. Üç oynatıcı modunda Transkript ile İşlemler arasındaki amber asistan baloncuğu mevcut asistan sahibini açar. Üst medya gezinmesi, sıcak amber/grafit, hareket tercihi ve ileri araçlar korunur.

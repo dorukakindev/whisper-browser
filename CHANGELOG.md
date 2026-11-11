@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-11 · Kümülatif V3 arayüz ve eklenti onayı
+
+- V3 oynatıcı/Podcast/Çift dilli üst yapısı, İşlemler paneli, ayarlar ve Stremio/Podcast yüzeyleri mevcut özelliklerle birleştirildi. Amber asistan baloncuğu ve kapalı eklenti okunurluğu korundu.
+- Native eklenti penceresi içindeki Kaldır onayı aynı üst katmanda etkileşebilir; üst pencere kapanırsa onay iptal olur ve ortak pencere düğümü geri taşınır. İptal kayıt değiştirmez, onay yalnız seçilen eklentiyi kaldırır.25/25Chromium,219/219Sahne,11/11modal ve hedefli korunum kontrolleri geçti. Tabanın4test dosyası hatası ve canlı/native sınırları korunur. [Devir](docs/devir/2026-11-11-1423.md).
+
+## 2026-11-11 · Yerel asistan izlenmiş kapsam onarımı
+
+- Yerel/doğrudan Stremio videonun “bu ana kadar” sorusunda araç havuzu yalnız donmuş soru konumunda bitmiş satırlardan oluşur. Devam isteği özgün sınırı ve doğrulanmış film metadata'sını korur; geç canlı renderer okuması kapsamı genişletemez. Son12bitmiş alıntı ilk istekte açık kısmi kapsam bilgisiyle yer alır.62/62 hedefli kontrol geçti. Kullanıcının özel gönderim izniyle kayıtlı DeepInfra'da2canlı çağrı: kaynaklı kısa özet ve altyazısız sahnede açık kanıt eksikliği; gelecek satır aktarımı0. Gerçek TorBox örneğinde30s ses ve CUDA small ile4SRT cue üretildi; tam film/UI kabulü değildir. [Devir](docs/devir/2026-11-11-1401.md).
+
 ## 2026-11-11 · Ortak film ayrıntısı ve oturum kapatma
 
 - Ana sayfadaki açık oturum kartına görünür X eklendi. Mevcut oynatma sahibi kapanır, son konum korunur; arka plan döküm işine iptal gönderilmez. Korumalı browser sekmeleri mevcut onay yolunu kullanır.

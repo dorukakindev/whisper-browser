@@ -22,6 +22,8 @@ Whisper Browser is a desktop media library, player and embedded browser, with di
 
 ## Proje bilgisi ve kaldığın yer
 
+**2026-11-11 14:23 V3:** [Kümülatif üst yapı/Podcast/Stremio birleştirmesi ve doğrulama](docs/devir/2026-11-11-1423.md). Mevcut asistan/Whisper kapsam düzeltmeleri korunarak V3 uygulandı; native eklenti onayı, asistan baloncuğu ve kapalı eklenti okunurluğu onarıldı. Son Git sonucu bu devir ve gerçek HEAD üzerinden doğrulanır; aşağıdaki kayıtlar tarihseldir.
+
 **2026-11-11 13:30 teslim edildi:** [PR916 ve doğrulanan sonuç](docs/devir/2026-11-11-1328.md). Stremio film kartı aynı gelişmiş Keşfet ayrıntısını açar; benzer önerisi ayrıntıda, açık oturum X ile kapanır. Önceki asistan/akış Whisper işleriyle master'a birleşti; ürün merge'i 594b6f9c. Sonuç kaydı ayrı belge teslimidir; güncel HEAD ayrıca doğrulanır, aşağıdaki eski durumlar tarihseldir.
 
 **Güncel başlangıç · 2026-11-11 12:49:** [Kısa proje/mimari ve çalışma özeti](docs/PROJECT_CONTEXT.md), [son devir](docs/devir/2026-11-11-1249.md). Ürün teslimi PR #913, sonuç belgeleri PR #914 ile master'a birleşti; doğrulanan yerel/uzak HEAD `089f2686bf2fd4b28e0b26e5c8593dce4d13f126`. Actions çalışmadı. Yeni sohbet için AGENTS → README → BACKLOG → güncel devir; yalnız ilgili teknik ayrıntıyı aç. Aşağıdaki önceki durum kayıtları tarihseldir; eski “Git teslimi yok/sonraki” satırları güncel görev değildir.
