@@ -1,4 +1,4 @@
-Güncel V3 teslimi: [Üst yapı, Podcast/Stremio, modal onarımı ve korunan asistan bağlamı](docs/devir/2026-11-11-1423.md)
+Güncel V3 teslim sonucu: [PR918 master — üst yapı, modal onarımı ve korunan asistan bağlamı](docs/devir/2026-11-11-1423.md)
 Güncel kabul/yerel onarım: [Gerçek TorBox CUDA örneği ve izinli canlı asistan kabulü](docs/devir/2026-11-11-1401.md)
 Güncel teslim sonucu: [PR916 master — ortak film sayfası, oturum kapatma ve önceki işler](docs/devir/2026-11-11-1328.md)
 Güncel yerel geliştirme: [Asistan baloncuğu, açık film bağlamı ve debrid sesinden Whisper](docs/devir/2026-11-11-1317.md)

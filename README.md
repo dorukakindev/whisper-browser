@@ -22,7 +22,7 @@ Whisper Browser is a desktop media library, player and embedded browser, with di
 
 ## Proje bilgisi ve kaldığın yer
 
-**2026-11-11 14:23 V3:** [Kümülatif üst yapı/Podcast/Stremio birleştirmesi ve doğrulama](docs/devir/2026-11-11-1423.md). Mevcut asistan/Whisper kapsam düzeltmeleri korunarak V3 uygulandı; native eklenti onayı, asistan baloncuğu ve kapalı eklenti okunurluğu onarıldı. Son Git sonucu bu devir ve gerçek HEAD üzerinden doğrulanır; aşağıdaki kayıtlar tarihseldir.
+**2026-11-11 14:27 V3 teslim edildi:** [PR918, kapsam ve doğrulama](docs/devir/2026-11-11-1423.md). Mevcut asistan/Whisper düzeltmeleriyle V3 master'a birleşti; native eklenti onayı, asistan baloncuğu ve kapalı eklenti okunurluğu onarıldı. Ürün merge'i40d77053; sonuç belge teslimi ürün kodunu değiştirmez, sonHEAD Git'ten doğrulanır. Aşağıdaki kayıtlar tarihseldir.
 
 **2026-11-11 13:30 teslim edildi:** [PR916 ve doğrulanan sonuç](docs/devir/2026-11-11-1328.md). Stremio film kartı aynı gelişmiş Keşfet ayrıntısını açar; benzer önerisi ayrıntıda, açık oturum X ile kapanır. Önceki asistan/akış Whisper işleriyle master'a birleşti; ürün merge'i 594b6f9c. Sonuç kaydı ayrı belge teslimidir; güncel HEAD ayrıca doğrulanır, aşağıdaki eski durumlar tarihseldir.
 
