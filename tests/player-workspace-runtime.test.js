@@ -22,8 +22,21 @@ const context=vm.createContext({window,document,player,performance:{now:()=>now}
  setInterval(fn){intervals.push(fn);return intervals.length;},clearInterval(){},setTimeout(fn,ms){timers.push([fn,ms]);return timers.length;},clearTimeout(){},
  globalAssistantContext:()=>({}),setSideTab(){},toggleCueSaved(){},saveCueNote(){},aiSourceScope:()=>({}),aiChatSend(){},setSubtitleMode(){},
 });
+const toolCalls=[];
+for(const id of ['playerProBtn','playerStremioBtn']){const button=document.createElement('button');button.id=id;button.onclick=()=>toolCalls.push(id);document.getElementById('playerLayer').append(button);}
 vm.runInContext(fs.readFileSync(require.resolve('../src/renderer/player-workspace-integration'),'utf8'),context);
 const integration=window.PlayerWorkspaceIntegration,stage=document.getElementById('playerStage');
+const toolButton=id=>document.querySelector('[data-player-tool="'+id+'"]');
+assert(toolButton('playerProBtn')&&toolButton('playerStremioBtn'),'modern workspace exposes both tools');
+toolButton('playerProBtn').click();assert.deepEqual(toolCalls,['playerProBtn']);
+document.getElementById('playerStremioBtn').hidden=true;toolButton('playerStremioBtn').click();assert.equal(toolCalls.length,1,'hidden session is not revived');
+document.getElementById('playerStremioBtn').hidden=false;
+integration.refresh();assert(toolButton('playerStremioBtn'));document.getElementById('playerStremioBtn').hidden=true;integration.refresh();assert(!toolButton('playerStremioBtn'),'same-media session change refreshes tool visibility');document.getElementById('playerStremioBtn').hidden=false;integration.refresh();assert(toolButton('playerStremioBtn'),'late session adoption adds the tool without a media reload');
+
+let mediaCenterCalls=0;const mediaCenter=document.createElement('button');mediaCenter.id='playerMediaCenter';mediaCenter.onclick=()=>mediaCenterCalls++;document.getElementById('playerLayer').append(mediaCenter);
+window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};window.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new window.Event('close'));};
+const advancedAction=[...document.querySelectorAll('.pw-tools__menu button')].find(b=>/Diğer oynatma|Altyazı ve ileri/.test(b.textContent));assert(advancedAction);advancedAction.click();assert.equal(mediaCenterCalls,0,'advanced tools must not also open Media Center');assert.equal(document.querySelector('.pw-existing-tools').open,true);document.querySelector('.pw-existing-tools-close').click();
+const mediaAction=[...document.querySelectorAll('.pw-tools__menu button')].find(b=>b.textContent==='Oynatma, sahneler ve kaynaklar');mediaAction.click();assert.equal(mediaCenterCalls,1);assert.equal(document.querySelector('.pw-existing-tools').open,false);
 assert.equal(document.querySelectorAll('video').length,1);assert.equal(paints,1);
 now=1250;intervals[0]();assert.equal(paints,1,'sampling is bounded to 500ms');
 now=1500;intervals[0]();assert.equal(paints,2);
@@ -70,7 +83,7 @@ assert.match(document.querySelector('.pw-cue__sec').textContent,/Second candidat
 player.generation++;integration.refresh(true);staleButton.click();await new Promise(setImmediate);assert.equal(document.querySelectorAll('.pw-pair-review').length,1,'new revision discards the old display choice and ignores stale buttons');
 player.cues2=[];integration.refresh(true);
 
- player.generation++;
+ player.generation++;advancedAction.click();mediaAction.click();assert.equal(document.querySelector('.pw-existing-tools').open,false,'stale action cannot open another source settings');assert.equal(mediaCenterCalls,1);
  assert.equal((await integration.seekEvidence({sourceKey:'stable-source',time:1,text:cues[0].text},anchor)).code,'source-changed');
  dom.window.close();console.log('player-workspace-runtime: sampling limit, native honesty, single overlay, stable stage/chat and stale evidence guard OK');
 })().catch(error=>{console.error(error);process.exitCode=1;dom.window.close();});

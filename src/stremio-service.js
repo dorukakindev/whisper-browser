@@ -1,7 +1,7 @@
 'use strict';
 // Stremio eklenti servisi: kalıcı eklenti listesi, akış/altyazı/katalog toplama, oynatma köprüsü ve
-// "kaldığın yerden devam" kaydı. Renderer eklenti adreslerini, akış URL'lerini ve izleyici bilgisini hiç görmez;
-// yalnız kısa ömürlü oturum jetonları ve güvenli özet satırları alır.
+// "kaldığın yerden devam" kaydı. Liste oturumları main'de kalır; renderer aktif oynatma
+// URI'sini alır. Kalıcı kaynak gizliliği MediaHub güvenli depoda korunur.
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
@@ -42,7 +42,7 @@ function vttToSrt(text) {
   return cues.join('\n\n') + (cues.length ? '\n' : '');
 }
 
-function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, assertUrl, torrents, searchSubtitles, downloadSubtitle, decodeSubtitle, grantSubtitle = () => {}, now = Date.now } = {}) {
+function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, assertUrl, torrents, searchSubtitles, downloadSubtitle, decodeSubtitle, grantSubtitle = () => {}, configureAddon, now = Date.now } = {}) {
   const addonsFile = () => path.join(root(), 'stremio-addons.json');
   const progressFile = () => path.join(root(), 'stremio-progress.json');
   const previews = new Map(), streamSessions = new Map(), subtitleSessions = new Map(), headerGrants = new Map();
@@ -117,7 +117,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     return {
       key: record.key, label: A.publicLabel(record.manifestUrl), name: m.name, version: m.version, description: m.description,
       logo: A.safeImage(m.logo, parsed.host), enabled: record.enabled !== false, types: m.types, resources: [...new Set(m.resources.map((r) => r.name))],
-      catalogs: m.catalogs.length, configurationRequired: m.configurationRequired, configurable: m.configurable, p2p: m.p2p, adult: m.adult,
+      catalogs: m.catalogs.length, configurationRequired: m.configurationRequired, configurable: m.configurable, configurationUnknown:typeof m.configurable!=='boolean', p2p: m.p2p, adult: m.adult,
       installedAt: record.installedAt,
     };
   }
@@ -133,32 +133,66 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
   }
 
   /* ---- Eklenti yönetimi ---- */
-  async function addonPreview({ url }, signal) {
+  async function addonPreview({ url }, signal, replacement = null) {
     const parsed = A.normalizeAddonUrl(url);
     const data = loadAddons();
-    if (data.addons.length >= MAX_ADDONS) throw err(`En fazla ${MAX_ADDONS} eklenti eklenebilir.`, 'LIMIT');
+    if (data.addons.length >= MAX_ADDONS && !replacement && !data.addons.some(r=>r.key===parsed.key)) throw err(`En fazla ${MAX_ADDONS} eklenti eklenebilir.`, 'LIMIT');
     const raw = await A.fetchJson(parsed.manifestUrl, { fetch: fetchImpl, assertUrl: guard(parsed), maxBytes: A.LIMITS.manifestBytes, signal });
     const manifest = A.validateManifest(raw);
+    if(replacement&&manifest.id!==replacement.manifestId)throw err('The configured addon identity changed; existing settings were kept.','CONFIG_ID');
     const token = randomUUID();
-    remember(previews, token, { at: now(), manifestUrl: parsed.manifestUrl, key: parsed.key, manifest }, 8);
+    remember(previews, token, { at: now(), manifestUrl: parsed.manifestUrl, key: parsed.key, manifest, replacement }, 8);
     const names = new Set(manifest.resources.map((r) => r.name));
     return {
       token, alreadyInstalled: data.addons.some((r) => r.key === parsed.key), name: manifest.name, version: manifest.version,
       description: manifest.description, logo: A.safeImage(manifest.logo, parsed.host), label: A.publicLabel(parsed.manifestUrl),
       types: manifest.types, resources: [...names], catalogs: manifest.catalogs.length,
       provides: { streams: names.has('stream'), subtitles: names.has('subtitles'), catalog: manifest.catalogs.length > 0, meta: names.has('meta') },
-      configurationRequired: manifest.configurationRequired, p2p: manifest.p2p, adult: manifest.adult,
+      configurable: manifest.configurable, configurationRequired: manifest.configurationRequired, replacing:!!replacement, p2p: manifest.p2p, adult: manifest.adult,
     };
+  }
+  async function addonConfigure({key,token}) {
+    if(typeof configureAddon!=='function')throw err('Addon configuration is unavailable.','CONFIG_UNAVAILABLE');
+    let record,replacement=null;
+    if(key){record=loadAddons().addons.find(r=>r.key===key);if(!record)throw err('Addon not found.','NOT_FOUND');replacement={key:record.key,url:record.manifestUrl,manifestId:record.manifest.id};}
+    else {const plan=previews.get(token);if(!plan||now()-plan.at>PREVIEW_TTL)throw err('Addon preview expired.','EXPIRED');record=plan;replacement=plan.replacement;if(!replacement){const installed=loadAddons().addons.find(r=>r.key===plan.key);if(installed)replacement={key:installed.key,url:installed.manifestUrl,manifestId:installed.manifest.id};}}
+    // Old saved manifests may predate capability flags. Recheck only the selected
+    // addon, without writing its saved state or guessing an unsupported page.
+    if(typeof record.manifest.configurable!=='boolean'){
+      let fresh;
+      try{const parsed=A.normalizeAddonUrl(record.manifestUrl);fresh=A.validateManifest(await A.fetchJson(parsed.manifestUrl,{fetch:fetchImpl,assertUrl:guard(parsed),maxBytes:A.LIMITS.manifestBytes,signal:AbortSignal.timeout(60000)}));}
+      catch(_){throw err('Could not verify addon settings support; existing settings were kept.','CONFIG_VALIDATION');}
+      if(fresh.id!==record.manifest.id)throw err('The addon identity changed; existing settings were kept.','CONFIG_ID');
+      record={...record,manifest:fresh};
+    }
+    if(!record.manifest.configurable&&!record.manifest.configurationRequired)throw err('This addon does not advertise configuration.','NOT_CONFIGURABLE');
+    const original=A.normalizeAddonUrl(record.manifestUrl);let result;
+    try{result=await configureAddon({url:A.addonConfigureUrl(record.manifestUrl),expectedOrigin:new URL(original.manifestUrl).origin});}
+    catch(error){throw err('Could not open addon configuration; existing settings were kept.',['CONFIG_ORIGIN','CONFIG_LOAD'].includes(error?.code)?error.code:'CONFIG_OPEN');}
+    if(result?.cancelled)return {cancelled:true};
+    let configured;try{configured=A.normalizeAddonUrl(result?.manifestUrl);}catch(_){throw err('Invalid configured addon response.','CONFIG_VALIDATION');}
+    if(new URL(configured.manifestUrl).origin!==new URL(original.manifestUrl).origin)throw err('Configuration returned a different host; existing settings were kept.','CONFIG_ORIGIN');
+    const expectedId=record.manifest.id;
+    try{
+      const preview=await addonPreview({url:configured.manifestUrl},AbortSignal.timeout(60000),replacement||{manifestId:expectedId});
+      const plan=previews.get(preview.token);
+      if(plan.manifest.id!==expectedId){previews.delete(preview.token);throw err('Configured addon identity changed.','CONFIG_ID');}
+      if(!replacement){plan.replacement=null;preview.replacing=false;}
+      preview.configured=true;return preview;
+    }catch(error){if(error.code==='CONFIG_ID'||error.code==='LIMIT')throw error;throw err('Could not validate configured addon; existing settings were kept.','CONFIG_VALIDATION');}
   }
   function addonInstall({ token }) {
     const plan = previews.get(token);
     if (!plan || now() - plan.at > PREVIEW_TTL) throw err('Eklenti önizlemesinin süresi doldu; adresi yeniden gir.', 'EXPIRED');
     if (plan.manifest.configurationRequired) throw err('Bu eklenti önce yapılandırılmalı. Eklentinin yapılandırma sayfasından oluşturduğun adresi ekle.', 'NEEDS_CONFIG');
-    const data = loadAddons();
-    if (data.addons.length >= MAX_ADDONS) throw err(`En fazla ${MAX_ADDONS} eklenti eklenebilir.`, 'LIMIT');
-    const existing = data.addons.find((r) => r.key === plan.key);
-    if (existing) { existing.manifest = plan.manifest; existing.enabled = true; }
-    else data.addons.push({ key: plan.key, manifestUrl: plan.manifestUrl, installedAt: now(), enabled: true, manifest: plan.manifest });
+    const data = loadAddons(), existing = data.addons.find((r) => r.key === plan.key);
+    if(plan.replacement){
+      const index=data.addons.findIndex(r=>r.key===plan.replacement.key),previous=data.addons[index];
+      if(!previous||previous.manifestUrl!==plan.replacement.url||previous.manifest.id!==plan.replacement.manifestId)throw err('Addon changed while configuring; reopen settings.','CONFIG_STALE');
+      if(existing&&existing!==previous)throw err('This configured addon is already installed; existing entries were kept.','CONFIG_CONFLICT');
+      data.addons[index]={...previous,key:plan.key,manifestUrl:plan.manifestUrl,manifest:plan.manifest};
+    }else if(existing){existing.manifest=plan.manifest;existing.enabled=true;}
+    else {if(data.addons.length>=MAX_ADDONS)throw err(`En fazla ${MAX_ADDONS} eklenti eklenebilir.`,'LIMIT');data.addons.push({key:plan.key,manifestUrl:plan.manifestUrl,installedAt:now(),enabled:true,manifest:plan.manifest});}
     saveAddons(data); previews.delete(token);
     return { addons: data.addons.map(publicAddon) };
   }
@@ -266,7 +300,10 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     if (!row) throw err('Kaynak bulunamadı; listeyi yenile.', 'NOT_FOUND');
     if (!row.playable) throw err(row.reason === 'needs-headers' ? 'Bu kaynak, güvenli listede olmayan özel istek başlıkları gerektiriyor; oynatılamaz.' : 'Bu kaynak türü uygulama içinde oynatılamıyor.', 'UNPLAYABLE');
     const position = progressFor(session.type, session.id, session.season, session.episode);
-    const base = { ok: true, streamToken: token, streamId, meta: { type: session.type, id: session.id, season: session.season, episode: session.episode },
+    // Work identity comes from the token-owned catalog context, never from a stream URL/title.
+    const workScope=session.type==='movie'?[session.type,session.id]:Number.isInteger(session.season)&&session.season>=0&&Number.isInteger(session.episode)&&session.episode>=0?[session.type,session.id,session.season,session.episode]:null;
+    const workKey=workScope?'work:stremio:'+createHash('sha256').update(JSON.stringify(workScope)).digest('hex'):'';
+    const base = { ok: true, workKey, streamToken: token, streamId, meta: { type: session.type, id: session.id, season: session.season, episode: session.episode },
       resume: position && !position.completed && position.position > 5 ? { position: position.position, duration: position.duration } : null,
       notWebReady: row.notWebReady, filename: row.filename };
     if (row.kind === 'url') {
@@ -417,6 +454,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
       case 'status': return { addons: loadAddons().addons.map(publicAddon) };
       case 'addon-preview': return addonPreview(input, signal);
       case 'addon-install': return addonInstall(input);
+      case 'addon-configure': return addonConfigure(input);
       case 'addon-remove': return addonMutate(input, (d, i) => { d.addons.splice(i, 1); });
       case 'addon-toggle': return addonMutate(input, (d, i) => { d.addons[i].enabled = input.enabled === true; });
       case 'addon-move': return addonMutate(input, (d, i) => { const j = i + (input.direction === 'up' ? -1 : 1); if (j >= 0 && j < d.addons.length) [d.addons[i], d.addons[j]] = [d.addons[j], d.addons[i]]; });

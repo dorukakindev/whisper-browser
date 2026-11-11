@@ -73,3 +73,32 @@ test('Player Pro native properties use the nested value packet, clamp values and
  for(const [name,value,want]of [['brightness',12,12],['video-zoom',99,2],['audio-delay',-.25,-.25],['video-rotate',90,90],['video-aspect-override',-1,-1]]){const r=await request({name,value});assert.equal(r.ok,true,JSON.stringify(r));assert.deepEqual(h.sent.at(-1),['set_property',name,want]);}
  const count=h.sent.length;assert.equal((await request({name:'script',value:'unsafe'})).ok,false);assert.equal((await request({name:'brightness',value:'NaN'})).ok,false);assert.equal((await h.service.handler({},{action:'command',key:'old',generation:0,command:'vprop',value:{name:'brightness',value:10}})).ok,false);assert.equal(h.sent.length,count);
 });
+
+test('Fable OYN-05: native text updates from DOM changes without waiting for the keep-alive',async()=>{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('<body><video id="playerVideo"></video><div id="subtitleOverlay">first</div><div id="subtitleOverlay2"></div></body>'),w=dom.window,packets=[];
+ const player={mediaKey:'',generation:0,workspaceMode:'player',subRole:'source',sub2Role:'translation'};w.api={nativePlayer:async q=>{packets.push(q);return {ok:true};},onNativePlayer(){}};
+ const source=fs.readFileSync(require.resolve('../src/renderer/native-player-ui'),'utf8').replace('let active=false','let active=true');vm.runInNewContext(source,{window:w,document:w.document,player,Event:w.Event,MutationObserver:w.MutationObserver,currentSubtitleMode:()=> 'both'});
+ w.NativePlayerUI.syncSubtitles();assert.equal(packets.at(-1).value.primary,'first');w.document.getElementById('subtitleOverlay').textContent='second';await new Promise(setImmediate);assert.equal(packets.filter(q=>q.command==='text').at(-1).value.primary,'second');const before=packets.filter(q=>q.command==='text').length;player.mediaKey='new';w.document.getElementById('subtitleOverlay').textContent='stale';await new Promise(setImmediate);assert.equal(packets.filter(q=>q.command==='text').length,before);dom.window.close();
+ assert(fs.readFileSync(require.resolve('../src/native-player'),'utf8').includes("'--sid=no'"));
+});
+
+test('Fable OYN-02: live native bounds exclude Stremio controls at the side or bottom',()=>{
+ const source=fs.readFileSync(require.resolve('../src/renderer/native-player-ui'),'utf8'),code=source.slice(source.indexOf(' function bounds()'),source.indexOf(' let layoutKey='));
+ let dock={width:380,height:450,left:1210,top:110},visible=true;const c={active:true,video:{getBoundingClientRect:()=>({x:100,y:100,left:100,top:100,width:1500,height:800})},document:{querySelector:()=>visible?{getBoundingClientRect:()=>dock}:null}};vm.createContext(c);vm.runInContext(code,c);
+ assert.equal(c.bounds().width,1098);assert.equal(c.bounds().height,800);dock={width:1450,height:280,left:110,top:600};assert.equal(c.bounds().height,488);assert.equal(c.bounds().width,1500);visible=false;assert.equal(c.bounds().height,800);assert.equal(c.bounds().width,1500);
+});
+
+
+test('DUB-03: authorized native speed supports adaptive slowdown below the UI preference floor',async()=>{
+ const h=harness(),request=value=>h.service.handler({},{action:'command',key:'m',generation:1,command:'speed',value});
+ for(const [value,expected]of [[.125,.125],[.001,.0625],[20,4]]){assert.equal((await request(value)).ok,true);assert.deepEqual(h.sent.at(-1),['set_property','speed',expected]);}
+ const count=h.sent.length;assert.equal((await h.service.handler({},{action:'command',key:'old',generation:0,command:'speed',value:.125})).ok,false);assert.equal(h.sent.length,count,'stale source cannot change effective native speed');
+});
+
+test('Fable OYN-06: read-only work references keep native video live while other open menus still occlude it',()=>{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('<div id="playerLayer"></div><div id="playerWorkspaceV3"><details class="sx-work-tracks" open><summary>Earlier edition</summary></details></div>'),d=dom.window.document;
+ const source=fs.readFileSync(require.resolve('../src/renderer/native-player-ui'),'utf8'),code=source.slice(source.indexOf(' function layout(){'),source.indexOf(' async function start(){')),packets=[];
+ const c={active:true,assistantOpen:false,player:{workspaceMode:'player'},layoutKey:'',freeze:null,freezing:false,freezeAttempted:true,key:'fixture',generation:1,fitWorkspace(){},bounds:()=>({x:0,y:0,width:640,height:360}),document:{getElementById:id=>d.getElementById(id),querySelector:selector=>d.querySelector(selector.replace(', .mk-popup:popover-open',''))},window:{api:{nativePlayer:q=>{packets.push(q);return Promise.resolve({ok:true});}}}};
+ vm.createContext(c);vm.runInContext(code,c);c.layout();assert.equal(packets.at(-1).action,'layout');assert.equal(packets.at(-1).hidden,false);
+ const unsafe=d.createElement('details');unsafe.open=true;d.getElementById('playerWorkspaceV3').append(unsafe);c.freezeAttempted=true;c.layout();assert.equal(packets.at(-1).hidden,true,'existing menu/modal occlusion must remain');dom.window.close();
+});

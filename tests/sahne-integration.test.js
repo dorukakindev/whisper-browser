@@ -1196,3 +1196,12 @@ test('Tasks exposes one real sentence merge checkbox and reviews the selected pa
  assert(toggle);assert(repair);assert.equal(repair.disabled,false);toggle.onChange(true);assert.equal(enabled,true);await repair.run();assert.equal(opened,'manual.partial.srt');
  opened='';f.player.sub2Path='new-track.srt';await repair.run();assert.equal(opened,'');
 });
+
+test('Fable OYN-01: Sahne mirrors Pro and active Stremio tools without reviving stale owners',t=>{
+ const f=fixture(t),calls=[];
+ for(const [id,label] of [['playerProBtn','Pro'],['playerStremioBtn','Stremio']]){const b=f.document.createElement('button');b.id=id;b.textContent=label;b.onclick=()=>calls.push(id);f.document.getElementById('playerLayer').append(b);}
+ const a=f.open('study'),items=()=>a.panel().sections.flatMap(s=>s.items);
+ const pro=items().find(i=>i.id==='player-tool-pro'),stream=items().find(i=>i.id==='player-tool-stremio');assert(pro&&stream,'both tool entries are discoverable');pro.run();stream.run();assert.deepEqual(calls,['playerProBtn','playerStremioBtn']);
+ f.document.getElementById('playerStremioBtn').hidden=true;assert(!items().some(i=>i.id==='player-tool-stremio'),'unrelated local media does not show Stremio tools');stream.run();assert.equal(calls.length,2,'old action checks live visibility');
+ f.player.generation++;pro.run();assert.equal(calls.length,2,'old action checks media generation');
+});

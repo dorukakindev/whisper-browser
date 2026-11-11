@@ -3,7 +3,7 @@
  const el=(tag,cls,text)=>{const n=document.createElement(tag);n.className=cls||'';if(text!==undefined)n.textContent=String(text);return n;};
  let modal,page='open',token=null,currentTorrent=null,poll=null,sceneRequest=0;
  const api=async(action,values={})=>{const r=await window.api.mediaHub({action,...values});if(!r?.ok)throw Error(r?.error||t('Media action failed.','Medya işlemi başarısız.'));return r;};
- const torrent=async(action,values={})=>{const r=await window.api.mediaTorrents({action,...values});if(!r?.ok)throw Error(r?.error||t('Torrent action failed.','Torrent işlemi başarısız.'));return r;};
+ const torrent=async(action,values={})=>{const r=await window.api.mediaTorrents({action,...values});if(!r?.ok)throw Object.assign(Error((window.UiLocale?.get?.()==='tr'&&r?.errorTr)||r?.error||t('Torrent action failed.','Torrent işlemi başarısız.')),{code:r?.code});return r;};
  const note=(text,error=false)=>{const n=modal?.querySelector('.mhx-status');if(n){n.textContent=text;n.classList.toggle('mh-error',error);}};
  const button=(text,fn,cls='mh-action')=>{const n=el('button',cls,text);n.type='button';n.onclick=async()=>{n.disabled=true;try{await fn();}catch(error){note(error.message,true);}finally{if(n.isConnected)n.disabled=false;}};return n;};
  function input(label,placeholder,type='text'){const wrap=el('label','mhx-field'),n=el('input');n.type=type;n.placeholder=placeholder;n.autocomplete='off';n.maxLength=16000;wrap.append(el('span','',label),n);return {wrap,n};}
@@ -42,9 +42,25 @@
  }
  const bytes=value=>{const n=Number(value)||0;return n>1073741824?(n/1073741824).toFixed(2)+' GB':(n/1048576).toFixed(1)+' MB';};
  const transferText=s=>{const total=Number(s.total_bytes)||0,done=Number(s.progress_bytes)||0,pct=total?Math.min(100,done/total*100).toFixed(1):'—';return `${pct}% · ${bytes(done)} / ${bytes(total)} · ↓ ${s.live?.download_speed?.human_readable||'—'} · ↑ ${s.live?.upload_speed?.human_readable||'—'} · ${s.finished?t('Complete','Tamamlandı'):t('Fetching pieces','Parçalar alınıyor')}`;};
+ async function installTorrentEngine({isCurrent=()=>true,onProgress=()=>{}}={}){
+  if(!isCurrent())return false;
+  const notify=state=>{if(isCurrent())try{onProgress(state);}catch{}};
+  let stopped=false;
+  const refresh=async()=>{try{const state=await torrent('status');if(!stopped)notify(state.progress||{stage:state.engineState});}catch{}};
+  const timer=setInterval(()=>void refresh(),500);notify({stage:'download',downloaded:0,total:null});
+  try{await torrent('install');if(!isCurrent())return false;notify({stage:'check'});const ready=await torrent('check-engine');if(!isCurrent())return false;notify({stage:'ready'});return ready;}finally{stopped=true;clearInterval(timer);}
+ }
+ const engineProgressLabel=state=>state.stage==='verify'?t('Verifying download…','İndirme doğrulanıyor…'):state.stage==='check'?t('Checking engine…','Motor kontrol ediliyor…'):state.total?t(`Downloading engine… ${Math.round(state.downloaded/state.total*100)}%`,`Motor indiriliyor… %${Math.round(state.downloaded/state.total*100)}`):t('Downloading engine…','Motor indiriliyor…');
  async function drawTorrents(body){
   const engine=await torrent('status');if(!body.isConnected)return;body.append(el('p','mhx-muted',t(`Torrent engine rqbit ${engine.version}. Files stay in the application cache until you manage them.`, `Torrent motoru rqbit ${engine.version}. Dosyalar uygulama önbelleğinde kalır.`)));
-  if(!engine.installed){body.append(tile(t('Install torrent support','Torrent desteğini kur'),t('Download the pinned official Windows engine. SHA-256 is checked before use.','Sabitlenmiş resmî Windows motoru indirilir. Kullanmadan önce SHA-256 doğrulanır.'),t('Download engine','Motoru indir'),async()=>{note(t('Downloading engine…','Motor indiriliyor…'));await torrent('install');draw();}));return;}
+  const ownerModal=modal,ownerBody=body,current=()=>modal===ownerModal&&page==='torrents'&&ownerBody.isConnected;
+  if(engine.libraryError)body.append(el('p','mhx-muted',t('The saved torrent library could not be read. Existing records were kept. Engine installation can still be repaired.','Kayıtlı torrent arşivi okunamadı. Mevcut kayıtlar korundu. Motor kurulumu yine de onarılabilir.')));
+  if(!engine.installed){
+   const invalid=engine.engineState==='invalid';
+   body.append(tile(invalid?t('Repair torrent support','Torrent desteğini onar'):t('Install torrent support','Torrent desteğini kur'),t('Raw torrent sources need this one-time engine download. Debrid HTTPS sources do not. The pinned official Windows engine is verified before use. Installing does not start a torrent.','Ham torrent kaynakları bu tek seferlik motor indirmesine ihtiyaç duyar. Debrid HTTPS kaynaklarında gerekmez. Sabitlenmiş resmi Windows motoru kullanılmadan önce doğrulanır. Kurulum torrent başlatmaz.'),invalid?t('Download verified engine again','Doğrulanmış motoru yeniden indir'):t('Download engine','Motoru indir'),async()=>{const ready=await installTorrentEngine({isCurrent:current,onProgress:s=>note(engineProgressLabel(s))});if(ready&&current()){draw();note(t('Torrent support is ready. Return to your source and choose Retry; no torrent was started.','Torrent desteği hazır. Kaynağına dönüp Yeniden dene’yi seç; torrent başlatılmadı.'));}}));return;
+  }
+  body.append(button(t('Check torrent engine','Torrent motorunu kontrol et'),async()=>{await torrent('check-engine');if(current())note(t('Verified engine runs correctly. No torrent was started.','Doğrulanmış motor çalışıyor. Torrent başlatılmadı.'));}));
+  if(engine.libraryError)return;
   const magnet=input(t('Magnet link','Magnet bağlantısı'),'magnet:?xt=urn:btih:…');magnet.n.name='magnet';body.append(magnet.wrap);const actions=el('div','mhx-toolbar');actions.append(button(t('Inspect magnet','Magneti incele'),()=>previewTorrent(body,{magnet:magnet.n.value})),button(t('Choose .torrent','Torrent dosyası seç'),()=>previewTorrent(body,{file:true})));body.append(actions);
   const list=el('section','mhx-torrent-list');for(const job of engine.jobs){const row=el('article','mhx-folder');row.append(el('h3','',job.name),el('p','mhx-muted',bytes(job.size)));const status=el('p');row.append(status);row.append(button(t('Play / resume','Oynat / devam et'),async()=>{const r=await torrent('reopen',{hash:job.hash});modal.close();await playStream(r);}),button(t('Pause transfer','Aktarımı duraklat'),async()=>{await torrent('pause',{hash:job.hash});note(t('Transfer paused.','Aktarım duraklatıldı.'));}),button(t('Resume transfer','Aktarımı sürdür'),async()=>{await torrent('resume',{hash:job.hash});note(t('Transfer resumed.','Aktarım sürüyor.'));}),button(t('Forget, keep files','Listeden kaldır, dosyaları koru'),async()=>{await torrent('forget',{hash:job.hash});draw();}));list.append(row);
     const update=async()=>{try{const r=await torrent('stats',{hash:job.hash});if(status.isConnected)status.textContent=transferText(r.stats);}catch(e){if(status.isConnected)status.textContent=e.message;}};void update();
@@ -53,23 +69,31 @@
  }
  async function previewTorrent(body,request){note(t('Reading torrent metadata…','Torrent bilgileri alınıyor…'));const result=await torrent('preview',request);if(result.canceled||!body.isConnected)return;token=result.token;const old=body.querySelector('.mhx-preview');old?.remove();const review=el('section','mhx-preview');review.append(el('h2','',result.name),el('p','mhx-muted',t('Only the file you choose is selected for download. Seeking prioritizes the required pieces.','Yalnız seçtiğin dosya indirme için işaretlenir. İleri sarınca gereken parçalar önceliklenir.')));for(const file of result.files.filter(r=>r.video)){const row=el('div','mhx-file');row.append(el('span','',file.name),el('small','',bytes(file.size)),button(t('Download & play','İndir ve oynat'),async()=>{const r=await torrent('play',{token,index:file.index});modal.close();await playStream(r);}));review.append(row);}body.append(review);note('');}
  async function playStream(result,seconds=0,{isCancelled=()=>false,autoplay=true}={}){
-  if(isCancelled())return;
-  const intent=++player.openIntent;await flushWatchState(false,false);if(intent!==player.openIntent||isCancelled())return;document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('player',false);player.pendingAutoOpen=null;
+  if(isCancelled())return false;
+  const intent=++player.openIntent;let persistence=null;
+  if(/^stream:[a-f0-9]{64}$/.test(result.key||'')){persistence=await window.api.mediaHub({action:'remember-stream',key:result.key,url:result.url}).catch(()=>null);if(intent!==player.openIntent||isCancelled())return false;}
+  await flushWatchState(false,false);if(intent!==player.openIntent||isCancelled())return false;document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('player',false);player.pendingAutoOpen=null;
   let localPath=result.localPath||'';if(result.hash){const completed=await window.api.mediaTorrents({action:'local',hash:result.hash,index:result.index});if(completed?.ok)localPath=completed.path;}
-  if(intent!==player.openIntent||isCancelled())return;
+  if(intent!==player.openIntent||isCancelled())return false;
   const usesHls=/^https:\/\/.+\.m3u8(?:[?#]|$)/i.test(result.url);
-  if(usesHls){player.localPath='';setPlayerHls(result.url,result.title,result.key,{localPath:'',autoplay});}
-  else setPlayerSource(result.url,result.title,result.key,{localPath});player.originalUrl=result.url.startsWith('whisper-media:')?result.key:result.url;
+  if(usesHls){player.localPath='';setPlayerHls(result.url,result.title,result.key,{localPath:'',autoplay,workKey:result.workKey});}
+  else setPlayerSource(result.url,result.title,result.key,{localPath,workKey:result.workKey});player.originalUrl=result.url.startsWith('whisper-media:')?result.key:result.url;
   player.pendingLibrarySeek={key:result.key,generation:currentGeneration(),seconds:Number(seconds)||0};
   if(result.hash)currentTorrent={hash:result.hash,index:result.index};else currentTorrent=null;
   if(autoplay&&!usesHls){
    const owner={key:player.mediaKey,generation:currentGeneration()};
    const remote=/^(?:https?|rtsp):/i.test(result.url);
-   const started=!remote||await window.NativePlayerUI.start()===true;
-   if(started&&intent===player.openIntent&&!isCancelled()&&player.mediaKey===owner.key&&currentGeneration()===owner.generation){
+   const current=()=>intent===player.openIntent&&!isCancelled()&&player.mediaKey===owner.key&&currentGeneration()===owner.generation;
+   let available=false;
+   if(remote){try{const status=await window.api.nativePlayer({action:'status'});available=!!(status?.ok&&status.available);}catch(_){/* HTML playback remains available. */}}
+   if(!current())return false;
+   if(remote&&available)await window.NativePlayerUI.start();
+   if(current()){
     const video=document.getElementById('playerVideo');if(video?.paused)await video.play();
    }
   }
+  if(intent===player.openIntent&&!isCancelled()&&persistence?.persistent===false&&typeof osd==='function')osd(t('Secure source storage is unavailable; reopening after restart may need a fresh source.','Güvenli kaynak kaydı kullanılamıyor; yeniden başlatmadan sonra güncel kaynak seçmen gerekebilir.'));
+  return intent===player.openIntent&&!isCancelled();
  }
  async function drawPlayer(body){
   body.append(button(t('Choose mpv.exe…','mpv.exe seç…'),async()=>{const r=await window.api.nativePlayer({action:'choose'});if(!r?.ok)throw Error(r?.error||t('Could not select engine.','Motor seçilemedi.'));if(!r.canceled)draw();}));
@@ -84,5 +108,5 @@
  }
  async function reopenTorrent(item,seconds){const parts=item.key.split(':');const r=await torrent('reopen',{hash:parts[1],index:Number(parts[2])});await playStream(r,seconds);}
  const entry=document.getElementById('playerMediaCenter');if(entry){entry.dataset.uiUntranslated='';const label=()=>entry.textContent=t('Playback, scenes & sources','Oynatma, sahneler ve kaynaklar');label();document.addEventListener('ui-locale-change',label);entry.onclick=()=>{document.getElementById('playerMore').open=false;open('player');};}
- window.MediaHubUI=Object.freeze({open,playStream,reopenTorrent});
+ window.MediaHubUI=Object.freeze({open,playStream,reopenTorrent,installTorrentEngine});
 })();

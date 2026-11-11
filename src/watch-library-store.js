@@ -566,6 +566,7 @@ function createWatchLibraryStore(options) {
       completed: completionOverride === null ? automaticCompleted : completionOverride,
       revision: Math.max(0, Number(previous.revision) || 0) + 1,
     };
+    if(merged.type==='stream'&&/^stream:[a-f0-9]{64}$/.test(key))merged.sourceRef=key;
     if (completionOverride === null) delete merged.completionOverride;
     else merged.completionOverride = completionOverride;
     delete merged.session;

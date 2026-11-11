@@ -22610,12 +22610,14 @@ const mediaTorrents = require('./media-torrents').registerMediaTorrents({app,ipc
   enginePath:()=>process.env.WHISPER_TORRENT_TEST==='1'&&process.env.WHISPER_RQBIT_PATH ? process.env.WHISPER_RQBIT_PATH : path.join(app.getPath('userData'),'media-engines','rqbit.exe')});
 let stremioHeadersFor=()=>[];
 require('./native-player').registerNativePlayer({app,ipcMain,BrowserWindow,dialog,owner:()=>mainWindow,authorized:authorizedBrowserSender,authorizeMedia:authorizeMediaFile,torrents:mediaTorrents,sourceHeaders:url=>stremioHeadersFor(url)});
-// Stremio eklentileri: adresler/akış URL'leri yalnız ana süreçte; ağ DNS-pinli ve genel adreslerle sınırlı.
+// Stremio kayıt/ayar adresleri main sahibinde; renderer aktif oynatma URI’sini alır. Manifest ağı DNS-pinlidir.
 {
   const stremioSubtitles=require('./browser-subtitle-search');
   const isLoopbackAddon=url=>{try{const h=new URL(url).hostname.replace(/^\[|\]$/g,'').toLowerCase();return h==='localhost'||h.endsWith('.localhost')||h==='::1'||/^127\./.test(h);}catch{return false;}};
   const stremioFetch=async(url,init={})=>{if(isLoopbackAddon(url))return fetch(url,init);const pin=await assertPublicBrowserSubtitleUrl(url);return requestPinnedSubtitleBuffer(url,pin,{headers:init.headers,signal:init.signal,maxBytes:4_100_000});};
-  const stremioService=require('./stremio-service').registerStremio({ipcMain,authorized:authorizedBrowserSender,root:()=>app.getPath('userData'),fetch:stremioFetch,
+  const configureAddon=require('./stremio-config-window').createStremioConfigurator({BrowserWindow,owner:()=>mainWindow,title:()=>dt('Eklenti ayarları','Addon settings')});
+  app.once('will-quit',()=>configureAddon.dispose());
+  const stremioService=require('./stremio-service').registerStremio({ipcMain,authorized:authorizedBrowserSender,configureAddon,root:()=>app.getPath('userData'),fetch:stremioFetch,
     assertUrl:async url=>{await assertPublicBrowserSubtitleUrl(url);},torrents:mediaTorrents,
     searchSubtitles:stremioSubtitles.searchSubtitles,downloadSubtitle:stremioSubtitles.downloadSubtitle,decodeSubtitle:stremioSubtitles.decodeDownloadedSubtitle,
     grantSubtitle:file=>subtitleFileAccess.grant(file)});
@@ -22699,5 +22701,5 @@ require('./media-tools-service').registerMediaTools({app,ipcMain,grantSubtitle:f
     finally{reader.close();reviewSession.removeListener('will-download',denyDownload);}
   }
 });
-require('./media-hub-service').registerMediaHub({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
+require('./media-hub-service').registerMediaHub({app,ipcMain,safeStorage,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
   relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))return (await relinkLibraryItem(oldKey,file,null,true)).undo;return null;}});

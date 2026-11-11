@@ -728,6 +728,13 @@
         run: () => { if (current() && !attachDub.disabled) attachDub.click(); }
       }] });
       if(kind!=='shelf'&&$('libraryViewResearch'))sections.push({title:T('Okuma ve notlar','Reading and notes'),items:[{id:'saved-notes',type:'button',label:T('Kayıtlı pasajlar ve notlar','Saved passages and notes'),hint:T('Araştırma defterinde inceleyin, düzenleyin veya kaynağa dönün.','Review, edit or return to the source in your research notebook.'),run:openNotebook}]});
+      if(kind==='local'){
+        const tools=[['playerProBtn','player-tool-pro',T('Görüntü ve eşitleme (Pro)','Picture and sync (Pro)')],['playerStremioBtn','player-tool-stremio',T('Stremio kaynak ve oynatma araçları','Stremio source and playback tools')]].flatMap(([id,actionId,label])=>{
+          const target=$(id);if(!target||target.hidden)return [];const item=mirror(()=>$(id),label);
+          return [{...item,id:actionId,run:()=>{const live=$(id);if(current()&&live&&!live.hidden&&!live.disabled)item.run();}}];
+        });
+        if(tools.length)sections.push({title:T('Oynatıcı araçları','Player tools'),items:tools});
+      }
       if(kind!=='browser'){
         sections.push({ title: T('Asistan', 'Assistant'), items: [{ type: 'button', label: T('Asistana sor', 'Ask assistant'), hint: T('Mevcut asistan penceresi, bu medyanın bağlamıyla açılır.', 'Opens the existing assistant window with this media as context.'), run: askAssistant }] });
         sections.push({title:T('Oynatma ve görünüm','Playback and view'),items:[{type:'range',label:T('Ses düzeyi','Volume'),value:kind==='shelf'?num($('mediaShelfAudio')?.volume??1):num($('playerVideo')?.volume??1),onChange:value=>{if(current())dispatch('setVolume',{volume:Number(value)});}}, {type:'button',label:T('Sahneyi tam ekran aç','Open stage fullscreen'),run:toggleStageFullscreen}]});

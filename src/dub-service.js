@@ -824,6 +824,9 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       let pending = '';
       const rewriteRequests = new Set();
       function line(value) {
+        if(value.startsWith('{')) {
+          try {const raw=JSON.parse(value);if(raw.type==='progress'&&raw.version===1&&Number.isSafeInteger(raw.done)&&Number.isSafeInteger(raw.total)&&raw.total>0&&raw.done>=0&&raw.done<=raw.total){s.structuredProgress=true;s.progress={done:raw.done,total:raw.total};emit(s,'progress',s.progress);}}catch(_){}
+        }
         if(value.startsWith('DUB_ACTIVITY ')){
           try{const data=JSON.parse(value.slice(13));const activity=require('./dub-activity').activity(data);if(activity)emit(s,'activity',activity);const labels={verification:'Konuşma doğrulanıyor…',placement:'Ses zaman çizelgesine yerleştiriliyor…',file_write:'Ses dosyası yazılıyor…',normalization:'Ses yüksekliği dengeleniyor…'};if(Object.hasOwn(labels,data.stage))emit(s,'status',{stage:data.stage,text:labels[data.stage]});}catch(_){}return;
         }
@@ -906,7 +909,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
           text: 'Ses motorunun kapanışı zaman aşımına uğradı; çalışan süreçler denetlendi.' });
         if (value === 'DUB_WARNING sample_edits_unused') emit(s, 'warning', {
           text: 'Kısa örnekte bazı metin düzenlemeleri uygulanmadı; hepsini duymak için tam üretim yapın.' });
-        const progress = value.match(/^\[(\d+)\/(\d+)\]/);
+        const progress = !s.structuredProgress && value.match(/^\[(\d+)\/(\d+)\]/);
         if (progress) { const done=Number(progress[1]),total=Number(progress[2]);if(Number.isSafeInteger(done)&&Number.isSafeInteger(total)&&total>0&&done<=total){s.progress={done,total};emit(s,'progress',s.progress);} }
         else if (/^Plan:/.test(value)) emit(s, 'status', { stage: 'plan', text: 'Cümle grupları hazır' });
         else if (/Referans hazir/.test(value)) emit(s, 'status', { stage: 'synthesis', text: 'Ses üretiliyor…' });
@@ -921,8 +924,16 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             emit(s, 'metrics', { metrics: s.metrics });
           } catch (_) {}
         }
-        const timing = value.match(/^Zamanlama: (\d+) grup hizlandirildi, (\d+) grup kirpildi, (\d+) grup tasiyor\./);
-        if (timing) {
+        if(value.startsWith('{')) {
+          try {
+            const raw=JSON.parse(value);
+            if(raw.type==='timing'&&raw.version===1&&['accelerated','clipped','overflow'].every(k=>Number.isSafeInteger(raw[k])&&raw[k]>=0)) {
+              s.structuredTiming=true;s.timing={accelerated:raw.accelerated,clipped:raw.clipped,overflow:raw.overflow};emit(s,'timing',s.timing);
+            }
+          } catch (_) {}
+        }
+        const timing = !s.structuredTiming && value.match(/^Zamanlama: (\d+) grup hizlandirildi, (\d+) grup kirpildi, (\d+) grup tasiyor\./);
+        if (timing && timing.slice(1).every(n=>Number.isSafeInteger(Number(n)))) {
           s.timing = { accelerated: Number(timing[1]), clipped: Number(timing[2]), overflow: Number(timing[3]) };
           emit(s, 'timing', s.timing);
         }

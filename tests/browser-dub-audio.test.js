@@ -221,5 +221,23 @@ function fixture({ priorMuted = false, mute, setRate, backgroundAudio, musicAudi
       assert.ok(layers.dub.session,'a replaced layer must not fail the new session');assert.deepEqual(layers.errors,[]);
     }finally{await layers.dub.remove();}
   }
+  // DUB-03: deterministic native-style 200 ms samples retain sync at slow user speeds.
+  for(const smooth of [false,true]){
+    let effective=.25;const low=fixture({setRate:async r=>{effective=r.rate;return {ok:true,media:{currentTime:position,playbackRate:effective}};}});let position=0;
+    low.c.mode='player';low.c.playbackRate=.25;
+    const sync={version:1,videoDuration:4,audioDuration:8,segments:[{v0:0,v1:4,a0:0,a1:8}],smooth};
+    try{
+      await low.dub.attach({url:'file:///adaptive.wav',sync},low.c);low.dub.update({currentTime:0,paused:false,playbackRate:effective});await flush();
+      let maxDrift=0;
+      for(let i=0;i<30;i++){
+        position+=effective*.2;low.audio.currentTime+=low.audio.playbackRate*.2;low.advance(200);
+        maxDrift=Math.max(maxDrift,Math.abs(low.audio.currentTime-require('../src/renderer/dub-sync-map').at(sync,position).time));
+        low.dub.update({currentTime:position,paused:false,playbackRate:effective});await flush();
+      }
+      assert(maxDrift<.05,`controlled 200 ms ${smooth?'smooth':'linear'} drift ${maxDrift}`);assert.equal(low.dub.session.baseRate,.25);assert(effective<.25,'adaptive effective speed must reach below the user preference floor');
+      low.dub.setBaseRate(1.5);await flush();assert.equal(low.dub.session.baseRate,1.5);
+    }finally{await low.dub.remove();}
+    assert.equal(effective,1.5,'release restores the latest selected base speed');
+  }
   console.log('browser-dub-audio: sync, pause, seek, rate, offset, ads, stale clock, cleanup and failures passed');
 })().catch(e => { console.error(e); process.exitCode = 1; });

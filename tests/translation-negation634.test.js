@@ -11,3 +11,11 @@ test('Positive nominal obligations and before clauses survive while actual negat
  for(const [source,target] of [['I can do it.','Yapmam.'],['I need to do it.','Bunu yapmam gerekmiyor.'],['Call before delivery arrives.','Teslimat gelmeden önce arama.']])assert(issues(source,target,'tr').includes('negation_added'),target);
  assert(issues('Do not call before delivery arrives.','Teslimat gelmeden önce ara.','tr').includes('negation_missing'));
 });
+
+test('Quiet lexical meaning does not hide an independent negative assertion',()=>{
+ const source='Deniz: Mira, the phase anchor is quiet at last.';
+ for(const target of ['Deniz: Mira, faz çapası sonunda sessiz.','Deniz: Mira, faz çapası sessizleşti.'])assert(!issues(source,target,'tr').includes('negation_added'),target);
+ for(const target of ['Deniz: Mira, faz çapası sessiz değil.','Deniz: Mira, faz çapası sessizleşmedi.'])assert(issues(source,target,'tr').includes('negation_added'),target);
+ assert(issues('The anchor is not quiet.','Çapa sessiz.','tr').includes('negation_missing'));
+ assert(issues('The anchor is noisy.','Çapa sessiz.','tr').includes('negation_added'));
+});

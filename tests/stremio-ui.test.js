@@ -10,14 +10,19 @@ const { decodeDownloadedSubtitle } = require('../src/browser-subtitle-search');
 const json = (data) => new Response(JSON.stringify(data), { status: 200 });
 const MANIFESTS = {
   'https://cinemeta.example/manifest.json': { id: 'c', name: 'Cinemeta', version: '1', types: ['movie', 'series'], resources: ['catalog', 'meta'], idPrefixes: ['tt'], catalogs: [{ type: 'series', id: 'top', name: 'Popüler', extra: [{ name: 'search' }] }] },
-  'https://torr.example/manifest.json': { id: 't', name: 'Torrentio', version: '1', types: ['series'], resources: ['stream'], catalogs: [] },
+  'https://torr.example/manifest.json': { behaviorHints:{configurable:true}, id: 't', name: 'Torrentio', version: '1', types: ['series'], resources: ['stream'], catalogs: [] },
   'https://subs.example/manifest.json': { id: 's', name: 'Altyazı', version: '1', types: ['series'], resources: ['subtitles'], catalogs: [] },
 };
+let configureMode='success';let configurationOpened=0;
+let metadataExtras=[];const resourceRequests=[];
 const fetch = async (url) => {
+  resourceRequests.push(url);
+  if(url==='https://torr.example/debrid-fixture/manifest.json')return json(MANIFESTS['https://torr.example/manifest.json']);
   if (MANIFESTS[url]) return json(MANIFESTS[url]);
   if (url.startsWith('https://cinemeta.example/catalog/series/top')) return json({ metas: [{ id: 'tt1', type: 'series', name: 'Test Dizisi', releaseInfo: '2020', poster: 'https://img.example/p.jpg', background: 'https://img.example/b.jpg', description: 'Bir açıklama', imdbRating: '8.1', genres: ['Dram'] }] });
   if (url === 'https://cinemeta.example/meta/series/tt1.json') return json({ meta: { id: 'tt1', type: 'series', name: 'Test Dizisi', releaseInfo: '2020', description: 'Açıklama', videos: [
-    { id: 'tt1:1:1', season: 1, episode: 1, title: 'Pilot' }, { id: 'tt1:1:2', season: 1, episode: 2, title: 'İkinci' }, { id: 'tt1:2:1', season: 2, episode: 1, title: 'Yeni sezon' }] } });
+    ...metadataExtras, { id: 'tt1:1:1', season: 1, episode: 1, title: 'Pilot' }, { id: 'tt1:1:2', season: 1, episode: 2, title: 'İkinci' }, { id: 'tt1:2:1', season: 2, episode: 1, title: 'Yeni sezon' }] } });
+  if (url==='https://torr.example/stream/series/tt1:0:0.json')return json({streams:[{name:'Special source',url:'https://cdn.example/special.mp4'}]});
   if (url.startsWith('https://torr.example/stream/series/tt1:1:')) return json({ streams: [{ name: 'T\n1080p', title: 'Dizi.1080p\n👤 50', url: 'https://cdn.example/a.mp4' }, { name: 'T\n720p', title: 'Dizi.720p\n👤 5', url: 'https://cdn.example/b.mp4' }] });
   if (url.startsWith('https://subs.example/subtitles/series/tt1:1:1')) return json({ subtitles: [{ url: 'https://subs.example/tr.srt', lang: 'tur' }] });
   if (url === 'https://subs.example/tr.srt') return new Response('1\n00:00:01,000 --> 00:00:02,000\nMerhaba\n\n');
@@ -29,7 +34,7 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
 (async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'stremio-ui-'));
   const granted = [];
-  const service = createStremioService({ root: () => root, fetch, assertUrl: async () => {}, decodeSubtitle: (b) => decodeDownloadedSubtitle(b, 'tr'), grantSubtitle: (f) => granted.push(f), searchSubtitles: async () => ({ results: [] }) });
+  const service = createStremioService({ root: () => root, fetch, configureAddon:async()=>{configurationOpened++;return configureMode==='cancel'?{cancelled:true}:{manifestUrl:'stremio://torr.example/debrid-fixture/manifest.json'};}, assertUrl: async () => {}, decodeSubtitle: (b) => decodeDownloadedSubtitle(b, 'tr'), grantSubtitle: (f) => granted.push(f), searchSubtitles: async () => ({ results: [] }) });
   const dom = new JSDOM('<!doctype html><body><main id="mediaHome"></main><div id="playerLayer"><video id="playerVideo"></video><div id="playerControls"><details id="playerMore"></details></div></div><button id="makeSubsBtn"></button><button id="makeTransBtn"></button></body>', { url: 'https://fixture.invalid', runScripts: 'outside-only', pretendToBeVisual: true });
   const { window } = dom, { document } = window;
   window.HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute('open', ''); };
@@ -37,11 +42,12 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   window.UiLocale = { get: () => 'tr' };
   window.api = { stremio: (request) => service.handle({}, request).then((r) => ({ ok: true, ...r }), (e) => ({ ok: false, error: e.message, code: e.code })) };
   const opened = [];
-  window.MediaHubUI = { playStream: async (result, seconds) => { opened.push({ result, seconds }); window.player.mediaKey = result.key; }, open: () => {} };
+  window.MediaHubUI = { playStream: async (result, seconds) => { opened.push({ result, seconds }); Object.assign(window.player,{mediaKey:result.key,workKey:result.workKey||'',subPath:'',sub2Path:'',cues:[],cues2:[],offset:0,offset2:0}); }, open: () => {} };
   window.player = { mediaKey: '' };
   window.eval('var player = window.player; var addSubtitleOption = (...a) => { window.__subs = (window.__subs||[]).concat([a]); }; var loadSubtitle = async (p) => { window.__loaded = p; };');
   window.MediaTitleUI = { createPage(cls) { const page = document.createElement('section'); page.className = cls + ' media-title-page'; page.open = true; page.close = () => { if (!page.open) return; page.open = false; page.dispatchEvent(new window.Event('close')); page.remove(); }; document.getElementById('mediaHome').append(page); return page; }, close() {} };
   const video = document.getElementById('playerVideo');
+  let sharedSleep={at:0,mode:''};window.PlayerPlaybackControls={setRate:async rate=>{video.playbackRate=rate;return true;},getRate:()=>video.playbackRate||1,setSleep:minutes=>{sharedSleep={at:minutes?Date.now()+minutes*60000:0,mode:''};return true;},getSleep:()=>sharedSleep};
   Object.defineProperty(video, 'duration', { configurable: true, get: () => 3000 });
   Object.defineProperty(video, 'currentTime', { configurable: true, writable: true, value: 0 });
   window.eval(fs.readFileSync(path.join(__dirname, '../src/renderer/stremio-ui.js'), 'utf8'));
@@ -102,20 +108,35 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   assert.equal(saved.length, 1);
   assert.equal(saved[0].position, 900); assert.equal(saved[0].episode, 1);
   assert.deepEqual(saved[0].next, { season: 1, episode: 2, title: 'İkinci' });
+  // OYN-13: a failed write keeps the saved row and offers an owner-bound retry.
+  const originalApi=window.api.stremio;
+  window.api.stremio=q=>q.action==='progress-save'?Promise.resolve({ok:false,code:'CAPACITY'}):originalApi(q);
+  video.currentTime=905;video.dispatchEvent(new window.Event('pause'));
+  await until(()=>document.querySelector('.sx-progress-warning'),'progress failure notice');
+  assert.match(document.querySelector('.sx-progress-warning').textContent,/kapasite/);
+  window.UiLocale.get=()=> 'en';document.dispatchEvent(new window.Event('ui-locale-change'));assert.match(document.querySelector('.sx-progress-warning').textContent,/capacity/);window.UiLocale.get=()=> 'tr';document.dispatchEvent(new window.Event('ui-locale-change'));
+  assert.equal((await service.handle({}, {action:'continue-list'})).items[0].position,900,'capacity failure cannot overwrite history');
+  window.api.stremio=originalApi;document.querySelector('.sx-progress-warning button').click();
+  await until(()=>!document.querySelector('.sx-progress-warning'),'progress retry clears warning');
+  assert.equal((await service.handle({}, {action:'continue-list'})).items[0].position,905);video.currentTime=900;
+
 
   // Oynatıcı paneli: kaynak değiştirme konumu korur, altyazı, yapay zekâ kısayolları
   click(document.getElementById('playerStremioBtn'));
   await until(() => document.querySelector('.sx-player-panel .sx-stream'), 'panel kaynakları');
   const rows = [...document.querySelectorAll('.sx-player-panel .sx-stream')];
   assert.ok(rows.some((r) => r.classList.contains('is-current')), 'mevcut kaynak işaretli');
+  const firstWork=window.player.workKey;assert.match(firstWork,/^work:stremio:/);Object.assign(window.player,{subPath:'old-source.srt',sub2Path:'old-translation.srt',subRole:'source',sub2Role:'translation',cues:[{text:'Earlier source sample'}],cues2:[{text:'Earlier translated sample'}],offset:3,offset2:-2});
   click(rows.find((r) => !r.classList.contains('is-current')).querySelector('button'));
   await until(() => opened.length === 2, 'kaynak değişti');
   assert.equal(opened[1].seconds, 900, 'kaynak değişince konum korunur');
   assert.equal(opened[1].result.url, 'https://cdn.example/b.mp4');
+  assert.equal(window.player.workKey,firstWork);assert.equal(window.player.subPath,'');assert.equal(window.player.sub2Path,'');assert.equal(window.player.offset,0);const workRefs=JSON.parse(window.localStorage.getItem('stremio.workTracks.'+firstWork));assert.equal(workRefs.rows[0].tracks.length,2);assert.equal(workRefs.rows[0].tracks[0].offset,3);assert(!JSON.stringify(workRefs).includes('Earlier source sample'),'only references, not transcript text, persist');
 
   click(document.getElementById('playerStremioBtn'));
   [...document.querySelectorAll('.sx-tab')].find((b) => /Altyazı/.test(b.textContent)).click();
   await until(() => document.querySelector('.sx-player-panel .sx-sub'), 'altyazı listesi');
+  assert.match(document.querySelector('.sx-work-tracks').textContent,/zaman ve ses eşleşmesi doğrulanmadı/);assert.match(document.querySelector('.sx-work-tracks').textContent,/Earlier translated sample/);assert(!document.querySelector('.sx-work-tracks button'),'unverified previous track has no apply/seek action');
   click(document.querySelector('.sx-player-panel .sx-sub button'));
   await until(() => window.__loaded, 'altyazı yüklendi');
   assert.ok(window.__loaded.startsWith(root) && granted.includes(window.__loaded));
@@ -127,10 +148,28 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   assert.equal(clicked, 1, 'çeviri kısayolu mevcut düğmeyi tetikler');
   assert.ok(!document.querySelector('.sx-player-panel'), 'eylemden sonra panel kapanır');
 
+  // ALT-04: target language seeds search; explicit Any and uncommon languages survive locale changes.
+  const target=document.createElement('select');target.id='translateTo';target.append(new window.Option('Dutch','nl'));document.body.append(target);
+  const languages=[];window.api.stremio=q=>{if(q.action==='subtitles')languages.push(q.language);return originalApi(q);};
+  UI.togglePanel('subs');await until(()=>languages.length,'target subtitle language');assert.equal(languages.at(-1),'nl');let language=document.querySelector('.sx-player-panel select');assert.equal(language.value,'nl');
+  language.value='';language.dispatchEvent(new window.Event('change'));await tick();assert.equal(languages.at(-1),'');assert.equal(window.localStorage.getItem('stremio.subtitleLanguage'),'');UI.togglePanel();window.UiLocale.get=()=> 'en';UI.togglePanel('subs');await tick();assert.equal(document.querySelector('.sx-player-panel select').value,'');assert.equal(languages.at(-1),'');UI.togglePanel();
+  window.localStorage.setItem('stremio.subtitleLanguage','tr');window.UiLocale.get=()=> 'tr';window.api.stremio=originalApi;
+  // Old searches and downloads cannot attach subtitles after selection/source changes.
+  const pendingSearch=[];let finishDownload;window.api.stremio=q=>q.action==='subtitles'?new Promise(resolve=>pendingSearch.push({q,resolve})):q.action==='subtitle-save'?new Promise(resolve=>{finishDownload=resolve;}):originalApi(q);
+  UI.togglePanel('subs');await until(()=>pendingSearch.length===1,'first subtitle request');language=document.querySelector('.sx-player-panel select');language.value='de';language.dispatchEvent(new window.Event('change'));await until(()=>pendingSearch.length===2,'second subtitle request');
+  const result=(id,label)=>({ok:true,token:'fixture',subtitles:[{id,label,addonName:'Fixture',language:'de'}]});pendingSearch[1].resolve(result('new','Current search'));await tick();pendingSearch[0].resolve(result('old','Stale search'));await tick();assert.match(document.querySelector('.sx-sub-list').textContent,/Current search/);assert(!document.querySelector('.sx-sub-list').textContent.includes('Stale search'));
+  const subCount=window.__subs.length,previousGeneration=window.player.generation;document.querySelector('.sx-sub button').click();await until(()=>finishDownload,'pending subtitle download');window.player.generation=1;finishDownload({ok:true,filePath:'stale.srt',label:'Stale',language:'de'});await tick();assert.equal(window.__subs.length,subCount,'old download cannot bind another generation');window.player.generation=previousGeneration;UI.togglePanel();window.api.stremio=originalApi;window.localStorage.setItem('stremio.subtitleLanguage','tr');
+  // OYN-02: native-only controls use reserved image space, without an occlusion/snapshot marker.
+  const stage=document.createElement('div');stage.id='playerStage';document.getElementById('playerLayer').append(stage);let nativeActive=true;window.NativePlayerUI={active:()=>nativeActive,layout(){},state:()=>({chapters:[]})};
+  UI.togglePanel('play');await tick();assert(stage.querySelector('.sx-native-tools > .sx-player-panel'));assert(!document.querySelector('.sx-player-panel').hasAttribute('data-pw-occludes-native'));
+  nativeActive=false;document.dispatchEvent(new window.Event('native-player-state-changed'));await tick();assert(!stage.querySelector('.sx-native-tools'));assert.equal(document.querySelector('.sx-player-panel').parentElement.id,'playerLayer');UI.togglePanel();
+  window.NativePlayerUI=undefined;
+
   // İzlendi → sıradaki bölüm önerisi
   video.currentTime = 2950; video.dispatchEvent(new window.Event('ended'));
   await until(() => document.querySelector('.sx-next'), 'sıradaki bölüm istemi');
   assert.match(document.querySelector('.sx-next').textContent, /S1E2/);
+  window.NativePlayerUI={active:()=>true,layout(){},state:()=>({chapters:[]})};document.dispatchEvent(new window.Event('native-player-state-changed'));await tick();assert(stage.querySelector('.sx-native-tools > .sx-next'),'up-next moves into reserved native space');window.NativePlayerUI=undefined;document.dispatchEvent(new window.Event('native-player-state-changed'));await tick();
   saved = (await service.handle({}, { action: 'continue-list' })).items;
   assert.equal(saved[0].completed, true);
 
@@ -168,7 +207,8 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
 
   // Dublaj sekmesi: aktif altyazıyı gösterir, profil/ayar uygular, stüdyoyu açar
   window.player.subPath = path.join(root, 'stremio-subtitles', 'x.srt'); window.player.sub2Path = ''; window.player.sub2Role = '';
-  let studioOpened = 0, presetClicked = 0, registerChanged = '';
+  let studioOpened = 0, presetClicked = 0, registerChanged = '',studioPreparations=0;
+  window.DubGeneratorUI={prepareWithPreset:async options=>{assert.equal(options.preset,'Balanced');assert(options.isCurrent());studioPreparations++;return {ok:true};}};
   const dubBtn = document.createElement('button'); dubBtn.id = 'playerDubGenerate'; dubBtn.addEventListener('click', () => studioOpened++); document.body.append(dubBtn);
   const presetBtn = document.createElement('button'); presetBtn.id = 'dubPresetBalanced'; Object.defineProperty(presetBtn, 'offsetParent', { get: () => document.body }); presetBtn.addEventListener('click', () => presetClicked++); document.body.append(presetBtn);
   const reg = document.createElement('select'); reg.id = 'translateRegister'; for (const v of ['documentary', 'drama', 'general']) reg.append(new window.Option(v, v)); reg.addEventListener('change', () => { registerChanged = reg.value; }); document.body.append(reg);
@@ -177,14 +217,15 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   await until(() => document.querySelector('.sx-dub-card.is-ready'), 'dublaj sekmesi');
   assert.match(document.querySelector('.sx-dub-card').textContent, /x\.srt/, 'aktif altyazı gösterilir');
   click([...document.querySelectorAll('.sx-panel-body button')].find((b) => /stüdyosunu aç/.test(b.textContent)));
-  await until(() => studioOpened === 1 && presetClicked === 1, 'stüdyo açıldı ve hazır ayar uygulandı');
+  await until(() => studioPreparations === 1 && registerChanged === 'drama', 'stüdyo mevcut API ile hazırlandı');
+  assert.equal(studioOpened,0,'no synthetic studio-button click');assert.equal(presetClicked,0,'no preset DOM polling/click');
   assert.equal(registerChanged, 'drama', 'dizi profili dram üslubunu seçer');
   assert.ok(!document.querySelector('.sx-player-panel'), 'panel kapanır');
   // Oynatma sekmesi: hız, bölüm gezinmesi
   click(document.getElementById('playerStremioBtn'));
   [...document.querySelectorAll('.sx-tab')].find((b) => /Oynatma/.test(b.textContent)).click();
   click([...document.querySelectorAll('.sx-quick button')].find((b) => b.textContent === '1.5×'));
-  assert.equal(video.playbackRate, 1.5, 'hız ayarlanır');
+  await tick();assert.equal(video.playbackRate, 1.5, 'hız ortak sahibi üzerinden ayarlanır');
   click(document.getElementById('playerStremioBtn'));
 
   // Kaynak karşılaştırma
@@ -251,10 +292,39 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   assert.match(document.querySelector('.sx-rated').textContent, /Harika başlangıç/);
   page2.dispose();
 
+  // C855-01: actual metadata -> renderer -> source query; missing numbers never become special0.
+  metadataExtras=[{id:'unknown-null',title:'Unknown null',season:null,number:null},{id:'unknown-blank',title:'Unknown blank',season:' ',episode:''},{id:'unknown-bool',title:'Unknown bool',season:false,episode:false}];
+  await UI.openTitle({type:'series',id:'tt1'});
+  const unknownTitle=document.querySelector('.sx-title');assert(!unknownTitle.textContent.includes('Unknown null'));assert(!unknownTitle.textContent.includes('Unknown blank'));assert(!unknownTitle.textContent.includes('Unknown bool'));assert(![...unknownTitle.querySelector('.sx-season').options].some(o=>o.value==='0'),'missing metadata must not add a special season');unknownTitle.close();
+  metadataExtras.push({id:'special-zero',title:'Actual special zero',season:0,episode:'0'});
+  await UI.openTitle({type:'series',id:'tt1'});const specialTitle=document.querySelector('.sx-title'),seasonPicker=specialTitle.querySelector('.sx-season');assert([...seasonPicker.options].some(o=>o.value==='0'),'real special season remains selectable');seasonPicker.value='0';seasonPicker.dispatchEvent(new window.Event('change'));assert.equal(specialTitle.querySelectorAll('.sx-episode').length,1);assert.match(specialTitle.querySelector('.sx-episode').textContent,/Actual special zero/);
+  const sourceQueries=[];window.api.stremio=q=>{if(q.action==='streams')sourceQueries.push(q);return originalApi(q);};click(specialTitle.querySelector('.sx-episode .sx-ep-actions button'));await until(()=>sourceQueries.length===1,'actual special source request');assert.equal(sourceQueries[0].season,0);assert.equal(sourceQueries[0].episode,0);await until(()=>resourceRequests.includes('https://torr.example/stream/series/tt1:0:0.json'),'special resource id');await until(()=>document.querySelector('.sx-streams .sx-stream'),'special source listing');document.querySelector('.sx-streams').close();specialTitle.close();window.api.stremio=originalApi;metadataExtras=[];
+
+  let finishProgress;window.api.stremio=q=>q.action==='progress-save'?new Promise(resolve=>{finishProgress=resolve;}):originalApi(q);
+  video.dispatchEvent(new window.Event('pause'));await until(()=>!!finishProgress,'pending old progress');
+  window.player.mediaKey='new-owner';video.dispatchEvent(new window.Event('loadstart'));finishProgress({ok:false,code:'CAPACITY'});await tick();assert(!document.querySelector('.sx-progress-warning'),'late failure is not shown for another source');window.api.stremio=originalApi;
   // Anahtar başka videoya geçince panel düğmesi gizlenir ve kayıt yazılmaz
   window.player.mediaKey = 'baska';
   video.currentTime = 100; video.dispatchEvent(new window.Event('pause')); await tick(40);
   assert.equal((await service.handle({}, { action: 'progress-title', type: 'series', id: 'tt1' })).entries.filter((e) => e.position === 100).length, 0);
+  // Missing torrent engine keeps the exact selection and never auto-plays after installation.
+  let engineReady=false,engineInstalls=0;const sourceAttempts=[];window.api.stremio=q=>{if(q.action==='play'){sourceAttempts.push(q);if(!engineReady)return Promise.resolve({ok:false,code:'NEEDS_TORRENT_ENGINE',error:'fixture missing engine'});}return originalApi(q);};
+  window.MediaHubUI.installTorrentEngine=async({isCurrent})=>{assert(isCurrent());engineInstalls++;engineReady=true;return {ok:true,installed:true};};
+  await UI.openStreams({type:'series',id:'tt1',name:'Controlled episode',season:1,episode:1});await until(()=>document.querySelector('.sx-streams .sx-best button'),'engine source selector');document.querySelector('.sx-streams .sx-best button').click();await until(()=>document.querySelector('.sx-engine'),'missing engine recovery');
+  assert(document.querySelector('.sx-engine-retry').disabled,'retry waits for verified engine setup');
+  [...document.querySelectorAll('.sx-engine button')].find(b=>b.textContent==='Torrent motorunu kur').click();await until(()=>engineInstalls===1,'explicit engine install');await tick();assert.equal(sourceAttempts.length,1,'install alone does not start torrent/media');assert.match(document.querySelector('.sx-streams .sx-status').textContent,/motoru hazır/);
+  document.querySelector('.sx-engine-retry').click();await until(()=>sourceAttempts.length===2,'explicit selected retry');assert.equal(sourceAttempts[1].token,sourceAttempts[0].token);assert.equal(sourceAttempts[1].streamId,sourceAttempts[0].streamId);await until(()=>!document.querySelector('.sx-streams'),'successful retry closes selector');window.api.stremio=originalApi;
+
+  engineReady=false;let finishEngineInstall;window.api.stremio=q=>{if(q.action==='play'){sourceAttempts.push(q);return Promise.resolve({ok:false,code:'NEEDS_TORRENT_ENGINE',error:'fixture missing engine'});}return originalApi(q);};window.MediaHubUI.installTorrentEngine=()=>new Promise(resolve=>{finishEngineInstall=resolve;});
+  await UI.openStreams({type:'series',id:'tt1',name:'Controlled stale source',season:1,episode:1});await until(()=>document.querySelector('.sx-streams .sx-best button'),'stale source selector');document.querySelector('.sx-streams .sx-best button').click();await until(()=>document.querySelector('.sx-engine'),'stale engine help');[...document.querySelectorAll('.sx-engine button')].find(b=>b.textContent==='Torrent motorunu kur').click();await until(()=>finishEngineInstall,'pending engine install');const priorAttempts=sourceAttempts.length;window.player.mediaKey='different-source';window.player.generation=(window.player.generation||0)+1;finishEngineInstall({ok:true,installed:true});await tick();assert.equal(sourceAttempts.length,priorAttempts);assert(!document.querySelector('.sx-streams .sx-status').textContent.includes('motoru hazır'),'stale installation cannot claim the old source is ready');document.querySelector('.sx-streams').close();window.api.stremio=originalApi;
+
+  // Installed optional settings open their own page and return to an explicit save preview.
+  const addonFile=path.join(root,'stremio-addons.json'),initialConfig=JSON.parse(fs.readFileSync(addonFile,'utf8')),torrentIndex=initialConfig.addons.findIndex(a=>a.manifest.id==='t');initialConfig.addons[torrentIndex].enabled=false;delete initialConfig.addons[torrentIndex].manifest.configurable;fs.writeFileSync(addonFile,JSON.stringify(initialConfig));assert.equal((await service.handle({},{action:'status'})).addons[torrentIndex].configurationUnknown,true);
+  UI.openAddons();await until(()=>document.querySelector('.sx-addon-settings'),'legacy installed addon settings');const addonDialog=document.querySelector('.sx-addons');
+  addonDialog.querySelector('.sx-addon-settings').click();await until(()=>[...addonDialog.querySelectorAll('.sx-preview button')].some(b=>b.textContent==='Ayarları kaydet'),'configured addon preview');assert.equal(configurationOpened,1);assert(!addonDialog.textContent.includes('debrid-fixture'));assert.equal(JSON.parse(fs.readFileSync(addonFile,'utf8')).addons[torrentIndex].manifestUrl,initialConfig.addons[torrentIndex].manifestUrl,'settings return still needs explicit save');
+  [...addonDialog.querySelectorAll('.sx-preview button')].find(b=>b.textContent==='Ayarları kaydet').click();await until(()=>JSON.parse(fs.readFileSync(addonFile,'utf8')).addons[torrentIndex].manifestUrl.includes('debrid-fixture'),'explicit configured save');const afterConfig=JSON.parse(fs.readFileSync(addonFile,'utf8'));assert.equal(afterConfig.addons.length,3);assert.equal(afterConfig.addons[torrentIndex].enabled,false);assert.equal(afterConfig.addons[torrentIndex].installedAt,initialConfig.addons[torrentIndex].installedAt);
+  await until(()=>addonDialog.querySelector('.sx-preview').hidden,'settings save redraw complete');
+  configureMode='cancel';const cancelBytes=fs.readFileSync(addonFile,'utf8');addonDialog.querySelector('.sx-addon-settings').click();await until(()=>configurationOpened===2,'reopen settings');await tick();assert.equal(fs.readFileSync(addonFile,'utf8'),cancelBytes);assert.match(addonDialog.querySelector('.sx-status').textContent,/Mevcut eklenti korundu/);addonDialog.close();
   console.log('stremio-ui.test.js: OK');
   process.exit(0);
 })().catch((e) => { console.error(e); process.exit(1); });

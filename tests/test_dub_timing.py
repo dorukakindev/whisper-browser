@@ -194,6 +194,8 @@ class DubTimingTests(unittest.TestCase):
                 [part,part], sr, 2, 1.15, directory, log=warnings.append, end_limit_ms=2000)
             self.assertEqual(len(audio), sr*2)
             self.assertEqual(timing['clipped_groups'], 2)
+            events = [json.loads(w) for w in warnings if w.startswith('{')]
+            self.assertEqual(events, [{'type': 'timing', 'version': 1, 'accelerated': timing['accelerated_groups'], 'clipped': 2, 'overflow': timing['overflow_groups']}])
             self.assertGreater(float(np.abs(audio).max()), .1)
             self.assertEqual(len([w for w in warnings if w.startswith('UYARI:')]), 2)
             self.assertTrue((Path(directory)/'timing_report.json').is_file())

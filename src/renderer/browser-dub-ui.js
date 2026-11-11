@@ -68,11 +68,18 @@
     // selection must not silently narrow that already prepared subtitle.
     return selected ? selected.clipRange || null : (player.subPath||player.sub2Path ? null : currentBrowserWhisperRange());
   }
+  // Adaptive playback modifies the media clock, never the user's preferred speed.
+  // In particular, rebuilding the attachment for native playback must not adopt
+  // the last segment's effective slowdown as its new base.
+  function preferredLocalRate() {
+    const preferred=Number(window.PlayerPlaybackControls?.getRate?.());
+    return Number.isFinite(preferred)&&preferred>=.25&&preferred<=4?preferred:video.playbackRate;
+  }
   const context = () => player.workspaceMode === 'player' ? ({
     mode: 'player', tabId: 'player-video', mediaKey: player.mediaKey,
     source: player.localPath || player.mediaKey || '',
     generation: player.generation, subtitleRange: selectedLocalSubtitleRange(),
-    priorMuted: video.muted, volume: video.volume, playbackRate: video.playbackRate,
+    priorMuted: video.muted, volume: video.volume, playbackRate: preferredLocalRate(),
     currentTime: video.currentTime, duration:video.duration, backgroundSource: player.localPath || '',
     hasMedia: !!(video.currentSrc || video.getAttribute('src')),
     visible: !byId('playerLayer').classList.contains('hidden'),
@@ -80,9 +87,9 @@
     mediaKey: player.mediaKey, source: player.browserPageUrl || player.mediaKey || '', generation: browserTabState()?.generation,
     mediaId: browserTabState()?.mediaId || '',
     mediaToken: browserTabState()?.browserClockSample?.generation === player.generation
-      ? browserTabState().browserClockSample.mediaToken || '' : '',
+      ? browserTabState()?.browserClockSample?.mediaToken || '' : '',
     sourceProof: browserTabState()?.browserClockSample?.generation === player.generation
-      ? browserTabState().browserClockSample.dubSourceIdentity || '' : '',
+      ? browserTabState()?.browserClockSample?.dubSourceIdentity || '' : '',
     subtitleRange: selectedSubtitleRange(subtitleTrack), subtitleTrack,
     priorMuted: !!browserTabState()?.tabMuted,
     hasMedia: !!player.browserMediaSeen,
@@ -166,6 +173,11 @@
   for (const event of ['play','pause','seeking','seeked','timeupdate','ratechange','waiting','playing','ended','loadedmetadata']) {
     video.addEventListener(event, updateLocal);
   }
+  document.addEventListener('player-playback-preferences', () => {
+    if (controller.session?.mode === 'player' && controller.owns()) {
+      controller.setBaseRate(preferredLocalRate());
+    }
+  });
   byId('playerSpeed')?.addEventListener('change', event => {
     if (controller.session?.mode === 'player') controller.setBaseRate(Number(event.target.value));
   });

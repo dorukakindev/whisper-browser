@@ -31,4 +31,19 @@ class TurkishNegationContextTests(unittest.TestCase):
             with self.subTest(target=target):self.assertIn('negation_added',S.translation_blocking_issues('I can do it.',target,'tr','en'))
         self.assertIn('negation_missing',S.translation_blocking_issues('Do not call before delivery arrives.','Teslimat gelmeden önce ara.','tr','en'))
 
+    def test_quiet_lexeme_is_not_an_added_negative_assertion(self):
+        source='Deniz: Mira, the phase anchor is quiet at last.'
+        for target in ['Deniz: Mira, faz çapası sonunda sessiz.', 'Deniz: Mira, faz çapası sessizleşti.']:
+            with self.subTest(target=target): self.assertNotIn('negation_added',S.translation_blocking_issues(source,target,'tr','en'))
+        for target in ['Deniz: Mira, faz çapası sessiz değil.', 'Deniz: Mira, faz çapası sessizleşmedi.']:
+            with self.subTest(target=target): self.assertIn('negation_added',S.translation_blocking_issues(source,target,'tr','en'))
+        self.assertIn('negation_missing',S.translation_blocking_issues('The anchor is not quiet.','Çapa sessiz.','tr','en'))
+        self.assertIn('negation_added',S.translation_blocking_issues('The anchor is noisy.','Çapa sessiz.','tr','en'))
+
+    def test_certainly_after_speaker_is_not_a_person_name(self):
+        source='Mira: Certainly, Captain Arda. Please go ahead.'
+        self.assertEqual(S.part_anchor_issue([source],['Mira: Elbette, Kaptan Arda. Buyurun, devam edin.']),'')
+        self.assertEqual(S.part_anchor_issue(['Mira: Certainly, I met Alice.'],['Mira: Elbette, biriyle tanıştım.']),'ozel_ad_kaydi:0')
+        self.assertEqual(S.part_anchor_issue(['Mira: I met Certainly, the pilot.'],['Mira: Pilotla tanıştım.']),'ozel_ad_kaydi:0')
+
 if __name__=='__main__':unittest.main()
