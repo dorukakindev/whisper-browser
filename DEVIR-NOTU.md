@@ -1,3 +1,5 @@
+Güncel belge teslimi: [Yeni sohbet belgeleri · Git teslimi ve sınırlar](docs/devir/2026-11-11-1253.md)
+Güncel sohbet geçişi: [Kalıcı proje özeti, agent/Claude çalışma mantığı](docs/devir/2026-11-11-1249.md)
 Güncel Git teslim kaydı: [Birikmiş Fable / C855 / Stremio teslimi](docs/devir/2026-11-11-1244.md)
 Güncel yerel düzeltme: [Stremio eklenti/debrid ayarları ve gerçek torrent motoru kurulumu](docs/devir/2026-11-11-1235.md)
 Güncel yerel geliştirme: [Gerçek mpv / canlı çeviri / C855-01](docs/devir/2026-11-11-1206.md)

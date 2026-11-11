@@ -34,3 +34,9 @@ Prompt sırası:
 - İncelemeyi somut belirsizliklere bağla. Değişmemiş dosyaları gerekçesiz tekrar okuma. Yeterli kanıt oluşunca uygula, bağlantılı değişiklikleri tamamla ve kapsamı sessizce daraltma.
 - Engeli teşhis et, izinli alternatifleri dene ve bağımsız işlere devam et. Eksik girdi veya erişim gerekiyorsa somut yaz. Denenen, tamamlanan ve doğrulanan işleri ayrı bildir.
 - Rutin adımlar için yeniden onay bekleme. Ara teslim, işin sonu değildir. Gerçek engel yoksa yalnız plan veya kalan iş listesiyle bitirme. Çağrı sayısı hedefi uğruna kapsamı, kaliteyi veya doğrulamayı azaltma.
+
+## Güncel görev türü ve paket birleştirme notu · 2026-11-11
+
+- Yalnız inceleme/öneri görevinde kod değiştirme veya Git teslimi isteme; yukarıdaki uygulama maddeleri uygulama görevi içindir. Yeni sohbetin kısa ürün/mimari/çalışma bağlamı [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
+- Kümülatif/artımlı paket, BASE.json hash ve LF/CRLF kuralını doğrula; çakışan mevcut kodu körlemesine kopyalama. Mevcut değerli düzeltmeler, kişisel farklar ve test sözleşmeleri korunur. Eksik test/ara teslim açık yazılır; paket hazır olması entegrasyonun tamamlandığı anlamına gelmez.
+- Agent kullanımı yetkili; dosya sahipliğini ayır, nihai entegrasyon/doğrulama ana asistandadır. High/medium somut işe göre seçilir, topluca high varsayılmaz.

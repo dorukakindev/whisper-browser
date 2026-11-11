@@ -1,3 +1,12 @@
+# Güncel devam · 2026-11-11 12:49
+
+- **Kod teslim edildi:** master `089f2686bf2fd4b28e0b26e5c8593dce4d13f126`, PR #913/#914 birleşti. Sonraki Git teslimi için yeni açık komut gerekir. Sohbet geçişi belge güncellemeleri kullanıcının 12:53 açık komutuyla ayrı belge teslimine alındı; ürün kodu değişmedi. [Teslim kaydı](docs/devir/2026-11-11-1253.md).
+- **İlk kalan kabul:** kullanıcının Torrentio Ayarlar → configure → Install/Yükle → Ayarları kaydet akışı; gerçek debrid hesabıyla doğrulanmadı. Ardından daha önce motor hatası veren aynı film. Motor kurulu/doğrulandı; gerçek kişisel film başlatılmadı. Canlı kişisel ayarı onaysız değiştirme; kullanıcı denemesinden gelen somut hata varsa mevcut sahipte düzelt.
+- **Ayrı açık sınırlar:** fiziksel native görüntü/GPU/dinleme; DeepInfra küçük çeviri örneği karma, genel kalite kabulü değil. Player UI 147/6 ve Browser reading eski assertion hataları tabanda da mevcut; gerekirse yalnız ilgili yeni iş kapsamında incele, test paketini yeşil sunma.
+- **Biteni tekrarlama:** Fable'ın 22 onaylı kapsamı ele alındı; OYN-03/OYN-11 büyük tasarımları kullanıcı tarafından dışarıda. R853/R854 uygulama listeleri tekrar açılacak otomatik görev değildir. 50'lik plan ve sohbet dışı 29 fikir kayıtları yeni kapsam için referanstır, tümünü tamamlandı/yeniden yetkilendirildi sayma.
+- **Korunan yerel farklar:** CLAUDE_TASK_GUIDE devam promptu, OFFLINE-MANIFEST üretimi, INDEX eski R516 satırı ve start.sh silinmesi; eski untracked arşiv/rapor/kişisel çıktılar teslim dışı. Bu tur AGENTS/README/BACKLOG/CHANGELOG/DEVIR ve proje özeti belgeleri güncellendi; ürün kodu değişmedi.
+- [Yeni sohbet özeti ve çalışma mantığı](docs/PROJECT_CONTEXT.md) · [güncel devir](docs/devir/2026-11-11-1249.md). Aşağıdaki kayıtlar tarihsel; güncel görev seçimi bu bölümden başlar.
+
 ## Git teslimi · 2026-11-11-1244
 
 Kullanıcı açık teslim komutu verdi. Birikmiş ürün commit’i `ca491d43331866dda0406afa78a6b28d403d3e91`, dal `codex/player-stremio-fable-delivery`; belgeler ayrı commit. [PR #913](https://github.com/dorukakindev/whisper-browser/pull/913) master’a birleşti: `d796dc181e6c9a9644524e8c5af9ab65d385e001`; yerel ana dal eşleşti, dört kişisel fark hash ile korundu, yeni Actions koşusu yok. Actions çalıştırılmaz; ilgisiz kişisel farklar yerelde korunur. [Teslim kapsamı, kontroller ve kalan gerçek kabul](docs/devir/2026-11-11-1244.md). Aşağıdaki “Git teslimi yok” kayıtları yazıldıkları ana aittir.

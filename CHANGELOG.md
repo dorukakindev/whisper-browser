@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-11 · Yeni sohbet için kalıcı belgeler
+
+- Kısa AGENTS; güncel README/BACKLOG, teknoloji/mimari özeti ve agent/Claude çalışma sözleşmesi kaydedildi. Yalnız belge değişikliği; ürün kodu değişmedi, Git teslimi yapılmadı. [Devir](docs/devir/2026-11-11-1249.md).
+
 - **Yerel · 2026-11-11 · Stremio ayarları ve torrent kurulumu:** Eklentilerin kendi yapılandırma sayfası izole pencerede açılır; Install dönüşü same-page/popup/iframe’den yakalanıp açık kaydetmeyle mevcut eklentiyi koruyarak günceller. Ham torrent için eksik/bozuk motor kurulumu ve seçili kaynağa ayrı yeniden deneme eklendi. rqbit9.0.1 bu bilgisayarda doğrulanarak kuruldu; torrent başlatılmadı. Ayar satırının okunurluğu düzeltildi; hedefli/gerçek engine/gerçek Electron/kontrollü görsel testler geçti. Gerçek debrid hesabı/özel film kabulü ayrı. [Devir](docs/devir/2026-11-11-1235.md).
 
 - **Yerel · 2026-11-11 · C855 ve canlı çeviri kabulü:** Eksik sezon/bölümün0’a dönüşmesi düzeltildi; gerçek özel bölüm korunur. Konuşmacı sonrası Certainly ve quiet→sessiz doğru çevirileri yanlış reddedilmez; kişi adı/gerçek olumsuzluk kapıları korunur. Gerçek mpv hız/kapanış kontrolü ve güvenli izole sağlayıcı test yolu doğrulandı. Canlı küçük örnek genel kalite garantisi değildir; görünür native/dinleme açık. [Devir](docs/devir/2026-11-11-1206.md).

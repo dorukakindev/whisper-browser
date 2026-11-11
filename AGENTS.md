@@ -1,37 +1,16 @@
-# Çalışma kuralları
+# Whisper Browser · çalışma kuralları
 
-## Önce oku
-
-- [README.md](README.md): ürün ve belge haritası. [BACKLOG.md](BACKLOG.md): açık işin durumu, dalı, kanıtı ve kesin sonraki adımı.
-- Yalnız ilgili güncel devir notunu [DEVIR-NOTU.md](DEVIR-NOTU.md) indeksinden aç. Ortam/kurulum işinde [YENI-BILGISAYAR.md](YENI-BILGISAYAR.md); UI işinde [DESIGN.md](DESIGN.md) kullan.
-- Mimari, komutlar, altyazı/IPC/kalıcılık ayrıntıları: [docs/WORKING_GUIDE.md](docs/WORKING_GUIDE.md). İlgili bölümü oku; bütün eski raporları her turda tarama. En yeni kullanıcı talimatı önceliklidir.
-
-## Çalışma
-
-- Ürün bir medya kütüphanesi, player/browser ve altyazı/dublaj/asistan bütünüdür. Mevcut özellikleri, ileri ayarları, kaynak kimliklerini ve onay kapılarını koru.
-- Önce gerçek dal/HEAD/remote ve değişiklikleri kontrol et. Kullanıcı dosyalarını, profili, açık uygulamayı ve ilgisiz değişiklikleri koru; reset/clean/force push yapma.
-- Anahtar/token/kişisel veriyi sohbete, argv'ye, loga veya commit'e koyma. İzole test profili kullan; canlı API yalnız mevcut yetki kapsamında. Yeni hesap/ücretli hizmet açma.
-- IPC/CSP/sandbox sınırlarını koru; ayrıcalıklı erişim preload/main üzerinden. Yeni UI metinleri EN/TR; kullanıcı içeriğini arayüz çeviricisine sokma. Zaman ekseni, cache bağlamı ve kuyruğa eklenirken dondurulan seçenekler korunur.
-- Bağımsız okumaları/kontrolleri grupla; sonuç bağımlı adımları sırala. Yeterli kanıt oluşunca uygula; değişmemiş dosyaları ve başarısız komutları gerekçesiz tekrarlama.
-- Denetimde önce [kapsam kaydını](docs/audits/deepseek-night1000-20261027/README.md) kontrol et. Eski/yinelenen/düzelmiş bulguyu yeni bug sayma; rapor sayısı için bulgu uydurma. Rapor numarasını güncel indeksten doğrula.
-- Müzik analizine yeni hedef ekleme; eski bug raporlarını kullanıcı istemeden topluca yeniden açma. Bağımlılık gerekiyorsa resmî kaynak/lisans/uyumluluk kontrolü yap; gereksiz sürüm yükseltme yapma.
-
-## Tasarım ve doğrulama
-
-- **Görünüm en önemli önceliktir.** Güçlü, özgün ve etkileyici tasarım hedefle. Hareket, parıltı, hover ve sürekli dekoratif animasyonun yoğunluğu tasarım ihtiyacına göre belirlenir; zorunlu sakinlik/minimalizm veya düşük hareket kuralı koyma. Tasarımcının yaratıcılığını koru; okunabilirlik, erişilebilirlik, kullanıcının hareket tercihi ve mevcut işlev/veri sınırları geçerlidir. Ayrıntı DESIGN.md’nin güncel görsel öncelik kararındadır.
-
-- Önce tam görsel kompozisyon; gerekiyorsa kullanıcı onayı, ardından uygulama. Üst medya menüsü, sıcak amber/grafit ve canlı sinematik player kimliği korunur; kullanıcı nötr/siyah-beyaz yönü geri çekti, dengeli renk/kapak/ortam ışığı ve yaratıcı vurgu serbesttir; soldan genel gezinme/landing/paper tasarımına dönme. Luna kalite referansıdır; kopya değildir.
-- İkincil gezinme soldaki simgenin hover/tıklama/klavye menüsünde; dar ekranda kontrolleri ezme. İleri ayarlar erişilebilir kalsın. Gerçek Windows geniş/dar görüntüsünü onaylı tasarımla karşılaştır; test geçmesini estetik başarı sayma.
-- Değişen davranışa kısa, anlamlı test ve sözdizimi kontrolü yap. Belge değişiminde bağlantı/diff kontrolü yeterlidir; gereksiz tam paket/uzun test bekleme. Mock, canlı site/GPU/sağlayıcı başarısı değildir; sınırları açık yaz.
-- Kullanıcının güncel tercihi: kısa hedefli kontrollerle ilerle; kendiliğinden genişlik matrisi, yüzlerce ekran çekimi, CPU/frame ölçümü veya kapsamlı kabul raporu üretme. Computer Use kullanma ve dosya erişim onay penceresi açan testleri tetikleme. Küçük görsel ayrıntılar için işi durdurup tekrar onay isteme; mevcut onaylı tasarım dilini uygula.
-- Uygulama açılacaksa LG monitöründe izole profil ve gerçek 1920×1080 tam ekran kullan; OS çözünürlüğünü değiştirme, kişisel açık uygulamaya dokunma. Canlı podcast transkripsiyon/çeviri denemesi en fazla 3–4 dakika olsun. Gereksiz yeni test dosyası üretme; uygun mevcut testleri güncelle. Kullanıcı istemedikçe agent açma.
-- Windows ana ortamdır: D:\Whisper Local. Normal açılış start.bat; npm start/native fixture, start.bat/CUDA/kişisel kullanım doğrulaması yerine geçmez.
-- **GitHub Actions başlatma: kredi yok.** Commit/PR/merge başlıklarında [skip ci] kullan. Başarısız kabul hedefini gizleme, eşiği gevşetme veya tamamlandı deme.
-
-## Kayıt ve teslim
-
-- Yarım kalan/engellenen işi turn sonunda **BACKLOG.md**'ye yaz: durum, dal/PR, kanıt, kalan kabul koşulu ve tam sonraki adım. Sohbeti tek kayıt yeri yapma. Yalnız doğrulanmış biten değişikliği **CHANGELOG.md**'ye ekle.
-- Her teslimde docs/devir/YYYY-MM-DD-HHMM.md oluştur ve DEVIR-NOTU.md indeksini güncelle. Başlangıç/bitiş kod kimliği, dosyalar, testler, sınırlar ve kalan işleri yaz; eski notları silme. Ürün ve belge commitlerini ayır; yalnız belge işinde ürün kodunun değişmediğini belirt.
-- Doğru repo: https://github.com/dorukakindev/whisper-browser; gerçek ana dal `master`. Geliştirmeyi üçlü, anlamlı işler halinde yerelde biriktir. GitHub teslimini kısa öner ve açık commit/push/merge komutu bekle; genel “devam et/hepsini yap” Git teslimi değildir. Açık teslim komutunda güncel master'dan `codex/` dalı ve PR kullan, doğrulanmış işi birleştir ve ana kopyayı kişisel farkları koruyarak güncelle; aynı teslim için yeniden onay isteme.
-- Sonuçta push/merge/yerel HEAD'i doğrula; repo, tarihli devir bağlantısı, tam uzak commit kimliği ve doğrulanmayanları kısaca bildir. Push/merge gerçekleşmeden gerçekleşti deme.
-- Tamamlanan işin sonunda, kullanıcının yeniden sormasını beklemeden sıradaki yapılacak işleri kısa ve öncelikli bir listeyle ver.
+- Ana ortam `D:\Whisper Local`, Windows; normal açılış `start.bat`. Repo https://github.com/dorukakindev/whisper-browser, gerçek ana dal `master`. Önce dal/HEAD/remote ve yerel farkları doğrula.
+- Önce [README.md](README.md), [BACKLOG.md](BACKLOG.md), [DEVIR-NOTU.md](DEVIR-NOTU.md) indeksindeki ilgili güncel devir. Yeni sohbet özeti: [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md). UI için [DESIGN.md](DESIGN.md), yalnız ilgili mimari/IPC/kalıcılık bölümü için [docs/WORKING_GUIDE.md](docs/WORKING_GUIDE.md), kurulum için [YENI-BILGISAYAR.md](YENI-BILGISAYAR.md). Eski raporları topluca tarama; son kullanıcı talimatı önceliklidir.
+- Mevcut özellikleri, ileri ayarları, kişisel verileri/farkları, açık uygulamayı ve kaynak/zaman/iş/onay sahiplerini koru. Reset/clean/force push, otomatik veri/cache temizliği veya aynı kişisel profile ikinci yazıcı yok.
+- Anahtar/token/kişisel içeriği sohbet, argv, log veya commit'e koyma. İzole test profili; canlı API yalnız mevcut yetki kapsamında. Yeni hesap/ücretli hizmet açma. Ayrıcalıklı erişim main/servislerde, sınırlı preload IPC; sandbox/CSP korunur.
+- Kuyrukta dondurulan seçenekleri, cache bağlamını ve zaman eksenini koru. UI metinleri EN/TR; kullanıcı içeriğini arayüz çeviricisine sokma. Tamamlanma/izlenme beğeni değildir; geçerli puan öncelikli, kaynakta puansız 0 olumsuz sayılmaz, medya zevk havuzları ayrıdır.
+- Yetkili işi kısa plan → uygulama → hedefli doğrulama ile tamamla; rutin adımlarda yeniden onay isteme. Bağımsız okuma/kontrolleri grupla, bağımlı adımları sırala. Hata/engeli koru; somut neden olmadan başarısız komutu veya değişmeyen testleri tekrarlama.
+- **Agent kullanımı kullanıcı tarafından genel olarak yetkilendirildi.** Uygun bağımsız alt görevleri paralel devret; dosya sahipliğini ayır, kişisel veriye eşzamanlı yazdırma. Ana agent entegrasyon, inceleme ve son doğrulamadan sorumludur. Basit iş için gereksiz agent açma. Efor önerilerinde high'ı genelleme; bağımlı büyük iş/sahiplik/mimari değişimi için somut neden yaz, grup tek eforla yapılabiliyorsa öyle öner.
+- Claude promptu hazırlarken [docs/CLAUDE_TASK_GUIDE.md](docs/CLAUDE_TASK_GUIDE.md) uygulanır: tek kopyalanabilir görev, açık taban/kapsam/kabul/yetki, tam kalıcı çalışma bloğu. Yalnız inceleme istendiyse kod değişikliği isteme. Dış paketi körlemesine kopyalama; tamamlananı tekrarlama.
+- **Görünüm önceliklidir:** üst medya gezinmesi, sıcak amber/grafit ve canlı sinematik kimlik; nötr/siyah-beyaz yön reddedildi. Güçlü özgün kompozisyon, yaratıcı vurgu/hareket serbest; erişilebilirlik/hareket tercihi korunur. Genel sol gezinme/landing/paper tasarımına dönme. Büyük Sahne/Raf ve transport yeniden tasarımları onaylı kapsam dışında. İleri araçları silme, dar ekranda kontrolleri ezme.
+- UI'da önce bütün kompozisyon, sonra uygulama ve gerçek görüntü kontrolü; küçük ayrıntılarda onay döngüsü yaratma. Computer Use ve dosya erişim penceresi tetikleyen test yok. Monitörü güncel doğrula: kullanıcı LG bağlı değilken ASUS kullan dedi; LG varmış gibi açma. İzole profil, mümkünse gerçek 1920×1080 tam ekran; OS çözünürlüğünü değiştirme, kişisel uygulamaya dokunma.
+- Kısa, anlamlı değişen-davranış testleri ve syntax/diff kontrolü. Belge işinde link/diff yeterli. Gereksiz tam paket, genişlik matrisi, yüzlerce görüntü veya benchmark yok. Mevcut uygun testi güncelle; sayıyı şişirme. Canlı podcast denemesi en fazla 3–4 dakika. Mock/Chromium/hidden native, gerçek site/model/GPU/dinleme/start.bat kabulü değildir; sınırları açık yaz. Test eşiğini gevşetme, görülmeyen sonucu başarılı sayma.
+- Denetimde önce [kapsam kaydı](docs/audits/deepseek-night1000-20261027/README.md) ve rapor indeksi; yinelenen/eski/düzelmiş bulguyu yeni bug sayma. Kullanıcı istemeden eski rapor/müzik analizi kapsamı açma. Yeni bağımlılıkta resmî kaynak/lisans/uyumluluk, gereksiz yükseltme yok.
+- **GitHub Actions çalıştırma.** Her commit/PR/merge başlığında `[skip ci]`. Genel “devam/hepsini yap” Git teslimi değildir; yeni açık commit/push/merge komutu bekle. Yetki gelince güncel master'dan `codex/` dalı + PR ile teslimi bitir, aynı teslim için tekrar onay isteme. Ürün ve belge commitleri ayrı; uzak/yerel HEAD ve merge sonucunu doğrula.
+- Yarım kalan/engellenen iş, kanıtı, kalan kabul ve tam sonraki adım [BACKLOG.md](BACKLOG.md)'ye; yalnız doğrulanmış tamamlanan [CHANGELOG.md](CHANGELOG.md)'ye. Tarihli `docs/devir/YYYY-MM-DD-HHMM.md` + DEVIR indeksi: başlangıç/bitiş kimliği, dosyalar, testler, sınırlar. Eski notları silme. Sonuç kısa Türkçe; sıradaki somut öncelikleri ver, biten listeden yeni iş uydurma.
