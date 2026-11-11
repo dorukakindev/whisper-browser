@@ -1,3 +1,4 @@
+Güncel Git teslimi: [Stremio / R853–R854 master birleşmesi](docs/devir/2026-11-11-0401.md)
 Güncel geliştirme/teslim devri: [Stremio / Oynatıcı Pro birleşmesi, testler ve Git durumu](docs/devir/2026-11-11-0349.md)
 Önceki geliştirme devri: [R854 · kalan uygulama kapsamları tamam, canlı kabul sınırları](docs/devir/2026-11-11-0311.md)
 Önceki geliştirme devri: [R854 · Zevkim/Seriler/Podcast, önceki paketler ve G43](docs/devir/2026-11-11-0248.md)
