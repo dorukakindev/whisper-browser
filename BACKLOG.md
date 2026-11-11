@@ -1,6 +1,6 @@
 ## Git teslimi · 2026-11-11-1244
 
-Kullanıcı açık teslim komutu verdi. Birikmiş ürün commit’i `ca491d43331866dda0406afa78a6b28d403d3e91`, dal `codex/player-stremio-fable-delivery`; belgeler ayrı commit, ardından PR → master doğrulaması. Actions çalıştırılmaz; ilgisiz kişisel farklar yerelde korunur. [Teslim kapsamı, kontroller ve kalan gerçek kabul](docs/devir/2026-11-11-1244.md). Aşağıdaki “Git teslimi yok” kayıtları yazıldıkları ana aittir.
+Kullanıcı açık teslim komutu verdi. Birikmiş ürün commit’i `ca491d43331866dda0406afa78a6b28d403d3e91`, dal `codex/player-stremio-fable-delivery`; belgeler ayrı commit. [PR #913](https://github.com/dorukakindev/whisper-browser/pull/913) master’a birleşti: `d796dc181e6c9a9644524e8c5af9ab65d385e001`; yerel ana dal eşleşti, dört kişisel fark hash ile korundu, yeni Actions koşusu yok. Actions çalıştırılmaz; ilgisiz kişisel farklar yerelde korunur. [Teslim kapsamı, kontroller ve kalan gerçek kabul](docs/devir/2026-11-11-1244.md). Aşağıdaki “Git teslimi yok” kayıtları yazıldıkları ana aittir.
 
 # Bekleyen işler
 
