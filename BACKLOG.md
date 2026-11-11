@@ -3,10 +3,10 @@
 ## Stremio / Oynatıcı Pro · birleşti, Git teslimi sürüyor · 2026-11-11-0349
 
 - Verilen HTML'ler ve 14–18 paketleri incelendi; son kümülatif 33 dosyanın SHA-256'ları doğrulandı. Önceki R853/R854, sıcak amber ve Whisper/üst menü düzeltmeleri korunarak Stremio eklenti/katalog/kaynak/kütüphane/puanlama ve Pro paneli eklendi. [Devir, doğrulama ve sınırlar](docs/devir/2026-11-11-0349.md).
-- Dal `codex/stremio-r854-20261111`, taban `ded71f4646504f65e5a70ad3fb594c06f010cea1`; ürün commit'i `61a179985a97a33082a105cb871779212f4688b8` (`[skip ci]`). Bu tur açık commit/push/master yetkisi vardır; push/PR/merge henüz doğrulanmış sayılmaz. Belgeler ayrı commit'e hazırlanır; ilgisiz kişisel farklar korunur.
+- Dal `codex/stremio-r854-20261111`, taban `ded71f4646504f65e5a70ad3fb594c06f010cea1`; ürün commit'i `61a179985a97a33082a105cb871779212f4688b8` (`[skip ci]`). Ürün ve 32 belge ayrı commitlerle teslim dalına pushlandı; belge commit'i `50362adc52bc75a1c4ebab5812d9dc996b896f39`. PR/master birleşmesi henüz gerçekleşmedi; ilgisiz kişisel farklar korunur.
 - Native vprop paket alanı, motor dönüşünde ayar uygulama, kapasitede kişisel satır kaybı/bozuk dosya ezme, manifest query yolu, belirsiz torrent dosyası, puan okuma/yazma yarışları ve gerçek axe tablist hatası düzeltildi. 14 hedefli dosya exit 0, R854/CinemaUI 38/38; yedi odak görünümünde JS ve seçili axe kurallarında 0 ihlal. Canlı Cinemeta manifest/katalog (50) ve Torrentio manifesti okundu; gerçek medya oynatma değildir.
 - **Tam `npm test` yeşil değil:** 87 dosya başarısız; aynı 85 Node + 2 Python dosyası paket öncesi kopyada da başarısız. Çözülmüş sayılmadı. Gerçek mpv bulunamadı; gerçek torrent/native/sağlayıcı üretimi/Electron/ASUS kabulü açık. Kişisel dosyalar yazılmadı.
-- **Kesin devam:** belge commit'i/push → GitHub bağlantısı varsa PR/master birleştirmesi → yerel/uzak HEAD doğrulaması. GitHub eklentisi kurulu/bağlı değil; kimlik çıkarma kontrolü otomatik onayca reddedildi ve çalışmadı. Bağlantı olmadan PR/merge yapıldı deme. Actions kullanma; yeni kod geliştirip tamamlananları tekrarlama.
+- **Kesin devam:** GitHub PR aracı çalışır hale gelince teslim dalından `[skip ci]` PR → beklenen HEAD ile master birleşmesi → yerel/uzak HEAD doğrulaması. Eklenti artık kurulu görünüyor; `get_repo` ve `create_pull_request` araçları hâlâ `Unknown tool` hatası veriyor. Normal Git push başarılı. Kimlik çıkarma kontrolü otomatik onayca reddedildi ve çalışmadı. Bağlantı/araç düzelmeden PR/merge yapıldı deme. Actions kullanma; tamamlanan kodu tekrarlama.
 
 ## R854 · kalan uygulama kapsamları tamam · 2026-11-11-0311
 
@@ -1451,3 +1451,7 @@ Sahne için mpv canlı kabulü dosya erişim onayı gerektirdiğinden test korum
 ## Çalışma sınırları
 
 Kısa hedefli kontrol; Computer Use ve dosya erişim penceresi yok. GitHub Actions yok; commit/PR/merge başlıklarında `[skip ci]`. Kişisel manifest/indeks/start.sh farkları ile korunan `src/media-source-envelope.js` ve `tests/media-source-envelope.test.js` dosyalarına dokunma. Her yeni işte güncel dal/HEAD ve ilgili son devir kontrol edilir.
+
+### Güncel kullanıcı kararı — yalnız push
+
+Kullanıcı bu teslim için “Şimdilik push yeterli” dedi. Teslim dalı pushlanır; PR/master birleşmesi yapılmaz. Bundan sonra birleştirme için yeni açık komut beklenir. Önceki PR/master sonraki adımları bu kararla beklemeye alınmıştır. Sonraki ürün öncelikleri: gerçek native motor/medya kabulü; mevcut 87 başarısız test dosyasını kök nedenlerine göre ele alma; Stremio depolarının `.wbp` yedek kapsamını açıkça belirleme.
