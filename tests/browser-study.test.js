@@ -81,4 +81,6 @@ assert.equal(study.isActive(),true);assert.equal(player.viewMode,'study');
 assert.deepEqual({tab:player.browserActiveTabId,mediaKey:player.mediaKey,generation:player.generation},owner);
 assert.equal(document.getElementById('webVideo'),video);assert.equal(document.querySelectorAll('video').length,1);
 
+// A same-page late media-id upgrades only an initially unobserved session.
+player.browserActiveTabId='pending-tab';player.browserPageUrl='https://fixture.invalid/same';player.mediaKey='browser:pending';let observed={mediaId:'',generation:7};context.browserTabState=()=>observed;study.open();const pending=study.stageSession();observed={mediaId:'known-video',generation:7};study.refresh();assert.equal(study.isActive(),true);assert.equal(study.stageSession(),pending);assert.equal(study.hasPreference(),true);observed={mediaId:'other-video',generation:7};study.refresh();assert.equal(study.isActive(),false,'later distinct media cannot inherit a study session');
 dom.window.close();console.log('browser-study: same video/cues, explicit actions, capability states, busy control and tab isolation OK');

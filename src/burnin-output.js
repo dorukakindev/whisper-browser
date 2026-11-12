@@ -157,8 +157,9 @@ function burninRecoveryPathsMatch(recovery) {
   const item = normalizeBurninRecovery(recovery);
   if (!item) return false;
   const expected = burninOutputPaths(item.videoPath, 'token');
-  if (path.resolve(item.outPath) !== path.resolve(expected.outPath)) return false;
-  if (path.dirname(path.resolve(item.tempPath)) !== path.dirname(path.resolve(expected.tempPath))) return false;
+  const samePath = (a, b) => (process.platform === 'win32' ? String(a).toLowerCase() === String(b).toLowerCase() : a === b);   // Windows: sürücü harfi/büyük-küçük harf farkı
+  if (!samePath(path.resolve(item.outPath), path.resolve(expected.outPath))) return false;
+  if (!samePath(path.dirname(path.resolve(item.tempPath)), path.dirname(path.resolve(expected.tempPath)))) return false;
   const base = path.basename(item.videoPath, path.extname(item.videoPath))
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const outputExt = path.extname(expected.outPath).replace('.', '\\.');

@@ -166,7 +166,12 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
       });
       check(op);if(!fs.statSync(partial).size)throw new Error('Export produced no media.');
       // link is an exclusive install, preventing a concurrent overwrite race.
-      await fsp.link(partial,target);await fsp.unlink(partial);partial=null;grantMedia(target);
+      try{await fsp.link(partial,target);}catch(error){
+         // exFAT/FAT32/ağ paylaşımları hard link desteklemez; yine dışlayıcı (COPYFILE_EXCL) kopya ile kur.
+         if(!['EPERM','ENOSYS','EXDEV','ENOTSUP','EMLINK'].includes(error?.code))throw error;
+         await fsp.copyFile(partial,target,fs.constants.COPYFILE_EXCL);
+       }
+       await fsp.unlink(partial);partial=null;grantMedia(target);
       return {ok:true,path:target,url:pathToFileURL(target).href};
     }finally{
       try{if(partial)await fsp.rm(partial,{force:true,maxRetries:5,retryDelay:100});if(temp)await fsp.rm(temp,{recursive:true,force:true,maxRetries:5,retryDelay:100});}finally{end(op);}

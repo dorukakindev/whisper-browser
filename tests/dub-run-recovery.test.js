@@ -6,8 +6,8 @@ const {world,wav,outputOf,sha}=require('./dub-run-world');
 
 test('asynchronous restore approval is single-flight, replays its result and blocks new production until settled',async()=>{
  const w=world(),originalCopy=fs.promises.copyFile;try{
-  const moved=path.join(w.root,'restore-source.wav'),svc=w.boot({dialog:{showOpenDialog:async()=>({canceled:false,filePaths:[moved]})}});
-  await svc.call('dub:start',w.request('single-restore'));const worker=w.spawns.at(-1),target=outputOf(worker);fs.writeFileSync(target,wav(2));worker.proc.exitCode=0;worker.proc.emit('close',0);fs.renameSync(target,moved);
+  const granted=[];const moved=path.join(w.root,'restore-source.wav'),svc=w.boot({grantMedia:file=>granted.push(file),dialog:{showOpenDialog:async()=>({canceled:false,filePaths:[moved]})}});
+  await svc.call('dub:start',w.request('single-restore'));const worker=w.spawns.at(-1),target=outputOf(worker);fs.writeFileSync(target,wav(2));worker.proc.exitCode=0;worker.proc.emit('close',0);fs.renameSync(target,moved);granted.length=0;
   const preview=await svc.call('dub:runs',{action:'output-restore-preview',runId:'single-restore'});let reached,release,copies=0;const arrived=new Promise(resolve=>{reached=resolve;}),gate=new Promise(resolve=>{release=resolve;});
   fs.promises.copyFile=async function(from,to){if(to===target){copies++;reached();await gate;}return originalCopy.apply(this,arguments);};
   const first=svc.call('dub:runs',{action:'output-restore-approve',token:preview.token});await arrived;
@@ -15,7 +15,7 @@ test('asynchronous restore approval is single-flight, replays its result and blo
   assert.equal((await svc.call('dub:start',w.request('must-wait'))).ok,false);await assert.rejects(svc.service.releaseIdle(),/active/);
   await svc.call('dub:runs',{action:'output-restore-cancel',token:preview.token});assert(fs.existsSync(path.join(w.out,'.restore-'+preview.token+'.wav')),'cancel does not delete an already approved in-flight source');
   let prevented=0,quit=0;w.app.quit=()=>{quit++;};w.app.emit('before-quit',{preventDefault(){prevented++;}});assert.equal(prevented,1);assert.equal(quit,0);
-  release();const results=await Promise.all([first,second]);assert(results.every(row=>row.ok));assert.equal(copies,1);await new Promise(resolve=>setImmediate(resolve));assert.equal(quit,1);assert.equal(svc.service.running(),false);
+  release();const results=await Promise.all([first,second]);assert(results.every(row=>row.ok));assert(granted.includes(target),'verified restored WAV receives its media grant');assert.equal(copies,1);await new Promise(resolve=>setImmediate(resolve));assert.equal(quit,1);assert.equal(svc.service.running(),false);
   const replay=await svc.call('dub:runs',{action:'output-restore-approve',token:preview.token});assert.equal(replay.replayed,true);assert.equal(copies,1);assert.equal(sha(fs.readFileSync(target)),sha(fs.readFileSync(moved)));assert.equal(w.spawns.length,1);
  }finally{fs.promises.copyFile=originalCopy;w.close();}
 });

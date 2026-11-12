@@ -63,6 +63,17 @@ test('playing a search result checks the transcript revision and starts paused m
  assert.deepEqual(f.commands.map(command=>command.type),['seekCue','togglePlay','seekCue']);
 });
 
+test('stage offset uses canonical slider limits and publishes persistence changes',t=>{
+ const f=fixture(t);f.player.cues=f.source.cues;f.player.offset=9.95;
+ f.context.localSyncProfileKey=()=> 'source-track';
+ const input=f.document.createElement('input');input.id='subOffset';input.type='range';input.min='-10';input.max='10';input.step='.001';f.document.body.append(input);
+ let saved=0;input.addEventListener('input',()=>{f.player.offset=Number(input.value);});input.addEventListener('change',()=>saved++);
+ const adapter=f.open('study'),offset=()=>adapter.panel().sections.flatMap(s=>s.items).find(i=>i.type==='offset');
+ offset().run(.1);assert.equal(f.player.offset,10);assert.equal(saved,1);
+ offset().run(null);assert.equal(f.player.offset,0);assert.equal(saved,2);
+ f.player.generation++;offset().run(1);assert.equal(saved,2);
+});
+
 test('timing preview holds its audio range across a subtitle offset change',async t=>{
  const f=fixture(t);
  f.player.cues=f.source.cues;
@@ -900,10 +911,11 @@ test('an ended event cannot advance the new media while its old progress save is
   const start=renderer.indexOf("video.addEventListener('ended', async () => {");
   const end=renderer.indexOf("video.addEventListener('error'",start);
   for (const change of ['key','generation','none','podcast','sleep','auto-off']) {
-    let ended,release,generation=1,next=0,queue=0,paused=0;
+    let ended,release,generation=1,next=0,queue=0,paused=0,preferences=0;
     const player={mediaKey:'local:one',generation:1,autoNext:true,sleepTimerMode:'',playlistIndex:0};
     const context=vm.createContext({
       player,video:{addEventListener:(_type,callback)=>{ended=callback;},pause:()=>{paused++;}},
+      Event,document:{dispatchEvent:event=>{assert.equal(event.type,'player-playback-preferences');preferences++;}},
       window:{MediaShelfUI:{ownsPodcastQueue:()=>['podcast','sleep','auto-off'].includes(change),advancePodcastQueue:async()=>{queue++;}}},
       currentGeneration:()=>generation,staleGeneration:expected=>expected!==generation,
       stopPlayerVideoFrameLoop(){},renderCue(){},flushWatchState:()=>new Promise(resolve=>{release=resolve;}),
@@ -919,6 +931,7 @@ test('an ended event cannot advance the new media while its old progress save is
     assert.equal(next,change==='none'?1:0);
     assert.equal(queue,change==='podcast'?1:0);
     assert.equal(paused,change==='sleep'?1:0);
+    assert.equal(preferences,change==='sleep'?1:0);
     assert.equal(player.sleepTimerMode,'');
   }
 });
@@ -1169,6 +1182,21 @@ test('a thrown applied loop failure clears its own range but never a replacement
  }
 });
 
+
+test('assistant survives transcript revision changes but still rejects a different media owner',async t=>{
+ const f=fixture(t),a=f.open();let opened=0;f.window.api.showAssistant=()=>opened++;
+ const revision=a.state().rev;f.source.revision='new-revision';f.source.cues[0].text='Updated transcript';
+ assert.equal((await a.cmd('assistant',undefined,revision)).ok,true);assert.equal(opened,1);
+ f.player.generation++;assert.equal((await a.cmd('assistant',undefined,revision)).code,'stale-source');assert.equal(opened,1);
+});
+
+test('note passage accepts folded line breaks without accepting foreign text',async t=>{
+ const f=fixture(t),saved=[];f.window.api.upsertResearchAnnotation=async p=>{saved.push(p);return {ok:true,annotation:p};};
+ f.source.cues[0].text='First line\nsecond line';const a=f.open(),rev=a.state().rev;
+ assert.equal((await a.cmd('save',{row:0,excerpt:'First line second line'},rev)).ok,true);
+ assert.equal(saved[0].source,'First line second line');
+ assert.equal((await a.cmd('save',{row:0,excerpt:'Foreign phrase'},rev)).code,'invalid-excerpt');
+});
 
 test('assistant adapter respects an invalid explicit selection instead of opening general context',async t=>{
  const f=fixture(t),a=f.open();let opens=0;f.window.api.showAssistant=()=>opens++;f.window.CinemaSahne.current.captureAssistantPassage=()=>{f.window.CinemaSahne.current.assistantSelectionError='Select a shorter source passage';return null;};const refused=await a.cmd('assistant');assert.equal(refused.ok,false);assert.equal(refused.code,'selection-too-long');assert.equal(opens,0);f.window.CinemaSahne.current.captureAssistantPassage=()=>{f.window.CinemaSahne.current.assistantSelectionError='';return {text:'Source'};};assert.equal((await a.cmd('assistant')).ok,true);assert.equal(opens,1);

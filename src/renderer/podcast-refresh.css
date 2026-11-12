@@ -120,3 +120,22 @@
 .pl-v2 .pl-episodes .pl-episode-extras { margin-top: 2px; }
 .pl-v2 .pl-episodes .pl-episode-copy > .pl-episode-actions { grid-row: 1 / 3; align-self: start; }
 .pl-v2 .pl-episodes .pl-episode-copy > .pl-ready { justify-self: start; }
+
+
+/* Dinlemeye Devam Et yokken (ör. filtre) kuyruk tek başına kalsa da sağ taraf boş bir uçurum olmaz. */
+.pl-v2 .pl-stage:not(:has(> .pl-hero)) { grid-template-columns: minmax(0, 1fr); }
+.pl-v2 .pl-stage:not(:has(> .pl-hero)) .pl-side { max-width: none; }
+
+/* Bölüm satırı: teknik satırlar "Bölüm araçları ve notlar" içine alındığı için kompakt, taranabilir satır. */
+.pl-v2 .pl-episodes>.pl-episode { align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: 14px; }
+.pl-v2 .pl-episodes>.pl-episode .pl-episode-extras > summary { font-size: 12px; opacity: .8; }
+.pl-v2 .pl-archive-scope{display:none}   /* teknik arşiv kapsamı satırı ana listede görünmez */
+
+/* Sayfa sırası: Devam Et + Kuyruk → filtre/arama → Bölümler. Filtre artık doğrudan listenin üstünde (CSS sırası; DOM sahipleri değişmez). */
+.pl-v2 .pl-episodes-view{display:flex;flex-direction:column}
+.pl-v2 .pl-episodes-view>.pl-content{display:contents}
+.pl-v2 .pl-episodes-view .pl-stage{order:1}
+.pl-v2 .pl-episodes-view>.pl-list-tools{order:2}
+.pl-v2 .pl-episodes-view .pl-content>.pl-section{order:3}
+.pl-v2 .pl-episodes-view>.pl-list-content{order:4}
+.pl-v2 .pl-episodes-view .pl-jump{display:none}

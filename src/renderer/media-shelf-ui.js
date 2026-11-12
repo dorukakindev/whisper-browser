@@ -628,7 +628,7 @@
     for(const [control,label]of [[font,t('Text size','Yazı boyutu')],[marks,t('Bookmarks & quotes','Yer imleri ve alıntılar')]]){const wrap=el('label','',label);wrap.append(control);toolPanel.append(wrap);}
     for(const button of [...header.querySelectorAll('button')]){
       if([t('Bookmark / quote','Yer imi / alıntı'),t('Copy chapter','Bölümü kopyala'),t('Voice studio','Ses stüdyosu')].includes(button.textContent))toolPanel.append(button);
-      else if(button.textContent===t('Open chapter in voice production','Bölümü sesli üretimde aç')){button.textContent=t('Narrate chapter','Bölümü seslendir');button.classList.add('mh-primary');}
+      else if(button.textContent===t('Open chapter in voice production','Bölümü sesli üretimde aç')){button.textContent=t('Narrate chapter','Bölümü seslendir');button.classList.add('mh-primary');toolPanel.append(button);}
     }
     tools.append(summary,toolPanel);header.insertBefore(tools,header.lastElementChild);toolPanel.addEventListener('click',e=>{if(e.target.closest('button'))tools.open=false;});
     dialog.addEventListener('toggle', event=>{const opened=event.target;if(opened.tagName==='DETAILS'&&opened.open)for(const menu of header.querySelectorAll('details[open]'))if(menu!==opened)menu.open=false;},true);
@@ -699,7 +699,7 @@
         const results=await Promise.all([window.api.feedsRequest({action:'list',podcastLibrary:true}),window.api.feedsRequest({action:'entries',kind:'podcast',podcastLibrary:true,limit:200,offset:0})]);
         if(results.some(r=>!r?.ok))throw Error(t('Feed library could not be read.','Akış kütüphanesi okunamadı.'));
         const feeds=results[0].feeds||[],rows=[...(results[1].rows||[])];let total=results[1].total||rows.length;
-        while(rows.length<total){if(target!==view||request!==renderGeneration||!root.isConnected)return;const page=await window.api.feedsRequest({action:'entries',kind:'podcast',podcastLibrary:true,limit:200,offset:rows.length});if(!page?.ok||!page.rows?.length)throw Error(t('Some feed episodes could not be read.','Bazı akış bölümleri okunamadı.'));rows.push(...page.rows);total=page.total||total;}
+        while(rows.length<total){if(target!==view||request!==renderGeneration||!root.isConnected)return;const page=await window.api.feedsRequest({action:'entries',kind:'podcast',podcastLibrary:true,limit:200,offset:rows.length});if(!page?.ok)throw Error(t('Some feed episodes could not be read.','Bazı akış bölümleri okunamadı.'));if(!page.rows?.length)break;rows.push(...page.rows);total=page.total||total;}
         podcasts=podcasts.map(p=>({...p,episodes:[...p.episodes]}));
         for(const f of feeds){const episodes=rows.filter(r=>r.feedId===f.id&&r.kind==='podcast').map(r=>{const enclosure=r.enclosures?.find(e=>/^audio\//.test(e.type));return {...r,id:r.id,entryId:r.id,url:enclosure?.url,title:r.title,image:r.imageUrl,description:r.summary,date:r.publishedAt||null,duration:r.durationSeconds,position:r.podcastWorkspace?.position||0,sourceVersion:r.sourceVersion,positionState:r.positionState,podcastWorkspace:r.podcastWorkspace,canonicalFeed:true,audioAvailable:!!enclosure?.url};});if(!episodes.length)continue;
           const existing=podcasts.find(p=>p.url===f.url);if(existing){
@@ -743,14 +743,13 @@
     controls.append(btn(t('Add radio', 'Radyo ekle'), async () => { const value = await form(t('Add radio stream', 'Radyo yayını ekle'), [{ key: 'title', label: t('Name', 'Ad') }, { key: 'url', label: t('Direct audio URL', 'Doğrudan ses adresi'), type: 'url' }]); if (value) await task('radio-save', value); }),
       btn(t('Add / refresh podcast', 'Podcast ekle / yenile'), async () => { const value = await form(t('Podcast RSS', 'Podcast RSS'), [{ key: 'url', label: t('RSS / Atom feed URL', 'RSS / Atom besleme adresi'), type: 'url' }]); if (value) await task('podcast-add', value); }));
     root.append(controls);
-    for (const row of snapshot.stations) { const line = el('div', 'ms-track'); line.append(el('strong', '', row.title), btn(t('Listen', 'Dinle'), () => listen([{ ...row, kind: 'stations' }])), btn(t('Remove', 'Kaldır'), () => forget('stations', row), 'mh-text-button')); root.append(line); }
+    for (const row of snapshot.stations) { const line = el('div', 'ms-track ms-channel'); const copy = el('div', 'ms-channel-copy'); copy.append(el('strong', '', row.title), el('small', '', t('Radio station', 'Radyo istasyonu'))); line.append(copy, btn(t('Listen', 'Dinle'), () => listen([{ ...row, kind: 'stations' }]), 'mh-action ms-listen'), btn(t('Remove', 'Kaldır'), () => forget('stations', row), 'mh-action mh-danger')); root.append(line); }
+    // Bu sekme kanal yönetimidir: tekil bölümler "Bölümler" sekmesinde (••• menüsünde araçlarıyla) listelenir, burada tekrarlanmaz.
     for (const podcast of snapshot.podcasts) {
-      const details = el('details', 'ms-podcast'); details.append(el('summary', '', `${podcast.title} (${podcast.episodes.length})`));
-      details.append(btn(t('Refresh', 'Yenile'), () => task('podcast-add', { url: podcast.url })));
-      details.append(btn(t('Remove', 'Kaldır'), () => forget('podcasts', podcast), 'mh-text-button'));
-      podcast.episodes.forEach((row, index) => {
-        const line = el('div', 'ms-track'); line.append(el('strong', '', row.title), btn(t('Play', 'Oynat'), () => listen(podcast.episodes.map(row => ({ ...row, id: podcast.id, kind: 'podcasts' })), index))); details.append(line);window.MediaSourceToolsUI?.podcastTools(details,podcast,row,reload,openLocalMedia);
-      }); root.append(details);
+      const line = el('article', 'ms-track ms-channel'), copy = el('div', 'ms-channel-copy');
+      copy.append(el('strong', '', podcast.title), el('small', '', `${podcast.episodes.length} ${t('episodes', 'bölüm')}${podcast.url ? ' · ' + podcast.url : ''}`));
+      line.append(copy, btn(t('Refresh', 'Yenile'), () => task('podcast-add', { url: podcast.url }), 'mh-action ms-refresh'), btn(t('Unsubscribe', 'Aboneliği kaldır'), () => forget('podcasts', podcast), 'mh-action mh-danger'));
+      root.append(line);
     }
     if (!snapshot.stations.length && !snapshot.podcasts.length) root.append(window.MediaHomeUI.emptyState(t('Find your next listen','Sıradaki dinleyeceğini bul'),t('Add a radio stream or podcast feed using the controls above. Episodes keep their listening position.','Yukarıdaki düğmelerden radyo yayını veya podcast akışı ekle. Bölümlerin dinleme konumu korunur.')));
   }

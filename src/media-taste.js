@@ -157,6 +157,7 @@ function recommend(catalog, taste, options = {}) {
     const explain=signal=>({kind:signal.field==='genres'?'genre':'director',name:signal.name,count:signal.count,average:signal.average,delta:signal.delta,direction:signal.direction,confidence:signal.confidence,source:'saved-personal-ratings',evidence:signal.evidence.slice(0,2),evidenceCount:signal.evidence.length});
     const result={itemId:item.id,title:item.title,year:item.year,kind:item.kind,runtime:Number(item.runtime)>0?Number(item.runtime):null,reasonDetails:basis.map(explain),counterEvidence:negative.map(explain),reasons:basis.map(signal=>`${signal.field}:${signal.name}:${signal.direction}`),evidence,confidence,
       limitations:['metadata-match-not-predicted-enjoyment',...(taste.preferencesConfigured||(taste.preferences?.avoid||[]).length?['aspect-priorities-not-scored']:[]),...(confidence!=='supported'?['limited-rating-evidence']:[]),...(!values(item,'genres').length||!values(item,'directors').length?['incomplete-candidate-metadata']:[]),...negative.map(signal=>`contrary-${signal.field}:${signal.name}`),...(!positive.length?['exploratory-mixed-evidence']:[])]};
+    if(score<=0)continue;   // karşı kanıtı ağır basan aday öneri olarak sunulmaz
     candidates.set(item.id,{score,result});
   }
   return [...candidates.values()].sort((a,b)=>b.score-a.score||String(a.result.title).localeCompare(String(b.result.title))||String(a.result.year).localeCompare(String(b.result.year))||String(a.result.itemId).localeCompare(String(b.result.itemId))).slice(0,limit).map(row=>row.result);

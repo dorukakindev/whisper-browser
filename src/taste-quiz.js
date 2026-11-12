@@ -14,11 +14,13 @@
   function recommend(raw,items,profile={}){
     const quiz=validate(raw),votes=new Map();quiz.answers.forEach((answer,i)=>{const c=questions[i].choices.find(c=>c[0]===answer);for(const genre of c?.[3]||[])votes.set(fold(genre),(votes.get(fold(genre))||0)+1);});
     const history=new Map((profile.genres||[]).filter(g=>g.count>=2&&g.average>=3.5).map(g=>[fold(g.name),g]));
-    return items.filter(item=>['film','series'].includes(item.kind)&&!['watched','completed'].includes(item.watchStatus)).map(item=>{
+    const observed=new Set((profile.observedTitles||[]).map(r=>typeof r==='string'?fold(r):fold(r.title)+'|'+(r.year||'')));
+    const seen=item=>['watched','completed','watching'].includes(item.watchStatus)||item.progress?.completed||Number(item.progress?.position)>0||['watched','completed','watching'].includes(item.personalMedia?.watchStatus)||item.personalMedia?.effectiveResume?.completed||Number(item.personalMedia?.effectiveResume?.positionSeconds)>0||item.effectiveResume?.completed||Number(item.effectiveResume?.positionSeconds)>0||observed.has(fold(item.title))||observed.has(fold(item.title)+'|'+(item.year||''));
+    return items.filter(item=>item&&['film','series'].includes(item.kind)&&!seen(item)).map(item=>{
       const genres=[...new Set((item.genres||[]).filter(g=>votes.has(fold(g))))];
       const supported=genres.filter(g=>history.has(fold(g)));const score=genres.reduce((n,g)=>n+votes.get(fold(g)),0)+supported.length*.25;
       return {id:item.id,title:item.title,year:item.year,genres,supported,score};
-    }).filter(r=>r.score>0).sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)).slice(0,6);
+    }).filter(r=>r.score>0).sort((a,b)=>b.score-a.score||String(a.title||'').localeCompare(String(b.title||''))).slice(0,6);
   }
   return Object.freeze({questions,validate,restore,recommend});
 });

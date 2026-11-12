@@ -148,6 +148,7 @@
       for(const p of subset){const dx=p.sourceTime-ox-mx;variance+=dx*dx;covariance+=dx*(p.videoTime-oy-my);}
       if(variance<=0)return null;
       const scale=covariance/variance;
+      if(!Number.isFinite(scale)||scale<MIN_SCALE||scale>MAX_SCALE)return null;
       return {scale,offset:oy+my-scale*(ox+mx)};
     };
     const outliers = [];

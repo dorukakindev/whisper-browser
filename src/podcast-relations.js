@@ -5,12 +5,14 @@ const visible=e=>e&&e.hidden!==true&&(!e.recordState||e.recordState==='active')&
 const guests=e=>[...String(e.text||e.summary||'').matchAll(/^(?:guest|guests|konuk|konuklar)\s*:\s*([^\r\n]{2,120})$/gim)].slice(0,8).map(m=>({value:fold(m[1]),quote:m[0]}));
 const cite=e=>({entryId:e.id,revision:e.revision,url:e.url||'',feedId:e.feedId||''});
 function timed(e,phrase,cache){
+ const needle=fold(phrase).replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+ if(needle.replace(/\s/g,'').length<2)return null;
  if(!cache.has(e)){
   const session=require('./podcast-session'),version=session.sourceVersion(e),w=e.podcastWorkspace,t=w?.transcript;let cues=[];
   if(w?.sourceVersion===version&&t?.state==='timed'&&['srt','vtt'].includes(t.format)&&(!t.status||t.status==='complete')&&(t.provenance!=='asr'||session.matchesTranscriptTimeline(t.timeline,version,session.sourceBinding(e))))try{session.validateTimedText(t.text);cues=require('./browser-subtitles').parseSubtitlePayload(t.text,'','transcript.'+t.format).cues;}catch{}
   cache.set(e,{cues,version,provenance:t?.provenance});
  }
- const {cues,version,provenance}=cache.get(e),cue=cues.find(c=>(' '+fold(c.text).replace(/[^\p{L}\p{N}]+/gu,' ')+' ').includes(' '+fold(phrase).replace(/[^\p{L}\p{N}]+/gu,' ')+' '));
+ const {cues,version,provenance}=cache.get(e),cue=cues.find(c=>(' '+fold(c.text).replace(/[^\p{L}\p{N}]+/gu,' ').trim()+' ').includes(' '+needle+' '));
  return cue?{start:cue.start,end:cue.end,quote:cue.text,sourceVersion:version,provenance,clock:'saved-source-seconds',playbackVerified:false}:null;
 }
 function relate(seed,candidates,{partial=false}={}){

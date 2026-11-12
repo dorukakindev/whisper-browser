@@ -22,7 +22,7 @@ const src = fs.readFileSync(require('path').join(__dirname, '../src/main.js'), '
 
   // Windows sürücü + Türkçe + boşluk + kesme işareti
   const out = fn('D:\\Videolar\\Şiir Gösterimleri\\Kış Güneşi\'nin altyazısı.srt');
-  ok(out === "subtitles='D\\:/Videolar/Şiir Gösterimleri/Kış Güneşi\\'nin altyazısı.srt'",
+  ok(out === "subtitles='D\\:/Videolar/Şiir Gösterimleri/Kış Güneşi'\\''nin altyazısı.srt'",
     `sürücü-colon kaçışı + slash çevirme + tırnak kaçışı: ${out}`);
   ok(!out.includes('\\\\'), 'backslash kalmaz');
   ok(/Şiir/.test(out), 'Türkçe karakterler korunur');

@@ -13,7 +13,7 @@ function harness(t,{reply=()=>{},run,publicPin,grantMedia}={}){
 test('direct audio preparation uses an authenticated pinned seekable relay and keeps secrets out of ffmpeg argv',async t=>{
  const h=harness(t);const result=await h.prepare({url:'https://media.example/private-key/movie.mkv',headers:[['Authorization','Bearer fixture-key']]});
  assert(fs.existsSync(result.path));assert.equal(result.bytes,128);assert.equal(h.calls[0].options.headers.range,'bytes=0-7');assert.equal(h.calls[0].options.headers.authorization,'Bearer fixture-key');assert.equal(h.pins.length,1);assert(!JSON.stringify(h.argv).includes('private-key'));assert(!JSON.stringify(h.argv).includes('Bearer'));
- assert(h.argv[0].includes('0:a:0'));assert(h.argv[0].includes('16000'));assert(h.argv[0].includes('mov,matroska,mp3,wav,ogg,flac,aac,mpegts,avi'));assert(h.argv[0].includes('-copyts'));assert(h.argv[0].includes('-start_at_zero'));assert(h.argv[0].includes('aresample=async=1:first_pts=0'));
+ assert(h.argv[0].includes('0:a:0?'));assert(h.argv[0].includes('16000'));assert(h.argv[0].includes('mov,matroska,mp3,wav,ogg,flac,aac,mpegts,avi'));assert(h.argv[0].includes('-copyts'));assert(h.argv[0].includes('-start_at_zero'));assert(h.argv[0].includes('aresample=async=1:first_pts=0'));
  await assert.rejects(get(h.argv[0][h.argv[0].indexOf('-i')+1]),/ECONNREFUSED|ECONNRESET/);
 });
 test('redirects are repinned and cross-origin redirects drop all provider credentials',async t=>{

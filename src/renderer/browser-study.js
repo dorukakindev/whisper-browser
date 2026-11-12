@@ -13,7 +13,14 @@
   const key = () => player.workspaceMode === 'browser' ? player.browserActiveTabId : null;
   const media = () => browserTabState()?.mediaId || player.mediaKey;
   const currentSession = (includeClosed = false) => {
-    const session = sessions.get(key());
+    const session = sessions.get(key()), tab = browserTabState();
+    // A late identity observation may fill an unobserved session on the same
+    // page/generation, but cannot carry it to another video or navigation.
+    if (session?.pendingMedia && tab?.mediaId && session.pageUrl === String(player.browserPageUrl || '')
+        && session.tabGeneration === tab.generation) {
+      const previous = session.media; session.media = tab.mediaId; session.pendingMedia = false;
+      if (selectedMedia.get(key()) === previous) selectedMedia.set(key(), session.media);
+    }
     return session?.media === media() && (includeClosed || !session.closed) ? session : null;
   };
   const active = () => !!key() && !!currentSession();
@@ -29,7 +36,7 @@
       previous.subtitleMode = browserTabState()?.subtitleMode;
       previous.closed = false;
     }
-    if (!previous) sessions.set(key(), { view: player.viewMode, media: media(), subtitleMode: browserTabState()?.subtitleMode });
+    if (!previous) sessions.set(key(), { view: player.viewMode, media: media(), pendingMedia:!browserTabState()?.mediaId,pageUrl:String(player.browserPageUrl||''),tabGeneration:browserTabState()?.generation, subtitleMode: browserTabState()?.subtitleMode });
     if (!window.CinemaSahne) {
       setViewMode('study');
       setBrowserSideRailPref('panel');

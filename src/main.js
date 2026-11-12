@@ -15581,6 +15581,7 @@ let browserCacheQuitFlushStarted = false;
 let browserCacheQuitFlushComplete = false;
 app.on('before-quit', (event) => {
   deferTranscriptionQuit(event);
+  if(activeJob||transcriptionQuitPending)return;
   browserExtras?.mini.close();
   for (const tab of browserTabs.values()) browserExtras?.cancel(tab);
   if (watchTimer) clearInterval(watchTimer);
@@ -16047,7 +16048,10 @@ ipcMain.handle('browser:navigate', async (event, payload) => {
 ipcMain.handle('browser:downloads', (event, payload) => {
   if (!authorizedBrowserSender(event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!payload || payload.command === 'list') return { ok: true, downloads: browserDownloads.snapshot() };
-  return browserDownloads.action(payload.id, payload.command);
+  const downloadResult = browserDownloads.action(payload.id, payload.command);
+  // Oynatıcıda açılacak indirme dosyası için medya erişim izni (aksi halde MEDIA_NOT_GRANTED).
+  if (payload.command === 'open-player' && downloadResult?.ok && downloadResult.path) { try { mediaFileAccess.grant(downloadResult.path); } catch (_) { /* izin verilemezse oynatıcı kendi hatasını gösterir */ } }
+  return downloadResult;
 });
 
 ipcMain.handle('browser:reader', async (event, request = {}) => {
@@ -18595,7 +18599,7 @@ ipcMain.handle('pdf:translatePages', async (event, request = {}) => {
     await Promise.all(workers);
     if (job.controller.signal.aborted) throw new Error('PDF çevirisi iptal edildi.');
     if (firstError) throw firstError;
-    const failed = Object.values(state.pages).flat().filter((block) => block.status === 'failed').length;
+    const failed = pages.flatMap((page) => state.pages[String(page.pageNumber)] || []).filter((block) => block.status === 'failed').length;
     const failedCount = pages.filter((page) => (state.pages[String(page.pageNumber)] || [])
       .some((block) => block.status === 'failed')).length;
     const completedCount = pages.length - failedCount;
@@ -20679,25 +20683,9 @@ ipcMain.handle('settings:import', async (event) => {
         collections: uniqueStrings(item.collections).slice(0, 100),
       }));
     }
-    // Önce bütün bölümleri doğrula, sonra settings + browser dosyalarını tek
-    // transaction ile kur. Watch verisi K1'in sürümlü/tombstone'lu deposundan
-    // geçer; düz JSON yazarak store zarfını bypass etme. Kapsamlı yedek
-    // yalnız notları içeriyorsa yazılacak dosya olmayabilir.
-    if (entries.length) writeJsonTransaction(entries);
-    if (importedBrowserPlaces) {
-      browserPlacesCache = importedBrowserPlaces;
-      browserPlacesDirty = false;
-    }
-    if (importedWatchLibrary && !saveWatchLibrary(importedWatchLibrary, { restoreRemoved: true })) {
-      throw new SettingsValidationError('İzleme kütüphanesi güvenli biçimde geri yüklenemedi.');
-    }
-    let importedNotes = 0;
-    if (imported.bundled && Array.isArray(imported.learningAnnotations)) {
-      const noteStore = ensureBrowserNotesReady();
-      if (noteStore.loadError || noteStore.migrationError) {
-        return { ok: false, error: noteStore.loadError || noteStore.migrationError };
-      }
-      importedNotes = noteStore.importMissing(imported.learningAnnotations.map((raw) => {
+    const noteStore=imported.bundled&&Array.isArray(imported.learningAnnotations)?ensureBrowserNotesReady():null;
+    if(noteStore&&(noteStore.loadError||noteStore.migrationError))throw Error(noteStore.loadError||noteStore.migrationError);
+    const annotations=noteStore?imported.learningAnnotations.map((raw) => {
         const annotation = normalizeAnnotation(raw);
         const mediaUrl = String(raw?.mediaUrl || '').slice(0, 2000);
         return {
@@ -20706,8 +20694,10 @@ ipcMain.handle('settings:import', async (event) => {
           mediaType: String(raw?.mediaType || '').slice(0, 40),
           mediaUrl: /^https?:/i.test(mediaUrl) ? persistentBrowserMediaUrl(mediaUrl) : mediaUrl,
         };
-      }));
-    }
+      }):null;
+    const {importedNotes}=require('./settings-bundle-import').commitSettingsBundle({entries,watchStore:importedWatchLibrary?watchLibraryStore():null,watchLibrary:importedWatchLibrary,watchPath:watchLibraryPath(),noteStore,annotations,writeTransaction:writeJsonTransaction});
+    if(importedBrowserPlaces){browserPlacesCache=importedBrowserPlaces;browserPlacesDirty=false;}
+    if(noteStore){browserNoteStoreInstance=null;browserNotesReady=false;}
     return {
       ok: true,
       settings: loadSettings(),
@@ -21239,7 +21229,7 @@ ipcMain.handle('timeline:recovery', (event, payload = {}) => {
 // subtitles filtresi argümanı: yolu tek tırnağa al (boşluk + sürücü iki noktası güvenli),
 // backslash→slash çevir, içerideki tek tırnağı kaçışla. argv ile geçildiği için shell kaçışı gerekmez.
 function ffSubtitlesArg(p) {
-  const fwd = p.replace(/\\/g, '/').replace(/'/g, "\\'").replace(/^([A-Za-z]):/, '$1\\:');
+  const fwd = p.replace(/\\/g, '/').replace(/'/g, "'\\''").replace(/^([A-Za-z]):/, '$1\\:');
   return `subtitles='${fwd}'`;
 }
 
@@ -22453,7 +22443,7 @@ const sourceUpdates = require('./source-updates').createSourceUpdates({
     const runner=path.join(folder,'runner.cjs'),file=path.join(folder,'job.json');
     fs.copyFileSync(path.join(__dirname,'source-update-runner.js'),runner);
     fs.writeFileSync(file,JSON.stringify({...job,pid:process.pid,electron:process.execPath,result:path.join(app.getPath('userData'),'application-update-result.json')}));
-    const child=rawSpawn(process.execPath,[runner,file],{cwd:folder,env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},detached:true,windowsHide:true,stdio:'ignore'});
+    const child=spawn(process.execPath,[runner,file],{cwd:folder,env:{...withoutSecretEnv(process.env),ELECTRON_RUN_AS_NODE:'1'},detached:true,windowsHide:true,stdio:'ignore'});
     await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();setTimeout(()=>app.quit(),350);
   },
 });
@@ -22668,7 +22658,7 @@ async function observePodcastAudio(binding) {
   return media?.tagName === 'audio' && !media.live && media.docToken === binding.mediaToken
     ? require('./feed-parser').safeUrl(media.sourceUrl) : '';
 }
-const mediaFeedsService = require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,observePodcastAudio,grantMedia:file=>mediaFileAccess.grant(file),grantSubtitle:file=>subtitleFileAccess.grant(file),createTextTranslator:({targetLanguage='tr'}={})=>{const config=browserTranslationConfig({targetLanguage,register:'natural prose'});if(browserTranslationConfigProblem(config))throw Error('Önce çeviri sağlayıcısını yapılandırın.');return async(text,signal,context={})=>(await requestBrowserSentenceTranslation({kind:'article',text,contextBefore:context.before,contextAfter:context.after},config,signal)).text;},translateText:(text,signal)=>translateMediaTextToTurkish(text,signal,'article')});
+const mediaFeedsService = require('./feed-service').registerFeeds({app,ipcMain,authorized:authorizedBrowserSender,userData:()=>app.getPath('userData'),catalogStore:mediaCatalogService.store,observePodcastAudio,grantMedia:file=>mediaFileAccess.grant(file),grantSubtitle:file=>subtitleFileAccess.grant(file),createTextTranslator:({targetLanguage='tr'}={})=>{const config=browserTranslationConfig({targetLanguage,register:'natural prose'});if(browserTranslationConfigProblem(config))throw Error('Önce çeviri sağlayıcısını yapılandırın.');const translator=async(text,signal,context={})=>(await requestBrowserSentenceTranslation({kind:'article',text,contextBefore:context.before,contextAfter:context.after},config,signal)).text;translator.checkpointIdentity=require('node:crypto').createHash('sha256').update(JSON.stringify(config)).digest('hex');return translator;},translateText:(text,signal)=>translateMediaTextToTurkish(text,signal,'article')});
 let recallPersonalService;
 personalMediaService=require('./personal-media-service').registerPersonalMedia({ipcMain,authorized:authorizedBrowserSender,catalogStore:mediaCatalogService.store,userData:()=>app.getPath('userData'),history:loadWatchLibraryAll,
   sourceContext:()=>personalMediaNativeSource(),resolveDiscovery:(event,identity)=>mediaCatalogService.discovery.handle(event,{action:'detail',kind:identity.kind,id:identity.imdbId}),

@@ -376,7 +376,7 @@
     if(parked && state.page === 'home'){
       const session=el('section','mh-session');session.id='mhOpenSession';
       const text=el('div');text.append(el('small','',t('Open session · paused','Açık oturum · duraklatıldı')),el('strong','',parked.title),el('p','',[
-        parked.mode==='browser'?'Browser':t('Player','Oynatıcı'),Number.isFinite(parked.position)?minutes(parked.position):'',parked.subtitle?t('Subtitles ready','Altyazı hazır'):'',parked.voice?t('Voice attached','Dublaj bağlı'):''].filter(Boolean).join(' · ')));
+        parked.mode==='browser'?t('Browser','Tarayıcı'):t('Player','Oynatıcı'),Number.isFinite(parked.position)?minutes(parked.position):'',parked.subtitle?t('Subtitles ready','Altyazı hazır'):'',parked.voice?t('Voice attached','Dublaj bağlı'):''].filter(Boolean).join(' · ')));
       const actions=el('div','mh-session-actions');const back=button(t('Return to session','Oturuma dön'),resumeWorkspace,'mh-action mh-primary');back.id='mhResumeWorkspace';
       actions.append(back,button(t('Voice preparation','Ses hazırlığı'),async()=>{await resumeWorkspace();if(!layer.classList.contains('hidden'))await window.MediaExperience?.openVoice();}));
       const close=button('',closeParkedWorkspace,'mh-session-close');close.id='mhCloseWorkspace';
@@ -568,7 +568,7 @@
       const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', d);
       svg.append(path); node.append(svg, el('span', '', label)); node.setAttribute('aria-label', label); node.title = label;
     }
-    actionIcon(browser, 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c4 5 4 13 0 18-4-5-4-13 0-18Z', 'Browser');
+    actionIcon(browser, 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c4 5 4 13 0 18-4-5-4-13 0-18Z', t('Browser', 'Tarayıcı'));
     actionIcon(openMedia, 'M3 6h6l2 2h10v12H3V6Z', t('Open media', 'Medya aç'));
     for(const [mode,tr,en,path] of [['bilingual','Çift dilli çalış','Bilingual study','M4 5h16v14H4zM8 10h3m2 0h3M8 14h8'],['podcast','Podcast','Podcast','M5 13v-2a7 7 0 0 1 14 0v2M5 12H3v7h4v-7Zm14 0h2v7h-4v-7Z']]){
       const entry=button('',()=>window.PodcastLinkUI?.enter(mode),'mh-action mh-study-entry');entry.dataset.studyView=mode;actionIcon(entry,path,t(en,tr));actions.append(entry);
@@ -593,9 +593,11 @@
       control.setAttribute('aria-current', state.page === key ? 'page' : 'false');
       if (key === 'home') control.id = 'mhHome';
       control.addEventListener('click', () => setMenu(false));
-      if (['home','discover','stremio','watched','recommend','films','series','feeds','taste'].includes(key)) { mainPages.push(control); nav.append(control); }
+      if (['home','discover','watched'].includes(key)) { if (key === 'watched') control.textContent = t('My library', 'Kütüphanem'); mainPages.push(control); nav.append(control); }   // Stremio/Filmler/Diziler/Öneriler/Akışlar/Zevkim üst çubuğu şişirmez; menüde
       else extraNav.append(control);
     }
+    // Üst çubukta yer açmak için taşınan sayfalara (Stremio, Filmler, Diziler, Öneriler, Akışlar, Zevkim…) görünür tek giriş.
+    const moreNav = button(t('More', 'Daha fazla'), () => setMenu(menu.hidden)); moreNav.classList.add('mh-nav-more'); moreNav.setAttribute('aria-haspopup', 'menu'); nav.append(moreNav);
     extraNav.append(button(t('Browser scripts','Tarayıcı scriptleri'),()=>window.UserscriptManagerUI.open()),button(t('Browser engine & memory','Tarayıcı motoru ve bellek'),()=>window.BrowserMechanismsUI.open()));
     extraNav.append(button(t('Application updates','Uygulama güncellemeleri'),()=>{setMenu(false);window.ApplicationUpdatesUI.open();}));
     const searchWrap = el('div', 'mh-search'), search = el('input'); searchWrap.id='mhSearchRegion';search.type = 'search'; search.id = 'mhSearch'; search.maxLength = 200;

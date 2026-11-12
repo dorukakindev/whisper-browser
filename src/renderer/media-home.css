@@ -298,3 +298,12 @@ html:not([data-motion=off]):not([data-motion=reduce]) .mh-content>.mh-filterbar~
 
 /* R854 G07: partial read failures belong to the page, alongside the usable content. */
 .mh-library-load-error{max-width:1350px;margin:18px auto;padding:20px 24px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:12px;background:var(--bg-1)}.mh-library-load-error h2{font-size:20px;margin:0 0 10px}.mh-library-load-error p{line-height:1.6;max-width:72ch}
+
+.mh-nav-more{order:99;margin-inline-start:4px;opacity:.85}
+
+/* Tek üst çubuk: Windows pencere düğmeleri (−, □, ✕) ayrı siyah şerit değil, uygulama çubuğunun sağ ucunda.
+   Düğmeler yerel katman olduğundan çubuk onlara yer bırakır (--window-controls-reserve) ve sürüklenebilir kalır. */
+body.media-home-active { --window-controls-safe-height: 0px; --window-controls-reserve: 144px; }
+body.media-home-active .mh-titlebar { display: none; }
+body.media-home-active .mh-header { padding-inline-end: calc(var(--window-controls-reserve) + 12px); -webkit-app-region: drag; }
+body.media-home-active .mh-header :is(button, input, select, textarea, a, nav, label, summary, [role=button]) { -webkit-app-region: no-drag; }

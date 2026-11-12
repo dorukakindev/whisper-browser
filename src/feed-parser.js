@@ -50,7 +50,7 @@ function atomContent(node){
 const atomFormat=node=>['html','xhtml'].includes(node?.attrs.type)?'html':'plain';
 const date=value=>{const n=Date.parse(String(value||''));return Number.isFinite(n)?n:0;};
 function durationSeconds(value) {
- if (typeof value === 'string' && /^\d{1,3}:\d{2}(?::\d{2})?$/.test(value.trim())) {
+ if (typeof value === 'string' && /^\d{1,3}:\d{2}(?::\d{2})?(?:\.\d+)?$/.test(value.trim())) {
   const parts=value.trim().split(':').map(Number);
   if(parts.slice(1).some(part=>part>=60))return null;
   value=parts.reduce((total,part)=>total*60+part,0);

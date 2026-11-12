@@ -830,7 +830,12 @@ function recoverJsonTransaction(journalPath, fsImpl = fs) {
   return true;
 }
 
-function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID()) {
+function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID(), { maxBytes = MAX_IMPORT_BYTES, compact = false } = {}) {
+  // Internal catalog/shelf stores have a larger compact JSON budget. Settings
+  // imports retain their original limit; callers cannot request an unbounded write.
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 32_000_000) {
+    throw new SettingsValidationError('JSON işlem boyutu sınırı geçersiz.');
+  }
   if (!Array.isArray(entries) || entries.length === 0) throw new SettingsValidationError('Yazılacak ayar verisi yok.');
   if (entries.length > MAX_TRANSACTION_RECORDS) throw new SettingsValidationError('Tek işlemde çok fazla ayar dosyası var.');
   if (!entries[0] || typeof entries[0].filePath !== 'string') throw new SettingsValidationError('Ayar dosyası yolu geçersiz.');
@@ -854,9 +859,9 @@ function writeJsonTransaction(entries, fsImpl = fs, token = randomUUID()) {
     seen.add(fileKey);
     assertSafeJsonFile(filePath, fsImpl);
     scanJsonShape(value);
-    const serialized = JSON.stringify(value, null, 2);
-    if (Buffer.byteLength(serialized, 'utf8') > MAX_IMPORT_BYTES) {
-      throw new SettingsValidationError(`JSON dosyası en fazla ${MAX_IMPORT_BYTES} bayt olabilir.`);
+    const serialized = compact ? JSON.stringify(value) : JSON.stringify(value, null, 2);
+    if (Buffer.byteLength(serialized, 'utf8') > maxBytes) {
+      throw new SettingsValidationError(`JSON dosyası en fazla ${maxBytes} bayt olabilir.`);
     }
     fsImpl.mkdirSync(path.dirname(filePath), { recursive: true });
     return {

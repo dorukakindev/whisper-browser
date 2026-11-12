@@ -45,3 +45,17 @@
 #playerWorkspaceV3 .pw-existing-tools #playerSide .side-tabs{container-type:normal;flex:1 1 auto;width:auto;min-width:0}
 #playerWorkspaceV3 .pw-existing-tools #playerSide .side-tab{flex:1 1 auto;width:auto;padding:0 12px;gap:7px}
 #playerWorkspaceV3 .pw-existing-tools #playerSide .side-tab>span:not(.side-tab-ico):not(.side-tab-icon){display:inline}
+
+/* İleri araçlar: başlık + ✕, çerçevesiz yüzeyler, kompakt URL satırı, boşken sayaç/filtre gizli. */
+#playerWorkspaceV3 .pw-existing-tools{background:var(--bg-1);border:0;padding:12px 20px 20px}
+.pw-existing-tools-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 0 8px}
+.pw-existing-tools-title{font-size:16px;font-weight:600;letter-spacing:-.01em}
+#playerWorkspaceV3 .pw-existing-tools .pw-existing-tools-close{display:grid;place-items:center;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--text-dim);cursor:pointer}
+#playerWorkspaceV3 .pw-existing-tools .pw-existing-tools-close:hover{background:color-mix(in srgb,var(--text) 10%,transparent);color:var(--text)}
+#playerWorkspaceV3 .pw-existing-tools>#playerSide{border:0;background:transparent}
+.pw-existing-tools .side-source-quick{display:flex;align-items:center;gap:8px;padding:0;border:0;background:transparent}
+.pw-existing-tools .side-source-quick input{flex:1 1 auto;min-width:0;height:40px;padding:0 14px;border:0;border-radius:8px;background:var(--bg-2)}
+.pw-existing-tools .side-source-quick .btn{flex:0 0 auto;width:auto;min-width:0;height:40px;padding:0 20px;border-radius:8px}
+.pw-existing-tools #playerSide:has(#cueList>.cue-list-empty) :is(#cueIssueTools,#subtitleWorkSummary,.cue-position,.transcript-progress){display:none}
+.pw-existing-tools #playerSide:has(#cueList>.cue-list-empty) #cueList{min-height:0;height:auto;border:0;background:transparent;overflow:visible}
+.pw-existing-tools #playerSide .subtitle-work-summary,.pw-existing-tools #playerSide .cue-issue-tools{border:0;background:var(--bg-2);border-radius:8px}

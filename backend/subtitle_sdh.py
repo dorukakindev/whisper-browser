@@ -209,4 +209,20 @@ def restore_sdh_markers(source_text, translated_text):
     body = re.sub(r"[ \t]+", " ", body).strip()
     ordered = [target[matched[i]] if i in matched else marker
                for i, marker in enumerate(removed)]
-    return (" ".join(ordered) + " " + body).strip()
+    # Boundary descriptors keep their temporal reading order. Interior markers
+    # cannot be aligned word-for-word across languages, so retain the existing
+    # conservative leading placement for those instead of guessing a new word.
+    source = str(source_text or "")
+    leading, trailing = [], []
+    spans = _sdh_spans(source)
+    def without_markers(fragment):
+        for start, end in reversed(_sdh_spans(fragment)):
+            fragment = fragment[:start] + " " + fragment[end:]
+        return fragment.strip()
+    for i, marker in enumerate(ordered):
+        start, end = spans[i]
+        if without_markers(source[:start]) and not without_markers(source[end:]):
+            trailing.append(marker)
+        else:
+            leading.append(marker)
+    return " ".join([*leading, body, *trailing]).strip()

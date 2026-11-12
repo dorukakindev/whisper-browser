@@ -5,7 +5,7 @@ const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 // nor evidence of different bytes and must not escape into the public binding.
 function resourceIdentity(value){try{const u=new URL(value);return u.protocol+'//'+u.host+u.pathname;}catch{return 'unknown';}}
 function episodeIdentity(entry){return hash(entry.externalId?['feed-guid',entry.feedId,entry.externalId]:['local-entry',entry.id]);}
-function declaredSource(entry){const e=entry.enclosures?.find(e=>/^audio\//.test(e.type));return {resource:e?resourceIdentity(e.url):'unknown',mime:e?.type||'unknown',declaredLength:Number.isSafeInteger(e?.length)&&e.length>0?e.length:'unknown'};}
+function declaredSource(entry){const e=entry.enclosures?.find(e=>/^(?:audio|video)\//.test(e.type));return {resource:e?resourceIdentity(e.url):'unknown',mime:e?.type||'unknown',declaredLength:Number.isSafeInteger(e?.length)&&e.length>0?e.length:'unknown'};}
 function validateAudioEvidence(e){
  if(!e||!Number.isInteger(e.revision)||e.revision<1||!/^[a-f0-9]{64}$/.test(e.declaration)||!(e.etag==='unknown'||typeof e.etag==='string'&&e.etag.length<=500&&!/[\r\n\0]/.test(e.etag))||!Number.isSafeInteger(e.length)||e.length<1||!/^[a-f0-9]{64}$/.test(e.sha256)||e.probe!=='unknown')throw Error('Invalid podcast audio evidence.');return e;
 }

@@ -413,6 +413,11 @@ function chooseTorrentFile(files, stream = {}, episode = null) {
     ];
     const hit = videos.filter((file) => patterns.some((pattern) => pattern.test(String(file.name))));
     if (hit.length) return hit.sort((a, b) => (b.size || 0) - (a.size || 0))[0];
+    // Episode-only anime names are safe only in an unambiguous first-season
+    // pack; explicit season folders must agree with the requested season.
+    const bare=new RegExp('(?:episode|ep)[ ._-]?0*'+e+'(?![0-9])|(?:^|[ ._-])-[ ._-]*0*'+e+'(?:[ ._\\[]|$)','i');
+    const episodeOnly=videos.filter(file=>{const name=String(file.name),folder=/\b(?:season[ ._-]*|s)0*(\d+)(?:[\\/ ._-]|$)/i.exec(name);return (folder?Number(folder[1])===s:s===1)&&bare.test(name);});
+    if(episodeOnly.length===1)return episodeOnly[0];
     if(videos.length>1)return null;
   }
   return [...videos].sort((a, b) => (b.size || 0) - (a.size || 0))[0];

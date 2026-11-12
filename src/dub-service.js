@@ -758,6 +758,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
             strength:c.deliveryStrength,output:file,onProcess:proc=>{s.proc=proc;},isCancelled:()=>s.cancelled,
             status:progress=>emit(s,'status',{stage:'delivery_analysis',text:progress==='stop_failed'
               ? 'Analiz durdurulamadı; Durdur düğmesiyle tekrar deneyin.' : `Özgün anlatım analiz ediliyor · ${progress}`})});
+          s.proc = null;
           if (s.cancelled) throw new Error('Cancelled');
           if (fs.statSync(file).size > 2_000_000) throw new Error('Delivery map too large');
           const delivery = JSON.parse(fs.readFileSync(file,'utf8'));
@@ -793,6 +794,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
                   : stage === 'separate_cpu' ? 'Müzik ve ortam sesi ayrılıyor · CPU…' : 'Müzik ve ortam sesi ayrılıyor…';
               emit(s,'status',{stage,text});
             }});
+          s.proc = null;
           if (s.cancelled) throw new Error('İptal edildi.');
           grantMedia(file); background={path:file,url:pathToFileURL(file).href}; s.settings.keepBackground=true;
           s.savedAssets={...s.savedAssets,background:savedAssets.capture(s.id,'background')};
@@ -1118,7 +1120,7 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       restoringOutput=true;row.state='running';
       row.promise=(async()=>{
         let result;
-        try{result=await ledger.restoreOutput(row.runId,row.staged,row.fingerprint);}
+        try{result=await ledger.restoreOutput(row.runId,row.staged,row.fingerprint);if(result?.ok!==false)grantMedia(path.join(voiceStorage(app).output,row.runId+'.wav'));}
         catch(error){result={ok:false,error:error.message};}
         finally{restoringOutput=false;row.state='settled';discardRestore(request.token);pendingOutputRestore=null;}
         while(settledRestores.size>=128)settledRestores.delete(settledRestores.keys().next().value);
@@ -1200,7 +1202,8 @@ function registerDubService({ app, ipcMain, dialog, owner, authorized, authorize
       }
       const pronunciations=pronunciationStore().resolve(pronunciationScope(request.source,bytes),config().pronunciations).pronunciations;
       if(JSON.stringify(pronunciations)!==JSON.stringify(view.pinned.pronunciations||[]))throw Error('Pronunciations changed; restore the original dictionary / Telaffuzlar değişti; özgün sözlüğü geri yükleyin.');
-      referenceRecipes.set(e.sender.id+':'+runId,{reference:referenceFingerprint(config()),pronunciations,assets,
+      let referencePrint;try{referencePrint=referenceFingerprint(config());}catch(_){throw Error('Reference voice file could not be read; select it again / Referans ses dosyası okunamadı; yeniden seçin.');}
+       referenceRecipes.set(e.sender.id+':'+runId,{reference:referencePrint,pronunciations,assets,
         scope:JSON.stringify([view.pinned.subtitleHash,view.pinned.sourceIdentity||null,view.pinned.range||null,view.pinned.grouping,view.pinned.expression,view.pinned.deliveryStrength,view.pinned.timingMode,view.pinned.followDelivery,view.pinned.deliveryAutomatic])});
       while(referenceRecipes.size>128)referenceRecipes.delete(referenceRecipes.keys().next().value);
       return {ok:true,recipe,subtitleHash:view.pinned.subtitleHash};

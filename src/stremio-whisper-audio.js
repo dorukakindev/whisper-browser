@@ -47,7 +47,7 @@ function createStreamAudioPreparer({directory,ffmpeg,grantMedia,publicPin,run=ru
     }
     if(![200,206].includes(response.statusCode)){response.destroy();throw fail('FAILED');}
     const mime=String(response.headers['content-type']||'').split(';')[0].toLowerCase();
-    if(mime&& !/^(?:audio\/|video\/|application\/octet-stream$)/.test(mime)||response.headers['content-encoding']&&response.headers['content-encoding']!=='identity'){response.destroy();throw fail('FORMAT');}
+    if(mime&& !/^(?:audio\/|video\/|application\/(?:octet-stream|x-matroska|x-download|force-download|x-msdownload)$|binary\/octet-stream$)/.test(mime)||response.headers['content-encoding']&&response.headers['content-encoding']!=='identity'){response.destroy();throw fail('FORMAT');}
     return response;
    }
    server=http.createServer(async(req,res)=>{
@@ -80,7 +80,7 @@ function createStreamAudioPreparer({directory,ffmpeg,grantMedia,publicPin,run=ru
    // Keep the container's media clock. In particular, an audio stream beginning
    // after the video's first frame needs leading silence rather than captions
    // shifted to zero. Only timestamps from this exact source drive the padding.
-   const args=['-hide_banner','-loglevel','error','-nostdin','-nostats','-progress','pipe:2','-copyts','-start_at_zero','-protocol_whitelist','http,tcp','-format_whitelist','mov,matroska,mp3,wav,ogg,flac,aac,mpegts,avi','-rw_timeout','30000000','-i',`http://127.0.0.1:${server.address().port}${route}`,'-map','0:a:0','-vn','-sn','-dn','-af','aresample=async=1:first_pts=0','-ac','1','-ar','16000','-c:a','pcm_s16le','-t',String(MAX_SECONDS+1),'-fs',String(MAX_OUTPUT),'-n',output];
+   const args=['-hide_banner','-loglevel','error','-nostdin','-nostats','-progress','pipe:2','-copyts','-start_at_zero','-protocol_whitelist','http,tcp','-format_whitelist','mov,matroska,mp3,wav,ogg,flac,aac,mpegts,avi','-rw_timeout','30000000','-i',`http://127.0.0.1:${server.address().port}${route}`,'-map','0:a:0?','-vn','-sn','-dn','-af','aresample=async=1:first_pts=0','-ac','1','-ar','16000','-c:a','pcm_s16le','-t',String(MAX_SECONDS+1),'-fs',String(MAX_OUTPUT),'-n',output];
    await run(typeof ffmpeg==='function'?ffmpeg():ffmpeg,args,undefined,combined,30*60*1000,line=>{const match=/^out_time_us=(\d+)$/.exec(line);if(match)progress({phase:'extracting',seconds:Number(match[1])/1000000});},{waitForCloseOnCancel:true});
    combined.throwIfAborted();if(relayFailure)throw relayFailure;
    progress({phase:'checking',seconds:null});const stat=await fs.promises.lstat(output);

@@ -63,7 +63,7 @@
         if (!role || !role.cues.some((c) => c.id === command.cueId)) return fail('unknown-cue', 'Satır bulunamadı.');
       }
       if (command.type === 'seek' && (!isNum(command.time) || command.time < 0
-        || (isNum(snap.duration) && command.time > snap.duration))) return fail('invalid-range', 'Geçersiz zaman.');
+        || (isNum(snap.duration) && snap.duration > 0 && command.time > snap.duration))) return fail('invalid-range', 'Geçersiz zaman.');
       if (command.type === 'setAB' && !validateAbRange(command.a, command.b, snap.duration)) {
         return fail('invalid-range', `A–B aralığı en az ${MIN_AB_SECONDS} sn olmalı ve medya içinde kalmalı.`);
       }
