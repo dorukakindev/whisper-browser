@@ -22,6 +22,8 @@ Whisper Browser is a desktop media library, player and embedded browser, with di
 
 ## Proje bilgisi ve kaldığın yer
 
+**2026-11-13 · V6 incelemesi ve entegrasyonu:** [Kapsam, hedefli doğrulama ve kabul sınırları](docs/devir/2026-11-13-0216.md); [116 maddelik karar kaydı](docs/raporlar/V6_BUG_AUDIT_20261113.md). Sahne/altyazı araçları ve Podcast görünümü sıcak amber/grafit ile birleştirildi. Önceki asistan ve akıştan Whisper sahipliği korundu; raporda 42 V6 düzeltmesi doğrulandı, 47 madde incelemede düzeltildi. Kalan 27 kayıt bug olmayan iddia, tekrar veya zaten doğru davranış. Bu teslim yeni TorBox/GPU/mpv/OS PiP kabulü değildir; önceki canlı kabul kayıtları geçerliliğini korur. Son teslim HEAD’i Git’ten doğrulanır.
+
 **2026-11-11 15:24 V4 entegrasyonu:** [İnceleme, ek onarımlar ve Windows doğrulaması](docs/devir/2026-11-11-1524.md). Kaynak özeti/Whisper uygunluğu, yeniden arama ve tamamlanan torrent dosyası bağlantısı; önceki asistan/Whisper korunarak geciken yenileme ve oynatma yarışları düzeltildi. Stremio Chromium24/24, Sahne25/25; gerçek medya/native/GPU kabulü ayrı. Git teslimi açıkça yetkili, sonHEAD Git'ten doğrulanır.
 
 **2026-11-11 14:27 V3 teslim edildi:** [PR918, kapsam ve doğrulama](docs/devir/2026-11-11-1423.md). Mevcut asistan/Whisper düzeltmeleriyle V3 master'a birleşti; native eklenti onayı, asistan baloncuğu ve kapalı eklenti okunurluğu onarıldı. Ürün merge'i40d77053; sonuç belge teslimi ürün kodunu değiştirmez, sonHEAD Git'ten doğrulanır. Aşağıdaki kayıtlar tarihseldir.

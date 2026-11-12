@@ -1,5 +1,7 @@
 # Yeni sohbet için Whisper Browser özeti
 
+2026-11-13 V6 güncellemesi: kullanıcı paket incelemesi, rapor doğrulaması ve commit/push/master teslimini açıkça yetkilendirdi. Taban `ca6ddd45ae02ab94b1207300583cae13e99ed7de`; yalnız kümülatif V6 uygulandı. Önceki asistan/Whisper korunarak arayüz, zaman/iş sahipliği, atomik veri aktarımı ve rapordaki doğrulanmış mantık hataları düzeltildi. [Güncel devir](devir/2026-11-13-0216.md), [116 karar](raporlar/V6_BUG_AUDIT_20261113.md). 42 V6 + 47 inceleme düzeltmesi; diğer 27 kayıt yeni bug değildir. Bu turda canlı model/GPU/TorBox çağrısı yok. Önceki gerçek tam film/kaynak geçişi kanıtı yeniden koşulmadı; Samuels özel adı için dinleme incelemesi açık kalır. Kişisel farklar ve açık uygulama korunur. Nihai uzak/yerel HEAD Git’ten doğrulanır; aşağıdaki eski sonraki iş/Git ifadeleri tarihseldir.
+
 2026-11-11 15:24: Kullanıcı V4 entegrasyonu ve commit/push/master teslimini yetkilendirdi. Kaynak seçimi/Whisper uygunluğu paketi ve ek gecikmiş yenileme/oynatma/torrent sahiplik onarımları [1524 devrinde](devir/2026-11-11-1524.md). Önceki asistan ve Whisper korunur; gerçek sağlayıcı/native/GPU kabulü açık. Nihai teslim HEAD'i gerçek Git'ten doğrulanır. Aşağıdaki paket üreticisi kaydı tarihsel aşamadır.
 
 2026-11-11 15:00 güncellemesi: Stremio kaynak seçici oynatılabilirlik/Whisper uygunluğu, baştan oynatma, film sayfası hata durumu, Yenile kimlik koruması ve açık tema panel okunurluğu yerelde tamamlandı; kümülatif patch olarak teslim edildi, Git teslimi yok. [Devir](devir/2026-11-11-1500.md).

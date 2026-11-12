@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-13 · V6 oynatıcı ve doğrulanmış rapor onarımları
+
+- Film transport araçları ve HTML altyazı görünüm ayarları; Podcast/Çift dilli Aa menüsü, sinematik başlık ve asistan görünümü birleştirildi. Transkript alt araçları örtmez, kapanan menü otomatik gizleme kilidi bırakmaz; native altyazı görünümü mevcut native ayarlara yönlenir.
+- Asistan aynı medya içinde altyazı revizyonundan etkilenmez; eski medya nesli hâlâ reddedilir. Zaman ofseti gerçek kontrol sınırında kalıcıdır. Whisper seçimi/iş sahipliği korunur; genel gecikme penceresi yerine açık işe bağlı koruma kullanılır.
+- Ayar/not ve katalog/raf aktarımı atomik; geri alma ve korumalı sır kurtarma güvenliği korunur. Altyazı zaman/işaretleme, dublaj iş sahipliği, torrent hash kimliği, arama kaynakları ve oynatma devam sırası onarıldı. Otomatik kişisel yedek temizliği eklenmedi.
+- [116 maddelik karar kaydı](docs/raporlar/V6_BUG_AUDIT_20261113.md): 42 V6 düzeltmesi, 47 inceleme düzeltmesi, 24 doğrulanmayan iddia, 2 tekrar, 1 zaten doğru. Hedefli testler ve Chromium görselleri geçti; gerçek TorBox/GPU/mpv/OS PiP yeni kabulü yok. [Testler ve sınırlar](docs/devir/2026-11-13-0216.md).
+
 ## 2026-11-11 · V4 entegrasyon onarımları
 
 - Geciken eklenti Yenile yanıtı yeni manifest'i ezmez; kapanan kaynak seçici veya panelin bekleyen oynatma işlemi yeni medyayı açamaz. Tamamlanan torrent dosyasını yalnız anahtar/nesil sahibi tek izleyici bağlar. Ertelenmiş yanıt regresyonları geçti.

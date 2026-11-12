@@ -1,3 +1,9 @@
+# V6 inceleme ve entegrasyon · 2026-11-13
+
+- Kümülatif V6, mevcut asistan/Whisper ve kaynak sahipliği korunarak birleştirildi. [116 kararın kaydı](docs/raporlar/V6_BUG_AUDIT_20261113.md): 42 V6, 47 inceleme düzeltmesi; 24 doğrulanmayan iddia, 2 tekrar, 1 zaten doğru. [Devir/test sınırları](docs/devir/2026-11-13-0216.md).
+- Hedefli davranış, güvenlik, atomik rollback ve Chromium görünüm kontrolleri geçti. İzole gerçek rqbit smoke geçti. Hidden Electron ekran yakalama zaman aşımı yaşadı; Chromium görselleri native/mpv/OS PiP kabulü değildir. Bu teslimde yeni TorBox/GPU/sağlayıcı çağrısı yapılmadı.
+- Açık kalan önceki kabul: Samuels özel adının kısa satırını dinleyerek ASR/telaffuz ayrımı; gerekiyorsa yalnız o satırı yeniden üret. Önceki tam film Whisper/gerçek iki kaynak geçişi kabulü yeniden iş açılmadan korunur. Bu tur yeni ürün engeli yok; kişisel ve başka sohbet belgeleri teslim dışı korunur.
+
 # V4 entegrasyonu ve ek yarış onarımları · 2026-11-11 15:24
 
 - Kullanıcı V4 entegrasyonu ve commit/push/master teslimini yetkilendirdi. Taban yerel/uzak master 8c649d68; önceki asistan ve Whisper sahipleri korundu. [Bağımsız inceleme ve kabul sınırları](docs/devir/2026-11-11-1524.md).
