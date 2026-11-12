@@ -211,7 +211,15 @@ class SafeSecretStore {
       // Failure leaves the primary untouched and is reported to the caller.
       const backup = `${this.filePath}.bak`;
       if (dropFields.size && this.fs.existsSync(backup)) {
-        const mirror = JSON.parse(this.fs.readFileSync(backup, 'utf8'));
+        let mirror;
+        try { mirror = JSON.parse(this.fs.readFileSync(backup, 'utf8')); }
+        catch (error) {
+          if (!(error instanceof SyntaxError)) throw error;
+          // A partially decryptable primary still owns all encrypted entries.
+          // Explicit deletion must not be blocked by a truncated recovery copy;
+          // rebuild only that mirror from the new ciphertext, never plaintext.
+          mirror = { version: SECRET_STORE_VERSION, entries: { ...entries } };
+        }
         if (mirror.version !== SECRET_STORE_VERSION || !mirror.entries || typeof mirror.entries !== 'object') throw Error('Invalid secret recovery mirror.');
         for (const field of dropFields) delete mirror.entries[field];
         const backupTemp = temp + '.bak';

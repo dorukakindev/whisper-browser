@@ -291,7 +291,22 @@ function markupPreserved(source, translated) {
   const a=tokens(source),b=tokens(translated);
   if (!a.length) return true;
   const canonical = token => token.startsWith('<') ? token.replace(/^<(\/?)([a-z]+)/i,(_,slash,name)=>'<'+slash+name.toLowerCase()) : token;
-  return JSON.stringify(a.map(canonical))===JSON.stringify(b.map(canonical));
+  // Existing identical spans include WebVTT's implicitly closed voice/class cues.
+  if(JSON.stringify(a.map(canonical))===JSON.stringify(b.map(canonical)))return true;
+  const balanced = values => {
+    const stack=[];
+    for(const token of values){
+      const match=token.match(/^<(\/?)([a-z]+)/i);if(!match)continue;
+      const name=match[2].toLowerCase();
+      if(match[1]){if(stack.pop()!==name)return false;}else stack.push(name);
+    }
+    return stack.length===0;
+  };
+  if(!balanced(a)||!balanced(b))return false;
+  const html = values => values.filter(token=>token.startsWith('<')).map(token=>canonical(token).replace(/#[0-9a-f]{3,8}\b/gi,value=>value.toLowerCase())).sort();
+  const other = values => values.filter(token=>!token.startsWith('<'));
+  return JSON.stringify(html(a))===JSON.stringify(html(b))
+    && JSON.stringify(other(a))===JSON.stringify(other(b));
 }
 function translationBlockingIssues(source, translated, targetLanguage = 'tr') {
   const issues=translationMeaningIssues(source, translated, targetLanguage).filter(issue => issue === 'number_mismatch' || issue === 'negation_missing' || issue === 'negation_added' || issue === 'modal_weakened' || issue === 'modal_certainty_flip');

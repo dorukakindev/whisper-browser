@@ -183,7 +183,7 @@ function registerBrowserFeatureServices(deps) {
     const dl = deps.dialogText || ((tr) => tr);
     const label = dl(title, chooseTitles.get(title) || title);
     const result = await dialog.showOpenDialog(owner(), { title: label, properties: ['openFile'], filters: [{ name: label, extensions }] });
-    if (result.canceled || !result.filePaths?.[0]) throw new Error('Dosya seçimi iptal edildi.');
+    if (result.canceled || !result.filePaths?.[0]) throw Object.assign(new Error('Dosya seçimi iptal edildi.'),{code:'USER_CANCELLED'});
     return result.filePaths[0];
   }
   ipcMain.handle('browser:extras', async (event, input) => {
@@ -445,7 +445,7 @@ function registerBrowserFeatureServices(deps) {
           const outputDir = path.join(app.getPath('temp'), 'whisper-browser-scenes', randomUUID());
           try {
             const output = await tools().sceneStrip({ videoPath, outputDir }, { signal: controller.signal }); assertCurrent();
-            result = { scenes: output.scenes.map(scene => ({ time: scene.time, thumbnail: `data:image/jpeg;base64,${fs.readFileSync(scene.thumbnailPath).toString('base64')}` })) };
+            result = { scenes: output.scenes.flatMap(scene => {try{const bytes=fs.readFileSync(scene.thumbnailPath);return bytes.length?[{time:scene.time,thumbnail:`data:image/jpeg;base64,${bytes.toString('base64')}`}]:[];}catch{return [];}}) };
           } finally { try { fs.rmSync(outputDir, { recursive: true, force: true }); } catch (_) {} }
           break;
         }
@@ -511,6 +511,7 @@ function registerBrowserFeatureServices(deps) {
       assertCurrent();
       return { ok: true, ...result };
     } catch (error) {
+      if(error.code==='USER_CANCELLED')return {ok:true,canceled:true};
       if(payload.action==='whisper-audio'&&current()&&/^Podcast audio (?:format is unsupported|unavailable or response is not audio|exceeds 512 MiB)\.$/.test(error.message)){
         return {ok:false,code:'live-whisper-available',error:dl(
           'Bölüm sesi toplu işleme için alınamadı. Canlı Whisper oynatılan sesi yazıya döker.',
@@ -524,7 +525,7 @@ function registerBrowserFeatureServices(deps) {
       const item=[...preparedAudio.values()].find(entry=>entry.path===file&&validPreparedAudio(entry));
       if(!item)return null;
       item.inUse=(item.inUse||0)+1;
-      return {binding:item.binding,release:()=>{item.inUse--;}};
+      let released=false;return {binding:item.binding,release:()=>{if(released)return;released=true;item.inUse=Math.max(0,(item.inUse||0)-1);}};
     },
     translationContext: (tab, targetLanguage) => {
     const language = require('./browser-series-context').targetLanguageOf(targetLanguage);

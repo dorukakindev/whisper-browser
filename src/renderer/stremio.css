@@ -96,6 +96,8 @@
 /* ---- Oynatıcı: öneri, atlama, hızlı gezinme, sıradaki ---- */
 .sx-native-hint{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:62;display:grid;gap:8px;width:min(520px,calc(100% - 36px));padding:14px 16px;border:1px solid var(--accent);border-radius:14px;background:rgb(var(--media-scrim-rgb)/.94);backdrop-filter:blur(14px);color:var(--text)}.sx-native-hint small{color:var(--text-dim);line-height:1.5}
 .sx-skip{position:absolute;right:22px;bottom:96px;z-index:61}
+.sx-html-actions{position:absolute;right:22px;bottom:96px;z-index:61;display:flex;flex-direction:column;align-items:flex-end;gap:12px;max-width:calc(100% - 44px)}
+.sx-html-actions>:is(.sx-skip,.sx-next){position:static;max-width:100%;min-width:0}
 .sx-quick{display:flex;gap:8px;flex-wrap:wrap}
 .sx-next-count{color:var(--accent)!important}.sx-next .sx-check{margin:0;white-space:normal}
 .sx-thumb{position:relative;display:grid;place-items:center}.sx-thumb-tag{font:600 15px 'Sora',sans-serif;color:var(--text-dim)}.sx-thumb img{position:absolute;inset:0}

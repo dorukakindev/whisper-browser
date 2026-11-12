@@ -9,6 +9,7 @@ function createTextVoiceHistory(app){
  const roots=()=>require('./voice-storage').voiceStorage(app);
  function item(id){
   if(!ID.test(id))throw Error('Invalid text result identity.');
+  try {
   const dirs=roots(),input=fs.realpathSync(path.join(dirs.input,'Metin')),folder=path.join(input,id);
   if(fs.realpathSync(folder)!==folder)throw Error('Invalid text result folder.');
   for(const name of ['job.json','request.json'])if(fs.realpathSync(path.join(folder,name))!==path.join(folder,name))throw Error('Invalid text result record.');
@@ -19,6 +20,7 @@ function createTextVoiceHistory(app){
   const output=path.join(fs.realpathSync(dirs.output),name);
   if(path.resolve(request.output)!==output||fs.realpathSync(output)!==output||summary.path!==request.output||!validVoiceOutput(output))throw Error('Text audio is missing or invalid.');
   return {id,path:output,name,sample:summary.sample===true,finishedAt:typeof summary.finishedAt==='string'?summary.finishedAt:'',elapsedSeconds:Number.isFinite(summary.elapsedSeconds)?Math.max(0,summary.elapsedSeconds):null};
+  } catch(error) { if(error.code==='ENOENT')throw Error('Saved text audio or its input is missing. Restore the original files or create a new recording. / Kayıtlı metin sesi veya girdisi eksik. Özgün dosyaları geri getirin ya da yeni kayıt oluşturun.',{cause:error}); throw error; }
  }
  function ids(){
   try{const data=json(file,16384);if(data.version!==1||!Array.isArray(data.ids))return [];return data.ids.filter(id=>typeof id==='string'&&ID.test(id)).slice(0,20);}catch(error){if(error.code!=='ENOENT')return [];}

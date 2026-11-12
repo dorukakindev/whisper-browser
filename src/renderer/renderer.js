@@ -12614,17 +12614,10 @@ function browserTrackSourceIdentity(track, cues = []) {
   const proofCues = track.role !== 'translation' && cues.length ? cues : sourceRole;
   const sourcePrefixCount = Math.min(32, proofCues.length);
   const sourcePrefixHashes = {};
-  for (let count = 1; count <= sourcePrefixCount; count++) {
-    sourcePrefixHashes[count] = browserSubtitleSync.cuePrefixHash(proofCues, count);
-  }
-  return {
-    mediaId: browserTabState()?.mediaId || '',
-    sourceTrackId,
+  for (let count = 1; count <= sourcePrefixCount; count++) sourcePrefixHashes[count] = browserSubtitleSync.cuePrefixHash(proofCues, count);
+  return { mediaId: browserTabState()?.mediaId || '', sourceTrackId,
     sourceHash: track.sourceHash || (proofCues.length ? browserSubtitleSync.cuePrefixHash(proofCues, proofCues.length) : ''),
-    sourcePrefixHash: sourcePrefixCount ? browserSubtitleSync.cuePrefixHash(proofCues, sourcePrefixCount) : '',
-    sourcePrefixCount,
-    sourcePrefixHashes,
-  };
+    sourcePrefixHash: sourcePrefixCount ? sourcePrefixHashes[sourcePrefixCount] : '', sourcePrefixCount, sourcePrefixHashes };
 }
 
 function browserTimingContext(track, cues, secondary) {
@@ -21159,9 +21152,13 @@ function aiSourceScope() {
 }
 function aiVideoRows() {
   const roles=browserSubtitleRoleCues();
-  const convert=(cues,role)=>cues.map(cue=>({...cue,
-    start:browserSubtitleSync.sourceToVideoTime(cue.start,browserTransformForRole(role)),
-    end:browserSubtitleSync.sourceToVideoTime(cue.end,browserTransformForRole(role))}));
+  const convert=(cues,role)=>{
+    // Dönüşüm rolün tamamı için tek; satır başına yeniden hesaplamak O(n²) idi.
+    const transform=browserTransformForRole(role);
+    return cues.map(cue=>({...cue,
+      start:browserSubtitleSync.sourceToVideoTime(cue.start,transform),
+      end:browserSubtitleSync.sourceToVideoTime(cue.end,transform)}));
+  };
   const source=convert(roles.source.length?roles.source:roles.translation,roles.source.length?'source':'translation');
   const translated=roles.source.length?translationsForCues(source,convert(roles.translation,'translation')):source.map(cue=>cue.text);
   return source.map((cue,index)=>({...cue,translation:translated[index]||''}));
@@ -22049,6 +22046,7 @@ function bindHoldToSpeed() {
   let timer = null;
   let prevRate = 1;
   let active = false;
+  let heldRate = 2;
 
   const stop = () => {
     clearTimeout(timer);
@@ -22058,7 +22056,7 @@ function bindHoldToSpeed() {
       player.holdingSpeed = false;
       // Hold sürerken başka yol (politika vb.) hızı değiştirdiyse ezme —
       // yalnız hâlâ bizim koyduğumuz 2x ise eski değere dön.
-      if (Math.abs(v.playbackRate - 2) < 1e-6) v.playbackRate = prevRate;
+      if (Math.abs(v.playbackRate - heldRate) < 1e-6) v.playbackRate = prevRate;
       stage.classList.remove('holding');
       player.suppressClick = true;          // birakinca duraklatma tetiklenmesin
       setTimeout(() => { player.suppressClick = false; }, 120);
@@ -22078,7 +22076,8 @@ function bindHoldToSpeed() {
       active = true;
       player.holdingSpeed = true;
       prevRate = v.playbackRate;
-      v.playbackRate = 2;
+      heldRate = Math.max(prevRate, Math.min(4, Math.max(2, prevRate * 1.5)));   // zaten hızlıysa yavaşlatma, daha da hızlandır
+      v.playbackRate = heldRate;
       stage.classList.add('holding');
       showControls();
     }, 350);                                 // 350 ms basili tutunca devreye girer
@@ -24699,6 +24698,7 @@ function openPlayer(jobSnapshot = null) {
 }
 
 function closePlayer() {
+  window.StremioUI?.rememberWorkTracks?.();
   if(window.MediaHomeUI&&!$('playerLayer').classList.contains('hidden')){
     void window.MediaHomeUI.returnHome().catch(error=>logLine(error.message,'error'));return;
   }
@@ -27553,7 +27553,7 @@ async function preparePlayerStreamWhisperAudio(source) {
   let polling=false;
   const timer=setInterval(async()=>{
     if(polling||job.cancelled)return;
-    if(!current()||selection[0]!==String(player.subPath||'')||selection[1]!==String(player.sub2Path||'')){await job.cancel();return;}
+    if(!current()||(selection[0]!==String(player.subPath||'')||selection[1]!==String(player.sub2Path||''))){await job.cancel();return;}
     polling=true;
     try{const result=await window.api.stremio({action:'audio-status',requestId});
       if(current()&&player.job===job&&result?.active&&Number.isFinite(result.progress?.seconds)){
@@ -27564,7 +27564,7 @@ async function preparePlayerStreamWhisperAudio(source) {
   },750);
   try{
     const result=await window.api.stremio({action:'audio-prepare',...source,requestId});
-    if(job.cancelled||!current()||selection[0]!==String(player.subPath||'')||selection[1]!==String(player.sub2Path||''))return null;
+    if(job.cancelled||!current()||(selection[0]!==String(player.subPath||'')||selection[1]!==String(player.sub2Path||'')))return null;
     if(!result?.ok||result.key!==key||!result.path){
       if(result?.code!=='AUDIO_CANCELLED'){
         const message=result?.code==='STREAM_AUDIO_FORMAT'?interfaceChoice('Ses hazırlığı doğrudan medya dosyası gerektirir; HLS/DASH veya bu dosya biçimi desteklenmiyor.','Audio preparation needs a direct media file; HLS/DASH or this file format is unsupported.')
@@ -29127,7 +29127,7 @@ function pickSeekStoryboard(boards) {
 async function ensureSeekPreviewSheet() {
   if (!player.localPath || !window.api.getSeekPreview) return;
   const key = player.mediaKey;
-  if (!key || player.seekLocalSheets?.has(key) || player.seekLocalBusy) return;
+  if (!key || player.seekLocalSheets?.has(key) || player.seekLocalBusy || player.seekLocalFailed?.has(key)) return;
   const video = $('playerVideo');
   const duration = video && Number.isFinite(video.duration) ? video.duration : 0;
   if (!duration) return;
@@ -29147,6 +29147,10 @@ async function ensureSeekPreviewSheet() {
         frameHeight: 0,
         intervalMs: Math.max(1, duration) * 1000 / (res.count || 100),
       });
+    } else if (player.localPath === path) {
+      // Başarısız üretim bu medya için bir kez denenir; fare her oynadığında ffmpeg'i yeniden çağırma.
+      (player.seekLocalFailed ||= new Set()).add(key);
+      if(player.seekLocalFailed.size>64)player.seekLocalFailed.delete(player.seekLocalFailed.values().next().value);
     }
   } finally { player.seekLocalBusy = false; }
 }
@@ -29271,7 +29275,11 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Backspace') {
     const btag = (e.target.tagName || '').toLowerCase();
-    if (player.workspaceMode !== 'browser' && !player.editing
+    // Backspace yalnız odak hiçbir kontrolde değilken (gövde/sahne) çıkış sayılır; düğme, kaydırıcı,
+    // menü veya satır odaklıyken yanlışlıkla basılan tuş oynatıcıyı kapatmaz.
+    const focusFree = e.target === document.body || e.target === document.documentElement
+      || e.target === $('playerStage') || e.target === $('playerLayer');
+    if (player.workspaceMode !== 'browser' && !player.editing && focusFree
         && btag !== 'input' && btag !== 'select' && btag !== 'textarea'
         && !e.target.isContentEditable && !e.target.closest?.('[contenteditable="true"]')) {
       e.preventDefault();
@@ -29444,7 +29452,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'h' || e.key === 'H') { e.preventDefault(); nudgeOffset(0.1); return; }
   if (e.key === '<' || e.key === ',') { e.preventDefault(); nudgeSpeed(-1); return; }
   if (e.key === '>' || e.key === '.') { e.preventDefault(); nudgeSpeed(1); return; }
-  if (e.key === 'ArrowUp') { e.preventDefault(); setPlayerVolume(video.volume + 0.05); showControls();
+  if (e.key === 'ArrowUp') { e.preventDefault(); if (video.muted) video.muted = false; setPlayerVolume(video.volume + 0.05); showControls();
     osd(`Ses %${Math.round(video.volume * 100)}`); return; }
   if (e.key === 'ArrowDown') { e.preventDefault(); setPlayerVolume(video.volume - 0.05); showControls();
     osd(`Ses %${Math.round(video.volume * 100)}`); return; }
@@ -29515,6 +29523,27 @@ async function nudgeSpeed(dir) {
   osd(`${target}× hız`);
   showControls();
 }
+
+// Native video PiP cannot display the DOM subtitle overlays. Project only the
+// currently visible local cues into one owned text track, retaining source offsets.
+let miniCaptionTrack=null,miniCaptionStamp='';
+function syncMiniPlayerCaptions() {
+  const video=$('playerVideo');if(!video)return;
+  if(document.pictureInPictureElement!==video||player.workspaceMode==='browser'){
+    if(miniCaptionTrack){miniCaptionTrack.mode='disabled';for(const cue of [...miniCaptionTrack.cues||[]])miniCaptionTrack.removeCue(cue);}miniCaptionStamp='';return;
+  }
+  if(typeof VTTCue!=='function'||typeof video.addTextTrack!=='function')return;
+  const now=video.currentTime,rows=[];
+  for(const secondary of [false,true]){
+    if(!$(secondary?'showTranslation':'showSource')?.checked)continue;
+    for(const cue of player[secondary?'cues2':'cues']||[]){const start=subtitleVideoTime(cue.start,secondary),end=subtitleVideoTime(cue.end,secondary);if(start<=now&&now<end&&end>0)rows.push([Math.max(0,start),end,String(cue.text||'').replace(/<[^>]*>/g,'')]);}
+  }
+  const stamp=JSON.stringify([player.mediaKey,player.generation,rows]);if(stamp===miniCaptionStamp)return;miniCaptionStamp=stamp;
+  miniCaptionTrack=miniCaptionTrack||video.addTextTrack('captions','Whisper Browser');miniCaptionTrack.mode='hidden';
+  for(const cue of [...miniCaptionTrack.cues||[]])miniCaptionTrack.removeCue(cue);
+  for(const [start,end,text]of rows)miniCaptionTrack.addCue(new VTTCue(start,end,text));miniCaptionTrack.mode='showing';
+}
+if($('playerVideo'))for(const event of ['enterpictureinpicture','leavepictureinpicture','timeupdate','seeked','emptied'])$('playerVideo').addEventListener(event,syncMiniPlayerCaptions);
 
 // Mini oynatıcı (I): tarayıcı modunda sekmeyi ayrı küçük pencereye taşır;
 // yerel videoda resim-içinde-resim kullanır.
@@ -30846,6 +30875,7 @@ if ($('subOffset')) {
     $('subOffsetVal').textContent = player.offset.toFixed(1);
     player.activeIdx = -1;
     renderCue();
+    scheduleSave();
     // Dosyaya isleme yalnizca gercekten bir gecikme varken VE dosya SRT/VTT iken
     // anlamli - backend ASS/SSA kaydirmayi kabul etmiyor (dugme gorunup hata
     // vermesin diye burada gizlenir).

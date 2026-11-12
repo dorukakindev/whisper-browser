@@ -74,7 +74,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
       }});
       if(job.controller.signal.aborted||activePlayback!==selected){await prepareAudio.discard?.(result.path);throw err('Audio preparation cancelled.','AUDIO_CANCELLED');}
       return {path:result.path,key:selected.key,requestId:job.id};
-    }catch(error){throw err('Audio could not be prepared. Existing playback and subtitles were kept.',job.controller.signal.aborted?'AUDIO_CANCELLED':/^STREAM_AUDIO_[A-Z_]+$/.test(error?.code||'')?error.code:'AUDIO_FAILED');}
+    }catch(error){throw err('Audio could not be prepared. Existing playback and subtitles were kept.',job.controller.signal.aborted||error?.code==='AUDIO_CANCELLED'?'AUDIO_CANCELLED':/^STREAM_AUDIO_[A-Z_]+$/.test(error?.code||'')?error.code:'AUDIO_FAILED');}
     finally{if(audioPreparation===job)audioPreparation=null;}
   }
   const GRANT_TTL = 6 * 3600 * 1000, GRANT_LIMIT = 24;
@@ -117,8 +117,9 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     const rows = Object.values(loadProgress().entries).sort((a, b) => b.lastWatched - a.lastWatched).slice(0, 400);
     const day = 86400000, nowMs = now(), watchedSeconds = Object.values(loadProgress().entries).reduce((sum, e) => sum + (e.completed ? e.duration : e.position), 0);
     const titles = new Set(Object.values(loadProgress().entries).map((e) => e.type + ':' + e.id));
-    const days = new Set(rows.map((e) => Math.floor(e.lastWatched / day)));
-    let streak = 0; for (let d = Math.floor(nowMs / day); days.has(d) || (streak === 0 && days.has(d - 1)); d--) { if (days.has(d)) streak++; else if (streak === 0) continue; else break; }
+    const localDay = (ts) => Math.floor((ts - new Date(ts).getTimezoneOffset() * 60000) / day);   // yerel takvim günü (UTC gece yarısı kayması yok)
+    const days = new Set(rows.map((e) => localDay(e.lastWatched)));
+    let streak = 0; for (let d = localDay(nowMs); days.has(d) || (streak === 0 && days.has(d - 1)); d--) { if (days.has(d)) streak++; else if (streak === 0) continue; else break; }
     return { items: rows, stats: { titles: titles.size, episodes: Object.values(loadProgress().entries).filter((e) => e.completed).length, hours: Math.round(watchedSeconds / 360) / 10, thisWeek: rows.filter((e) => nowMs - e.lastWatched < 7 * day).length, streak } };
   }
   function libraryList() { return { items: loadLibrary().items.map(libraryRow) }; }
@@ -280,7 +281,9 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     const q = str(query, 120).trim();
     if (!q) return { items: [], errors: [] };
     const wanted = Array.isArray(types) && types.length ? new Set(types) : null;
-    const targets = catalogList().filter((c) => c.searchable && (!wanted || wanted.has(c.type))).slice(0, 8);
+    const seenTargets = new Set();
+    const targets = catalogList().filter((c) => c.searchable && (!wanted || wanted.has(c.type)))
+      .filter((c) => { const k = JSON.stringify([c.addonKey,c.type,c.id]); if (seenTargets.has(k)) return false; seenTargets.add(k); return true; }).slice(0, 8);
     const records = loadAddons().addons;
     const results = await Promise.all(targets.map(async (target) => {
       try { return { items: (await catalog({ addonKey: target.addonKey, type: target.type, catalogId: target.id, extra: { search: q } }, signal)).items }; }
@@ -454,11 +457,11 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
   }
 
   /* ---- Devam kaydı ---- */
-  const progressKey = (type, id, season, episode) => (type === 'series' && season != null ? A.episodeId(id, season, episode) : id);
+  const progressKey = (type, id, season, episode) => (type === 'series' && season != null && episode != null ? A.episodeId(id, season, episode) : id);
   function progressFor(type, id, season = null, episode = null) {
     const data = loadProgress();
     if (type === 'series' && season == null) {
-      const rows = Object.values(data.entries).filter((e) => e.type === 'series' && e.id === id);
+      const rows = Object.values(data.entries).filter((e) => e.type === 'series' && e.id === id && !e.manualCompletion);
       return rows.sort((a, b) => b.lastWatched - a.lastWatched)[0] || null;
     }
     return data.entries[progressKey(type, id, season, episode)] || null;
@@ -474,7 +477,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     const next = input.next && int(input.next.season) != null && int(input.next.episode) != null
       ? { season: int(input.next.season), episode: int(input.next.episode), title: str(input.next.title, 200) } : null;
     data.entries[key] = { type, id, season, episode, name: str(input.name, 300), episodeTitle: str(input.episodeTitle, 300), poster: A.safeImage(input.poster, ''),
-      position: Math.round(position), duration: Math.round(duration), completed, lastWatched: now(), sourceLabel: str(input.sourceLabel, 160), next };
+      position: Math.round(position), duration: Math.round(duration), completed, lastWatched: input.manualCompletion===true ? data.entries[key]?.lastWatched||0 : now(), ...(input.manualCompletion===true?{manualCompletion:true}:{}), sourceLabel: str(input.sourceLabel, 160), next };
     writeJson(progressFile(), data);
     return { saved: data.entries[key] };
   }
@@ -485,6 +488,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
   function continueList() {
     const byTitle = new Map();
     for (const e of Object.values(loadProgress().entries)) {
+      if(e.manualCompletion)continue;
       const k = e.type + ':' + e.id, cur = byTitle.get(k);
       if (!cur || e.lastWatched > cur.lastWatched) byTitle.set(k, e);
     }
@@ -497,7 +501,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
   }
   function progressClear({ type, id, season = null, episode = null }) {
     const data = loadProgress(), s = int(season), e2 = int(episode);
-    for (const [k, e] of Object.entries(data.entries)) if (e.type === type && e.id === id && (s == null || (e.season === s && e.episode === e2))) delete data.entries[k];
+    for (const [k, e] of Object.entries(data.entries)) if (e.type === type && e.id === id && (s == null || (e.season === s && (e2 == null || e.episode === e2)))) delete data.entries[k];
     writeJson(progressFile(), data);
     return {};
   }

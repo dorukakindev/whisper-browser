@@ -133,7 +133,7 @@
    for(const [select,sync]of syncs){if(!select.isConnected)syncs.delete(select);else sync();}
    const status=host?.querySelector(':scope>.fw-status');if(editor&&status&&editor.querySelector('.cf4-status').textContent!==status.textContent)editor.querySelector('.cf4-status').textContent=status.textContent;
    const disabledHint=t('Link a source and select an available file to enable this action.','Bu işlem için önce kaynak bağla ve kullanılabilir dosyayı seç.');
-   for(const b of body.querySelectorAll('button:disabled')){if(b.title!==disabledHint)b.title=disabledHint;if(b.dataset.cinemaTooltip!==disabledHint)b.dataset.cinemaTooltip=disabledHint;}
+   for(const b of body.querySelectorAll('.fw-source-controls button:disabled')){if(b.title&&b.title!==disabledHint&&b.dataset.cinemaTooltip!==disabledHint)continue;if(b.title!==disabledHint)b.title=disabledHint;if(b.dataset.cinemaTooltip!==disabledHint)b.dataset.cinemaTooltip=disabledHint;}
    if(editor)setScope(scope);
    // Başka bir gözlemciyle karşılıklı tetiklenme (ör. beklerken devre dışı düğmeler) mikro görev döngüsüne dönüp renderer'ı ve IPC yanıtlarını bloklayamaz: sık tekrarda yeniden izleme bir sonraki göreve ertelenir.
    // Ertelenen turda gözlemci kapalıdır; kaçan güncelleme olmasın diye zamanlayıcı yeniden izlemeyi değil enhance()'ı çalıştırır (enhance kendisi yeniden izler).

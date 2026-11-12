@@ -19,8 +19,8 @@ function parse(text){
  const rows=[];
  for(const block of text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').trim().split(/\n[ \t]*\n/)){
   const lines=block.split('\n'),index=lines.findIndex(line=>line.includes('-->'));if(index<0){if(/^WEBVTT(?:[ \t]|$)/.test(lines[0])||/^(?:NOTE|STYLE|REGION)(?:[ \t]|$)/.test(lines[0]))continue;fail();}
-  const match=/^\s*(\d{1,3}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{1,3}):(\d{2}):(\d{2})[,.](\d{3})(?:\s.*)?$/.exec(lines[index]);if(!match||index>1)fail();
-  const part=offset=>{const hours=Number(match[offset]),minutes=Number(match[offset+1]),secs=Number(match[offset+2]),ms=Number(match[offset+3]);if(minutes>=60||secs>=60)fail();return ((hours*60+minutes)*60+secs)*1000+ms;};
+  const match=/^\s*(?:(\d{1,3}):)?(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(?:(\d{1,3}):)?(\d{2}):(\d{2})[,.](\d{3})(?:\s.*)?$/.exec(lines[index]);if(!match||index>1)fail();
+  const part=offset=>{const hours=Number(match[offset]||0),minutes=Number(match[offset+1]),secs=Number(match[offset+2]),ms=Number(match[offset+3]);if(minutes>=60||secs>=60)fail();return ((hours*60+minutes)*60+secs)*1000+ms;};
   const body=lines.slice(index+1).join('\n').trim();if(!body)fail();rows.push({startMs:part(1),endMs:part(5),text:body});
  }
  return originals(rows);

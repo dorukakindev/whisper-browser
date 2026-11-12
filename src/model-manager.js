@@ -77,7 +77,7 @@ function directorySizeBytes(directory) {
           // HF repo düzeni: snapshots/<hash>/... + blob'lar; hepsini say
           total += entry.isDirectory() ? directorySizeBytes(full)
             : entry.isFile() ? fs.statSync(full).size : 0;
-        } else if (entry.isFile() || entry.isSymbolicLink()) {
+        } else if (entry.isFile()) {   // symlink'ler (HF snapshots → blobs) çift sayılmaz
           total += fs.statSync(full).size;
         }
       } catch (_) { /* kırık bağlantı */ }

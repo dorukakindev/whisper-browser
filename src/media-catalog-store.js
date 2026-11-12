@@ -280,7 +280,7 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     }
     return cache;
   }
-  function commit(items, { mirrorBackup = false, folderSnapshots = read().folderSnapshots || [] } = {}) {
+  function commit(items, { mirrorBackup = false, folderSnapshots = read().folderSnapshots || [], transactionEntries = [] } = {}) {
     if (items.length > MAX_ITEMS) fail('Katalog kapasitesi doldu.');
     for (const file of [filePath, backupPath]) {
       let value;
@@ -293,6 +293,18 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     // aliases; no diary, asset, queue or source record is migrated or removed.
     try{require('./media-title-relations').captureLegacyOwners(path.dirname(filePath),read().items,items,io);}
     catch(error){throw new Error('Personal relationship ownership could not be preserved. Catalog unchanged; retry after fixing the data or file access.',{cause:error});}
+    if (transactionEntries.length) {
+      // The canonical transaction accepts JSON targets only; the recovery .bak
+      // remains the last valid primary, copied before either live store changes.
+      // A later transaction failure can therefore leave only an equivalent old
+      // backup, never a future catalog alongside an uncommitted shelf.
+      let validPrimary = false;
+      try { parseEnvelope(io.readFileSync(filePath,'utf8')); validPrimary = true; } catch {}
+      if (validPrimary) { io.copyFileSync(filePath,backupPath); fsyncFile(backupPath,io); }
+      require('./settings-security').writeJsonTransaction([{filePath,value:next},...transactionEntries],io,undefined,{maxBytes:require('./media-shelf-limits').MAX_BYTES,compact:true});
+      cache = next;
+      return;
+    }
     io.mkdirSync(path.dirname(filePath), { recursive: true });
     const temp = `${filePath}.${randomUUID()}.tmp`;
     try {
@@ -319,7 +331,7 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
     if (index < 0) items.push(item); else items[index] = item;
     commit(items); return structuredClone(item);
   }
-  function upsertMany(patches) {
+  function upsertMany(patches, options = {}) {
     if (!Array.isArray(patches) || patches.length > MAX_ITEMS) fail('Geçersiz toplu katalog güncellemesi.');
     const items = list(), positions = new Map(items.map((item, index) => [item.id, index]));
     for (const patch of patches) {
@@ -329,7 +341,7 @@ function createMediaCatalogStore({ filePath, fsImpl }) {
       if (index === undefined) { positions.set(item.id, items.length); items.push(item); }
       else items[index] = item;
     }
-    if (patches.length) commit(items);
+    if (patches.length) commit(items, options);
     return structuredClone(items);
   }
   function remove(id) {

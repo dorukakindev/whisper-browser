@@ -1,6 +1,7 @@
 'use strict';
 const {chunksOf}=require('./feed-translation');
 const {sourceVersion}=require('./podcast-session');
+const {createHash}=require('node:crypto');
 
 // Context follows the existing translateContext meaning: ±N text lines around each chunk, 0 = off.
 // For untimed prose a "line" is one non-empty text line (publisher paragraph). The caller freezes the
@@ -46,12 +47,16 @@ function createPodcastTextTranslation({store,translate,createTranslator}){
   const current=()=>{signal.throwIfAborted();const row=store.entry(entry.id),track=row.podcastWorkspace?.transcript;if(sourceVersion(row)!==version||row.podcastWorkspace?.sourceVersion!==version||track?.state!=='untimed'||track.status==='partial'||track.text!==source.text)throw Error('Podcast transcript changed / Podcast metni değişti.');};
   running.add(entry.id);
   try{
-   const parts=[];
    const chunks=chunksOf(source.text);
-   for(const [index,text] of chunks.entries()){current();const context=neighborContext(chunks,index,contextLines);const result=await translator(text,signal,context);current();if(typeof result!=='string'||!result.trim()||result.length>14000)throw Error('Invalid translation result / Geçerli bir çeviri sonucu alınamadı.');if(echoesContext(result,context,text))throw Error('Translation repeated neighbor context / Çeviri komşu bağlamı çıktıya taşıdı.');parts.push(result.trim());}
+   const identity=typeof translator.checkpointIdentity==='string'&&/^[a-f0-9]{64}$/.test(translator.checkpointIdentity)?translator.checkpointIdentity:null;
+   const fingerprint=createHash('sha256').update(JSON.stringify([version,source.text,targetLanguage,contextLines,identity])).digest('hex');
+   const saved=entry.podcastWorkspace?.textTranslationRecovery;
+   const parts=identity&&saved?.fingerprint===fingerprint&&Array.isArray(saved.parts)&&saved.parts.length<=chunks.length&&saved.parts.every(p=>typeof p==='string'&&p.trim()&&p.length<=14000)?[...saved.parts]:[];
+   const checkpoint=()=>store.podcastWorkspace(entry.id,version,{textTranslationRecovery:{fingerprint,parts:[...parts],targetLanguage,contextLines}});
+   for(const [index,text] of chunks.entries()){if(index<parts.length)continue;current();const context=neighborContext(chunks,index,contextLines);const result=await translator(text,signal,context);current();if(typeof result!=='string'||!result.trim()||result.length>14000)throw Error('Invalid translation result / Geçerli bir çeviri sonucu alınamadı.');if(echoesContext(result,context,text))throw Error('Translation repeated neighbor context / Çeviri komşu bağlamı çıktıya taşıdı.');parts.push(result.trim());if(parts.join('\n\n').length>100000)throw Error('Translation exceeds storage limit / Çeviri saklama sınırını aşıyor.');checkpoint();}
    const text=parts.join('\n\n');if(text.length>100000)throw Error('Translation exceeds storage limit / Çeviri saklama sınırını aşıyor.');
    current();const translation={state:'untimed',format:'plain',provenance:'user',status:'complete',language:targetLanguage,text};
-   store.podcastWorkspace(entry.id,version,{translation});
+   store.podcastWorkspace(entry.id,version,{translation,textTranslationRecovery:null});
    return {sourceVersion:version,translation,sourceTranscriptText:source.text,contextLines};
   }finally{running.delete(entry.id);}
  };

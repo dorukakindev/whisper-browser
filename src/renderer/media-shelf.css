@@ -176,3 +176,10 @@ html:not([data-motion=off]):not([data-motion=reduce]) .ms-shelf .ms-book-grid .m
 .ms-shelf .ms-track-list{display:grid;gap:4px}
 .ms-shelf .ms-track{border:1px solid transparent;border-radius:16px;padding:8px 12px;transition:background .18s,border-color .18s}
 .ms-shelf .ms-track:hover{background:color-mix(in srgb,var(--text) 6%,transparent);border-color:color-mix(in srgb,var(--text) 9%,transparent)}
+
+/* Radyo ve araçlar: kanal yönetimi satırları; Dinle birincil, Yenile ikincil, Kaldır tehlike. */
+.ms-channel{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:14px 16px;margin:0 0 8px;border:0;border-radius:12px;background:var(--bg-2)}
+.ms-channel-copy{min-width:0;display:grid;gap:2px}.ms-channel-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-channel-copy small{color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mh-danger{color:#ef4444;border-color:color-mix(in srgb,#ef4444 45%,transparent);background:transparent}
+.mh-danger:hover{background:color-mix(in srgb,#ef4444 14%,transparent)}

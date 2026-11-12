@@ -49,6 +49,8 @@ function safePageIndexUrl(raw) {
   const safe = safePlaceUrl(String(raw || '').trim());
   if (!safe || safe.length > 4000) return '';
   const parsed = new URL(safe);
+  // A content index has one row per page, not one per playback timestamp.
+  if (/^#(?:t|start)=/i.test(parsed.hash)) parsed.hash = '';
   parsed.searchParams.sort();
   return parsed.href;
 }

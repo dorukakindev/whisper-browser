@@ -253,7 +253,9 @@ function dedupeWatchLibrary(filePath, key, io, tombstonesOnly = false) {
   const fields = tombstonesOnly ? ['tombstones', 'overflowTombstones'] : ['items', 'overflowItems'];
   const lists = isArray ? [doc] : fields.map((field) => Array.isArray(doc[field]) ? doc[field] : []);
   const matching = lists.flat().filter((item) => canonicalWatchKey(item?.key) === key);
-  const newest = [...matching].sort((a,b) => stampOf(b)-stampOf(a))[0];
+  const newest = tombstonesOnly
+    ? [...matching].sort((a,b) => stampOf(b)-stampOf(a))[0]
+    : require('./watch-library-store').mergeDuplicateItems(matching);
   let emitted = false;
   const dedupe = (list) => list.flatMap((item) => {
     if (canonicalWatchKey(item?.key) !== key) return [item];

@@ -131,7 +131,7 @@
       const home=doc.querySelector('#playerWorkspaceV3 .pw-stage')||layer.querySelector('.player-body');
       if(home)home.append(st);PW()?.refresh?.(true);bounds();
     }
-    return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => podcast()?.title || window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || '', sub: () => podcast() ? [podcast().publisher,podcast().publisherKind==='web-episode'?T('Yayıncı sayfası','Publisher page'):T('Yayıncı RSS','Publisher RSS')].filter(Boolean).join(' · ') : metaLine(), cover: () => podcast()?.image || '', timingNotice: () => podcast()?.transcriptTimingNotice || '', eyebrow: () => podcast() ? (podcast().publisherKind==='web-episode'?T('Web podcasti','Web podcast'):T('Podcast · RSS','Podcast · RSS')) : T('Yerel oynatıcı','Local player'), slot, unslot };
+    return { kind: 'local', tab: () => '', snap: () => PW().snapshot(), tracks: () => PW().getTranscriptTracks(), dispatch: (c) => PW().executeExisting(c), dispose() {}, words, langs, mediaTitle: () => { const shown = window.PlayerUiKit?.displayTitle($('playerTitle')?.textContent || '') || ''; const generic = !shown || /^(?:oynatıcı|player)$/i.test(shown.trim()); const file = player.localPath ? String(player.localPath).split(/[\\/]/).pop().replace(/\.[^.]+$/, '') : ''; return podcast()?.title || (generic && file ? file : shown); }, sub: () => podcast() ? [podcast().publisher,podcast().publisherKind==='web-episode'?T('Yayıncı sayfası','Publisher page'):T('Yayıncı RSS','Publisher RSS')].filter(Boolean).join(' · ') : metaLine(), cover: () => podcast()?.image || '', timingNotice: () => podcast()?.transcriptTimingNotice || '', eyebrow: () => podcast() ? (podcast().publisherKind==='web-episode'?T('Web podcasti','Web podcast'):T('Podcast · RSS','Podcast · RSS')) : T('Yerel oynatıcı','Local player'), slot, unslot };
   }
 
   function shelfFacade(){
@@ -639,8 +639,11 @@
               const input = $(secondary ? 'sub2Offset' : 'subOffset');
               if (!input) return;
               const now = secondary ? player.offset2 : player.offset;
-              input.value = String(delta === null ? 0 : Math.max(-60, Math.min(60, Math.round((now + delta) * 1000) / 1000)));
+              const min=input.min!==''&&Number.isFinite(Number(input.min))?Number(input.min):-60;
+              const max=input.max!==''&&Number.isFinite(Number(input.max))?Number(input.max):60;
+              input.value = String(delta === null ? 0 : Math.max(min, Math.min(max, Math.round((now + delta) * 1000) / 1000)));
               input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.dispatchEvent(new Event('change', { bubbles: true }));
             }
           } });
           const snapshot=F.snap(), active=ownLoop?.preview && ownLoop.role===role && activeLoop(snapshot,ownLoop);
@@ -815,7 +818,7 @@
         if (t === 'loop' && !(v && v.on)) { clearOwnedLoop(); return Promise.resolve({ ok: true }); }   // kendi A–B döngümüzü her durumda kapat
         const s = F.snap(); if (!current()) return Promise.resolve(stale);
         rowsFor(s);
-        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','playCue','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save','assistant'].includes(t))return Promise.resolve(staleTrack());
+        if(expectedRevision && expectedRevision!==cache.rev && ['seekCue','seekTranslation','playCue','loop','replay','prevCue','nextCue','wordInfo','wordSave','wordLookup','openQueued','save'].includes(t))return Promise.resolve(staleTrack());
         if (v === 'translation' && ['prevCue','nextCue','replay'].includes(t)) {
           const time = translationNavigation(s,t)[t];
           if (s.capabilities?.seek?.support !== 'yes' || !Number.isFinite(time)) {
@@ -834,7 +837,7 @@
             const index=typeof v==='number'?v:v?.row,row=cache.rows[index];
             if(!row||!Number.isInteger(index)||typeof window.api.upsertResearchAnnotation!=='function')return Promise.resolve({ok:false,code:'unsupported'});
             const excerpt=v?.excerpt===undefined?'':String(v.excerpt).trim();
-            if(v?.excerpt!==undefined&&(!excerpt||!row.src.includes(excerpt)))return Promise.resolve({ok:false,code:'invalid-excerpt',message:T('Kaynak metinden bir bölüm seçin.','Select a passage from the source text.')});
+            if(v?.excerpt!==undefined&&(!excerpt||!String(row.src).replace(/\s+/g,' ').includes(excerpt.replace(/\s+/g,' '))))return Promise.resolve({ok:false,code:'invalid-excerpt',message:T('Kaynak metinden bir bölüm seçin.','Select a passage from the source text.')});
             const source=excerpt||row.src,translation=excerpt?'':row.trs.join('\n\n');
             if(source.length>4000||translation.length>4000)return Promise.resolve({ok:false,code:'passage-too-long',message:T('Metin kayıt sınırını aşıyor. Kaynak metinden daha kısa bir bölüm seçin (en fazla 4000 karakter).','The text exceeds the save limit. Select a shorter passage from the source text (up to 4000 characters).')});
             const podcast=kind==='shelf'||s.sourceKind==='rss',audio=kind==='local'&&player.workspaceAudio?.mediaKey===s.mediaKey&&player.workspaceAudio?.generation===s.generation?player.workspaceAudio:null;

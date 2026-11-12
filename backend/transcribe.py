@@ -29,7 +29,7 @@ import threading
 import time
 import traceback
 import warnings
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 from contextlib import contextmanager
 from io_errors import classify_ytdlp_error
 from pipeline_control import (
@@ -2072,7 +2072,8 @@ def write_vtt(entries, output_path, max_line_width=42, max_lines=2, language="tr
             validate_cue_time_range(start, end)
             wrapped = _decorate(vtt_escape_cue_text(wrap_text(text, max_line_width, max_lines, language=language,
                                                               wrap_mode=wrap_mode)), decorations, i - 1)
-            f.write(f"{format_vtt_time(start)} --> {format_vtt_time(end)}\n")
+            setting = decorations[i - 1][2] if decorations and i <= len(decorations) and len(decorations[i - 1]) > 2 else ""
+            f.write(f"{format_vtt_time(start)} --> {format_vtt_time(end)}{(' ' + setting) if setting else ''}\n")
             f.write(f"{wrapped}\n\n")
 
 
@@ -6674,15 +6675,29 @@ def find_repeated_hallucinations(entries, all_words, min_count=4, max_words=8,
             continue
         groups.setdefault(key, []).append(i)
 
+    timed = []
+    for word in all_words or []:
+        start, end = word.get("start"), word.get("end")
+        if start is None or end is None:
+            continue
+        if not math.isfinite(start) or not math.isfinite(end):
+            continue
+        probability = word.get("probability", 1.0)
+        timed.append(((start + end) / 2, probability if isinstance(probability, (int, float)) and math.isfinite(probability) else 1.0))
+    timed.sort()
+    midpoints = [row[0] for row in timed]
+    sums = [0.0]
+    for _, probability in timed:
+        sums.append(sums[-1] + probability)
+
     def mean_conf(idx_list):
-        probs = []
+        total, count = 0.0, 0
         for i in idx_list:
             s0, e0, _t = entries[i]
-            for w in (all_words or []):
-                mid = (w["start"] + w["end"]) / 2
-                if s0 <= mid <= e0:
-                    probs.append(w.get("probability", 1.0))
-        return (sum(probs) / len(probs)) if probs else None
+            left, right = bisect_left(midpoints, s0), bisect_right(midpoints, e0)
+            total += sums[right] - sums[left]
+            count += right - left
+        return total / count if count else None
 
     out = []
     for key, idxs in groups.items():
@@ -7182,10 +7197,10 @@ def normalize_timings(entries, min_dur=0.8, max_dur=7.0, min_gap=0.08, max_cps=2
     merged = []
     for i, (s, e, t) in enumerate(out):
         if e - s < 0.2:
-            if i + 1 < len(out):
+            if i + 1 < len(out) and out[i + 1][0] - e <= max(0.2, min_gap * 2):
                 out[i + 1][2] = f"{(t or '').strip()} {(out[i + 1][2] or '').strip()}".strip()
                 continue
-            if merged:
+            if merged and s - merged[-1][1] <= max(0.2, min_gap * 2):
                 merged[-1][2] = f"{(merged[-1][2] or '').strip()} {(t or '').strip()}".strip()
                 # Sondaki kısa cue'nun konuşma zamanı da korunur: öncekinin
                 # bitişi kısa cue'nun bitişine uzatılır (metin yalnız erkende
@@ -10127,14 +10142,18 @@ def cue_format_decorations(formats, fmt):
                 prefix = f"{{\\an{align}}}"
             if item.get("italic"):
                 prefix, suffix = prefix + "<i>", "</i>"
-        decorations.append((prefix, suffix))
+        if fmt == "vtt" and isinstance(align, int) and 1 <= align <= 9 and align != 2:
+            row, column = (align - 1) // 3, (align - 1) % 3
+            decorations.append((prefix, suffix, f"line:{[95, 50, 5][row]}% position:{[5, 50, 95][column]}% align:{['start', 'center', 'end'][column]}"))
+        else:
+            decorations.append((prefix, suffix))
     return decorations
 
 
 def _decorate(text, decorations, index):
     if not decorations or index >= len(decorations):
         return text
-    prefix, suffix = decorations[index]
+    prefix, suffix = decorations[index][:2]
     return f"{prefix}{text}{suffix}" if (prefix or suffix) else text
 
 

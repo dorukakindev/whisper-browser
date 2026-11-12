@@ -19,7 +19,10 @@
   const host = document.createElement('section'); host.id = 'playerWorkspaceV3'; host.hidden = true;
   const view = document.createElement('div'); host.append(view);
   const advanced = document.createElement('dialog'); advanced.className = 'pw-existing-tools'; advanced.hidden=true;
-  const summary = document.createElement('button'); summary.type='button';summary.className='pw-existing-tools-close';advanced.append(summary);
+  const summary = document.createElement('button'); summary.type='button';summary.className='pw-existing-tools-close';
+  const advancedTitle = document.createElement('strong'); advancedTitle.className='pw-existing-tools-title'; advancedTitle.textContent=(window.UiLocale?.get?.()==='en')?'Advanced tools':'İleri araçlar';
+  const advancedHead = document.createElement('header'); advancedHead.className='pw-existing-tools-head'; advancedHead.append(advancedTitle, summary); advanced.append(advancedHead);
+  summary.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   summary.onclick=()=>{advanced.close?.();advanced.hidden=true;advanced.removeAttribute('data-pw-occludes-native');view.querySelector('.pw-player-heading-actions button:last-child')?.focus();};
   advanced.addEventListener('close',()=>{advanced.hidden=true;advanced.removeAttribute('data-pw-occludes-native');});
   const scrim=document.createElement('button');scrim.type='button';scrim.className='pw-panel-scrim';scrim.hidden=true;host.append(scrim);
@@ -226,7 +229,7 @@
       onTab: setTab, onQuery: value => { query = value; page = 0; draw(); },
       onFollow: value => { follow = value; draw(); },
       onEditCandidate:(row,candidate)=>{if(player.mediaKey!==snap.mediaKey||player.generation!==snap.generation||!rows.includes(row))return;const [currentSource,currentSecondary]=tracks();if(currentSource.id!==source.id||currentSource.revision!==source.revision||currentSecondary.id!==secondary.id||currentSecondary.revision!==secondary.revision)return;const index=currentSecondary.cues.findIndex(c=>c.id===candidate.cueId);if(index>=0)openCueEditor(currentSecondary.id.startsWith('secondary:'),{index});},
-      onPairCandidate:async(row,candidate)=>{const captured=tracks().map(t=>[t.id,t.revision]),generation=snap.generation,mediaKey=snap.mediaKey;const yes=await openAppDialog({title:text('Eşleşmeyi incele','Review pairing'),description:row.sourceText+'\n\n'+candidate.text+'\n'+text('Yalnız bu oturum ve kaynak revizyonu; dosya veya kalıcı bağlantı değişmez.','This session and source revision only; no file or permanent link changes.'),confirmLabel:text('Oturum için seç','Choose for session'),cancelLabel:text('Vazgeç','Cancel')});if(!yes)return;if(player.mediaKey!==mediaKey||player.generation!==generation||JSON.stringify(tracks().map(t=>[t.id,t.revision]))!==JSON.stringify(captured)||!rows.includes(row))return;rows=PlayerTranscriptModel.chooseCandidate(rows,row.key,candidate.cueId,{mediaKey,generation,trackRevision:row.trackRevision});indexedRows=rows.map(r=>({start:r.videoStart,end:r.videoEnd,text:r.sourceText+'\n'+r.secondaryText}));reviewStamp='';selection=null;evidence=null;draw();},
+      onPairCandidate:async(row,candidate)=>{const captured=tracks().map(t=>[t.id,t.revision]),generation=snap.generation,mediaKey=snap.mediaKey;const yes=await openAppDialog({title:text('Eşleşmeyi incele','Review pairing'),description:row.sourceText+'\n\n'+candidate.text+'\n'+text('Yalnız bu oturum ve kaynak revizyonu; dosya veya kalıcı bağlantı değişmez.','This session and source revision only; no file or permanent link changes.'),confirmLabel:text('Oturum için seç','Choose for session'),cancelLabel:text('Vazgeç','Cancel')});if(!yes)return;if(player.mediaKey!==mediaKey||player.generation!==generation||JSON.stringify(tracks().map(t=>[t.id,t.revision]))!==JSON.stringify(captured)||!rows.some(r=>r.key===row.key&&r.sourceText===row.sourceText&&r.trackRevision===row.trackRevision&&JSON.stringify(r.secondaryCandidates)===JSON.stringify(row.secondaryCandidates)))return;rows=PlayerTranscriptModel.chooseCandidate(rows,row.key,candidate.cueId,{mediaKey,generation,trackRevision:row.trackRevision});indexedRows=rows.map(r=>({start:r.videoStart,end:r.videoEnd,text:r.sourceText+'\n'+r.secondaryText}));reviewStamp='';selection=null;evidence=null;draw();},
       onSeekRow: row => void send('seekCue', { cueId: row.cueId }, true),
       onSeekRatio: ratio => { if (snap.duration) void send('seek', { time: ratio * snap.duration }); },
       onTogglePlay: () => void send('togglePlay'), onPrevCue: () => step(-1,snap), onNextCue: () => step(1,snap),
@@ -299,7 +302,8 @@
     healthButton.textContent=text('Oynatma sağlığı','Playback health');
     healthButton.onclick=()=>window.WhisperV3.open('health');
     toolsMenu.append(healthButton);
-    summary.textContent = text('İleri araçları kapat', 'Close advanced tools');
+    advancedTitle.textContent = text('İleri araçlar', 'Advanced tools');
+    summary.setAttribute('aria-label', text('İleri araçları kapat', 'Close advanced tools')); summary.title = summary.getAttribute('aria-label');
     const ambientButton=document.createElement('button');ambientButton.className='pw-btn';ambientButton.type='button';ambientButton.textContent=text('Ortam ışığı','Ambient light');ambientButton.setAttribute('aria-pressed',String(player.ambientOn));ambientButton.onclick=()=>{setAmbient(!player.ambientOn);if(player.ambientTimer)stopAmbient();ambient?.sync();ambientButton.setAttribute('aria-pressed',String(player.ambientOn));};toolsMenu.append(ambientButton);
     const key = `${snap.mediaKey}:${snap.generation}`;
     view.querySelectorAll('.pw-controls button, .pw-controls input, .pw-controls select').forEach(node => node.dataset.owner = key);

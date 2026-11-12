@@ -669,7 +669,7 @@
 }
 .cn-film-hero-content {
   display: flex;
-  align-items: end;
+  align-items: flex-start;
   gap: 38px;
   padding-block: 90px 54px;
 }
@@ -1911,3 +1911,8 @@
 .cn-library-source-label > .mv-overflow > summary > svg { flex: none; width: 16px; height: 16px; }
 .cn-library-source-label .mv-overflow-panel { right: auto; left: 0; max-width: min(46ch, calc(100vw - 48px)); }
 .cn-library-source-label .mv-overflow-panel > button { overflow-wrap: anywhere; }
+
+
+/* Detay: yönetmen düz metin, poster ve başlık üst hizalı. */
+.cn-film-copy .cn-meta .cn-credit-inline{color:var(--cn-muted,var(--text-dim))}
+.cn-film-copy .cn-meta .cn-credit-inline::before{content:"\00b7";margin-inline:8px;opacity:.6}

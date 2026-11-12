@@ -45,7 +45,7 @@ async function fetchPodcastTranscript(descriptor, { signal, publicPin, pinnedReq
     const genericTimedResponse = classification.code === 'mime-mismatch' && expectedTimedFormat &&
       ['application/octet-stream','text/plain'].includes(classification.got);
     if (!classification.ok && !genericTimedResponse) return classification;
-    const content = new TextDecoder('utf-8',{fatal:true}).decode(response.buffer);
+    let content;try{content=new TextDecoder('utf-8',{fatal:true}).decode(response.buffer);}catch{return {ok:false,code:'encoding-error'};}
     const format = Model.sniffTranscriptFormat(content);
     if (genericTimedResponse && format.format !== expectedTimedFormat) return classification;
     // Markup and arbitrary JSON remain untimed text. Neither can supply renderer HTML.

@@ -352,13 +352,13 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   removalApproval.resolve(true);await until(()=>removeCalls.length===1&&removalDialog.querySelectorAll('.sx-addon').length===beforeRemovalRows.length-1,'confirmed selected addon removed');assert.equal(removeCalls[0].key,selectedRemoval.key);assert.deepEqual(JSON.parse(fs.readFileSync(addonFile,'utf8')).addons.map(a=>a.key),beforeRemovalRows.filter(a=>a.key!==selectedRemoval.key).map(a=>a.key));
   assert(removalDialog.querySelector('.sx-list-head .sx-h2'));assert(removalDialog.querySelector('.sx-list-head .sx-refresh-all'),'refresh-all remains owned by the list heading');removalDialog.close();window.api.stremio=originalApi;
 
-  // A late title lookup must not park a newer playback to open its old details.
+  // Browsing title details keeps the explicit navigation intent when playback changes.
   const beforeShared=sharedDetailCalls.length;let finishMeta;
   window.api.stremio=request=>request.action==='meta'?new Promise(resolve=>{finishMeta=resolve;}):originalApi(request);
   const delayedTitle=UI.openTitle({type:'movie',id:'tt1234567',name:'Old selection'});
   window.player.generation=(window.player.generation||0)+1;
   finishMeta({ok:true,meta:{type:'movie',id:'tt1234567',name:'Old selection',genres:[],videos:[]}});
-  assert.equal((await delayedTitle).cancelled,true);assert.equal(sharedDetailCalls.length,beforeShared);window.api.stremio=originalApi;
+  assert.notEqual((await delayedTitle)?.cancelled,true);assert.equal(sharedDetailCalls.length,beforeShared+1);window.api.stremio=originalApi;
   // “From the beginning” must override the saved resume point; plain play still resumes.
   await service.handle({},{action:'progress-save',type:'series',id:'tt1',season:1,episode:1,name:'Test Dizisi',position:1200,duration:3000});
   // Cinemeta was removed above; build the title context the picker receives from the detail page.

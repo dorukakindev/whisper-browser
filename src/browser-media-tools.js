@@ -133,6 +133,8 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
         if (!pending) continue;
         clearTimeout(pending.timer);
         pending.signal?.removeEventListener('abort', pending.abort);
+        if (pending.finished) continue;
+        pending.finished = true;
         let result;
         try { result = JSON.parse(line); }
         catch { pending.reject(new Error('Medya aracından geçersiz yanıt alındı.')); continue; }
@@ -179,9 +181,20 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
       if (signal?.aborted) return reject(new Error('İşlem iptal edildi.'));
       let state;
       try { state = ensureWorker(); } catch (error) { return reject(error); }
+      if (state.pending.length >= 64) return reject(new Error('Medya aracı kuyruğu dolu.'));
       const entry = {};
-      entry.timer = setTimeout(() => killWorker(new Error('İşlem zaman aşımına uğradı.')), timeoutMs);
-      entry.abort = () => killWorker(new Error('İşlem iptal edildi.'));
+      const cancelEntry = error => {
+        if (entry.finished) return;
+        entry.finished = true;
+        clearTimeout(entry.timer);
+        signal?.removeEventListener('abort', entry.abort);
+        reject(error);
+        // A FIFO placeholder consumes this request's eventual reply. Other
+        // callers keep their worker and cannot receive the cancelled reply.
+        if (worker === state && state.pending.every(row => row.finished)) killWorker(error);
+      };
+      entry.timer = setTimeout(() => cancelEntry(new Error('İşlem zaman aşımına uğradı.')), timeoutMs);
+      entry.abort = () => cancelEntry(new Error('İşlem iptal edildi.'));
       entry.signal = signal;
       entry.resolve = resolve;
       entry.reject = reject;
@@ -230,8 +243,13 @@ function createBrowserMediaTools({ pythonPath, ffmpegPath, ffprobePath, backendS
       for (const [index, time] of times.slice(0, maxScenes).entries()) {
         if (signal?.aborted) throw new Error('İşlem iptal edildi.');
         const thumbnailPath = path.join(outputDir, `scene-${String(index + 1).padStart(3, '0')}.jpg`);
-        await run(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-nostdin', '-ss', String(time), '-i', videoPath, '-frames:v', '1', '-vf', 'scale=320:-2', '-y', thumbnailPath], '', signal, 20000);
-        scenes.push({ time, thumbnailPath });
+        try {
+          await run(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-nostdin', '-ss', String(time), '-i', videoPath, '-frames:v', '1', '-vf', 'scale=320:-2', '-y', thumbnailPath], '', signal, 20000);
+          if (fs.statSync(thumbnailPath).size > 0) scenes.push({ time, thumbnailPath });
+        } catch (error) {
+          if (signal?.aborted) throw error;
+          // One unreadable frame must not discard the other verified previews.
+        }
       }
       return { scenes };
     },

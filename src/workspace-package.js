@@ -57,8 +57,11 @@ function rewrite(value, mappings) {
   const replacePath = current => {
     if (current.startsWith('file:')) return remapFileWatchKey(current, replacements);
     for (const [from, to] of replacements) {
-      if (current === from) return to;
-      if (current.startsWith(from) && /[\\/]/.test(current.charAt(from.length))) {
+      const windows = /^(?:[a-z]:[\\/]|\\\\)/i.test(from);
+      const normalized = value => windows ? value.replace(/\\/g, '/').toLowerCase() : value;
+      const candidate = normalized(current), prefix = normalized(from);
+      if (candidate === prefix) return to;
+      if (candidate.startsWith(prefix) && /[\\/]/.test(current.charAt(from.length))) {
         return to + current.slice(from.length);
       }
     }

@@ -1880,7 +1880,30 @@ def markup_preserved(source, translated):
     def tokens(value):
         return [re.sub(r'^<(\/?)([a-z]+)', lambda m: '<'+m[1]+m[2].lower(), tag, flags=re.I) if tag.startswith('<') else tag for tag in pattern.findall(str(value or ''))]
     source_tags = tokens(source)
-    return not source_tags or source_tags == tokens(translated)
+    if not source_tags:
+        return True
+    target_tags = tokens(translated)
+    if source_tags == target_tags:
+        return True  # WebVTT may implicitly close voice/class spans at cue end.
+    def balanced(tags):
+        stack = []
+        for tag in tags:
+            match = re.match(r'<(/?)([a-z]+)', tag, re.I)
+            if not match:
+                continue
+            name = match[2].lower()
+            if match[1]:
+                if not stack or stack.pop() != name:
+                    return False
+            else:
+                stack.append(name)
+        return not stack
+    def html(tags):
+        return sorted(re.sub(r'#[0-9a-f]{3,8}\b', lambda m: m[0].lower(), tag, flags=re.I)
+                      for tag in tags if tag.startswith('<'))
+    return (balanced(source_tags) and balanced(target_tags)
+            and html(source_tags) == html(target_tags)
+            and [t for t in source_tags if not t.startswith('<')] == [t for t in target_tags if not t.startswith('<')])
 
 
 def translation_blocking_issues(source_text, translated_text, target_lang='tr', source_lang=None):

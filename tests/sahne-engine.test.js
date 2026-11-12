@@ -12,9 +12,24 @@ function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=
  const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false,prefs});
  t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setCanSeek:value=>canSeek=value,setRevision:value=>revision=value};
 }
+test('closing a cinema dock popup releases idle and native occlusion state',t=>{
+ const f=mount(t,{cinema:true});f.sh.openDockPop('style');
+ assert.equal(f.sh.dockPop,'style');assert.equal(f.sh.root.classList.contains('sh-pop-open'),true);
+ assert.equal(f.sh.closeDockPops(),true);assert.equal(f.sh.dockPop,null);
+ assert.equal(f.sh.root.classList.contains('sh-pop-open'),false);assert.equal(f.sh.closeDockPops(),false);
+});
+
+test('native subtitle appearance routes to the existing player settings rather than ineffective CSS controls',async t=>{
+ const f=mount(t,{cinema:true}),info=f.sh.a.info;
+ f.sh.a.info=()=>({...info(),native:true});
+ f.sh.q('[data-a=substyle]').click();await new Promise(setImmediate);
+ assert.equal(f.sh.q('[data-r=substylepop]').hidden,true);
+ assert.equal(f.commands.at(-1)[0],'advanced');assert.match(f.sh.q('[data-r=toast]').textContent,/Native/);
+});
+
 test('all stage modes expose an assistant bubble in the top toolbar and use the current-media command',async t=>{
  for(const mode of [{cinema:true},{study:true},{}]){
-  const f=mount(t,mode),button=f.sh.q('.sh-top [data-a=assistant]');
+  const f=mount(t,mode),button=f.sh.q('.sh-top-r [data-a=assistant]');
   assert(button,'assistant is reachable without opening Tasks or the transcript');
   assert.equal(button.getAttribute('aria-label'),'Asistanı aç');
   assert(button.querySelector('svg'),'the top entry has a conversation bubble');
@@ -549,7 +564,7 @@ test('the three Stage decks prioritize listening, sentence work and basic playba
  const study=mount(t,{study:true}), cinema=mount(t,{cinema:true});
  assert.ok(study.sh.q('.sh-sentence-nav [data-a=loop]'));
  assert.ok(study.sh.q('.sh-dock [data-a=readCurrent]'));
- assert.deepEqual(Array.from(cinema.sh.q('.sh-cinema-transport').children,b=>b.dataset.a),['toggle','back','fwd']);
+ assert.deepEqual(Array.from(cinema.sh.q('.sh-cinema-transport').children,b=>b.dataset.a),['back','toggle','fwd']);
  cinema.sh.q('.sh-cinema-transport [data-a=fwd]').click();
  assert.deepEqual(cinema.commands[0].slice(0,2),['seekBy',10]);
  assert.ok(cinema.sh.q('.sh-cinema-sentences [data-a=replay]'));
@@ -850,7 +865,7 @@ test('transport and panel failures stay visible and never leave rejected click p
 
 test('Sahne shortcuts preserve input, task opener and focused transcript row',t=>{
  const f=mount(t,{study:true}),key=(node,key)=>node.dispatchEvent(new f.w.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
- const panel=f.sh.q('.sh-top [data-a=panel]');panel.focus();panel.click();
+ const panel=f.sh.q('.sh-top-r [data-a=panel]');panel.focus();panel.click();
  assert.equal(f.w.document.activeElement,f.sh.q('[data-pclose]'));
  key(f.w.document.activeElement,'Escape');assert.equal(f.w.document.activeElement,panel);
  const transcript=f.sh.q('[data-a=transcript]');transcript.focus();transcript.click();
@@ -1096,7 +1111,7 @@ test('shared transport enables only usable sentence tools and supports keyboard 
   assert(plain.sh.q('[data-a=replay]').disabled);
   assert(plain.sh.q('[data-a=loop]').disabled);
   assert(!plain.sh.q('[data-a=back]').disabled);
-  assert.match(plain.sh.q('[data-r=transportHint]').textContent, /zamanlı transkript/);
+  assert.match(plain.sh.q('[data-a=replay]').title, /zamanlı transkript/);   // kalıcı uyarı satırı yok; açıklama tooltip
 
   const study = mount(t, { study: true });
   assert(!study.sh.q('[data-a=replay]').disabled);
@@ -2015,4 +2030,12 @@ test('Tasks sentence checkbox is keyboard-native, keeps focus and rejects an obs
 
 test('R854 G17/G19/G22 text focus is visual only, translation readiness counts real channels and task context states its effects',t=>{
  const h=mount(t,{study:true,audio:true,processing:true,actions:[{id:'translate',label:'Translate'}],sections:[{id:'captions',title:'Subtitles',items:[]}]});h.sh.tick();const button=h.sh.root.querySelector('[data-a=textfirst]');assert(button);button.click();assert(h.sh.root.classList.contains('sh-text-first'));assert.equal(h.commands.length,0);const state=h.sh.root.querySelector('[data-r=processingState]');assert.match(state.textContent,/Kaynak: 2.*Çeviri: 1\/2/);h.sh.togglePanel();assert.match(h.sh.root.querySelector('.sh-panel-context').textContent,/Bölüm.*Dosya değişiklikleri.*onay/);assert.equal(h.commands.length,0);
+});
+
+test('cinema keyboard: arrows seek, F fullscreen, arrow volume and M mute use the transport owners', t => {
+  const c = mount(t, { cinema: true }), press = (key, extra = {}) => c.sh.root.dispatchEvent(new c.w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...extra }));
+  press('ArrowRight'); assert.deepEqual(c.commands.at(-1).slice(0, 2), ['seekBy', 5]);
+  press('ArrowLeft', { shiftKey: true }); assert.deepEqual(c.commands.at(-1).slice(0, 2), ['seekBy', -10]);
+  press('f'); assert.equal(c.commands.at(-1)[0], 'fullscreen');
+  assert.ok(c.sh.q('[data-a=mute]'), 'mute button replaces the dead Volume label');
 });

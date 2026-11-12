@@ -38,7 +38,7 @@ function youtubeId(raw) {
     const validId = id => /^[A-Za-z0-9_-]{11}$/.test(id || '') ? id : '';
     if (host === 'youtu.be') return validId(url.pathname.split('/').filter(Boolean)[0]);
     if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
-      if (/^\/shorts\//.test(url.pathname)) return validId(url.pathname.split('/')[2]);
+      if (/^\/(?:shorts|live|embed)\//.test(url.pathname)) return validId(url.pathname.split('/')[2]);
       return validId(url.searchParams.get('v'));
     }
   } catch (_) {}
@@ -492,7 +492,7 @@ function createWatchLibraryStore(options) {
     return cache;
   }
 
-  function replaceItems(items, replaceOptions = {}) {
+  function prepareReplaceItems(items, replaceOptions = {}) {
     const current = loadDocument();
     const tombstones = allTombstones(current);
     const restored = new Set(replaceOptions.restoreRemoved
@@ -506,6 +506,11 @@ function createWatchLibraryStore(options) {
       overflowTombstones: [],
     };
     const migrated = migrateWatchDocument(source, migrationOptions);
+    return migrated;
+  }
+
+  function replaceItems(items, replaceOptions = {}) {
+    const migrated = prepareReplaceItems(items, replaceOptions);
     commit(migrated.document, io.existsSync(filePath) ? io.readFileSync(filePath, 'utf-8') : null);
     lastReport = { ...migrated.report, source: 'replace' };
     return migrated.document.items;
@@ -615,6 +620,7 @@ function createWatchLibraryStore(options) {
     loadAll: () => allItems(loadDocument()),
     loadDocument,
     replaceItems,
+    prepareReplaceItems,
     upsert,
     remove,
     restore: (patch) => upsert(patch, { restoreRemoved: true }),
@@ -635,4 +641,5 @@ module.exports = {
   migrateWatchDocument,
   parseDocument,
   stableJson,
+  mergeDuplicateItems,
 };

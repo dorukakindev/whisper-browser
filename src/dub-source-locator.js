@@ -83,7 +83,7 @@ function youtubeId(value) {
   try {
     const url = new URL(String(value));
     if (!['https:', 'http:'].includes(url.protocol) || !YOUTUBE_HOSTS.includes(url.hostname)) return null;
-    const id = url.hostname === 'youtu.be' ? url.pathname.split('/')[1] : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|embed)\/([\w-]+)/)?.[1];
+    const id = url.hostname === 'youtu.be' ? url.pathname.split('/')[1] : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]+)/)?.[1];
     return id && VIDEO_ID.test(id) ? id : null;
   } catch (_) { return null; }
 }

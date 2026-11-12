@@ -43,9 +43,11 @@ for (const [mode, variant, name] of cases) {
       })()`);
       check('Görünüm değişince arama ve oynatma konumu korunur',handoff.query==='good translation' && handoff.selected==='3' && handoff.open && handoff.time && !handoff.commands,JSON.stringify(handoff));
       await shot('cinema-search-handoff');
+      const drawerDock=await browser.evaluate(`(()=>{const stage=CinemaSahne.current,drawer=stage.q('.sh-cardsbox').getBoundingClientRect(),dock=stage.q('.sh-dock').getBoundingClientRect();return {drawerBottom:drawer.bottom,dockTop:dock.top};})()`);
+      check('Açık transkript alt oynatıcı araçlarını örtmez',drawerDock.drawerBottom<=drawerDock.dockTop,JSON.stringify(drawerDock));
       const timing = await browser.evaluate(`(async () => {
         const stage=CinemaSahne.current;
-        stage.q('.sh-top [data-a=panel]').click();
+        stage.q('.sh-top-r [data-a=panel]').click();
         const button=()=>stage.q('[data-pid="action:timing-preview-source"]');
         button().click();
         await new Promise(resolve=>setTimeout(resolve,100));
@@ -62,7 +64,7 @@ for (const [mode, variant, name] of cases) {
         const stage = CinemaSahne.current, rect = el => el.getBoundingClientRect();
         const names = ['sleep','classic','fullscreen'].map(a => stage.q('.sh-top-r [data-a='+a+']')?.getAttribute('aria-label') || '');
         const sub = stage.q('.sh-cinema-meta p').textContent;
-        stage.q('.sh-top [data-a=panel]').click();
+        stage.q('.sh-top-r [data-a=panel]').click();
         const panel = stage.q('.sh-panel'), context = panel.querySelector('.sh-panel-context'), work = panel.querySelector('.sh-panel-workspace');
         const overlap = rect(context).bottom > rect(work).top + 1;
         stage.q('[data-pclose]').click();
@@ -130,7 +132,7 @@ for (const [mode, variant, name] of cases) {
     if (variant === 'both') {
       const sections = await browser.evaluate(`(() => {
         const stage = CinemaSahne.current;
-        stage.q('.sh-top [data-a=panel]').click();
+        stage.q('.sh-top-r [data-a=panel]').click();
         return Array.from(stage.root.querySelectorAll('.sh-psec h3'), heading => heading.textContent);
       })()`);
       check(`${name}: İşlemler ilk sırada Podcast eylemlerini gösteriyor ve kuyruğu koruyor`,

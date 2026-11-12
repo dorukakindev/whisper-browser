@@ -121,7 +121,7 @@ test('main import/export ve Python env çağrı yolları güvenli yardımcılara
   assert.match(exportBody, /writeJsonTransaction/);
   assert.doesNotMatch(exportBody, /settings:\s*loadSettings\(\)/);
   assert.match(importBody, /parseImportText\(readImportFile/);
-  assert.match(importBody, /writeJsonTransaction\(entries\)/);
+  assert.match(importBody, /commitSettingsBundle\(\{[\s\S]*writeTransaction:\s*writeJsonTransaction/);
   assert.match(transcribeBody, /buildSecretEnv\(process\.env, options\)/);
   assert.doesNotMatch(transcribeBody, /args\.push\(['"]--(?:hf-token|llm-api-key|translate-api-key)/);
   assert.match(backend, /os\.environ\.get\("WHISPER_HF_TOKEN"/);
@@ -274,7 +274,7 @@ test('tüm kalıcı UI ayarları kaydet ve yeniden yükle turunda korunur', () =
     playerSpeed: '1.25', playerPlaybackPolicy: 'loop-cue', youtubeCookieBrowser: 'firefox',
     browserMangaTarget: 'tr', browserMangaFont: 'comic', browserPageTarget: 'en',
     browserPageMode: 'bilingual', browserSubtitleAutomation: 'ask',
-    browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto', browserAudioProfile: 'night', uiTheme: 'light', uiLocale: 'tr',
+    browserPreferredSubtitleMode: 'both', browserSponsorMode: 'auto', browserAudioProfile: 'night', uiTheme: 'light', uiMotion: 'auto', uiLocale: 'tr',
     browserSearchEngine: 'duckduckgo', aiTranscriptScope: 'watched',
     browserPageScope: 'article', browserExportFormat: 'vtt', browserExportTiming: 'original',
     pdfExportFormat: 'txt', pdfTargetLanguage: 'en', browserPageExportFormat: 'txt',

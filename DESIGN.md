@@ -34,6 +34,10 @@ components:
 
 # Whisper Browser tasarım kaydı
 
+## Onaylı V6 birleşmesi — 2026-11-13
+
+Kullanıcının V6 inceleme/birleştirme talimatı bu paketin film alt transport ve altyazı görünüm düzenini kapsar; aşağıdaki V3 aşamasındaki transport kapsam sınırı tarihsel kalır. Üst medya gezinmesi, sıcak amber/grafit ve ileri araçlar korunur. Filmde araçlar transport’ta, Podcast/Çift dilli görünümünde Aa menüsü üst araçlardadır. Asistan baloncuğu amber ve görünür kalır. Transkript çekmecesi transport’un üzerinde biter; iki HTML Stremio eylemi içerik yüksekliğine göre birlikte dizilir. Native mpv üzerinde etkisiz CSS görünüm ayarları sunulmaz; mevcut native ayar sahibi açılır. İzole 1920×1080 Chromium kompozisyonları gözle kontrol edildi; gerçek Windows native pencere/gösterge ve mpv görsel kabulü ayrıca doğrulanmış sayılmaz. [Devir](docs/devir/2026-11-13-0216.md).
+
 ## Kümülatif V3 üst yapı / Podcast / Stremio — 2026-11-11
 
 Onaylı paket sıcak amber/grafit kimliğiyle uygulanır: tek uygulama/Sahne/altyazı üst yüzeyi, ortada mod anahtarı; Transkript/İşlemler önde, Uyku/Klasik/Tam ekran erişilebilir simgeler. İşlemler bağlam satırı kategori/içerik ızgarasından ayrılır ve transport'un üstünde kalır. Podcast yayın/sekme/filtre ve Stremio eklenti/kaynak yüzeyleri mevcut bileşenleriyle biçimlenir; alt transport/büyük Sahne-Raf yeniden tasarımı yapılmaz. Üstteki asistan baloncuğu amber38px yuvarlak kalır, kapalı eklenti yazıları tüm satır opacity'siyle soldurulmaz. Yeni CSS dosyaları scoped; mevcut araçlar/kuyruk/saat/kaynak sahipliği korunur.

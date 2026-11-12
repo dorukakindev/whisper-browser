@@ -266,6 +266,21 @@ class BrowserNoteStore {
     return count;
   }
 
+  prepareImportMissing(rows) {
+    if (this.loadError || this.migrationError) throw Error(this.loadError || this.migrationError);
+    const annotations = new Map(this.annotations);
+    let count = 0;
+    for (const raw of Array.isArray(rows) ? rows : []) {
+      const note = normalizeStoredAnnotation(raw);
+      if (!note?.id || !note.mediaId || annotations.has(note.id)) continue;
+      annotations.set(note.id, note); count++;
+    }
+    if (annotations.size > this.maxNotes) throw Error('Not sayısı güvenli sınırı aştı; eski notlar silinmedi.');
+    const document = {version:NOTE_STORE_VERSION,updatedAt:Date.now(),annotations:[...annotations.values()].sort((a,b)=>Number(a.createdAt)-Number(b.createdAt))};
+    if (Buffer.byteLength(JSON.stringify(document),'utf8') > MAX_FILE_BYTES) throw Error('Not deposu güvenli boyut sınırını aştı; eski notlar silinmedi.');
+    return {count,document};
+  }
+
   search(query, limit = 50) {
     const folded = foldSearchText(String(query || '').trim());
     if (!folded) return [];

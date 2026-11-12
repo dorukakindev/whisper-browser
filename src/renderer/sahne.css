@@ -517,3 +517,7 @@ html:not([data-theme=light]) .sh .sh-eyebrow{color:var(--sh-dim);letter-spacing:
 
 /* R854 G22: source and operation effects remain outside the category scroll. */
 .sh-panel-context{margin:0;padding:12px 20px;border-bottom:1px solid var(--border);color:var(--text-dim);font-size:13px;line-height:1.5;overflow-wrap:anywhere}.sh-panel-context+.sh-panel-workspace{min-height:0}
+
+
+/* Büyük transkriptlerde ekran dışı satırlar yerleşim/boyama maliyeti çıkarmaz (mod geçişi ve kaydırma hızlanır). */
+.sh-cards .sh-card, .sh-scroll .sh-card { content-visibility: auto; contain-intrinsic-size: auto 96px; }

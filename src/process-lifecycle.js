@@ -57,6 +57,11 @@ const confirmedClosed = new WeakSet();
 // Failure leaves the owning job live and permits another explicit Stop request.
 function terminateProcessTreeAndWait(proc, options = {}) {
   if (!proc || confirmedClosed.has(proc)) return Promise.resolve(true);
+  const exited = proc.exitCode != null || proc.signalCode != null;
+  // Gerçek ChildProcess'te (stdio dizisi var) tüm akışlar kapanmışsa 'close' bir daha gelmez; beklemeden onayla.
+  // Akış bilgisi olmayan/açık akışlı nesne hâlâ yalnızca 'close' olayıyla onaylanır.
+  const streamsDone = Array.isArray(proc.stdio) && proc.stdio.every(stream => !stream || stream.destroyed || stream.readableEnded || stream.closed);
+  if (exited && streamsDone) { confirmedClosed.add(proc); return Promise.resolve(true); }
   const waitMs = Number.isFinite(options.waitMs) ? Math.max(1, options.waitMs) : 6500;
   return new Promise(resolve => {
     let timer, settled = false;

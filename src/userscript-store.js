@@ -29,7 +29,7 @@ function createUserscriptStore(filePath){
    if(row.errors.some(error=>!error||typeof error.message!=='string'||error.message.length>1000||!Number.isFinite(error.at)))throw Error('Invalid userscript error history.');
    row.metadata=metadata;row.values=valuesOf(row.values);
   }
-  data.pausedOrigins=data.pausedOrigins.map(originOf);return data;
+  data.pausedOrigins=data.pausedOrigins.flatMap(origin=>{try{return [originOf(origin)];}catch{return [];}});return data;   // bozuk kayıt tüm motoru çökertmez, yalnız atlanır
  }
  function save(data){const json=JSON.stringify(data);if(Buffer.byteLength(json)>MAX_FILE)throw Error('Userscript store quota exceeded (4MiB); original preserved.');atomicWriteFileSync(filePath,json);return data;}
  const getRow=(data,id)=>{const row=data.scripts.find(s=>s.id===id);if(!row)throw Error('Unknown userscript ID.');return row;};

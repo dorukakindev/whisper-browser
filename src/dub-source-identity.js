@@ -32,7 +32,7 @@ function identity(value) {
   try {
     const url = new URL(canonical);
     if (['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname)) {
-      const id = url.hostname === 'youtu.be' ? url.pathname.split('/')[1] : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|embed)\/([\w-]+)/)?.[1];
+      const id = url.hostname === 'youtu.be' ? url.pathname.split('/')[1] : url.searchParams.get('v') || url.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]+)/)?.[1];
       if (id && /^[\w-]{11}$/.test(id)) canonical = `youtube:${id}`;
     }
   } catch (_) { if (/^[a-z]:[\\/]/i.test(canonical)) canonical = canonical.replace(/\\/g,'/').toLowerCase(); }

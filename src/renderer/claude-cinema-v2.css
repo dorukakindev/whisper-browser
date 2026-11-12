@@ -345,3 +345,19 @@ html:is([data-cinema-motion=off],[data-cinema-motion=reduced]) :is(.cv2-home-pic
 html:not([data-motion=off]):not([data-motion=reduce]) .cv2-home-door:hover,html:not([data-motion=off]):not([data-motion=reduce]) .cv2-home-door:focus-visible{transform:translateY(-4px)}
 .cv2-home-hero .cn-hero-art{border-radius:26px;box-shadow:0 50px 90px -40px black,0 0 0 1px color-mix(in srgb,var(--text) 10%,transparent)}
 .cv2-home-doors .cv2-home-door svg{color:var(--text);stroke:var(--text);opacity:.86}
+
+
+/* Keşfet: vitrin posterleri sade sayfa noktaları; tek arama (üst çubuk); tutarlı poster çerçevesi. */
+.cv2-discover .cn-discover-dots .cn-discover-dot{width:10px;height:10px;min-width:0;padding:0;border:0;border-radius:50%;opacity:1;overflow:hidden;background:color-mix(in srgb,var(--text) 35%,transparent);transform:none}
+.cv2-discover .cn-discover-dots .cn-discover-dot>*{display:none}
+.cv2-discover .cn-discover-dots .cn-discover-dot[aria-pressed=true]{width:26px;border-radius:999px;background:var(--accent,#dda353)}
+.cv2-discover .cn-discover-dots{gap:8px;align-items:center}
+.cn-discover-page .cn-filter-search{display:none}
+.cn-discover-page .cn-feature-basis{display:none}
+.cv2-discover-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.cv2-discover-section-heading .cn-discover-filters{margin:0;display:flex;gap:8px;flex-wrap:wrap}
+.cn-poster{position:relative}
+.cn-poster::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text) 10%,transparent)}
+.md-personal-toolbar .mh-action{font-size:13px;min-height:34px;padding:0 14px}
+.cn-discover-page .mv-search-group{display:none!important}
+.cn-discover-page .cn-feature-basis{display:none!important}

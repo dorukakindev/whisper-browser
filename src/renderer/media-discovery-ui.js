@@ -438,7 +438,7 @@
       const node = btn(label, () => { state.tab = value; state.rows = []; state.next = null; draw(); void load(); }, 'cn-discover-tab'); node.setAttribute('aria-pressed', String(value === state.tab)); tabs.append(node);
     }
     root.classList.add('cn-discover-page','cv2-discover');const dock=el('section','cn-discover-controls'),viewRow=el('div','cn-discover-view-row');dock.setAttribute('aria-label',t('Discovery controls','Keşfet kontrolleri'));dock.append(tabs);root.append(dock);if(state.tab==='browse'){const views=el('div','cn-watch-views');views.setAttribute('aria-label',t('Viewing filter','İzlenme filtresi'));for(const [value,en,tr]of [['unwatched','Unwatched','İzlemediklerim'],['all','Include watched','Tümü'],['watched','Watched','İzlediklerim'],['watchlist','Watchlist','İzleme listem']]){const b=btn(t(en,tr),()=>{state.view=value;state.rows=[];draw();void load();},'cn-watch-choice');b.setAttribute('aria-pressed',String(state.view===value));views.append(b);}viewRow.append(views);}
-    viewRow.append(btn(t('Conditional library selection','Koşullu kütüphane seçkisi'),()=>window.MediaCatalogUI.open({conditions:true}), 'cn-watch-choice'));
+    viewRow.append(btn(t('Conditional library selection','Kütüphaneden seç'),()=>window.MediaCatalogUI.open({conditions:true}), 'cn-watch-choice'));
     /* G25: the conditions that narrow this list, each removable, plus one way back to the defaults. Counts keep meaning "this loaded response". */
     let activeChipsRow = null;
     {
@@ -479,7 +479,8 @@
     const footer = el('div', 'cn-discover-footer'); footer.append(btn(t('Show more', 'Daha fazla göster'), () => load(true), 'mh-action md-more'), btn(t('Retry', 'Yeniden dene'), () => load(state.retryAppend), 'mh-action md-retry'), el('p', 'md-provider', t('Catalog: Cinemeta, the official Stremio movie & series catalog. No account or API key required.', 'Katalog: Cinemeta, resmî Stremio film ve dizi kataloğu. Hesap veya API anahtarı gerekmez.')));
     const featureSlot=el('div','cn-feature-slot');
     const sectionTitle=el('div','cv2-discover-section-heading');sectionTitle.append(el('h2','',state.tab==='personal'?t('Chosen for you','Sana özel'):state.tab==='preferences'?t('Your discovery preferences','Keşif tercihlerin'):t('Find your next story','Sıradaki hikâyeni bul')));
-    if(state.tab==='personal')sectionTitle.append(el('p','md-provider',t('Personal evidence: your saved ratings or explicit likes. Catalog and metadata relationships are labelled separately and are not a personal fit guarantee.','Kişisel dayanak: kayıtlı puanın veya açık beğenin. Katalog ve metadata ilişkileri ayrı etiketlenir; kişisel uygunluk garantisi değildir.')));root.append(statusNode,featureSlot,sectionTitle,viewRow,...(activeChipsRow?[activeChipsRow]:[]),el('p','cn-discover-results'),grid,footer);cards();
+    if(state.tab==='personal')sectionTitle.append(el('p','md-provider',t('Personal evidence: your saved ratings or explicit likes. Catalog and metadata relationships are labelled separately and are not a personal fit guarantee.','Kişisel dayanak: kayıtlı puanın veya açık beğenin. Katalog ve metadata ilişkileri ayrı etiketlenir; kişisel uygunluk garantisi değildir.')));if(state.tab==='browse')sectionTitle.append(filters);   // Yapım/Liste/Tür filtreleri ikinci sabit şeritte değil, katalog başlığının sağında
+    root.append(statusNode,featureSlot,sectionTitle,viewRow,...(activeChipsRow?[activeChipsRow]:[]),el('p','cn-discover-results'),grid,footer);cards();
     if(state.tab==='browse'&&!state.query.trim())void personalShelf(root);
 
   }

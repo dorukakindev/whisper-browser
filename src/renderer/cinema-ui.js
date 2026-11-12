@@ -240,14 +240,13 @@
     if (!page) return;
     const card=page.querySelector('[data-cinema-credits]'),grid=page.querySelector('.cn-story-grid'),meta=page.querySelector('.cn-film-copy .cn-meta');
     if (!card||!meta) return;
-    page.querySelector('.cn-credit-chips')?.remove();
+    page.querySelector('.cn-credit-chips')?.remove();meta.querySelectorAll('.cn-credit-inline').forEach(x=>x.remove());
     const count = Number(card.dataset.creditCount);
     const sparse = count === 0 || (!page.querySelector('.cn-library-hero') && count < 3);
     grid?.classList.toggle('cn-sparse-credits',sparse);card.hidden=sparse;
     if(sparse&&Number(card.dataset.creditCount)){
-      const chips=n('div','cn-credit-chips');
-      for(const row of card.querySelectorAll('dl>div'))chips.append(n('span','',row.querySelector('dt').textContent+' · '+row.querySelector('dd').textContent));
-      meta.after(chips);
+      // Yönetmen vb. kutu/çip değil, üstteki meta satırında düz metin.
+      for(const row of card.querySelectorAll('dl>div'))meta.append(n('span','cn-credit-inline',row.querySelector('dt').textContent+': '+row.querySelector('dd').textContent));
     }
   }
   function accordionRow(details,symbol,hint){
@@ -290,8 +289,8 @@
     advanced.addEventListener("toggle", () => {
       if (advanced.isConnected) viewState.advanced = advanced.open;
     });
-    advanced.querySelector("summary").addEventListener("click", () => {
-      viewState.advanced = !advanced.open;
+    advanced.querySelector("summary").addEventListener("click", event => {
+      queueMicrotask(() => { if (advanced.isConnected && !event.defaultPrevented) viewState.advanced = advanced.open; });
     });
     const options = page.querySelector(".film-dossier-options,.md-detail-options");
     if (options) advancedBody.append(...[...options.children].filter((x) => x.tagName !== "SUMMARY"));
@@ -374,8 +373,7 @@
     const rest = [...oldActions?.children || []].filter((x) => x !== primary && x !== favorite);
     const reviewAction = rest.find((x) => x.dataset.discoveryAction === "reviews");
     if (reviewAction) {
-      reviewAction.textContent = t("Reviews & analysis", "Yorumlar ve analiz");
-      actions.append(rebutton(reviewAction, "secondary", "quote"));
+      // "Yorumlar ve analiz" alttaki sekmede zaten var; aksiyon satırında tekrarlanmaz.
       rest.splice(rest.indexOf(reviewAction), 1);
     }
     if (isDiscovery && personal) for (const [index, en, tr, symbol] of [[0, "Liked it", "Be\u011Fendim", "like"], [1, "Not for me", "Bana g\xF6re de\u011Fil", "dislike"]]) actions.append(action(t(en, tr), () => {

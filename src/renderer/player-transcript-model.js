@@ -74,7 +74,7 @@
     const sec = cuesOf(secondaryTrack).map((cue, order) => ({ cue, order, span: mediaSpan(cue, secOff) }))
       .sort((a, b) => a.span.start - b.span.start || a.span.end - b.span.end || a.order - b.order);
     const secById = new Map(sec.map((x) => [x.cue.id, x]));
-    let lo = 0;
+    const prefixEnd=[];for(const x of sec)prefixEnd.push(Math.max(prefixEnd.at(-1)??-Infinity,x.span.end));
 
     return src.map((cue) => {
       const span = mediaSpan(cue, srcOff);
@@ -86,7 +86,7 @@
         if (matches.length) pairing = 'origin-linked';
       }
       if (!matches.length && sec.length) {
-        while (lo < sec.length && sec[lo].span.end <= span.start) lo++;
+        let lo=0,hi=sec.length;while(lo<hi){const mid=(lo+hi)>>>1;if(prefixEnd[mid]<=span.start)lo=mid+1;else hi=mid;}
         for (let i = lo; i < sec.length; i++) {
           const cand = sec[i];
           if (cand.span.start >= span.end) break;

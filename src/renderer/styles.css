@@ -7538,3 +7538,14 @@ dialog.research-draft-dialog[open] { position:fixed; inset:0; margin:auto; trans
 .subtitle-owner-card{font-size:11px;line-height:1.6;color:var(--text-muted);white-space:pre-line;overflow-wrap:anywhere;padding:8px 10px;border-left:2px solid var(--accent)}
 
 .subtitle-profile-card{padding:10px 0;border-top:1px solid var(--border)}.subtitle-profile-card p{white-space:pre-line;overflow-wrap:anywhere;line-height:1.6}
+
+
+/* ── Ortak kaydırma çubuğu: ince, şeffaf zeminli; yatay yayın şeritlerinde gizli ───────────── */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--text) 18%, transparent) transparent; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text) 18%, transparent); border-radius: 6px; }
+*::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--text) 30%, transparent); }
+*::-webkit-scrollbar-button { display: none; }
+.pl-v2 .pl-programs { scrollbar-width: none; }
+.pl-v2 .pl-programs::-webkit-scrollbar { display: none; }
