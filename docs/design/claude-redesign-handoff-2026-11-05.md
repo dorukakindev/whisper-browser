@@ -48,7 +48,7 @@ Kullanıcı browser tarafını daha iyi buldu ve ana sayfa/RSS/yerel Podcast ile
 
 ## Geçerli kararlar
 
-Görünüm en önemli önceliktir. Güçlü ve modern tasarım, belirgin hover/ışık/efekt ve sürekli dekoratif animasyon kullanılabilir. Zorunlu sakinlik/minimalizm veya düşük hareket kuralı yok. Tasarımcının görsel çözümüne karışılmaz; sabit kolon/ölçü/koreografi dayatılmaz. Grafit/amber medya kimliği, okunabilirlik, hareket tercihi, erişilebilirlik ve mevcut işlev/veri/güvenlik sahipleri korunur.
+Görünüm en önemli önceliktir. Güçlü ve modern tasarım, belirgin hover/ışık/efekt ve sürekli dekoratif animasyon kullanılabilir. Zorunlu sakinlik/minimalizm veya düşük hareket kuralı yok. Tasarımcının görsel çözümüne karışılmaz; sabit kolon/ölçü/koreografi dayatılmaz. Sabit palet ve mevcut yerleşimi koruma şartı yoktur; okunabilirlik, hareket tercihi, erişilebilirlik ve işlev/veri/güvenlik sahipleri korunur.
 
 Önceki brief’in Ana sayfa/Keşfet/film üstünü aynen koruma şartı bu tur için kaldırılmıştır. Bu sayfalar yeniden tasarım kapsamındadır; kapsam dışındaki sayfalar kendiliğinden yeniden yazılmaz. Bu yetki, henüz görülmeyen yeni prototipi onaylanmış/uygulanmış saymak değildir.
 

@@ -2,6 +2,10 @@
 
 Kullanıcı talimatı · 2026-11-10. Bu belge Claude için görev promptu hazırlayan asistana yöneliktir. Claude'un iç çalışma biçimi hakkında varsayım değil, bu proje için istenen görev verme ve çalışma sözleşmesidir.
 
+## Tasarım görevlerinde estetik yetki
+
+Sabit amber/sarı düğme, palet, font, köşe, boşluk veya mevcut yerleşimi koruma zorunluluğunu prompta taşıma. Minimalizm/sakinlik ya da gradyan/parıltı yasağı ekleme. Tasarımcı içeriğe uygun özgün kompozisyon kurabilir; erişilebilirlik, özellikler ve veri/güvenlik sınırları korunur. Eski devirlerdeki stil kısıtları güncel yetki değildir. Güncel çerçeve DESIGN.md içindedir.
+
 ## Önce güncel belgelerden görev çıkar
 
 - README.md ile ürün ve belge haritasını, BACKLOG.md ile açık iş ve kabul koşullarını, DEVIR-NOTU.md indeksinden yalnız ilgili en güncel devri oku. UI için DESIGN.md, teknik ayrıntı için docs/WORKING_GUIDE.md'nin ilgili bölümünü kullan.

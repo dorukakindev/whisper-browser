@@ -1,48 +1,26 @@
----
-version: alpha
-name: Whisper Browser
-description: Türkçe video, altyazı ve çeviri çalışma istasyonu.
-colors:
-  background: '#111215'
-  surface: '#191b1f'
-  raised: '#24272d'
-  border: '#383c43'
-  text: '#f1f0ed'
-  muted: '#b0b4bd'
-  primary: '#e2ab5b'
-  danger: '#d06b63'
-typography:
-  sans:
-    fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
-  display:
-    fontFamily: "Sora, Segoe UI, sans-serif"
-  mono:
-    fontFamily: "JetBrains Mono, Consolas, monospace"
-rounded:
-  DEFAULT: 8px
-  sm: 6px
-  md: 8px
-spacing:
-  control-gap: 8px
-  section-gap: 12px
-components:
-  button: {}
-  input: {}
-  disclosure: {}
-  status: {}
----
-
 # Whisper Browser tasarım kaydı
+
+## Güncel tasarım yetkisi · 2026-11-13
+
+Renk, font, köşe, boşluk, düğme biçimi veya yerleşim için sabit bir estetik zorunluluk yoktur. Sarı/amber birincil düğme, tek vurgu rengi, mevcut paleti aynen sürdürme, minimalizm/sakinlik veya gradyan/parıltı yasağı uygulanmaz. Mevcut CSS değerleri değiştirilebilir uygulama ayrıntılarıdır; tasarım şartnamesi değildir.
+
+Ekranın içeriğine ve kullanımına uygun özgün kompozisyon kur. Renkleri, tipografiyi, ölçeği, yüzeyleri, gezinmeyi ve etkileşimleri birlikte tasarla; aynı kapsül düğmeyi her yere tekrarlamayı varsayılan çözüm sayma. Mevcut görünümü koruma zorunluluğu yerine görsel bütünlüğü ve işlevlere ulaşılabilirliği değerlendir. Yeni tasarımda ortak tokenları gerekirse geliştir; token kullanımı tek bir palete bağlılık değildir.
+
+Özellikler, ileri ayarlar, kişisel veriler, kaynak/zaman/iş sahipliği ve güvenlik korunur. Okunabilir kontrast, klavye erişimi, görünür odak ve azaltılmış hareket tercihi geçerlidir. Bunlar renk veya stil dayatması değildir. Yetkili kapsamda tasarım kararları için rutin onay döngüsü oluşturma; gerçek render üzerinden kompozisyonu ve etkileşimleri kontrol et. Bu karar yeni bir ürün yeniden tasarımı başlatmaz.
+
+Eski devirler, paket promptları ve aşağıdaki uygulama kayıtları geçmişin kanıtıdır; içlerindeki palet/font/yerleşim koruma ifadeleri güncel tasarım talimatı değildir. Güncel kullanıcı isteği önceliklidir. Kullanıcının mevcut talimatı doğrultusunda tasarım skill'i veya agent kullanılmaz.
+
+## Tarihî uygulama kayıtları — stil zorunluluğu değildir
 
 ## Browser etiket kademeleri, erişim ve gezinme konumu — 2026-11-13
 
 Yerel birleşim kabulü: Altyazı merkezi masaüstünde okunur420px hedefini Browser katmanından alır; eski translate-popover genişliği bunu bastırmaz. İş satırı animasyonu canonical running durumunu ve uygulama/OS hareket tercihini izler. Keşfet'in filtreli katalog araması genel üst aramadan ayrı mevcut akışta, “Katalogda ara” adıyla erişilebilir kalır. Gerçek Windows Electron/WebContentsView ve tek dar pencere kontrolü [birleşim devrinde](docs/devir/2026-11-13-0844.md).
 
-Browser üst araçlarında hiyerarşi: Altyazılar (panel) → **Çeviri ve dublaj** (hub: altyazı ayarı, Whisper, Whisper+çeviri, Sayfayı çevir, Mangayı çevir, dublaj) → sayfa çevirisi → çalışma görünümleri → Asistan / Ayarlar / paneller / ⋯. Etiketler çalışma alanı genişliğine göre kademeli iner: Asistan ve Ayarlar ≥1400px, Çeviri ve dublaj ≥1260px, Sayfayı çevir ≥1721px; daha dar alanda simge kalır, ad/başlık/aria-label korunur. Ayarlar gerçek dişli simgesi taşır (parlaklık simgesiyle karışmaz). Boş altyazı durumundaki Whisper düğmeleri ve hub öğeleri tek sahipten (`updateBrowserWhisperActions`) senkronlanır; kapalıysa gerçek neden ve uygulanabilir sonraki adım (Canlı Whisper / altyazı dosyası) görünür, menüde yalnız kısa neden. Sayfa çevirisi menüsünde Duraklat ve Otomatik devam yalnız ilgili durumda görünür. Üst medya gezinmesinde menüye taşınan sayfalar (Stremio, Diziler, Anime, Manga, Zevkim, İçerik ağı, Radyo/Podcast…) ait oldukları üst girişi veya "Daha fazla"yı etkin işaretler. Arşiv kartı türleri arayüz diliyle gösterilir. Stremio başlığındaki marka adı TR büyük harf dönüşümünde "WHİSPER" olmaz. Altyazı merkezi durum bloğu kaynak başlığının altında canlı iş satırı gösterir (çalışan iş + yüzde, hazır, başarısız; aynı iş toplayıcısından, "İşleri aç ve iptal et" Görev merkezi vekiliyle). Arşiv çalışma sekmeleri ≥1000px'te sarmalıdır (kırpılan sekme yok), dar alanda kaydırmalı şerit kalır. Sahne'de Çift dilli sekmesi, Transkript ve Klasik panel ayrı simgeler taşır. Medya ana sayfası kaydırma kapsayıcısı yapışkan üst çubuğa karşı `scroll-padding-top` taşır (odak örtülmez). Renkler mevcut amber/grafit token'larından gelir. Kontrollü 1920×1080 Chromium ile doğrulandı; gerçek Windows Electron/WebContentsView üstü menü kabulü ayrıdır. [Devir](docs/devir/2026-11-13-0424.md).
+Browser üst araçlarında hiyerarşi: Altyazılar (panel) → **Çeviri ve dublaj** (hub: altyazı ayarı, Whisper, Whisper+çeviri, Sayfayı çevir, Mangayı çevir, dublaj) → sayfa çevirisi → çalışma görünümleri → Asistan / Ayarlar / paneller / ⋯. Etiketler çalışma alanı genişliğine göre kademeli iner: Asistan ve Ayarlar ≥1400px, Çeviri ve dublaj ≥1260px, Sayfayı çevir ≥1721px; daha dar alanda simge kalır, ad/başlık/aria-label korunur. Ayarlar gerçek dişli simgesi taşır (parlaklık simgesiyle karışmaz). Boş altyazı durumundaki Whisper düğmeleri ve hub öğeleri tek sahipten (`updateBrowserWhisperActions`) senkronlanır; kapalıysa gerçek neden ve uygulanabilir sonraki adım (Canlı Whisper / altyazı dosyası) görünür, menüde yalnız kısa neden. Sayfa çevirisi menüsünde Duraklat ve Otomatik devam yalnız ilgili durumda görünür. Üst medya gezinmesinde menüye taşınan sayfalar (Stremio, Diziler, Anime, Manga, Zevkim, İçerik ağı, Radyo/Podcast…) ait oldukları üst girişi veya "Daha fazla"yı etkin işaretler. Arşiv kartı türleri arayüz diliyle gösterilir. Stremio başlığındaki marka adı TR büyük harf dönüşümünde "WHİSPER" olmaz. Altyazı merkezi durum bloğu kaynak başlığının altında canlı iş satırı gösterir (çalışan iş + yüzde, hazır, başarısız; aynı iş toplayıcısından, "İşleri aç ve iptal et" Görev merkezi vekiliyle). Arşiv çalışma sekmeleri ≥1000px'te sarmalıdır (kırpılan sekme yok), dar alanda kaydırmalı şerit kalır. Sahne'de Çift dilli sekmesi, Transkript ve Klasik panel ayrı simgeler taşır. Medya ana sayfası kaydırma kapsayıcısı yapışkan üst çubuğa karşı `scroll-padding-top` taşır (odak örtülmez).  Kontrollü 1920×1080 Chromium ile doğrulandı; gerçek Windows Electron/WebContentsView üstü menü kabulü ayrıdır. [Devir](docs/devir/2026-11-13-0424.md).
 
 ## Browser çalışma tezgâhı birleşimi — 2026-11-13
 
-Browser üst araçları mevcut kimlik ve komut sahipleri korunarak etiketli gruplara ayrılır. Altyazı merkezi kaynak yokken de bulunabilir; altyazı/oluşturma/çeviri/dublaj yolları mevcut düğmelere gider. Asistan ve Ayarlar erişimi üst araçlarda kalır. İşler göstergesi canonical görev merkezinden beslenir; gerçek terminal olayı olmadan başarı üretmez ve eski iş/nesil bildirimi yeni işe taşınmaz. Renkler mevcut runtime amber/grafit tema değişkenlerinden gelir; yeni bağımsız palet yok. Yerel 108px sabit altyazı ve canlı konuşma şeridi korunur. ASUS gerçek Electron tam ekran ve tek 940px tanılaması geçti; dar panel devralması kapatılınca araçların erişimi geri gelir. [Yerel birleşim ve sınırlar](docs/devir/2026-11-13-0518.md).
+Browser üst araçları mevcut kimlik ve komut sahipleri korunarak etiketli gruplara ayrılır. Altyazı merkezi kaynak yokken de bulunabilir; altyazı/oluşturma/çeviri/dublaj yolları mevcut düğmelere gider. Asistan ve Ayarlar erişimi üst araçlarda kalır. İşler göstergesi canonical görev merkezinden beslenir; gerçek terminal olayı olmadan başarı üretmez ve eski iş/nesil bildirimi yeni işe taşınmaz.  Yerel 108px sabit altyazı ve canlı konuşma şeridi korunur. ASUS gerçek Electron tam ekran ve tek 940px tanılaması geçti; dar panel devralması kapatılınca araçların erişimi geri gelir. [Yerel birleşim ve sınırlar](docs/devir/2026-11-13-0518.md).
 
 ## Stremio bulut kütüphanesi ve iz erişimi — 2026-11-13
 
@@ -54,41 +32,27 @@ Browser üst araçları mevcut kimlik ve komut sahipleri korunarak etiketli grup
 
 ## Onaylı V6 birleşmesi — 2026-11-13
 
-Kullanıcının V6 inceleme/birleştirme talimatı bu paketin film alt transport ve altyazı görünüm düzenini kapsar; aşağıdaki V3 aşamasındaki transport kapsam sınırı tarihsel kalır. Üst medya gezinmesi, sıcak amber/grafit ve ileri araçlar korunur. Filmde araçlar transport’ta, Podcast/Çift dilli görünümünde Aa menüsü üst araçlardadır. Asistan baloncuğu amber ve görünür kalır. Transkript çekmecesi transport’un üzerinde biter; iki HTML Stremio eylemi içerik yüksekliğine göre birlikte dizilir. Native mpv üzerinde etkisiz CSS görünüm ayarları sunulmaz; mevcut native ayar sahibi açılır. İzole 1920×1080 Chromium kompozisyonları gözle kontrol edildi; gerçek Windows native pencere/gösterge ve mpv görsel kabulü ayrıca doğrulanmış sayılmaz. [Devir](docs/devir/2026-11-13-0216.md).
+Kullanıcının V6 inceleme/birleştirme talimatı bu paketin film alt transport ve altyazı görünüm düzenini kapsar; aşağıdaki V3 aşamasındaki transport kapsam sınırı tarihsel kalır.  Filmde araçlar transport’ta, Podcast/Çift dilli görünümünde Aa menüsü üst araçlardadır. Asistan erişimi görünür kalır. Transkript çekmecesi transport’un üzerinde biter; iki HTML Stremio eylemi içerik yüksekliğine göre birlikte dizilir. Native mpv üzerinde etkisiz CSS görünüm ayarları sunulmaz; mevcut native ayar sahibi açılır. İzole 1920×1080 Chromium kompozisyonları gözle kontrol edildi; gerçek Windows native pencere/gösterge ve mpv görsel kabulü ayrıca doğrulanmış sayılmaz. [Devir](docs/devir/2026-11-13-0216.md).
 
 ## Kümülatif V3 üst yapı / Podcast / Stremio — 2026-11-11
 
-Onaylı paket sıcak amber/grafit kimliğiyle uygulanır: tek uygulama/Sahne/altyazı üst yüzeyi, ortada mod anahtarı; Transkript/İşlemler önde, Uyku/Klasik/Tam ekran erişilebilir simgeler. İşlemler bağlam satırı kategori/içerik ızgarasından ayrılır ve transport'un üstünde kalır. Podcast yayın/sekme/filtre ve Stremio eklenti/kaynak yüzeyleri mevcut bileşenleriyle biçimlenir; alt transport/büyük Sahne-Raf yeniden tasarımı yapılmaz. Üstteki asistan baloncuğu amber38px yuvarlak kalır, kapalı eklenti yazıları tüm satır opacity'siyle soldurulmaz. Yeni CSS dosyaları scoped; mevcut araçlar/kuyruk/saat/kaynak sahipliği korunur.
+Onaylı paket sıcak amber/grafit kimliğiyle uygulanır: tek uygulama/Sahne/altyazı üst yüzeyi, ortada mod anahtarı; Transkript/İşlemler önde, Uyku/Klasik/Tam ekran erişilebilir simgeler. İşlemler bağlam satırı kategori/içerik ızgarasından ayrılır ve transport'un üstünde kalır. Podcast yayın/sekme/filtre ve Stremio eklenti/kaynak yüzeyleri mevcut bileşenleriyle biçimlenir; alt transport/büyük Sahne-Raf yeniden tasarımı yapılmaz. Üstteki asistan erişimi görünür kalır, kapalı eklenti yazıları tüm satır opacity'siyle soldurulmaz. Yeni CSS dosyaları scoped; mevcut araçlar/kuyruk/saat/kaynak sahipliği korunur.
 
 ## Ortak yapım ayrıntısı ve görünür eylemler — 2026-11-11
 
-Stremio film kartları ayrı film tasarımı üretmez; Keşfet'in mevcut MediaDiscoveryUI/CinemaUI ayrıntı sayfasını açar. Kaynak seçimi ortak hero'nun birincil eylemi, kütüphane eylemi ikincildir; eklenti kaynak/bölüm/listem/değerlendirme araçları ortak kaynak alanındadır. Benzer film önerisi yalnız film ayrıntısındaki bir seçenek olarak sunulur, Keşfet kartlarının altında veya sağ tık menüsünde tekrarlanmaz. Ana sayfa açık oturum kartı görünür erişilebilir X ile kapatılabilir. Üç oynatıcı modunda Transkript ile İşlemler arasındaki amber asistan baloncuğu mevcut asistan sahibini açar. Üst medya gezinmesi, sıcak amber/grafit, hareket tercihi ve ileri araçlar korunur.
+Stremio film kartları ayrı film tasarımı üretmez; Keşfet'in mevcut MediaDiscoveryUI/CinemaUI ayrıntı sayfasını açar. Kaynak seçimi ortak hero'nun birincil eylemi, kütüphane eylemi ikincildir; eklenti kaynak/bölüm/listem/değerlendirme araçları ortak kaynak alanındadır. Benzer film önerisi yalnız film ayrıntısındaki bir seçenek olarak sunulur, Keşfet kartlarının altında veya sağ tık menüsünde tekrarlanmaz. Ana sayfa açık oturum kartı görünür erişilebilir X ile kapatılabilir. Üç oynatıcı modunda Transkript ile İşlemler arasındaki amber asistan baloncuğu mevcut asistan sahibini açar.
 
 ## R854 uygulama tamamlaması — 2026-11-11 03:11
 
-Sıcak amber/grafit ve üst medya gezinmesi korunur. Podcast liste kontrolleri devam kartından önce, ikinci bilgiler mevcut bölüm araçlarında; yayın adı klavye odağında tam görünür. Asistan kaynak ayrıntısı yanıtın scroll'unu değiştirmeyen katmandır; Yanıta dön ve açık işlem ayrıntısı vardır. Bağlam seçimi kaynak ayrıntısında kalır. Yorum önizlemesinin yapım/yıl/sayı ve dönüş başlığı üst medya gezinmesinin altında görünür tutulur. Seçili video kopyasının adı/türü/konumu genel kişisel kayıttan ayrı, oynatma eyleminin yanında taşınır ve CinemaUI yeniden kurulumunda korunur. Yeni renk literali veya baskın alternatif palet eklenmedi. Kontrollü Windows Chromium görselleri gerçek Electron/monitör kabulünün yerine geçmez. [Kapsam ve sınırlar](docs/devir/2026-11-11-0311.md).
-
-## Güncel tasarım yönü — 2026-11-11 02:33 · sıcak amber geri döndü
-
-Kullanıcı nötr/siyah-beyaz yönü açıkça geri çekti: **canlı, sıcak ve sinematik bir arayüz** isteniyor. Grafit zemin, bal/amber ana vurgu, renkli kapak ve dengeli ortam ışığı korunur. Vurgu yalnız etkileşim anlarıyla sınırlı değildir; içerik ve tipografi hiyerarşisiyle birlikte kullanılabilir. Soluk, ruhsuz bir gri görünüm hedeflenmez. Tek palet sahipliği ve erişilebilirlik sürer: koyu aksan `#e2ab5b`, hover `#f2c681`, üst yazı `#21170c`; açık tema amberi `#865019`. Sahne'nin üretilmiş kapağı ve ortam ışığı yeniden sıcak renklidir; asistan/Browser aynı aksanı kullanır, ayrı baskın buz mavisi palet açmaz. Aşağıdaki nötr karar önceki tarihsel karardır ve **artık yürürlükte değildir**.
-
-Orijinal oyuncu başlığı Sahne'nin üstünde kalır; ayarlar, kendi modern oyuncu İleri araçlar dialog sahibini açar. Zamanlı Whisper sonucu, zaman kontrolü kaldırılarak değil, aynı bölüme/hash'e ait doğrulanmış ses kopyası açılarak kullanılır. Bunlar görünüm uğruna kaynak/izin kapılarını gevşetmez.
-
-## Önceki tasarım yönü — 2026-11-11 02:17 · yürürlükten kalktı
-
-Kullanıcının güncel kararı önceki amber ve projeksiyon mavisi yönünü geçersiz kılar: **nötr, sinematik zemin; vurgu yalnız etkileşim anlarında (odak, seçili öğe, ilerleme) ve düşük doygunlukta. Amber de buz mavisi de baskın değildir.** Tipografi, genişlik, kapak/afiş, kaynak kimliği, ileri araçlar ve hareket tercihleri korunur. Semantik hata/başarı renkleri ile gerçek kapak/video renkleri dekoratif aksanla karıştırılmaz.
-
-Tek aksan sahibi `src/renderer/theme-palette.css` içindeki `--theme-accent` rolüdür: koyu temada `#b8b6b0`, açık temada `#595c5e`. Hover ve üst yazı karşılıkları aynı palette tanımlanır. Player/Browser/asistan ve küçük oynatıcı ayrı amber/mavi palet açmaz. Üretilen sayfa araçları `src/theme-palette.js` ile aynı CSS kaynağını okur; kullanıcı/site CSS'i bu köprüye alınmaz. Yeni CSS `var(--…)` ve `color-mix(...)` kullanır. R854'ün 571 sabit renk bütçesi aşılmaz; birleştirmede 574'e çıkan sayı token aktarımıyla 566'ya düştü, sayıyı 571'e tamamlamak için renk eklenmedi. Eski 419 eşikli test gevşetilmedi.
-
-Aşağıdaki tarihli kompozisyon kayıtlarında geçen sıcak/amber/mavi tercihleri tarihsel bağlamdır; güncel renk uygulamasında bu bölüm geçerlidir. R854'ün kompozisyonları korunarak 1920×1080 Film/Podcast/Browser ve asistan paneli izole Windows Chromium'da görüldü. Bu, start.bat/Electron/WebContentsView/GPU veya canlı kişisel profil kabulü değildir.
+ Podcast liste kontrolleri devam kartından önce, ikinci bilgiler mevcut bölüm araçlarında; yayın adı klavye odağında tam görünür. Asistan kaynak ayrıntısı yanıtın scroll'unu değiştirmeyen katmandır; Yanıta dön ve açık işlem ayrıntısı vardır. Bağlam seçimi kaynak ayrıntısında kalır. Yorum önizlemesinin yapım/yıl/sayı ve dönüş başlığı üst medya gezinmesinin altında görünür tutulur. Seçili video kopyasının adı/türü/konumu genel kişisel kayıttan ayrı, oynatma eyleminin yanında taşınır ve CinemaUI yeniden kurulumunda korunur.  Kontrollü Windows Chromium görselleri gerçek Electron/monitör kabulünün yerine geçmez. [Kapsam ve sınırlar](docs/devir/2026-11-11-0311.md).
 
 ## Browser kaynak ve durum incelemesi — 2026-11-10 22:09
 
-Altyazı araçları içinde “Sekmeler ve altyazı durumu” tek açılır yüzeydir. Üstte kaynak/iş/onay/hata taşıyan sekme satırları, altta yalnız etkin kaynağın saat kanıtı, eksik aktarım aralıkları ve iki kanalın restore/köken özeti vardır. Saat yazısı güncellenirken odaktaki kontroller korunur; aralık listesi sınırlı ve kendi içinde kaydırılır. Grafit/amber tokenları, üst medya menüsü ve mevcut altyazı/ileri kontroller korunur. Kanal retry ve kaynak bağlı eksik aktarım birbirinden ayrıdır; okunamayan dosya için otomatik seçici veya yeni çeviri açılmaz. Gerçek Windows/ASUS görsel kabulü bu tur yapılmadı; DOM kontrolü estetik kabul değildir.
+Altyazı araçları içinde “Sekmeler ve altyazı durumu” tek açılır yüzeydir. Üstte kaynak/iş/onay/hata taşıyan sekme satırları, altta yalnız etkin kaynağın saat kanıtı, eksik aktarım aralıkları ve iki kanalın restore/köken özeti vardır. Saat yazısı güncellenirken odaktaki kontroller korunur; aralık listesi sınırlı ve kendi içinde kaydırılır.  Kanal retry ve kaynak bağlı eksik aktarım birbirinden ayrıdır; okunamayan dosya için otomatik seçici veya yeni çeviri açılmaz. Gerçek Windows/ASUS görsel kabulü bu tur yapılmadı; DOM kontrolü estetik kabul değildir.
 
 ## Kapaklı arşiv, takvim ve gerekçeli öneriler — 2026-11-10
 
-Kişisel arşiv Kayıtlarım / Takvim / Zevkime göre çalışma alanlarına ayrılır; tek alan görünürdür. Tür havuzu seçimi korunur. Kapak yüklenirken tür kimliği kalır, gerçek görsel geldikten sonra kapak görünür; harici resim hatası boş siyah kutuya dönüşmez. İş ilerlemesi gerçek done/total oranıdır ve durdurulabilir. Takvim aylık 7 sütun ve gün ajandasıdır; darda ajanda alta geçer. Ay atlama ve son tarihli kayda doğrudan erişim vardır. Kaynak bitiş tarihi ile uygulama işaretleme tarihi ayrıdır. Öneri kartında kaynak kapak, destek/karşıt puan, gizlenebilir dayanak/sınır ayrıntıları ve yerel sıraya ekleme bulunur; yüzdeyle beğeni iddiası yoktur. Genişte iki, darda tek sütun; mevcut grafit/amber ve tipografi tokenları kullanılır. Ayrıntı: [araştırma/uyarlama](docs/research/2026-11-10-recommendation-repositories.md).
+Kişisel arşiv Kayıtlarım / Takvim / Zevkime göre çalışma alanlarına ayrılır; tek alan görünürdür. Tür havuzu seçimi korunur. Kapak yüklenirken tür kimliği kalır, gerçek görsel geldikten sonra kapak görünür; harici resim hatası boş siyah kutuya dönüşmez. İş ilerlemesi gerçek done/total oranıdır ve durdurulabilir. Takvim aylık 7 sütun ve gün ajandasıdır; darda ajanda alta geçer. Ay atlama ve son tarihli kayda doğrudan erişim vardır. Kaynak bitiş tarihi ile uygulama işaretleme tarihi ayrıdır. Öneri kartında kaynak kapak, destek/karşıt puan, gizlenebilir dayanak/sınır ayrıntıları ve yerel sıraya ekleme bulunur; yüzdeyle beğeni iddiası yoktur. Genişte iki, darda tek sütun;  Ayrıntı: [araştırma/uyarlama](docs/research/2026-11-10-recommendation-repositories.md).
 
 ## Kişisel arşiv ve Zevkim — 2026-11-10
 
@@ -154,7 +118,7 @@ Kullanıcı podcast kütüphanesi, Ana sayfa, Keşfet, film detayı ve Akışlar
 
 Her UI işinde önce [Sahne referansından çalışma rehberini](docs/design/sahne-design-guidance-2026-11-05.md) ve ilgili onaylı ekran kararını oku. Önce bütün kompozisyon: baskın medya/okuma alanı, tipografi oranları, ortak hizalar ve kontrollü boşluk; sonra araçlar, en son ince cila. Özellikleri form olarak dizip koyu tema/amber/animasyon eklemek tasarım sayılmaz.
 
-Beğenilmiş tasarımın medya ölçeği, hiyerarşisi ve atmosferi gerçek entegrasyonda korunur; teknik kısıt gerekçesiyle sessizce sıradanlaştırılmaz. Mevcut font/palet/hareket sahipleri kullanılır; referans paketin bağımsız tokenları veya maketleri bütün ürüne otomatik aktarılmaz. P019 kapsamındaki sayfaların kompozisyonu yeniden tasarlanabilir; kapsam dışındaki onaylı tasarımlar korunur. Büyük kompozisyon sorunlarını küçük ikon/kenarlık ayrıntılarından önce çöz.
+Beğenilmiş tasarımın medya ölçeği, hiyerarşisi ve atmosferi gerçek entegrasyonda korunur; teknik kısıt gerekçesiyle sessizce sıradanlaştırılmaz. Font, palet ve hareket yeni tasarıma göre geliştirilebilir; referans paketin bağımsız tokenları veya maketleri bütün ürüne otomatik aktarılmaz. P019 kapsamındaki sayfaların kompozisyonu yeniden tasarlanabilir; kapsam dışındaki onaylı tasarımlar korunur. Büyük kompozisyon sorunlarını küçük ikon/kenarlık ayrıntılarından önce çöz.
 
 Kısa gerçek görsel öz-eleştiri ve gerekli geniş/dar kontrol yeterlidir; test başarısı estetik kabul değildir. Tekrar onay döngüsü, geniş matris, yüzlerce çekim, CPU benchmark, Computer Use ve dosya erişim penceresi tetikleyen test yok. Ürün sahipleri, ileri ayarlar, kaynak/zaman/güvenlik sınırları korunur. Rehberin kaynağı `files (5).zip` Sahne v2 paketidir; bu belge güncellemesi paketin kodunu uygulamaz veya Windows/mpv başarısını doğrulamaz.
 
@@ -172,7 +136,7 @@ Mürekkep/grafit katmanlar, sıcak amber etkileşim vurgusu. Hata, seçim ve pas
 
 Mevcut sans serif yığını Türkçe metinleri taşır. Kod, süre ve teknik değerler için mevcut mono yığın kullanılabilir. Yeni bağımlı font veya CDN yüklenmez. Açıklamalar kısa, eylemler fiille başlayan Türkçedir.
 
-Medya kabuğu ve asistanın mevcut self-hosted ailesi başlıklarda Sora, gövdede IBM Plex Sans'tır. Yukarıdaki font kaydı bu sahipliği belgeler; stüdyo/teknik alanların mevcut fontunu topluca değiştirmez. Kitap prose serifini korur. Runtime renklerin sahibi CSS değişkenleridir; bu belge yeni bağımsız tema değerleri üretmez.
+Bu tarihli uygulamada başlıklarda Sora, gövdede IBM Plex Sans ve kitap metninde serif kullanıldı. Bunlar değiştirilemez font şartları değildir; yeni tasarım kendi tipografisini ve tema rollerini geliştirebilir.
 
 ## Layout
 
@@ -303,12 +267,12 @@ Dublaj DOM ve görsel görev sırası altyazı→referans ses→üretimdir; kayn
 
 ### Yorum okuma masası — R836
 
-Kaynakta tek seçili yorum ve native yazar seçicisi/Önceki/Sonraki;65–70ch metin ölçüsü, metin içinde ikinci360px kaydırıcı yok. İlk kaynak hemen görünür; uzun metnin Tamamını oku eylemi sadece görsel daraltmayı kaldırır. KaynakJSON ve AI örnek bütçesi birbirinden ayrıdır. Önizleme ayrı iş adımı, formun en altına eklenen bir kutu değil; Geri taslağı korur. Aktif adımın doğrulama hatası aynı yerde role=alert ile görünür. Özet ve kişisel uygunluk okuma önceliğidir; ayrıntılı örnek denetimi ve kaynaklar isteğe bağlı açılır. Güncel profil bilgisi ile stale/unknown uyarıları anlaşılır biçimde ayrışır. Başlık18–22, gövde15/1.85, metadata12–13; tek ana eylem ve ortak grafit/amber/font/hareket ailesi korunur. Kayıtlı film analizi, inline yönetim ve bağımsız yorum görünümü aynı render sahibini kullanır. [Önce/sonra](docs/raporlar/BROWSER_BUG_REPORT_836.md).
+Kaynakta tek seçili yorum ve native yazar seçicisi/Önceki/Sonraki;65–70ch metin ölçüsü, metin içinde ikinci360px kaydırıcı yok. İlk kaynak hemen görünür; uzun metnin Tamamını oku eylemi sadece görsel daraltmayı kaldırır. KaynakJSON ve AI örnek bütçesi birbirinden ayrıdır. Önizleme ayrı iş adımı, formun en altına eklenen bir kutu değil; Geri taslağı korur. Aktif adımın doğrulama hatası aynı yerde role=alert ile görünür. Özet ve kişisel uygunluk okuma önceliğidir; ayrıntılı örnek denetimi ve kaynaklar isteğe bağlı açılır. Güncel profil bilgisi ile stale/unknown uyarıları anlaşılır biçimde ayrışır. Başlık18–22, gövde15/1.85, metadata12–13; tek ana eylem ve ortak  Kayıtlı film analizi, inline yönetim ve bağımsız yorum görünümü aynı render sahibini kullanır. [Önce/sonra](docs/raporlar/BROWSER_BUG_REPORT_836.md).
 
 
 ## 2026-11-01 — sinematik medya omurgası
 
-Kullanıcının kesin yönü: üst medya menüsü, grafit/amber palet ve masaüstü medya oynatıcı/browser ruhu korunur. Luna kalite karşılaştırmasıdır; birebir yerleşim, ikon veya marka kopyası değildir. Soldan genel gezinme, açık kâğıt düzlemi ve web pazarlama sayfası dili reddedilmiştir. Her yeni yüzeyde önce açık bir hiyerarşi, sonra içerikle ilişkili sinematik kompozisyon gelir. Görsel etki, atmosfer ve hareket tasarımın temel parçalarıdır; efektlerin biçimi ve yoğunluğu kompozisyonun ihtiyacına göre seçilir.
+Kullanıcının kesin yönü: üst medya menüsü,  Luna kalite karşılaştırmasıdır; birebir yerleşim, ikon veya marka kopyası değildir. Soldan genel gezinme, açık kâğıt düzlemi ve web pazarlama sayfası dili reddedilmiştir. Her yeni yüzeyde önce açık bir hiyerarşi, sonra içerikle ilişkili sinematik kompozisyon gelir. Görsel etki, atmosfer ve hareket tasarımın temel parçalarıdır; efektlerin biçimi ve yoğunluğu kompozisyonun ihtiyacına göre seçilir.
 
 - Üst gezinme tek yatay baz çizgisidir. Soldaki uygulama simgesi ikincil hedef/araçları hover ile açar; tıklama ve klavye de çalışır. Menüye geçiş güvenli aralığı vardır. Daraldıkça yazıları kesmek veya ikinci rastgele satır açmak yerine bütün kontroller aynı menüye taşınır. Mod ve sayfa seçimi birbirinden ayrıdır. Arama ikonla açılan mevcut sorguyu koruyan bir yüzeydir.
 - Görsel kimlik: geniş gerçek backdrop, okunur koyu soldan/alt gradyan, tutarlı afiş oranı, başlık → kısa olgular → ana eylem. Kapağı yatay büyütmek yerine uygun geniş görsel tercih edilir; yükleme/bozuk görselde mevcut kapak korunur.
@@ -410,40 +374,40 @@ Arayüz dili yenilenirken Sahne'nin odaklı transkript/başlık araması aynı k
 
 ## Seri haritası ve devam takibi · 2026-11-10
 
-İzlediklerim/Anime/Manga içinde mevcut çalışma alanlarına Seri haritası eklenir; kayıt kartı aynı alana seçili kimlikle gider. Grafit/amber tokenları, Sora başlık ve mevcut alan/düğme yardımcıları korunur. Seçili yapım kapağı/kimliği üstte; amber bağlantı çizgili ilişkiler altta. İlişkiler / Yayın sırası / Hikâye sırası / Devamlar birbirini yığmadan ayrı gösterilir. Dar alanda ilişki eylemi kartın altına geçer, çalışma alanları sarılır. Tam tarihler, kısmi tarihler ve bilinmeyenler ayrı bölümlerdir; eksik tarihle kesin sıra iddiası yoktur. Her ilişki kaynak kimliği ve kontrol tarihi taşır. Takip kişisel puan/ilerlemeden bağımsız, açık düğmeyle değişir; hata önceki önbelleği korur. Gerçek Windows görsel kabulü bu dilimde yapılmadı.
+İzlediklerim/Anime/Manga içinde mevcut çalışma alanlarına Seri haritası eklenir; kayıt kartı aynı alana seçili kimlikle gider.  Seçili yapım kapağı/kimliği üstte; amber bağlantı çizgili ilişkiler altta. İlişkiler / Yayın sırası / Hikâye sırası / Devamlar birbirini yığmadan ayrı gösterilir. Dar alanda ilişki eylemi kartın altına geçer, çalışma alanları sarılır. Tam tarihler, kısmi tarihler ve bilinmeyenler ayrı bölümlerdir; eksik tarihle kesin sıra iddiası yoktur. Her ilişki kaynak kimliği ve kontrol tarihi taşır. Takip kişisel puan/ilerlemeden bağımsız, açık düğmeyle değişir; hata önceki önbelleği korur. Gerçek Windows görsel kabulü bu dilimde yapılmadı.
 
 ## Yayın takvimi ve tür/tema portresi · 2026-11-10
 
-Mevcut arşive Yayın takvimi ve Tür / tema portresi çalışma alanları eklenir. Tüketim geçmişindeki Takvim aynı kalır. Yayın alanı: seçili yapımı kaynaktan kontrol etme, zaman damgalı kaynak takvimleri, ay/saat dilimi, seçili yayınların dışa aktarımı ve amber tarih sütunlu ajanda. Saatli yayın UTC kaynak anını ve seçili yerel saati birlikte gösterir; yalnız gün verilen tarihe saat/saat dilimi eklenmez. ICS önce önizlenir, dosya indirmesi açık düğmeyledir. Tekil yayın seçiminde DOM odağı korunur. Portre: toplam puanlı/tür bilgili/tema bilgili sayıları, genişte iki sütunlu tür ve tema listeleri; amber çubuk tüm puanlı havuzdaki payı gösterir, yüksek/düşük puan örnekleri ayrı açılır. Etiketlerin toplamı yüzde yüz olmak zorunda değildir. Dar alanda ajanda eylemleri alta, portre tek sütuna geçer; mevcut grafit/amber tokenları ve yazı aileleri kullanılır. Gerçek Windows görsel kabulü bu grupta yapılmadı.
+Mevcut arşive Yayın takvimi ve Tür / tema portresi çalışma alanları eklenir. Tüketim geçmişindeki Takvim aynı kalır. Yayın alanı: seçili yapımı kaynaktan kontrol etme, zaman damgalı kaynak takvimleri, ay/saat dilimi, seçili yayınların dışa aktarımı ve amber tarih sütunlu ajanda. Saatli yayın UTC kaynak anını ve seçili yerel saati birlikte gösterir; yalnız gün verilen tarihe saat/saat dilimi eklenmez. ICS önce önizlenir, dosya indirmesi açık düğmeyledir. Tekil yayın seçiminde DOM odağı korunur. Portre: toplam puanlı/tür bilgili/tema bilgili sayıları, genişte iki sütunlu tür ve tema listeleri; amber çubuk tüm puanlı havuzdaki payı gösterir, yüksek/düşük puan örnekleri ayrı açılır. Etiketlerin toplamı yüzde yüz olmak zorunda değildir. Dar alanda ajanda eylemleri alta, portre tek sütuna geçer;  Gerçek Windows görsel kabulü bu grupta yapılmadı.
 
 ## İçerik ağı koleksiyon eşitlemesi · 2026-11-10
 
-Mevcut İçerik Ağı üst eylemlerine Koleksiyonu eşitle eklenir. Mevcut durum yazısı stilindeki ayrı özet, referans/eklenen/gizli/etkin olmayan/kapasite/depolama/çözümlenemeyen/yinelenen kaynak sayılarını gösterir. Haritadaki görünür düğüm sınırı ile kalıcı kaynak sayısı ayrı tutulur. Eşitleme kişisel puan veya kullanıcı tarafından gizlenen görünürlüğü değiştirmez. Mevcut grafit/amber düğmeleri ve EN/TR metin düzeni kullanılır. Native görsel kabul bu tur yapılmadı.
+Mevcut İçerik Ağı üst eylemlerine Koleksiyonu eşitle eklenir. Mevcut durum yazısı stilindeki ayrı özet, referans/eklenen/gizli/etkin olmayan/kapasite/depolama/çözümlenemeyen/yinelenen kaynak sayılarını gösterir. Haritadaki görünür düğüm sınırı ile kalıcı kaynak sayısı ayrı tutulur. Eşitleme kişisel puan veya kullanıcı tarafından gizlenen görünürlüğü değiştirmez.  Native görsel kabul bu tur yapılmadı.
 
 
 ## Kişisel arşiv inceleme araçları — 2026-11-10
 
-Kayıt kartında kimlik düzeltme, üst eylemlerde dışa aktarım; XML aktarımı mevcut girişinde kalır. Tek grafit/amber inceleme penceresi, baskın başlık ve kapsam açıklaması; her kaydın alan farkları açılır bölümde, mevcut/kaynak değerleri yan yana, dar alanda alt alta. Adayda kaynak kimlikleri ve ayrı son onay görünür. Dışa aktarım önce kapsam/biçim ve kayıt sayısı, sonra sınırlı önizleme ve açık indirme eylemidir. Sora/IBM Plex ve ortak tema değişkenleri korunur. EN/TR kontrollü DOM davranışı doğrulandı; gerçek Windows görünümü bu tur denenmedi.
+Kayıt kartında kimlik düzeltme, üst eylemlerde dışa aktarım; XML aktarımı mevcut girişinde kalır. Tek grafit/amber inceleme penceresi, baskın başlık ve kapsam açıklaması; her kaydın alan farkları açılır bölümde, mevcut/kaynak değerleri yan yana, dar alanda alt alta. Adayda kaynak kimlikleri ve ayrı son onay görünür. Dışa aktarım önce kapsam/biçim ve kayıt sayısı, sonra sınırlı önizleme ve açık indirme eylemidir. Ortak tema rolleri uyumluluk için değerlendirilir; değerleri değişebilir. EN/TR kontrollü DOM davranışı doğrulandı; gerçek Windows görünümü bu tur denenmedi.
 
 
 ## Kaynak sürümleri ve geri alma — 2026-11-10
 
-Arşiv içe/dışa aktarım, kaynak okuma ve geçmiş eylemleri üstte tek Arşiv araçları açılır menüsündedir. Kayıt kartında Kaynak sürümleri salt okunur incelemesi vardır: iki sürüm seçici, alan/sol/sağ değer ızgarası, farklı satırlarda amber vurgu; dar alanda alan başlığı iki değerin üstündedir. Geri alma geçmişi kayıt bazlı korunacak/dönecek/kaldırılacak özet ve ayrı son onay sunar. AniList açık liste veya MAL XML okuması mevcut alan farkı yüzeyini kullanır; otomatik kayıt yoktur. Mevcut grafit/amber ve yazı ailesi korunur. EN/TR kontrollü DOM akışları geçti; gerçek Windows görünümü bu grupta denenmedi.
+Arşiv içe/dışa aktarım, kaynak okuma ve geçmiş eylemleri üstte tek Arşiv araçları açılır menüsündedir. Kayıt kartında Kaynak sürümleri salt okunur incelemesi vardır: iki sürüm seçici, alan/sol/sağ değer ızgarası, farklı satırlarda amber vurgu; dar alanda alan başlığı iki değerin üstündedir. Geri alma geçmişi kayıt bazlı korunacak/dönecek/kaldırılacak özet ve ayrı son onay sunar. AniList açık liste veya MAL XML okuması mevcut alan farkı yüzeyini kullanır; otomatik kayıt yoktur.  EN/TR kontrollü DOM akışları geçti; gerçek Windows görünümü bu grupta denenmedi.
 
 
 ## Kaynak kimlikleri ve alan incelemesi — 2026-11-10
 
-Mevcut arşiv çalışma alanlarına Kaynak kimlikleri eklenir; kayıt başlığı altında dört ayrı MAL/AniList/IMDb/TMDB hücresi ve kanıt durumu vardır. Kaynak/uyarlama kimlikleri görsel olarak tek bir etikette eritilmez. Karttaki Kaynaklar / yenile tek inceleme penceresinde kimlik özeti, alan değeri/köken/zaman/koruma ve ayrı yenileme önizlemesi sunar. Yalnız değişen/eksik alanlar iki değerli seçim satırıdır; korunan alan açıkça etiketlenir. Kişisel düzeltme ikincil açılır alanda kalır. Genişte dört kimlik hücresi, darda iki; yenileme değerleri dar alanda alt alta. Grafit/amber, Sora/IBM Plex ve mevcut odak stilleri korunur. EN/TR kontrollü DOM doğrulandı; gerçek Windows görünümü bu tur denenmedi.
+Mevcut arşiv çalışma alanlarına Kaynak kimlikleri eklenir; kayıt başlığı altında dört ayrı MAL/AniList/IMDb/TMDB hücresi ve kanıt durumu vardır. Kaynak/uyarlama kimlikleri görsel olarak tek bir etikette eritilmez. Karttaki Kaynaklar / yenile tek inceleme penceresinde kimlik özeti, alan değeri/köken/zaman/koruma ve ayrı yenileme önizlemesi sunar. Yalnız değişen/eksik alanlar iki değerli seçim satırıdır; korunan alan açıkça etiketlenir. Kişisel düzeltme ikincil açılır alanda kalır. Genişte dört kimlik hücresi, darda iki; yenileme değerleri dar alanda alt alta.  EN/TR kontrollü DOM doğrulandı; gerçek Windows görünümü bu tur denenmedi.
 
 
 ## Kapak yönetimi, ilerleme ve akıllı raflar — 2026-11-10
 
-Çevrimdışı kapak yönetimi Arşiv araçları menüsünde kalır; kullanılan/azami MB belirgin, saklama ve silme seçimleri ayrıdır. Silme özeti ve ikinci onay kişisel kayıtların korunacağını açıklar. Seri ilerleme alanı büyük gerçek sayı/amber çubuk, bilinmeyen toplam ve kaynak etiketiyle iki sütunlu kartlar; sezon/bölüm ayrıntısı açılır alandadır. Akıllı raflar adlandırılmış koşullar ve eşleşme nedeni sunar; temel koşullar önde, ülke/yıl/tür/puan aralığı ikincil açılır alanda. Bu alanda havuzun tek sahibi raf filtresidir. Dar görünümde alanlar tek sütuna iner. Mevcut grafit/amber ve Sora/IBM Plex, üst medya gezinmesi korunur. EN/TR kontrollü DOM davranışı geçti; gerçek Windows görünümü bu tur denenmedi.
+Çevrimdışı kapak yönetimi Arşiv araçları menüsünde kalır; kullanılan/azami MB belirgin, saklama ve silme seçimleri ayrıdır. Silme özeti ve ikinci onay kişisel kayıtların korunacağını açıklar. Seri ilerleme alanı büyük gerçek sayı/amber çubuk, bilinmeyen toplam ve kaynak etiketiyle iki sütunlu kartlar; sezon/bölüm ayrıntısı açılır alandadır. Akıllı raflar adlandırılmış koşullar ve eşleşme nedeni sunar; temel koşullar önde, ülke/yıl/tür/puan aralığı ikincil açılır alanda. Bu alanda havuzun tek sahibi raf filtresidir. Dar görünümde alanlar tek sütuna iner.  EN/TR kontrollü DOM davranışı geçti; gerçek Windows görünümü bu tur denenmedi.
 
 
 ## Toplu seçim, koleksiyon ve gerekçe — 2026-11-10
 
-Kartın köşesinde erişilebilir seçim kutusu, listede sayı/inceleme/temizleme şeridi; fark önizlemesi ve ayrı son onay. Kartın puan/düzenle/devam eylemi önde, kaynak/harita/not araçları özellik kaybı olmadan Diğer işlemler menüsündedir; Escape menüyü kapatıp özetine odak verir. Koleksiyon alanı kapak+açıklama baskın iki sütunlu kart, gerçek tamamlandı işaret sayısı ve numaralı üye listesi; dar alanda tek sütun. Sıra ikincil açılır düzenleyicide, görsel mevcut üye kaydından seçilir. Ara verme gerekçesi ayrı bağlam ve metin, durum/puanı değiştirmediği açıklamasıyla tek inceleme penceresindedir. Mevcut grafit/amber, Sora/IBM Plex ve üst gezinme korunur. EN/TR kontrollü DOM geçti; gerçek Windows görünümü bu tur denenmedi.
+Kartın köşesinde erişilebilir seçim kutusu, listede sayı/inceleme/temizleme şeridi; fark önizlemesi ve ayrı son onay. Kartın puan/düzenle/devam eylemi önde, kaynak/harita/not araçları özellik kaybı olmadan Diğer işlemler menüsündedir; Escape menüyü kapatıp özetine odak verir. Koleksiyon alanı kapak+açıklama baskın iki sütunlu kart, gerçek tamamlandı işaret sayısı ve numaralı üye listesi; dar alanda tek sütun. Sıra ikincil açılır düzenleyicide, görsel mevcut üye kaydından seçilir. Ara verme gerekçesi ayrı bağlam ve metin, durum/puanı değiştirmediği açıklamasıyla tek inceleme penceresindedir.  EN/TR kontrollü DOM geçti; gerçek Windows görünümü bu tur denenmedi.
 
 
 ## Ekran yoğunluğu ve koleksiyon ayrıntısı — 2026-11-13
@@ -453,6 +417,6 @@ Anime/manga/manhwa ayrı bir görsel sistem kurmaz; `CinemaUI.film` kompozisyonu
 
 ## Anime/manga kararları ve çeviri tercihleri · 2026-11-13
 
-Mevcut sinematik yapım hero kompozisyonu korunur. Nedenler ve isteğe bağlı kısa sorular yapım eylemlerinden/profil havuzundan açılan merkezli, tek scroll sahibi modallardır. Grafit yüzey, amber ana kaydet/gönder eylemi ve görünür odak kullanılır. Yorum seçimi, gönderilecek örnek/kişisel bağlam ve onay ayrı adımlardır. Kaynak/yorum metinleri UI çevirisinden ayrıdır. Çeviri kararları scope/dil çifti, okunur karar satırları ve açık kuyruk snapshot açıklamasıyla sunulur. [Gerçek Electron kontrollü görünüm ve sınırlar](docs/devir/2026-11-13-1530.md).
+Yapım hero kompozisyonu yeni tasarıma göre geliştirilebilir. Nedenler ve isteğe bağlı kısa sorular yapım eylemlerinden/profil havuzundan açılan merkezli, tek scroll sahibi modallardır. Kaydet/gönder eylemi ayırt edilir; görünür odak korunur. Yorum seçimi, gönderilecek örnek/kişisel bağlam ve onay ayrı adımlardır. Kaynak/yorum metinleri UI çevirisinden ayrıdır. Çeviri kararları scope/dil çifti, okunur karar satırları ve açık kuyruk snapshot açıklamasıyla sunulur. [Gerçek Electron kontrollü görünüm ve sınırlar](docs/devir/2026-11-13-1530.md).
 
 2026-11-13 cümle birleştirme: mevcut anahtar altında kaynak/çeviri satır sayımı, aday-yok/kapalı durumları ve amber okunur vurgu; yeni panel yok. Devir: docs/devir/2026-11-13-1611.md.

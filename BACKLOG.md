@@ -1,3 +1,7 @@
+# Tasarım kuralı kilitleri kaldırıldı · 2026-11-13 19:03
+
+Sabit palet/sarı düğme, font/ölçü ve sadeleştirme dayatmaları kaldırıldı. Bu kural teslimi önceki yerel ürün çalışmasından ayrıdır. [Kapsam ve kanıt](docs/devir/2026-11-13-1903.md). Yeni ürün yeniden tasarımı başlatılmadı.
+
 # Git teslimi yetkilendirildi · 2026-11-13 17:05
 
 - Birikmiş ürün ve durum belgeleri ayrı commitlerle PR üzerinden master için hazırlanıyor. [Teslim kapsamı, son 101Node/9Python kontrolü, korunan farklar ve Claude sonraki işi](docs/devir/2026-11-13-1705.md). Önceki yerel Git bekleme notları tarihseldir; son PR/HEAD Git üzerinden doğrulanır.
