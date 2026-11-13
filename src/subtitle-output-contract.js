@@ -16,6 +16,8 @@
     const path = typeof value.path === 'string' ? value.path.trim() : '';
     const role = typeof value.role === 'string' ? value.role.toLowerCase() : '';
     if (!path || !SUBTITLE_EXT.test(path) || !ROLES.has(role)) return null;
+    // Failed/cancelled/in-flight descriptors are not published artifacts.
+    if (value.status !== undefined && !['complete','partial'].includes(value.status)) return null;
     const count = raw => {const n=Number(raw);return Number.isSafeInteger(n)&&n>=0?n:0;};
     const total = count(value.total);
     const hasCompleted = value.completed!==null && value.completed!==undefined && value.completed!=='' && Number.isFinite(Number(value.completed));

@@ -85,6 +85,13 @@ def parse_srt(path, source_bytes=None, skipped=None):
         prior = text[prior_start:prior_end].strip()
         if not timings or not previous or previous.isdigit() or not prior:
             timings.append(match)
+    if timings:
+        # Only an optional single cue identifier may precede the first timing.
+        # Otherwise a malformed opening cue (and its speech) was silently lost
+        # because the global regex started at the next valid cue.
+        prefix = text[:timings[0].start()].strip()
+        if prefix and ('\n' in prefix or '-->' in prefix or '->' in prefix):
+            raise ValueError('Invalid SRT opening cue / Geçersiz ilk altyazı satırı; fix the source before dubbing.')
     for candidate in re.finditer(r'(?m)^[ \t]*[+-]?\d+:\d{2}:\d{2}[,.]\d{1,3}[ \t]*-->[^\n]*', text):
         if candidate.start() not in valid_starts:
             line = text.count('\n', 0, candidate.start()) + 1

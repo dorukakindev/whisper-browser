@@ -360,6 +360,8 @@ contextBridge.exposeInMainWorld('api', {
   saveImage: (payload) => ipcRenderer.invoke('media:saveImage', payload),
   exportSettings: (payload) => ipcRenderer.invoke('settings:export', payload),
   importSettings: () => ipcRenderer.invoke('settings:import'),
+  translationPreferences: request => ipcRenderer.invoke('translation-preferences:request',request),
+  freezeTranslationPreferences: options => ipcRenderer.sendSync('translation-preferences:freeze',options),
   startTranscribe: (opts) => ipcRenderer.invoke('transcribe:start', opts),
   cancelTranscribe: () => ipcRenderer.invoke('transcribe:cancel'),
   updateYtdlp: () => ipcRenderer.invoke('maintenance:updateYtdlp'),

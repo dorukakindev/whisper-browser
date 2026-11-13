@@ -7,6 +7,7 @@ import unicodedata
 from pathlib import Path
 
 SENTENCE_PROTOCOL_VERSION = 4
+TRANSLATION_CONTEXT_PROTOCOL = 'source-dialogue-v2'
 _BOUNDARY = re.compile(r'(?:^|\n)\s*(?:[-–—♪♫\[(]|<v\b|[^.!?:\n]{1,32}:\s)', re.I)
 _END = re.compile(r'[.!?…。！？][\"\'”’)}\]]*$')
 _CONTINUATION_END = re.compile(
@@ -2191,6 +2192,58 @@ def scene_context_bounds(breaks, lo, hi, max_lines, entry_count):
     if next_scene:
         right = min(right, min(next_scene) - 1)
     return left, right
+
+
+def complete_context_indexes(group_at, breaks, lo, hi, bound_lo, bound_hi):
+    """Expand only the window's outer sentence, never across scene/item bounds.
+
+    Application groups contain at most twelve cues; expansion is bounded even
+    for a malformed caller map. A zero window remains empty.
+    """
+    scene_lo = max((b for b in breaks if b <= lo), default=0)
+    scene_hi = min((b - 1 for b in breaks if b > hi), default=bound_hi + 11)
+    left, right = bound_lo, bound_hi
+    if left < lo:
+        group = group_at.get(left, [left])
+        left = max(scene_lo, left - 11, min(left, group[0]))
+    if right > hi:
+        group = group_at.get(right, [right])
+        right = min(scene_hi, right + 11, max(right, group[-1]))
+    return list(range(left, lo)), list(range(hi + 1, right + 1))
+
+
+def translation_context_rows(entries, indexes, speakers=None, before=False,
+                             row_chars=1200, side_chars=6000):
+    """Bound read-only source context; target items are never clipped here.
+
+    Keep the nearest rows first. Clipped text remains an exact source substring,
+    and its missing edge is explicit. Known speakers stay labelled data, not
+    inferred names/genders or translated instructions.
+    """
+    result, remaining = [], max(0, side_chars)
+    for index in (reversed(indexes) if before else indexes):
+        if remaining <= 0:
+            break
+        text = str(entries[index][2] or '')
+        if not text:
+            continue
+        limit = min(row_chars, remaining)
+        if limit <= 0:
+            break
+        clipped = len(text) > limit
+        excerpt = text[-limit:] if before and clipped else text[:limit]
+        speaker = str((speakers or {}).get(index, '') or '').strip()[:80]
+        if speaker or clipped:
+            row = {'t': excerpt}
+            if speaker:
+                row['sp'] = speaker
+            if clipped:
+                row['clipped'] = 'start' if before else 'end'
+            result.append(row)
+        else:
+            result.append(excerpt)
+        remaining -= len(excerpt)
+    return list(reversed(result)) if before else result
 
 
 def translation_retry_hint(reasons):

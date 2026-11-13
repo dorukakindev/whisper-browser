@@ -881,7 +881,7 @@ function sweepOrphanOutputTransactions() {
 
 function redactJobLogArgs(args) {
   const hiddenValueFlags = new Set([
-    '--input', '--output-dir', '--cache-dir', '--initial-prompt', '--glossary', '--translate-context',
+    '--translation-preferences-file', '--input', '--output-dir', '--cache-dir', '--initial-prompt', '--glossary', '--translate-context',
     // Sağlayıcı endpoint'leri iç ağ adları taşıyabilir; paylaşılabilen iş
     // günlüğünde tam URL olarak kalmasınlar (kullanıcı-bilgisi zaten ayar
     // sınırında reddediliyor, burada tüm gövde gizlenir).
@@ -21711,6 +21711,15 @@ function recordJob(meta, event) {
   });
 }
 
+const translationPreferences=require('./translation-preferences').create({root:()=>app.getPath('userData')});
+ipcMain.handle('translation-preferences:request',async(event,input)=>{
+ if(!authorizedBrowserSender(event))return {ok:false,error:'Unauthorized / Yetkisiz istek.'};
+ try{if(!input||!['get','save'].includes(input.action))throw Error('Invalid decision action.');if(input.source?.path){const file=/\.(srt|vtt|ass|ssa)$/i.test(input.source.path)?await authorizeSubtitleFile(input.source.path):await authorizeMediaFile(input.source.path);input={...input,source:{...input.source,path:file}};}return {ok:true,...translationPreferences[input.action](input)};}catch(error){return {ok:false,error:error.message};}
+});
+ipcMain.on('translation-preferences:freeze',(event,options)=>{
+ if(!authorizedBrowserSender(event)){event.returnValue={ok:false,error:'Unauthorized'};return;}
+ try{event.returnValue={ok:true,snapshot:translationPreferences.freeze(options)};}catch(error){event.returnValue={ok:false,error:error.message};}
+});
 ipcMain.handle('transcribe:start', async (_event, options) => {
   if (!authorizedBrowserSender(_event)) return { ok: false, error: 'Yetkisiz istek.' };
   if (!options || typeof options !== 'object' || Array.isArray(options)) return { ok: false, error: 'Geçersiz iş seçenekleri.' };
@@ -21780,6 +21789,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     catch (_) {
       return { ok: false, error: 'Yardımcı altyazı dosyası bulunamadı, okunamıyor veya erişimi onaylanmadı.' };
     }
+  }
+  if(!options.chat&&!options.explain&&(options.translate||options.translateOnly)){
+    try{if(options.translationPreferenceSource?.path){const p=options.translationPreferenceSource.path;options.translationPreferenceSource={...options.translationPreferenceSource,path:/\.(srt|vtt|ass|ssa)$/i.test(p)?await authorizeSubtitleFile(p):await authorizeMediaFile(p)};}options.translationPreferenceSnapshot=translationPreferences.freeze(options);}
+    catch(error){return {ok:false,error:error.message};}
   }
   let subtitlePlayback=null;
   try {
@@ -22068,6 +22081,10 @@ ipcMain.handle('transcribe:start', async (_event, options) => {
     `job-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`);
   try { fs.mkdirSync(activeJobTempDir, { recursive: true }); }
   catch (_) { activeJobTempDir = null; }
+  if(!options.chat&&options.translationPreferenceSnapshot?.rules?.length){
+    if(!activeJobTempDir)return {ok:false,error:'Decision file could not be staged. / Karar dosyası hazırlanamadı.'};
+    try{const decisionPath=path.join(activeJobTempDir,'translation-preferences.json');fs.writeFileSync(decisionPath,JSON.stringify(options.translationPreferenceSnapshot),{encoding:'utf8',mode:0o600});args.push('--translation-preferences-file',decisionPath);}catch(error){cleanupChatFile();return {ok:false,error:error.message};}
+  }
   if (!options.chat && options.translateOnly && options.translateCueRange && options.sceneContext) {
     try {
       if (!activeJobTempDir) throw Error('Scene context could not be staged / Sahne notları hazırlanamadı.');
@@ -22645,7 +22662,7 @@ async function translateMediaTextToTurkish(text,signal,kind='synopsis'){
 const mediaCatalogService = require('./media-catalog-service').registerMediaCatalogService({
   metadataSettings:()=>loadSettings().tmdb||{},
   translateSynopsis:translateMediaTextToTurkish,
-  mediaShelf: { ffprobePath: () => resolveFfTool('ffprobe'), grantPdf: file => pdfFileAccess.grant(file), podcastRegistryBinding:persisted=>mediaFeedsService.bindShelfPodcast(persisted) },
+  mediaShelf: { getCollectionReviewConfig:()=>{const config=assistantProviderConfig(),problem=browserTranslationConfigProblem(config);if(problem)throw Error(problem);return {...config,endpoint:safeTranslationEndpoint(config.endpoint)};}, ffprobePath: () => resolveFfTool('ffprobe'), grantPdf: file => pdfFileAccess.grant(file), podcastRegistryBinding:persisted=>mediaFeedsService.bindShelfPodcast(persisted) },
   restart: () => { app.relaunch(); app.exit(0); },
   canRestore: () => !activeJob && !burninJob && !burninStartPending && !modelBenchmarkJob && !updateJob
     && !browserHlsCeaFullCaptureJob && !browserExtras?.hasJobs() && !dubService.running(),

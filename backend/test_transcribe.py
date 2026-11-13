@@ -1640,6 +1640,24 @@ def test_translate_context_can_be_disabled():
     assert "## BAGLAM" not in seen["system"]
 
 
+def test_merged_sentence_reaches_model_with_two_sided_context():
+    entries = [(i * 2.0, i * 2.0 + 1.8, f"Line {i}.") for i in range(25)]
+    entries[19] = (38, 39.8, "This sentence…")
+    entries[20] = (40, 41.8, "...continues.")
+    merged = T.merge_continuation_lines(entries)
+    out, seen = _capture_translate_payloads(
+        merged, _TrArgs(translate_context=2, translate_cache=False))
+    assert len(out) == 24
+    assert len(seen["payloads"]) == 2
+    first, second = seen["payloads"]
+    assert first["items"][-1]["t"] == "This sentence continues."
+    assert first["sentence_groups"][-1]["source"] == "This sentence continues."
+    assert first["context_after"] == ["Line 21.", "Line 22."]
+    assert second["context_before"] == ["Line 18.", "This sentence continues."]
+    assert all(item["t"] not in ("This sentence…", "...continues.")
+               for payload in seen["payloads"] for item in payload["items"])
+
+
 def test_translate_cache_key_includes_scene_language_and_glossary():
     """Baglamli ceviri baska sahne/dil/sozluk sonucunu sessizce kullanamaz."""
     args = _TrArgs(translate_context=4, glossary="Amicia")
@@ -1888,8 +1906,10 @@ def test_translate_existing_subtitle_merge_continuation():
         "",
     ]), encoding="utf-8-sig")
 
+    model_payloads = []
     def _create(**kw):
         p = json.loads(kw["messages"][-1]["content"])
+        model_payloads.append(p)
         return types.SimpleNamespace(choices=[types.SimpleNamespace(
             message=types.SimpleNamespace(
                 content=json.dumps({str(i["i"]): "[TR] " + i["t"] for i in p["items"]})))])
@@ -1927,6 +1947,11 @@ def test_translate_existing_subtitle_merge_continuation():
         assert merged_text.count("-->") == 2, merged_text
         # Tam cümle bloğu birleştirilmez — 3. blok ayrı kalır.
         assert "00:00:09,000 --> 00:00:10,000" in merged_text, merged_text
+        assert model_payloads, "the real translate-only path must reach the provider adapter"
+        assert model_payloads[0]["items"][0]["t"] == "That sounds very stiff, but manageable."
+        assert model_payloads[0]["sentence_groups"][0]["source"] == "That sounds very stiff, but manageable."
+        assert all(item["t"] not in ("That sounds very…", "stiff, but manageable.")
+                   for payload in model_payloads for item in payload["items"])
     finally:
         if real is not None:
             sys.modules["openai"] = real
@@ -2692,6 +2717,51 @@ def test_merge_continuation_keeps_dialogue_apart():
 def test_merge_continuation_noop_on_complete_sentences():
     e = [(0.0, 2.0, "Tam bir cümle."), (2.5, 4.0, "Başka bir cümle.")]
     assert T.merge_continuation_lines(e) == e, "tamamlanmis cumleler birlestirilmemeli"
+
+
+def test_merge_continuation_does_not_treat_unknown_speakers_as_one_person():
+    entries = [(0, 1, "Bu cümle…"), (1.1, 2, "...devam ediyor.")]
+    assert T.merge_continuation_lines(entries, speakers={}) == entries
+    assert T.merge_continuation_lines(entries, speakers={0: "A"}) == entries
+    assert len(T.merge_continuation_lines(entries, speakers={0: "A", 1: "A"})) == 1
+
+
+def test_continuation_shared_display_and_backend_contract():
+    fixtures = json.loads((Path(__file__).parent.parent / "tests/fixtures/subtitle-continuation.json").read_text(encoding="utf-8"))
+    for fixture in fixtures:
+        entries = [tuple(row) for row in fixture["cues"]]
+        speakers = ({int(k): v for k, v in fixture["speakers"].items()}
+                    if "speakers" in fixture else None)
+        merged = T.merge_continuation_lines(entries, max_gap=fixture.get("gap", 3), speakers=speakers)
+        assert [list(row) for row in merged] == fixture["expected"], fixture["name"]
+
+
+def test_continuation_chain_and_invalid_time_boundaries():
+    entries = [(i * .2, i * .2 + .15, "a") for i in range(15)]
+    assert len(T.merge_continuation_lines(entries)) >= 2
+    invalid = [(0, 1, "I thought…"), (float("nan"), 2, "...so.")]
+    output = T.merge_continuation_lines(invalid)
+    assert len(output) == 2 and math.isnan(output[1][0])
+
+
+def test_transcription_applies_requested_merge_after_diarization_assignment():
+    import ast
+    tree = ast.parse(Path(T.__file__).read_text(encoding="utf-8"))
+    blocks = [node for node in ast.walk(tree) if isinstance(node, ast.If)
+              and ast.unparse(node.test) == "args.merge_continuation and args.diarize"]
+    assert len(blocks) == 1, "diarized transcription must apply the requested merge"
+    entries = [(0, 1, "Bu cümle…"), (1.1, 2, "...devam ediyor."),
+               (2.1, 3, "Farklı konuşmacı.")]
+    context = {"args": types.SimpleNamespace(merge_continuation=True, diarize=True, continuation_gap=3),
+               "entries": entries, "speakers_map": {0: "A", 1: "A", 2: "B"},
+               "merge_continuation_lines": T.merge_continuation_lines, "log": lambda *a: None}
+    code = compile(ast.fix_missing_locations(ast.Module(body=blocks, type_ignores=[])), "merge-test", "exec")
+    exec(code, context)
+    assert context["entries"] == [(0.0, 2.0, "Bu cümle devam ediyor."), entries[2]]
+    assert context["speakers_map"] == {0: "A", 1: "B"}
+    context.update(entries=entries, speakers_map={})
+    exec(code, context)
+    assert context["entries"] == entries, "failed/unknown diarization cannot combine different speakers"
 
 
 # --------------------------------------------------------- flas blok (okunmaz)
@@ -3518,14 +3588,23 @@ def test_sentence_translation_group_cache_invalidated_by_timing_and_context():
     with tempfile.TemporaryDirectory() as tmp:
         args = _TrArgs(cache_dir=tmp, translate_context=1)
         source = _SENTENCE_SOURCE + [(6, 7, 'Goodbye.')]
-        _sentence_translate(source, args)
+        _, initial, _, _ = _sentence_translate(source, args)
+        revision = initial[0][0]['work_context']['source_revision']
+        _, repeated, _, _ = _sentence_translate(source, args)
+        assert not repeated, 'identical source/context must reuse its accepted cache'
         changed = list(source)
         changed[1] = (1.5, 2.8, changed[1][2])
         _, seen, _, _ = _sentence_translate(changed, args)
-        assert len(seen) == 1 and len(seen[0][0]['items']) == 3
+        # The existing work-level frame fingerprints the full source version.
+        # A changed timeline invalidates all records bound to that frame,
+        # including a nearby singleton whose own text stayed unchanged.
+        assert len(seen) == 1 and len(seen[0][0]['items']) == 4
+        assert seen[0][0]['work_context']['source_revision'] != revision
+        revision = seen[0][0]['work_context']['source_revision']
         changed[3] = (6, 7, 'Farewell.')
         _, seen, _, _ = _sentence_translate(changed, args)
         assert len(seen) == 1 and len(seen[0][0]['items']) == 4
+        assert seen[0][0]['work_context']['source_revision'] != revision
 
 
 def test_sentence_translation_refined_group_is_cached_together():

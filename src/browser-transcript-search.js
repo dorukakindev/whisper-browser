@@ -12,8 +12,58 @@
   }
   const STOP = new Set('acaba ama ancak aslında ben bir bu çok da de daha diye en gibi için ile ise mi mu ne nasıl neden o olan olarak sen şu ve veya ya'
     .split(' ').map(fold));
+  // English function words: the Turkish-only list above let "the/what/about" dominate
+  // evidence ranking for English transcripts. If a question consists only of such
+  // words the previous behavior (Turkish stop list only) is kept as a fallback.
+  const STOP_EN = new Set(('a an the and or but if of to in on at by for with from as is are was were be been being am do does did done have has had having '
+    + 'i me my we our you your he him his she her it its they them their this that these those what which who whom whose when where why how not no yes than then '
+    + 'so such can could should would will shall may might must about into over under up down out off also just very more most some any each other another there here')
+    .split(' '));
   function tokens(value) {
-    return [...new Set(fold(value).split(/\s+/).filter((token) => token.length > 1 && !STOP.has(token)))].slice(0, 40);
+    const all = [...new Set(fold(value).split(/\s+/).filter((token) => token.length > 1 && !STOP.has(token)))];
+    const kept = all.filter((token) => !STOP_EN.has(token));
+    return (kept.length ? kept : all).slice(0, 40);
+  }
+  // Conservative English plural folding applied to both query and cue words, so the
+  // comparison stays symmetric ("cables" matches "cable"). Other languages pass through.
+  function stem(word) {
+    if (word.length > 4 && word.endsWith('ies')) return `${word.slice(0, -3)}y`;
+    if (word.length > 4 && /(?:ches|shes|sses|xes|zes)$/.test(word)) return word.slice(0, -2);
+    if (word.length > 3 && word.endsWith('s') && !/(?:ss|us|is)$/.test(word)) return word.slice(0, -1);
+    return word;
+  }
+  // BM25 over the eligible cues (Robertson & Spärck Jones). Whole-word/plural matches count fully;
+  // a query term that only begins a longer cue word (Turkish inflection) counts half; a term merely
+  // contained inside a word ("the" in "other") no longer scores. Position proximity is a tie-break.
+  function scoreRows(pool, queryTokens, position) {
+    const K1 = 1.2, B = 0.75;
+    const stems = queryTokens.map(stem);
+    const docs = pool.map((row) => {
+      const body = fold(`${row.text} ${row.translation}`);
+      const words = body ? body.split(' ') : [];
+      return { row, words, folded: words.map(stem) };
+    });
+    const avg = Math.max(1, docs.reduce((sum, doc) => sum + doc.words.length, 0) / Math.max(1, docs.length));
+    const df = stems.map(() => 0);
+    for (const doc of docs) {
+      doc.match = stems.map((term, i) => {
+        let tf = 0;
+        for (const word of doc.folded) if (word === term) tf++;
+        const weight = tf || (queryTokens[i].length >= 4 && doc.words.some((word) => word.startsWith(queryTokens[i])) ? 0.5 : 0);
+        if (weight) df[i]++;
+        return weight;
+      });
+    }
+    const N = Math.max(1, docs.length);
+    return docs.map((doc) => {
+      let score = 0;
+      doc.match.forEach((weight, i) => {
+        if (!weight) return;
+        const idf = Math.log(1 + (N - df[i] + 0.5) / (df[i] + 0.5));
+        score += idf * (weight * (K1 + 1)) / (weight + K1 * (1 - B + B * doc.words.length / avg));
+      });
+      return { row: doc.row, score, matched: doc.match.some(Boolean) };
+    }).sort((a, b) => b.score - a.score || Math.abs(a.row.start - position) - Math.abs(b.row.start - position) || a.row.index - b.row.index);
   }
   function clock(seconds) {
     const number = Number(seconds);
@@ -89,17 +139,7 @@
     const position = Number.isFinite(Number(options.position)) ? Math.max(0, Number(options.position)) : 0;
     const eligible = scope === 'watched' ? rows.filter((row) => row.start <= position + 0.75) : rows;
     const pool = scope === 'nearby' ? eligible.filter((row) => Math.abs(row.start - position) <= 180) : eligible;
-    const scored = pool.map((row) => {
-      const body = fold(`${row.text} ${row.translation}`);
-      let score = 0;
-      for (const token of queryTokens) {
-        if (body === token) score += 8;
-        else if (body.includes(` ${token} `) || body.startsWith(`${token} `) || body.endsWith(` ${token}`)) score += 4;
-        else if (body.includes(token)) score += 1;
-      }
-      score += 1 / (1 + Math.abs(row.start - position) / 45);
-      return { row, score };
-    }).sort((a, b) => b.score - a.score || a.row.index - b.row.index);
+    const scored = scoreRows(pool, queryTokens, position);
     const selected = new Set();
     const distributed = [];
     const limit = Math.max(6, Math.min(48, Math.floor(Number(options.limit) || 36)));
@@ -111,7 +151,14 @@
         selected.add(i);
       }
     };
-    for (const hit of scored.slice(0, queryTokens.length ? 10 : 4)) addWithNeighbors(hit.row.index, 1);
+    // Lexical matches win the hit slots. Cues merely close to the playhead no longer pad them,
+    // except the two nearest ones, which keep "what was just said" questions grounded.
+    const matched = scored.filter((hit) => hit.matched);
+    const nearest = [...pool].sort((x, y) => Math.abs(x.start - position) - Math.abs(y.start - position)).slice(0, 2);
+    const hits = matched.length
+      ? [...matched.slice(0, 10), ...nearest.map((row) => ({ row }))]
+      : scored.slice(0, queryTokens.length ? 10 : 4);
+    for (const hit of hits) addWithNeighbors(hit.row.index, 1);
     if (wholeTranscriptIntent(question) && pool.length) {
       const samples = Math.min(16, pool.length, Math.max(2, Math.floor(limit / 2)));
       for (let sample = 0; sample < samples; sample++) {
@@ -126,7 +173,9 @@
     const ranked = [...selected]
       .sort((a, b) => (scoreByIndex.get(b) || 0) - (scoreByIndex.get(a) || 0) || a - b)
       .filter(index => !distributed.includes(index));
-    const evidence = [...distributed, ...ranked.slice(0, Math.max(0, limit - distributed.length))]
+    // Reserve the playhead slots before truncation; high lexical scores otherwise
+    // remove them again when the caller requests a small evidence budget.
+    const evidence = [...new Set([...distributed, ...nearest.map(row => row.index), ...ranked])].slice(0, limit)
       .sort((a, b) => a - b)
       .map((index) => {
       const row = rows[index];

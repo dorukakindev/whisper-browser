@@ -7,6 +7,7 @@ const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { atomicWriteFileSync } = require('./fsync-utils');
 const A = require('./stremio-addons');
+const { dedupeStreams } = require('./stremio-stream-dedupe');
 
 const MAX_ADDONS = 40, MAX_PROGRESS = 2000, SESSION_LIMIT = 12, PREVIEW_TTL = 600000;
 const err = (message, code) => new A.AddonError(message, code);
@@ -381,7 +382,8 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
       return (Array.isArray(payload?.streams) ? payload.streams : []).slice(0, A.LIMITS.maxStreams).map((s) => A.normalizeStream(s, addon)).filter(Boolean);
     });
     const rows = settled.flatMap((s) => s.value || []);
-    const ranked = A.rankStreams(rows);
+    // The same release is often returned by several addons; show it once and keep who else had it.
+    const ranked = A.rankStreams(dedupeStreams(rows));
     const token = randomUUID();
     remember(streamSessions, token, { at: now(), type, id, videoId, season: int(season), episode: int(episode), rows: new Map(ranked.map((r) => [r.id, r])) });
     return {
@@ -391,7 +393,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
         id: r.id, addonKey: r.addonKey, addonName: r.addonName, name: r.name, label: r.label, title: r.title, description: r.description.slice(0, 600),
         kind: r.kind, playable: r.playable, reason: r.reason, resolution: r.resolution, seeders: r.seeders, sizeBytes: r.sizeBytes, provider: r.provider,
         codec: r.codec, hdr: r.hdr, source: r.source, flags: r.flags, multiAudio: r.multiAudio, notWebReady: r.notWebReady, usesHeaders: r.usesHeaders === true, bingeGroup: r.bingeGroup || '', score: r.score, tags: r.tags, warns: r.warns, audio: r.audio, channels: r.channels, group: r.group, filename: r.filename,
-        host: r.kind === 'url' ? hostOf(r.url) : r.kind === 'external' ? hostOf(r.externalUrl) : '', embeddedSubtitles: r.subtitles.length, whisperAudio: audioSupport(r), availability: r.availability,
+        host: r.kind === 'url' ? hostOf(r.url) : r.kind === 'external' ? hostOf(r.externalUrl) : '', embeddedSubtitles: r.subtitles.length, whisperAudio: audioSupport(r), availability: r.availability, alsoFrom: r.alsoFrom || [],
       })),
     };
   }

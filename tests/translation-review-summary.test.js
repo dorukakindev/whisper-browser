@@ -26,6 +26,36 @@ test('sentence merge control updates the existing processing and player controls
  try{const ctx={window:dom.window,$:id=>dom.window.document.getElementById(id),Event:dom.window.Event,CustomEvent:dom.window.CustomEvent};for(const id of ['mergeContinuation','playerMergeCont'])ctx.$(id).addEventListener('change',()=>events.push(id));vm.runInNewContext(source.slice(begin,end),ctx);ctx.window.SentenceMergeControl.set(true);assert(ctx.$('mergeContinuation').checked);assert(ctx.$('playerMergeCont').checked);assert.deepEqual(events,['mergeContinuation','playerMergeCont']);ctx.window.SentenceMergeControl.set(false);assert(!ctx.$('mergeContinuation').checked);assert(!ctx.$('playerMergeCont').checked);}finally{dom.window.close();}
 });
 
+test('direct sentence merge switches keep current display and next Whisper job in sync',()=>{
+ const source=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8'),begin=source.indexOf('window.SentenceMergeControl='),end=source.indexOf('window.SubtitleTranslationRepair=',begin);
+ const dom=new JSDOM('<input type="checkbox" id="mergeContinuation"><input type="checkbox" id="playerMergeCont">'),doc=dom.window.document;let applied=0,notifications=0;
+ try{
+  const ctx={window:dom.window,$:id=>doc.getElementById(id),Event:dom.window.Event,CustomEvent:dom.window.CustomEvent};
+  vm.runInNewContext(source.slice(begin,end),ctx);
+  ctx.$('playerMergeCont').addEventListener('change',()=>applied++);
+  dom.window.addEventListener('workflow-merge-change',()=>notifications++);
+  ctx.$('mergeContinuation').click();
+  assert(ctx.$('playerMergeCont').checked,'processing switch must update the loaded subtitles');
+  assert.equal(applied,1);
+  ctx.$('playerMergeCont').click();
+  assert(!ctx.$('mergeContinuation').checked,'player switch must update the options read by the next Whisper job');
+  assert.equal(notifications,2,'one notification per explicit change, no event recursion');
+ }finally{dom.window.close();}
+});
+
+test('live sentence merge uses the selected gap for both tracks and restores original cues',()=>{
+ const source=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8');
+ const begin=source.indexOf("const CONT_MARKS ="),end=source.indexOf('// ---- AI sohbet',begin);
+ const raw=[{start:0,end:1,text:'A sentence…'},{start:5,end:6,text:'...continues.'}],raw2=[{start:0,end:1,text:'Bir cümle…'},{start:5,end:6,text:'...devam eder.'}];
+ const player={mergeCont:true,cues:raw,cues2:raw2,cuesRaw:raw,cues2Raw:raw2},gap={value:'5'};
+ const ctx={player,$:id=>id==='continuationGap'?gap:null,renderCueList:()=>{},renderCue:()=>{},updateCueMeta:()=>{},scheduleBrowserOverlaySync:()=>{}};
+ vm.runInNewContext(source.slice(begin,end),ctx);
+ ctx.applyCueMerge();assert.equal(player.cues.length,1);assert.equal(player.cues2.length,1);
+ assert.equal(player.cues[0].end,6);assert.equal(raw[0].end,1,'raw timing must not change');
+ gap.value='3';ctx.applyCueMerge();assert.equal(player.cues.length,2,'a shorter selected gap keeps the pause apart');
+ player.mergeCont=false;ctx.applyCueMerge();assert.equal(player.cues,raw);assert.equal(player.cues2,raw2);
+});
+
 test('shelf approval portals above the isolated app and restores its node and background interactivity',()=>{
  const source=fs.readFileSync(require.resolve('../src/renderer/renderer.js'),'utf8'),dom=new JSDOM('<body class="shelf-sahne-on"><div class="app"><div id="content"></div><div id="modal" class="hidden"><button id="confirm">Confirm</button></div></div><div class="sh-shelf-host"></div></body>'),doc=dom.window.document,modal=doc.getElementById('modal'),home=modal.parentElement,host=doc.querySelector('.sh-shelf-host');
  const ctx={document:doc,HTMLElement:dom.window.HTMLElement,requestAnimationFrame:fn=>fn(),syncBrowserOcclusion:()=>{},modalFocusable:()=>[],console};

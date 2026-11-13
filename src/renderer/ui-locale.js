@@ -2099,7 +2099,7 @@
     ['Girişler ve site verileri yalnızca bu cihazdaki kalıcı tarayıcı profilinde saklanır. DRM korumalı servislerde oynatma, yüklü Electron sürümünün Widevine desteğine bağlıdır.', 'Logins and site data remain in the persistent local browser profile. DRM-protected playback depends on Widevine support in the installed Electron version.'],
     ['Her yeni bölümü aynı dizi adına bağlayarak kayıtlı tercihleri yükleyin. Değişiklikler sonraki çeviride kullanılır. Özet yalnız sizin yazdığınız bilgidir.', 'Link each new episode to the same series to load saved preferences. Changes apply to the next translation. The synopsis contains only what you write.'],
     ['O anki altyazı satırı, çevirisi, yakın satırlar ve zaman bilgisi soruyla birlikte gönderilir.', 'The current subtitle line, its translation, nearby lines and timestamps are sent with your question.'],
-    ['İzlerken anında uygulanır, dosyayı değiştirmez. Yeni altyazı üretirken de geçerli olsun isterseniz Gelişmiş ayarlar → Metin işleme\'deki aynı seçeneği açın.', 'Applied during viewing without changing the file. To apply it when generating subtitles, enable the same option in Advanced settings → Text processing.'],
+    ['İzlerken anında uygulanır, dosyayı değiştirmez. Yeni Whisper işleri de aynı ayarı kullanır; çalışan ve kuyruktaki işler değişmez.', 'Applied during viewing without changing the file. New Whisper jobs use the same setting; running and queued jobs remain unchanged.'],
     ['Altyazıya', 'For a subtitle cue,'],
     ['çift tıklayarak', 'double-click'],
     ['izlerken düzeltebilirsin (E). Blok gezinme:', 'to edit while watching (E). Navigate cues with'],

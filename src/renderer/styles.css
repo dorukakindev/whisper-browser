@@ -3471,6 +3471,7 @@ body::before {
   border: 1px solid var(--border);
   cursor: pointer; min-height: 40px; padding: 9px 11px; background: var(--bg-1); border-color: var(--border); border-radius: 9px; }
 .switch-field span { color: var(--text-dim); font-size: 12px; line-height: 1.45; }
+#sentenceMergeStatus, #playerSentenceMergeStatus { display: block; margin-top: 4px; color: var(--accent); font-size: 12px; line-height: 1.5; }
 .switch-field input[type="checkbox"] {
   width: 16px;
   height: 16px;

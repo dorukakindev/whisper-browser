@@ -2,9 +2,28 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),http=require('node:http');
 const {EventEmitter}=require('node:events'),{PassThrough}=require('node:stream');
 const {createStreamAudioPreparer}=require('../src/stremio-whisper-audio');
-const wav=()=>{const b=Buffer.alloc(128);b.write('RIFF');b.write('WAVE',8);return b;};
+const wav=()=>require('../src/browser-live-audio').pcm16Wav(Buffer.alloc(320));
 function transportFor(reply,calls){return {request(url,options,callback){const req=new EventEmitter();req.setTimeout=()=>{};req.destroy=()=>{};req.end=()=>{calls.push({url:url.href,options});queueMicrotask(()=>{const r=new PassThrough();r.statusCode=200;r.headers={'content-type':'video/x-matroska','content-length':'8','accept-ranges':'bytes'};const override=reply(url,options)||{};Object.assign(r,override);callback(r);if(override.abrupt){r.write(Buffer.from('testdata'));setImmediate(()=>r.destroy(Error('upstream closed with private-key')));}else if(override.hold)r.write(Buffer.from('testdata'));else r.end(Buffer.from('testdata'));});};return req;}};}
 const get=url=>new Promise((resolve,reject)=>{http.get(url,{headers:{Range:'bytes=0-7'}},r=>{const chunks=[];r.on('data',b=>chunks.push(b));r.on('error',reject);r.on('end',()=>resolve({status:r.statusCode,body:Buffer.concat(chunks).toString()}));}).on('error',reject);});
+
+test('decoder success cannot grant a broken, truncated or wrong-format WAV',async t=>{
+ const badHeader=Buffer.alloc(128);badHeader.write('RIFF');badHeader.write('WAVE',8);
+ const truncated=wav();truncated.writeUInt32LE(9000,40);
+ const wrongFormat=wav();wrongFormat.writeUInt32LE(8000,24);wrongFormat.writeUInt32LE(16000,28);
+ for(const bytes of [badHeader,truncated,wrongFormat]){
+  let grants=0;
+  const h=harness(t,{run:async args=>fs.writeFileSync(args.at(-1),bytes),grantMedia:()=>{grants++;return true;}});
+  await assert.rejects(h.prepare({url:'https://media.example/movie.mkv'}),e=>e.code==='STREAM_AUDIO_FAILED');
+  assert.equal(grants,0);assert.equal(fs.readdirSync(h.directory).length,0,'only the rejected job scratch data is removed');
+ }
+});
+
+test('cancellation during final WAV validation never grants the discarded output',async t=>{
+ const controller=new AbortController();let grants=0;
+ const h=harness(t,{grantMedia:file=>{grants++;return file;}});
+ await assert.rejects(h.prepare({url:'https://media.example/movie.mkv',signal:controller.signal,onProgress:state=>{if(state.phase==='checking')controller.abort();}}),e=>e.code==='STREAM_AUDIO_CANCELLED');
+ assert.equal(grants,0);assert.equal(fs.readdirSync(h.directory).length,0);
+});
 function harness(t,{reply=()=>{},run,publicPin,grantMedia}={}){
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'stremio-audio-'));t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));const calls=[],pins=[],argv=[];
  const prepare=createStreamAudioPreparer({directory,ffmpeg:'ffmpeg-fixture',publicPin:publicPin||(async url=>{pins.push(url);return {address:'1.1.1.1',family:4};}),transport:transportFor(reply,calls),grantMedia:grantMedia||((file)=>file),run:async(_tool,args,_input,signal,_timeout,_line,options)=>{argv.push(args);assert.equal(options.waitForCloseOnCancel,true);if(run)return run(args,signal);const r=await get(args[args.indexOf('-i')+1]);assert.equal(r.status,200);assert.equal(r.body,'testdata');fs.writeFileSync(args.at(-1),wav());}});
@@ -12,7 +31,7 @@ function harness(t,{reply=()=>{},run,publicPin,grantMedia}={}){
 }
 test('direct audio preparation uses an authenticated pinned seekable relay and keeps secrets out of ffmpeg argv',async t=>{
  const h=harness(t);const result=await h.prepare({url:'https://media.example/private-key/movie.mkv',headers:[['Authorization','Bearer fixture-key']]});
- assert(fs.existsSync(result.path));assert.equal(result.bytes,128);assert.equal(h.calls[0].options.headers.range,'bytes=0-7');assert.equal(h.calls[0].options.headers.authorization,'Bearer fixture-key');assert.equal(h.pins.length,1);assert(!JSON.stringify(h.argv).includes('private-key'));assert(!JSON.stringify(h.argv).includes('Bearer'));
+ assert(fs.existsSync(result.path));assert.equal(result.bytes,wav().length);assert.equal(h.calls[0].options.headers.range,'bytes=0-7');assert.equal(h.calls[0].options.headers.authorization,'Bearer fixture-key');assert.equal(h.pins.length,1);assert(!JSON.stringify(h.argv).includes('private-key'));assert(!JSON.stringify(h.argv).includes('Bearer'));
  assert(h.argv[0].includes('0:a:0?'));assert(h.argv[0].includes('16000'));assert(h.argv[0].includes('mov,matroska,mp3,wav,ogg,flac,aac,mpegts,avi'));assert(h.argv[0].includes('-copyts'));assert(h.argv[0].includes('-start_at_zero'));assert(h.argv[0].includes('aresample=async=1:first_pts=0'));
  await assert.rejects(get(h.argv[0][h.argv[0].indexOf('-i')+1]),/ECONNREFUSED|ECONNRESET/);
 });

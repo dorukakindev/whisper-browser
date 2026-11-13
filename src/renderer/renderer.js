@@ -92,6 +92,7 @@ let _burninRecoveryPromptOpen = false;
 let _burninRecoveryLoggedId = '';
 
 function queueSnapshotPayload() {
+  for(const item of state.queue)if(item.opts&&(item.opts.translate||item.opts.translateOnly))item.opts=window.TranslationPreferencesUI?.freezeOptions({...item.opts},{input:item.input,type:item.type})||item.opts;
   return {
     version: 1,
     queueRunning: state.queueRunning,
@@ -437,6 +438,7 @@ function showJobValidation(problem) {
 // reddedilirse UI kilitli kalmasın. Tüm başlatma akışları aynı güvenli sonucu
 // kullanır ve mevcut !result.ok hata yollarına düşer.
 async function startTranscribeSafe(opts, requestedJobId = null) {
+  try{if(opts&&(opts.translate||opts.translateOnly)){opts={...opts};window.TranslationPreferencesUI?.freezeOptions(opts);}}catch(error){return {ok:false,error:error.message};}
   const jobId = requestedJobId || createJobId();
   if (state.activeJobId && state.activeJobId !== jobId) {
     return { ok: false, busy: true, error: 'Başka bir transkripsiyon işi hâlâ kapanıyor.', jobId };
@@ -5971,10 +5973,14 @@ if ($('resultModal')) {
 
 // One explicit repair action for generated subtitle results and voice preflight.
 // Inspection is read-only; only the click creates a separate queued retry.
-window.SentenceMergeControl={set(enabled){
-  for(const id of ['mergeContinuation','playerMergeCont']){const control=$(id);if(control&&control.checked!==!!enabled){control.checked=!!enabled;control.dispatchEvent(new Event('change',{bubbles:true}));}}
+window.SentenceMergeControl={syncing:false,set(enabled){
+  if(this.syncing)return;
+  this.syncing=true;
+  try{for(const id of ['mergeContinuation','playerMergeCont']){const control=$(id);if(control&&control.checked!==!!enabled){control.checked=!!enabled;control.dispatchEvent(new Event('change',{bubbles:true}));}}}
+  finally{this.syncing=false;}
   window.dispatchEvent(new CustomEvent('workflow-merge-change',{detail:{enabled:!!enabled}}));
-}};
+},summary(){return sentenceMergeSummary();}};
+for(const id of ['mergeContinuation','playerMergeCont'])$(id)?.addEventListener('change',event=>window.SentenceMergeControl.set(event.target.checked));
 window.SubtitleTranslationRepair={epochs:new WeakMap(),
 reviewCursors:new WeakMap(),
 channelProof(secondary){
@@ -17689,6 +17695,7 @@ function updateCueReviewSummary(indexes,visible=0) {
  const reset=$('cueIssueReset');if(reset){reset.hidden=player.activeIdx<0||indexes.includes(player.activeIdx);reset.textContent=interfaceChoice('Aktif satır filtre dışında · filtreleri kaldır','Active cue outside filter · clear filters');}
 }
 function renderCueList(filter = '') {
+  updateSentenceMergeStatus();
   $('browserPanelTracks')?.classList.toggle('hidden', player.workspaceMode !== 'browser' || !player.browserTracks.length || player.cues.length > 0);
   window.BrowserPanel?.refresh();
   const box = $('cueList');
@@ -21134,6 +21141,13 @@ async function openHistoryItem(h) {
 // altyaziya aninda uygulanir ve DOSYA degismez. Oynatirken acip kapatarak
 // farki gorebilmek icin ham hali saklanir.
 const CONT_MARKS = ['…', '...'];
+// Mirrors backend/subtitle-abbreviations.json; the shared-contract test prevents drift.
+const CONT_ABBREVIATIONS = new Set(['mr','mrs','ms','dr','prof','st','jr','sr','rev','gen','col','lt','sgt','capt','cmdr','det','insp','gov','sen','rep','pres','hon','atty','supt','messrs','mt','ft','ave','blvd','rd','vs','etc','inc','ltd','co','corp','dept','est','approx','e.g','i.e','a.m','p.m','ph.d','m.d','b.a','m.a','jan','feb','mar','apr','jun','jul','aug','sep','sept','oct','nov','dec','sn','bay','bn','av','doç','yrd','öğr','gör','arş','müh','vb','örn','bkz','yy','cad','sok','mah','apt','tel','çev','hz','alb','yzb','tğm','krş','age']);
+
+function continuationProtected(text) {
+  return !stripCont(stripCont(text,true),false) || /(?:^|\n)\s*(?:[-—–\[(♪♫*]|[^.!?:\n]{1,32}:\s)/u.test(text)
+    || /<\/?(?:i|b|u|font|v|ruby|rt|c)(?:[ >.]|$)|\{\\/iu.test(text);
+}
 
 function stripCont(t, atStart) {
   let s = String(t || '').trim();
@@ -21147,37 +21161,57 @@ function stripCont(t, atStart) {
 }
 
 function endsSentence(t) {
-  return /[.!?…。！？]["'”’)\]]*$/.test(String(t || '').trim());
+  const text = String(t || '').trim().replace(/["'“”‘’)}\]»]+$/u, '');
+  if (!/[.!?…。！？।]$/u.test(text)) return false;
+  if (CONT_MARKS.some(mark => text.endsWith(mark))) return /[!?！？।。]$/u.test(stripCont(text, false));
+  const last = text.split(/\s+/).at(-1).replace(/^["'“”‘’(\[«]+/u, '');
+  return !(/^(?:\p{L}\.){2,}$/u.test(last) || /^\p{Lu}\.$/u.test(last)
+    || (last.endsWith('.') && CONT_ABBREVIATIONS.has(last.slice(0,-1).toLowerCase())));
 }
 
-function mergeCueContinuation(cues, maxGap = 3.0) {
+function mergeCueContinuation(cues, maxGap = Number($('continuationGap')?.value) || 3.0) {
   if (!Array.isArray(cues) || cues.length < 2) return cues;
   const DIALOG = ['-', '—', '–', '[', '(', '♪', '*'];
-  const out = [];
+  const out = [], parts = [];
   for (const c of cues) {
     const txt = String(c.text || '').trim();
-    if (!txt) continue;
-    if (!out.length) { out.push({ ...c, text: txt }); continue; }
+    const valid = cue => Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.start >= 0 && cue.end > cue.start;
+    if (!out.length) { out.push({ ...c, text: txt }); parts.push(1); continue; }
     const prev = out[out.length - 1];
     const gap = c.start - prev.end;
     const devam = CONT_MARKS.some((m) => txt.startsWith(m))
       || CONT_MARKS.some((m) => prev.text.endsWith(m));
+    // A leading continuation marker cannot override a completed question/sentence.
     const yarim = !endsSentence(prev.text);
     const kuyruk = stripCont(txt, true);
-    const birlesik = `${stripCont(prev.text, false)} ${kuyruk}`.trim();
-    const kisaKuyruk = kuyruk.length <= 45;
+    const head = stripCont(prev.text, false);
+    const noSpace = /[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff、，]$/u.test(head)
+      && /^[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/u.test(kuyruk);
+    const birlesik = `${head}${noSpace?'':' '}${kuyruk}`.trim();
+    const kisaKuyruk = Array.from(kuyruk).length <= 45;
     const ustKrk = kisaKuyruk ? 170 : 120;
     const ustSure = kisaKuyruk ? 13 : 10;
-    if ((devam || yarim)
+    const speakerKnown = Object.prototype.hasOwnProperty.call(c,'speaker') || Object.prototype.hasOwnProperty.call(prev,'speaker');
+    const sameSpeaker = !speakerKnown || !!c.speaker && c.speaker === prev.speaker;
+    const separateQuotes = /["”’»]$/u.test(prev.text) && /^["“‘«]/u.test(txt);
+    if (yarim && (devam || kuyruk)
+        && valid(prev) && valid(c) && sameSpeaker && !separateQuotes
+        && !continuationProtected(txt) && !continuationProtected(prev.text)
         && !DIALOG.some((d) => txt.startsWith(d))
         && !DIALOG.some((d) => prev.text.startsWith(d))
         && gap >= -0.05 && gap <= maxGap
-        && birlesik.length <= ustKrk
-        && (c.end - prev.start) <= ustSure) {
-      prev.end = c.end;
+        && Array.from(birlesik).length <= ustKrk
+        && (Math.max(c.end,prev.end) - prev.start) <= ustSure
+        && parts[parts.length-1] < 8) {
+      prev.end = Math.max(c.end,prev.end);
       prev.text = birlesik;
+      parts[parts.length-1]++;
+      // Character offsets refer to the old text. Callers reattach timed words
+      // from wordSegments when available; never retain stale highlight ranges.
+      delete prev.wordRanges; delete prev.words;
     } else {
       out.push({ ...c, text: txt });
+      parts.push(1);
     }
   }
   return out;
@@ -21200,6 +21234,38 @@ function applyCueMerge() {
   updateCueMeta();
   scheduleBrowserOverlaySync();
   if (typeof scheduleSubtitleFindReplace === 'function') scheduleSubtitleFindReplace(0);
+  updateSentenceMergeStatus();
+}
+
+function sentenceMergeSummary() {
+  const choose = (tr,en) => typeof interfaceChoice === 'function' ? interfaceChoice(tr,en) : tr;
+  if (!player.mergeCont) return choose('Kapalı · özgün satırlar gösteriliyor.', 'Off · original cues are shown.');
+  const channels = [
+    [player.cuesRaw,player.cues,player.subRole==='translation'?choose('Çeviri','Translation'):choose('Özgün','Source')],
+    [player.cues2Raw,player.cues2,player.sub2Role==='source'?choose('Özgün','Source'):choose('Çeviri','Translation')],
+  ].filter(([raw])=>Array.isArray(raw)&&raw.length);
+  if (!channels.length) return choose('Açık · altyazı yüklendiğinde ve yeni işlerde uygulanır.', 'On · applies when subtitles load and to new jobs.');
+  if (!channels.some(([raw,shown])=>raw.length>(shown?.length??raw.length))) return choose(
+    'Açık · bu altyazıda sınırlar içinde birleştirilebilecek devam satırı yok.',
+    'On · no continuation cues in these subtitles meet the safety limits.');
+  return channels.map(([raw,shown,label])=>label+': '+raw.length+' → '+(shown?.length??raw.length)).join(' · ');
+}
+
+function updateSentenceMergeStatus() {
+  if (typeof document === 'undefined') return;
+  const summary = sentenceMergeSummary();
+  for (const id of ['sentenceMergeStatus','playerSentenceMergeStatus']) {
+    const el = document.getElementById(id);
+    if (el && el.textContent !== summary) el.textContent = summary;
+  }
+  const help = document.getElementById('sentenceMergeHelp');
+  const contextHelp = document.getElementById('translationContextPolicyHint');
+  if (contextHelp) contextHelp.textContent = interfaceChoice(
+    'Bağlam sınırı bir cümleyi keserse aynı sahnede güvenli sınırlar içinde tamamlanır. Bilinen konuşmacılar etiketlenir; uzun bağlam sınırlanır ve kırpılan bölüm modele belirtilir.',
+    'A sentence cut by the context window is completed within the same scene and safety limits. Known speakers are labelled; long context is bounded and clipped excerpts are marked for the model.');
+  if (help) help.textContent = interfaceChoice(
+    'Devam cümlelerini güvenli sınırlar içinde toplar. Tam cümleler, konuşmacı değişimleri ve biçimli diyaloglar ayrı kalır. Canlı görünüm dosyayı değiştirmez; çalışan ve kuyruktaki işler kendi ayarlarını korur.',
+    'Joins continuation cues within safety limits. Complete sentences, speaker changes and formatted dialogue stay separate. Live display leaves files untouched; running and queued jobs retain their settings.');
 }
 
 // ---- AI sohbet (yan panel sekmesi) ----
@@ -27993,6 +28059,7 @@ async function startProgressivePlayerTranscription(config = {}) {
     opts.input = path;
     delete opts.youtube;
   }
+  opts.translationPreferenceSource={key:player.mediaKey,path:player.workspaceMode==='browser'?'':player.localPath||''};
   // Açık eylem niyeti (yalnız kaynak / kaynak+çeviri) ayardaki genel çeviri
   // anahtarından önce gelir — browser'da da yerel oynatıcıda da (R406: eskiden
   // yalnız browser dalı okuyordu, yerel videoda "Altyazı oluştur" çeviriyi atlıyordu).
@@ -28295,6 +28362,7 @@ async function startPlayerSubtitleTranslation(config = {}) {
     }
     configureSpeechTranslation(opts, config.forSpeech ?? state.translateForSpeechOverride ?? !!$('translateForSpeech')?.checked);
     opts.input = sourcePath;
+    opts.translationPreferenceSource={key:player.mediaKey,path:player.workspaceMode==='browser'?'':player.localPath||''};
     // Önceki kısmi çeviri varsa backend tamamlanan cue'ları koruyup yalnız
     // eksik/başarısız olanları yeniden işler.
     delete opts.youtube;
@@ -28915,15 +28983,23 @@ if ($('toolsToggle')) {
 
 // --- izlerken cumle birlestirme ---
 if ($('playerMergeCont')) {
-  try { player.mergeCont = localStorage.getItem('playerMergeCont') === '1'; } catch (_) {}
+  // Processing settings are the canonical initial state; the legacy display-only
+  // preference must not silently disagree with the next Whisper job.
+  if ($('mergeContinuation')) player.mergeCont = $('mergeContinuation').checked;
+  else try { player.mergeCont = localStorage.getItem('playerMergeCont') === '1'; } catch (_) {}
   $('playerMergeCont').checked = !!player.mergeCont;
   $('playerMergeCont').addEventListener('change', (e) => {
     player.mergeCont = e.target.checked;
     try { localStorage.setItem('playerMergeCont', player.mergeCont ? '1' : '0'); } catch (_) {}
     applyCueMerge();
-    osd(player.mergeCont ? 'Cümleler birleştirildi' : 'Cümle birleştirme kapalı');
+    osd(player.mergeCont
+      ? interfaceChoice('Cümle birleştirme açık', 'Sentence merging enabled')
+      : interfaceChoice('Cümle birleştirme kapalı', 'Sentence merging disabled'));
   });
 }
+$('continuationGap')?.addEventListener('change', () => { if (player.mergeCont) applyCueMerge(); });
+document.addEventListener('ui-locale-change', updateSentenceMergeStatus);
+updateSentenceMergeStatus();
 if ($('playerWordHighlight')) {
   player.wordHighlightEnabled = $('playerWordHighlight').checked;
   $('playerWordHighlight').addEventListener('change', (event) => {
