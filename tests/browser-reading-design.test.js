@@ -100,25 +100,36 @@ function fakeButton() {
 {
   const button = fakeButton();
   const label = { textContent: '' };
-  const tab = { browserTranslationComplete: true };
+  // Altyazı merkezi durum satırı ve Ayarlar "Uygulandığı kaynak" bandı aynı durumdan beslenir.
+  const mk = () => ({ textContent: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } });
+  const hub = { browserHubStatusTitle: mk(), browserHubStatusText: mk(), browserHubStatus: mk(),
+    browserSettingsTargetName: mk(), browserSettingsTargetText: mk(), browserSettingsTarget: mk() };
+  const tab = { browserTranslationComplete: true, title: 'Örnek video' };
   const player = {
     browserTracks: [], browserTranslatePreparing: false, browserTranslationTrackId: '',
     browserActiveTabId: 'tab-1', job: null,
   };
   const state = { running: false };
   const context = loadBetween('function updateBrowserSubtitleSummary()', 'function clearBrowserTracks', {
-    $: (id) => id === 'browserSubtitleLabel' ? label : button,
+    $: (id) => id === 'browserSubtitleLabel' ? label : (hub[id] || button),
     renderBrowserSubtitleHealth() {},
     browserTabState: () => tab,
     player,
     state,
   });
   context.updateBrowserSubtitleSummary();
-  assert.equal(label.textContent, 'Altyazı');
+  // Merkez etiketi sabit "Altyazı araçları"dır; iz sayısı panel düğmesinde ve durum satırında görünür.
+  assert.equal(label.textContent, 'Altyazı araçları');
   assert.equal(button.dataset.state, 'idle');
+  assert.equal(hub.browserHubStatus.attrs['data-state'], 'idle');
+  assert.equal(hub.browserHubStatusTitle.textContent, 'Örnek video', 'durum satırı işlenen kaynağı adlandırmıyor');
+  assert(/video algılanmadı/.test(hub.browserHubStatusText.textContent), 'boş durum nedeni ve sonraki adımı söylemiyor');
+  assert.equal(hub.browserSettingsTargetName.textContent, 'Örnek video', 'Ayarlar sayfası kaynağı göstermiyor');
   player.browserTracks.push({}, {});
   context.updateBrowserSubtitleSummary();
-  assert.equal(label.textContent, 'Altyazı · 2');
+  assert.equal(label.textContent, 'Altyazı araçları');
+  assert.equal(hub.browserHubStatus.attrs['data-state'], 'ready');
+  assert(/2 altyazı izi/.test(hub.browserHubStatusText.textContent), 'iz sayısı durum satırında yok');
   assert.equal(button.dataset.state, 'ready');
   player.browserTranslatePreparing = true;
   context.updateBrowserSubtitleSummary();

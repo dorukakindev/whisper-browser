@@ -44,7 +44,12 @@ function createPodcastTextTranslation({store,translate,createTranslator}){
   const contextLines=contextLinesOf(input.contextLines);
   const translator=createTranslator?createTranslator({targetLanguage}):translate;
   if(typeof translator!=='function')throw Error('Translation provider unavailable / Çeviri sağlayıcısı kullanılamıyor.');
-  const current=()=>{signal.throwIfAborted();const row=store.entry(entry.id),track=row.podcastWorkspace?.transcript;if(sourceVersion(row)!==version||row.podcastWorkspace?.sourceVersion!==version||track?.state!=='untimed'||track.status==='partial'||track.text!==source.text)throw Error('Podcast transcript changed / Podcast metni değişti.');};
+  const current=()=>{
+   signal.throwIfAborted();
+   const row=store.entry(entry.id),track=row.podcastWorkspace?.transcript;
+   if(row.spoiler==='marked'&&!row.spoilerAllowed)throw Error('Show the spoiler source before translating / Çevirmeden önce spoiler içeren metni gösterin.');
+   if(sourceVersion(row)!==version||row.podcastWorkspace?.sourceVersion!==version||track?.state!=='untimed'||track.status==='partial'||track.text!==source.text)throw Error('Podcast transcript changed / Podcast metni değişti.');
+  };
   running.add(entry.id);
   try{
    const chunks=chunksOf(source.text);

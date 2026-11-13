@@ -76,3 +76,27 @@ test('cancelled export terminates its owned process and removes only its own par
  assert.equal(Model.duckAt(Model.groups([{...row,speechRanges:[]}]),.5),0);
  assert.equal(Model.duckAt(Model.groups([{...row,speechRanges:[[9,10]]}]),.5),1,'invalid activity falls back to cue timing');
  });
+
+
+test('cancelling during project manifest write prevents final project installation',async()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'dub-project-cancel-'));
+ const writeFile=fs.promises.writeFile;
+ try{
+  const voice=path.join(root,'voice.wav'),target=path.join(root,'saved.dubproject');fs.writeFileSync(voice,'keep voice');
+  const handlers={},sender=new EventEmitter();sender.isDestroyed=()=>false;
+  const svc=registerDubWorkspace({ipcMain:{handle:(n,f)=>handlers[n]=f},authorized:()=>true,owner:()=>null,
+   dialog:{showSaveDialog:async()=>({filePath:target})},authorizeMedia:async p=>p,grantMedia:()=>{}});
+  svc.register({path:voice});let cancelled=false;
+  fs.promises.writeFile=async function(file,...args){
+   const result=await writeFile.call(this,file,...args);
+   if(String(file).startsWith(target+'.partial-')&&path.basename(file)==='project.json'){
+    cancelled=true;assert.equal((await handlers['dub:workspaceCancel']({sender})).ok,true);
+   }
+   return result;
+  };
+  const result=await handlers['dub:projectSave']({sender},{path:voice});
+  assert.equal(cancelled,true);assert.equal(result.ok,false);assert.match(result.error,/Cancelled/);
+  assert.equal(fs.existsSync(target),false);assert.deepEqual(fs.readdirSync(root),['voice.wav']);
+  assert.equal(fs.readFileSync(voice,'utf8'),'keep voice');assert.equal(svc.running(),false);
+ }finally{fs.promises.writeFile=writeFile;fs.rmSync(root,{recursive:true,force:true});}
+});

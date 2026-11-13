@@ -1,3 +1,32 @@
+# Git teslim kaydı · 2026-11-13 05:34
+
+- Açık kullanıcı komutuyla 40 ürün/test dosyası `a69fcbb76f7c2ba301014267cd65d46265068a0d` commit'ine, belgeler ayrı commit'e alındı. [PR #922](https://github.com/dorukakindev/whisper-browser/pull/922), [teslim ve sınırlar](docs/devir/2026-11-13-0534.md). Commit öncesi 80/80 hedefli kontrol geçti; başlıklar `[skip ci]`. Son master kimliği PR/Git üzerinden doğrulanır.
+- `SONRAKI-ADIMLAR.md` ve Claude işleri dışarıda; kişisel farklar korunur. Aşağıdaki yerel aşamaların eski Git bekleme kayıtları tarihseldir. TorBox native başlangıç ve eklenti/ikinci kaynak kabulü açık kalır.
+
+# Browser çalışma tezgâhı paket birleşimi · 2026-11-13 05:18
+
+- Sekiz arşiv karşılaştırıldı; son `(7)` kümülatif paket yerel asistan/Whisper/TorBox/servis ve sabit şerit farkları korunarak birleştirildi. Üç inceleme hatası düzeltildi; 32 hedefli kontrol ve gerçek Windows Electron/ASUS görünümü geçti. [Dosyalar, kanıt ve test sınırları](docs/devir/2026-11-13-0518.md).
+- `SONRAKI-ADIMLAR.md` ayıklanmadı, değiştirilmedi ve içindeki işler yapılmadı; kullanıcı Claude'a yaptıracak. Yeni yol haritası açılmadı. Önceki gerçek TorBox native başlangıç kabulü aşağıda açık kalır; bu Browser teslimi o engeli çözmüş sayılmaz. Git teslimi yapılmadı.
+
+# Gerçek TorBox iz kabulü / yarış onarımları · 2026-11-13 04:58
+
+- Gerçek filmde iki ses arasında ve gömülü altyazıya geçiş doğrulandı. Üç altyazı seçim yarışı ve boş native geometri davranışı düzeltildi; 36 hedefli kontrol geçti. [Kanıt ve sınırlar](docs/devir/2026-11-13-0458.md).
+- Açık: native başlangıç bazı denemelerde zaman aşımında; gerçek eklenti dosyası yüklemesi ve ikinci gerçek kaynakta eski seçimlerin etkisizliği henüz tamamlanmadı. D3D11 de `EVAL_TIMEOUT` verdi; kanıt `tmp/torbox-tracks-live-20261113/report.json` / `d3d11-live.log`. Sonraki adım Windows/mpv pencere/süreç sınırını ayırmak; aynı denemeyi değişiklik olmadan tekrarlama. Ürüne GPU deneme seçeneği eklenmedi; test süreçleri kapatıldı, kişisel profil ve Browser sahipliği korundu. Git teslimi yok.
+
+# TorBox kütüphanesi ve oynatıcı izleri · 2026-11-13 03:55
+
+- Bulut kütüphanesi, gerçek TorBox kataloğu/dosya çözümlemesi ve üç modda Ses/Altyazı erişimi yerelde tamamlandı. [Dosyalar, doğrulama ve sınırlar](docs/devir/2026-11-13-0355.md). Mevcut asistan/Whisper, Browser sahipliği ve kişisel farklar korundu; Git teslimi yapılmadı.
+- Kalan kabul: normal uygulamada gerçek çok sesli TorBox dosyasını açıp Ses menüsünden kanalı dinleyerek değiştirmek; gömülü altyazı ve eklenti altyazısı arasında geçişi, kaynak değişiminde eski seçimin uygulanmadığını görmek. Bu tur canlı hesapta yalnız katalog/meta okundu; film oynatılmadı. Yeni indirme başlatılmadı.
+
+# Paralel backend/servis onarımları · 2026-11-13 03:05
+
+- Dört doğrulanmış yarış/izin hatası üç servis dosyasında düzeltildi. Son entegrasyon 10/10; 384 Browser/renderer/IPC/asistan/Whisper dosyası başlangıçla aynı. [Kapsam, kanıt ve sınırlar](docs/devir/2026-11-13-0305.md).
+- Yerel çalışma, Git teslimi yok. Sonraki somut adım Claude Browser paketi geldiğinde bu servis farklarını ve önceki sabit altyazı şeridini koruyarak taban/patch karşılaştırması; yeni bağımsız iş çıkarılmadı.
+
+# Sabit altyazı şeridi · 2026-11-13 02:29
+
+- Çift dilli ve Podcast görünümünde video altındaki şerit konuşma aralarında boş olarak kalır; video ve kontrollerin geometrisi değişmez. [Yerel onarım ve doğrulama](docs/devir/2026-11-13-0229.md). Canlı/kişisel uygulama kullanılmadı; yeni commit/push yetkisi verilmedi, Git teslimi yok.
+
 # V6 inceleme ve entegrasyon · 2026-11-13
 
 - Kümülatif V6, mevcut asistan/Whisper ve kaynak sahipliği korunarak birleştirildi. [116 kararın kaydı](docs/raporlar/V6_BUG_AUDIT_20261113.md): 42 V6, 47 inceleme düzeltmesi; 24 doğrulanmayan iddia, 2 tekrar, 1 zaten doğru. [Devir/test sınırları](docs/devir/2026-11-13-0216.md).

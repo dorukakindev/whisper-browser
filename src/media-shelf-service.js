@@ -185,6 +185,7 @@ function readReviewTaste(userData,catalog=[],domain='film') {
 }
 function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pythonPath, ffprobePath, inspectMedia, grantMedia, grantPdf, nativeImage, catalogStore, catalogView, discoveryRequest, fetchImpl = fetch, musicRun = run, podcastRegistryBinding, transcriptFetcher = (descriptor, options) => require('./podcast-transcript-service').fetchPodcastTranscript(descriptor, {...options, ...require('./feed-service')}) }) {
   const requestTranscript=require('./podcast-transcript-service').createTranscriptRequester(transcriptFetcher);
+  const transcriptRequests = new Map();
   let active = null;
   const imports = new Map(), tasteCorrections = new Map(), collectionImports = new Map();
   const stateFile = () => path.join(userData(), 'media-shelf.json');
@@ -560,7 +561,8 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           if(typeof podcastRegistryBinding!=='function')throw Error('Existing podcast registry is unavailable.');
           const binding=await podcastRegistryBinding({podcast:{id:podcast.id,url:podcast.url,title:podcast.title,language:podcast.language,publisher:podcast.publisher},episode:{guid:episode.guid,url:episode.url,title:episode.title,description:episode.description,date:episode.date,duration:episode.duration,enclosureType:episode.enclosureType,enclosureLength:episode.enclosureLength,transcriptDescriptors:episode.transcriptDescriptors||[]}});
           const fresh=load(),target=found(fresh,'podcasts',input.id).episodes.find(e=>e.url===input.url);
-          if(!target||target.episodeIdentity!==episode.episodeIdentity&&target.feedEntryId!==binding.entryId)throw Error('Podcast source changed.');
+          if(!target||!['resource','mime','declaredLength'].every(key=>target.sourceBinding[key]===episode.sourceBinding[key])
+            ||target.episodeIdentity!==episode.episodeIdentity&&target.feedEntryId!==binding.entryId)throw Error('Podcast source changed.');
           const output={...target,podcastWorkspace:undefined,registryWorkspace:binding.workspace};
           return {ok:true,...binding,track:podcastTrack(output),translation:podcastTrack(output,'translation'),translationRetry:require('./podcast-translation-recovery').recoveryInfo(binding.workspace?.transcript,binding.workspace?.translation)};
         }
@@ -575,15 +577,23 @@ function registerMediaShelf({ ipcMain, dialog, owner, authorized, userData, pyth
           if(!episode||episode.sourceVersion!==input.sourceVersion)throw Error('Podcast source changed.');
           const descriptor=episode.transcriptDescriptors?.[Number(input.descriptorIndex)||0];
           if(!descriptor)throw Error('Choose a publisher transcript.');
+          const requestKey=podcast.id+':'+episode.episodeIdentity, requestOwner={};
+          transcriptRequests.set(requestKey,requestOwner);
+          try {
           if(episode.podcastWorkspace?.sourceVersion===episode.sourceVersion&&episode.podcastWorkspace.transcript?.descriptorUrl===descriptor.url)return {ok:true,cached:true,track:podcastTrack(episode)};
           const result=await requestTranscript(descriptor,{signal:AbortSignal.timeout(20000)});
           if(!result.ok)return result;
           if(result.text.length>500000)throw Error('Publisher transcript exceeds workspace limit.');
           const fresh=load(), target=found(fresh,'podcasts',input.id).episodes.find(e=>e.episodeIdentity===episode.episodeIdentity);
           if(!target||target.sourceVersion!==input.sourceVersion)throw Error('Podcast source changed.');
+          if(transcriptRequests.get(requestKey)!==requestOwner
+            ||M.hash(target.transcriptDescriptors?.[Number(input.descriptorIndex)||0])!==M.hash(descriptor))throw Error('Publisher transcript selection changed. Choose the transcript again. / Yayıncı metni seçimi değişti. Metni yeniden seçin.');
           const workspace={sourceVersion:target.sourceVersion,position:target.position||0,rate:target.podcastWorkspace?.rate||1,transcript:{state:result.timed==='yes'?'timed':'untimed',format:result.format,text:result.text,provenance:'publisher',descriptorUrl:descriptor.url}};
           require('./podcast-session').validateWorkspace(workspace);target.podcastWorkspace=workspace;save(fresh);
           return {ok:true,track:podcastTrack(target)};
+          } finally {
+            if(transcriptRequests.get(requestKey)===requestOwner)transcriptRequests.delete(requestKey);
+          }
         }
         case 'podcast-spotify-add': {
           const source=require('./podcast-link-source').spotify(input.url);if(!source)throw Error('Use a Spotify show or episode link.');

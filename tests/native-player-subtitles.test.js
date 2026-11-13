@@ -37,6 +37,21 @@ function harness(){
  const session={key:'m',generation:1,bounds:{height:360},state:{duration:10},pending:new Map(),socket:{writable:true,write(json){const packet=JSON.parse(json);sent.push(packet.command);if(!hold)queueMicrotask(()=>{const pending=session.pending.get(packet.request_id);clearTimeout(pending.timer);session.pending.delete(packet.request_id);pending.resolve(packet.command[1]==='osd-ass-cc/0'?codes.start:packet.command[1]==='osd-ass-cc/1'?codes.stop:null);});}}};
  service.testOwn(session);return{service,sent,session,hold:()=>hold=true};
 }
+
+test('native track selection accepts only current typed IDs and explicit subtitle off',async()=>{
+ const h=harness();h.session.state.tracks=[{id:1,type:'audio'},{id:2,type:'audio'},{id:3,type:'sub'},{id:4,type:'sub',external:true}];
+ const request=(command,value,owner={key:'m',generation:1})=>h.service.handler({},{action:'command',...owner,command,value});
+ assert.equal((await request('audio','2')).ok,true);assert.deepEqual(h.sent.at(-1),['set_property','aid',2]);
+ assert.equal((await request('sub',3)).ok,true);assert.deepEqual(h.sent.at(-1),['set_property','sid',3]);
+ assert.equal((await request('sub','no')).ok,true);assert.deepEqual(h.sent.at(-1),['set_property','sid','no']);
+ assert.equal((await request('sub',false)).ok,true);
+ const count=h.sent.length;
+ for(const [command,value]of [['audio',3],['sub',1],['audio',99],['sub',99],...['audio','sub'].flatMap(command=>[null,{},[],true,NaN,Infinity,-1,1.5,'','auto','2.0'].map(value=>[command,value]))]){
+  assert.equal((await request(command,value)).ok,false,command+' rejects invalid current track');
+ }
+ assert.equal((await request('audio',1,{key:'old',generation:0})).ok,false);
+ assert.equal(h.sent.length,count,'invalid selections never reach mpv');
+});
 test('existing text allowlist emits explicit raw command, caches trusted gates and rejects stale owner',async()=>{
  const h=harness(),request=value=>h.service.handler({},{action:'command',key:'m',generation:1,command:'text',value});
  assert.equal((await request({primary:'${path} {\\p1}',secondary:'Çeviri'})).ok,true);

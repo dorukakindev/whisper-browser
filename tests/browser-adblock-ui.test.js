@@ -19,7 +19,7 @@ async function run() {
   const $ = id => dom.window.document.getElementById(id);
   const control = $('browserAdblockEnabled'), quick = $('browserAdblockQuick'), menu = $('browserAdblockMenuToggle');
   const group = menu.closest('.browser-more-sub');
-  assert.equal(group.querySelector('summary .browser-menu-label').textContent.trim(), 'Sayfa');
+  assert.equal(group.querySelector('summary .browser-menu-label').textContent.trim(), 'Sayfa araçları');
   assert.equal(menu.dataset.browserProxy, 'browserAdblockQuick');
   assert.equal(menu.tagName, 'BUTTON');
   assert.equal(menu.getAttribute('role'), null);

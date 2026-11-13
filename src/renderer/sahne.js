@@ -1815,7 +1815,7 @@
         this.paintVolume(volume, value);
       }
       this.paintCaptionVisibility(info, st, time, liveTranslation);
-      this.paintLiveSpeech(st, time, liveTranslation);
+      this.paintLiveSpeech(st, time, liveTranslation, info);
       this.drawPanel(false); this.paint();
       this.restoreReadingPosition();
     }
@@ -2020,7 +2020,7 @@
       }
       return active;
     }
-    paintLiveSpeech(state, time, liveTranslation) {
+    paintLiveSpeech(state, time, liveTranslation, info) {
       const panel = this.q('[data-r=liveSpeech]');
       if (!panel || this.o.mode !== 'podcast') return;
       const display = this.displayMode();
@@ -2029,7 +2029,8 @@
       const source = state.adPlaying || state.seeking || display === 'tr' ? '' : tracks ? this.liveCueAt(tracks[0], time)?.text || '' : row?.src || '';
       const translation = state.adPlaying || state.seeking || display === 'src' ? ''
         : liveTranslation?.text || (!tracks && row && !row.src ? row.trs.join(' ') : '');
-      panel.hidden = !source.trim() && !translation.trim();
+      const reserve = !info.audio || (!state.untimed && this.rows.length > 0);
+      panel.hidden = !reserve && !source.trim() && !translation.trim();
       for (const [name, text] of [['liveSource', source], ['liveTranslation', translation]]) {
         const line = this.q('[data-r='+name+']');
         if (line.textContent !== text) line.textContent = text;
@@ -2049,8 +2050,9 @@
       const hasSource = display !== 'tr' && !!this.q('[data-r=s]').textContent.trim();
       const hasTranslation = display !== 'src' && !!this.q('[data-r=t]').textContent.trim();
       captions.classList.toggle('sh-single-caption', hasSource !== hasTranslation);
-      captions.hidden = (!independent && this.cur < 0) || info.webVideo || this.o.mode === 'podcast'
-        || (this.o.mode !== 'cinema' && !hasSource && !hasTranslation);
+      const reserve = this.o.mode === 'study' && (!info.audio || (!state.untimed && this.rows.length > 0));
+      captions.hidden = info.webVideo || this.o.mode === 'podcast'
+        || (!reserve && ((!independent && this.cur < 0) || (this.o.mode !== 'cinema' && !hasSource && !hasTranslation)));
     }
     writeCaption(box, source, translation) {
       const original = this.q('[data-r=s]'), translated = this.q('[data-r=t]');

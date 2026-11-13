@@ -34,6 +34,18 @@ components:
 
 # Whisper Browser tasarım kaydı
 
+## Browser çalışma tezgâhı birleşimi — 2026-11-13
+
+Browser üst araçları mevcut kimlik ve komut sahipleri korunarak etiketli gruplara ayrılır. Altyazı merkezi kaynak yokken de bulunabilir; altyazı/oluşturma/çeviri/dublaj yolları mevcut düğmelere gider. Asistan ve Ayarlar erişimi üst araçlarda kalır. İşler göstergesi canonical görev merkezinden beslenir; gerçek terminal olayı olmadan başarı üretmez ve eski iş/nesil bildirimi yeni işe taşınmaz. Renkler mevcut runtime amber/grafit tema değişkenlerinden gelir; yeni bağımsız palet yok. Yerel 108px sabit altyazı ve canlı konuşma şeridi korunur. ASUS gerçek Electron tam ekran ve tek 940px tanılaması geçti; dar panel devralması kapatılınca araçların erişimi geri gelir. [Yerel birleşim ve sınırlar](docs/devir/2026-11-13-0518.md).
+
+## Stremio bulut kütüphanesi ve iz erişimi — 2026-11-13
+
+Üst Stremio gezinmesinde kişisel Listem ile sağlayıcının Bulut kütüphanesi ayrıdır. Bulut katalogları mevcut amber/grafit kart düzenini ve ortak detay sayfasını kullanır; dosya adları sezona zorlanmaz, açık Yenile eylemi vardır. Oynatıcı/Çift dilli/Podcast modlarında Ses ve Altyazı düğmeleri aynı motor/sahiplik paneline erişir; sinemada transport araçlarıyla, diğer modlarda üst araçlarla durur. Panel transport'u örtmeyecek yükseklikte açılır. Gerçek renderer 1920×1080 sentetik kaynak görselleri incelendi; native pencere/dinleme kabulü ayrı kalır. [Devir](docs/devir/2026-11-13-0355.md).
+
+## Konuşma aralarında yerleşim kararlılığı — 2026-11-13
+
+Çift dilli ve Podcast modunda video altındaki altyazı şeridi konuşma aralarında görünür ve aynı yükseklikte kalır; metin boşalır, önceki cümle tutulmaz. Kaynak/çeviri seçimi şeridin geometrisini değiştirmez. Uzun metin mevcut alan içinde kaydırılır. Salt ses, zamanı belirsiz/altyazısız görünüm ve Browser videosunun kendi altyazı yüzeyi mevcut sahipliğiyle kalır.
+
 ## Onaylı V6 birleşmesi — 2026-11-13
 
 Kullanıcının V6 inceleme/birleştirme talimatı bu paketin film alt transport ve altyazı görünüm düzenini kapsar; aşağıdaki V3 aşamasındaki transport kapsam sınırı tarihsel kalır. Üst medya gezinmesi, sıcak amber/grafit ve ileri araçlar korunur. Filmde araçlar transport’ta, Podcast/Çift dilli görünümünde Aa menüsü üst araçlardadır. Asistan baloncuğu amber ve görünür kalır. Transkript çekmecesi transport’un üzerinde biter; iki HTML Stremio eylemi içerik yüksekliğine göre birlikte dizilir. Native mpv üzerinde etkisiz CSS görünüm ayarları sunulmaz; mevcut native ayar sahibi açılır. İzole 1920×1080 Chromium kompozisyonları gözle kontrol edildi; gerçek Windows native pencere/gösterge ve mpv görsel kabulü ayrıca doğrulanmış sayılmaz. [Devir](docs/devir/2026-11-13-0216.md).

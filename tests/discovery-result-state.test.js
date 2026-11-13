@@ -47,7 +47,7 @@ test('append failure preserves titles and retries the failed cursor rather than 
   const h=fixture(t,async input=>{if(input.skip===100&&!failed){failed=true;return {ok:false,error:'Controlled network failure'};}return {ok:true,rows:[row(input.skip===100?'tt2222222':'tt1111111')],nextSkip:input.skip===100?null:100};});
   await tick();h.root.querySelector('.md-more').click();await tick();
   assert.equal(h.root.querySelector('[data-discovery-id]').dataset.discoveryId,'tt1111111');
-  h.root.querySelector('.md-retry').click();await tick();
+  const inlineRetry=h.root.querySelector('.md-status-retry');assert(inlineRetry,'a catalog load error offers the existing catalog retry');inlineRetry.click();await tick();
   assert.deepEqual(h.calls.map(c=>c.skip),[0,100,100]);
   assert.equal(h.root.querySelectorAll('[data-discovery-id]').length,2);
 });
@@ -255,6 +255,16 @@ test('R854 G46 removes only the selected discovery exclusion and preserves the p
  const h=fixture(t,async q=>q.action==='feedback-list'?{ok:true,rows:removed?[]:[{...row('tt1111111'),feedback:'hidden',personalMedia:personal}]}:q.action==='feedback'?(removed=true,{ok:true}):{ok:true,rows:[],nextSkip:null});await tick();
  [...h.root.querySelectorAll('.cn-discover-tab')].find(b=>b.textContent==='Preferences').click();await tick();const undo=h.root.querySelector('.md-restore-preference');assert(undo);assert.match(undo.getAttribute('aria-label'),/tt1111111/);undo.click();await tick();
  assert.deepEqual(h.calls.filter(q=>q.action==='feedback').map(q=>[q.id,q.kind,q.state]),[['tt1111111','film','none']]);assert.equal(JSON.stringify(personal),original);assert.equal(h.root.querySelector('[data-discovery-id]'),null);assert.match(h.root.querySelector('.md-status').textContent,/history are unchanged/);
+});
+
+test('a failed discovery preference mutation does not offer a catalog reload as its retry',async t=>{
+ const h=fixture(t,async q=>q.action==='feedback-list'?{ok:true,rows:[{...row('tt1111111'),feedback:'hidden'}]}:q.action==='feedback'?{ok:false,error:'Controlled preference save failure'}:{ok:true,rows:[],nextSkip:null});await tick();
+ [...h.root.querySelectorAll('.cn-discover-tab')].find(b=>b.textContent==='Preferences').click();await tick();
+ const restore=h.root.querySelector('.md-restore-preference');restore.click();await tick();
+ assert.match(h.root.querySelector('.md-status').textContent,/Controlled preference save failure/);
+ assert.equal(restore.disabled,false,'the original mutation action remains available');
+ assert.equal(h.root.querySelector('.md-status-retry'),null,'catalog retry cannot retry a preference write');
+ assert.equal(h.calls.filter(q=>q.action==='feedback-list').length,1);
 });
 test('R854 G47/G48 distinguish personal, metadata and absent evidence; empty guidance opens existing library without likes',async t=>{
  let empty=false;const h=fixture(t,async()=>({ok:true,rows:[],nextSkip:null}),()=>({ok:true,needsRatings:empty,rows:empty?[]:[{...row('tt1111111'),recommendationEvidence:{seedTitle:'Saved rating',reaction:'like',genre:'Drama'}},{...row('tt2222222'),because:'Catalog link'},row('tt3333333')]}));const routes=[];h.w.MediaHomeUI={navigate:async p=>routes.push(p)};await tick();

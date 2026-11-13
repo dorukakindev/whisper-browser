@@ -27,6 +27,13 @@ function buildNativeText(text,codes,height){
  const line=(content,role)=>codes.start+`{\\r\\an2\\fn${NATIVE_SUBTITLE_FONTS[text.font]}\\fs${font}\\b${text.weight}\\bord${border}\\shad${shadow}\\3c&H000000&\\4c&H000000&\\1c&H${role==='translation'?'8DCCED':'FFFFFF'}&}`+codes.stop+content;
  return[[text.primary,text.primaryRole],[text.secondary,text.secondaryRole]].filter(([content])=>content).sort((a,b)=>(a[1]==='source'?0:1)-(b[1]==='source'?0:1)).map(([content,role])=>line(content,role)).join('\n');
 }
+function nativeTrackCommand(tracks,type,value){
+ const property=type==='audio'?'aid':'sid';
+ if(type==='sub'&&(value==='no'||value===false))return ['set_property',property,'no'];
+ const id=typeof value==='number'?value:typeof value==='string'&&/^\d+$/.test(value)?Number(value):NaN;
+ if(!Number.isSafeInteger(id)||id<1||!Array.isArray(tracks)||!tracks.some(track=>track?.type===type&&track.id===id))throw Error('Native track changed or is unavailable. Refresh the current source tracks.');
+ return ['set_property',property,id];
+}
 function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,authorizeMedia,torrents,dialog,sourceHeaders}){
  let session=null,stopping=null,sequence=0,startEpoch=0;
  const configFile=()=>path.join(app.getPath('userData'),'native-player-engine.json');let configured='';
@@ -37,7 +44,16 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
   if(session!==s||!s.socket?.writable)throw Error('Native player disconnected.');
   const id=++sequence;return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{s.pending.delete(id);reject(Error('Native player command timed out.'));},5000);s.pending.set(id,{resolve,reject,timer,name:value[0]});s.socket.write(JSON.stringify({command:value,request_id:id})+'\n');});
  }
- function layout(s,bounds){s.bounds=bounds;if(!s.host||s.host.isDestroyed()||!owner())return;const base=owner().getContentBounds(),w=Math.max(1,Math.min(base.width,Math.round(Number(bounds.width)||1))),h=Math.max(1,Math.min(base.height,Math.round(Number(bounds.height)||1)));s.host.setBounds({x:base.x+Math.max(0,Math.round(bounds.x||0)),y:base.y+Math.max(0,Math.round(bounds.y||0)),width:w,height:h});}
+ function layout(s,bounds){
+  // A source/stage handoff can briefly hide the video. Do not turn its empty
+  // rectangle into a visible 1px mpv host or revive an old rectangle on move.
+  s.bounds=bounds;const win=owner();if(!s.host||s.host.isDestroyed()||!win)return false;
+  const base=win.getContentBounds();
+  if(!['x','y','width','height'].every(k=>Number.isFinite(bounds[k]))||Math.round(bounds.width)<1||Math.round(bounds.height)<1||base.width<1||base.height<1){if(s.host.isVisible())s.host.hide();return false;}
+  const w=Math.min(base.width,Math.round(bounds.width)),h=Math.min(base.height,Math.round(bounds.height));
+  const next={x:base.x+Math.max(0,Math.round(bounds.x)),y:base.y+Math.max(0,Math.round(bounds.y)),width:w,height:h},previous=s.host.getBounds();
+  if(Object.keys(next).some(k=>next[k]!==previous[k]))s.host.setBounds(next);return true;
+ }
  async function stop(){
   const s=stopping?.session||session;if(!s)return {ok:true};
   if(stopping?.promise)return stopping.promise;
@@ -100,7 +116,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
       if(row.event==='property-change'){
        const map={'time-pos':'time','duration':'duration','pause':'paused','speed':'speed','volume':'volume','mute':'muted','paused-for-cache':'buffering','track-list':'tracks','chapter-list':'chapters'};
        const key=map[row.name];
-       if(key&&((key!=='time'&&key!=='duration')||Number.isFinite(row.data)))s.state[key]=row.name==='volume'?Number(row.data)/100:row.data;
+       if(key&&((key!=='time'&&key!=='duration')||Number.isFinite(row.data)))s.state[key]=key==='tracks'&&!Array.isArray(row.data)?[]:row.name==='volume'?Number(row.data)/100:row.data;
       }
       if(row.event==='client-message'&&row.args?.[0]?.startsWith('whisper-'))send(s,'input',{input:row.args[0]});
       if(row.event==='end-file'&&row.reason==='error')failPlayback();
@@ -114,7 +130,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
     if(session!==s||!s.loaded)throw Error('Native media did not become ready.');
     if(Number(input.time)>0)await command(s,['seek',Number(input.time),'absolute']);
     if(s.loadError)throw Error(s.loadError);
-    s.ready=true;layout(s,input.bounds||{});host.showInactive();s.pulse=setInterval(()=>send(s),200);send(s,'ready');return {ok:true};
+    s.ready=true;if(layout(s,input.bounds||{})&&!host.isVisible())host.showInactive();s.pulse=setInterval(()=>send(s),200);send(s,'ready');return {ok:true};
    }
    const s=session;if(!s||s.key!==input.key||s.generation!==input.generation)return {ok:false,error:'Native playback source changed.'};
    if(input.action==='diagnostics'){
@@ -130,7 +146,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
     }finally{s.diagnosticsPending=false;}
    }
    if(input.action==='snapshot'){const file=path.join(app.getPath('temp'),'whisper-mpv-'+randomUUID()+'.png');try{await command(s,['screenshot-to-file',file,'video']);const bytes=await fs.promises.readFile(file);if(bytes.length>16000000)throw Error('Native frame too large.');return {ok:true,image:'data:image/png;base64,'+bytes.toString('base64')};}finally{await fs.promises.unlink(file).catch(()=>{});}}
-   if(input.action==='layout'){layout(s,input.bounds||{});if(input.hidden)s.host.hide();else s.host.showInactive();return {ok:true};}
+   if(input.action==='layout'){const visible=layout(s,input.bounds||{})&&!input.hidden;if(visible!==s.host.isVisible()){if(visible)s.host.showInactive();else s.host.hide();}return {ok:true};}
    if(input.action==='command'){
     const filters={off:'',night:'lavfi=[acompressor=threshold=0.025:ratio=6:attack=6:release=350]',dialogue:'lavfi=[acompressor=threshold=0.04:ratio=3:attack=8:release=280]',guard:'lavfi=[acompressor=threshold=0.2:ratio=12:attack=2:release=200]'};
     if(input.command==='profile'){if(!Object.hasOwn(filters,input.value))throw Error('Invalid listening profile.');await command(s,['set_property','af',filters[input.value]]);return {ok:true};}
@@ -149,7 +165,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
      // change; subtitle content such as ${path} is always shown literally.
      await command(s,['raw','show-text',buildNativeText(text,codes,s.bounds?.height),700]);return{ok:true};
     }
-    const allowed={play:()=>['set_property','pause',false],pause:()=>['set_property','pause',true],seek:()=>['seek',Math.max(0,Math.min(s.state.duration||604800,Number(input.value)||0)),'absolute'],speed:()=>['set_property','speed',Math.max(.0625,Math.min(4,Number(input.value)||1))],volume:()=>['set_property','volume',Math.max(0,Math.min(100,Number(input.value)*100))],mute:()=>['set_property','mute',!!input.value],audio:()=>['set_property','aid',Number(input.value)],sub:()=>['set_property','sid',input.value==='no'||input.value===false?'no':Number(input.value)],vprop:()=>{const value=input.value;if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid native property packet.');const spec={brightness:[-100,100],contrast:[-100,100],saturation:[-100,100],gamma:[-100,100],hue:[-100,100],'video-zoom':[-2,2],panscan:[0,1],'audio-delay':[-10,10],'sub-delay':[-30,30],'video-pan-x':[-1,1],'video-pan-y':[-1,1]};const name=String(value.name||'');if(name==='video-rotate')return ['set_property',name,[0,90,180,270].includes(Number(value.value))?Number(value.value):0];if(name==='video-aspect-override'){const v=Number(value.value);return ['set_property',name,Number.isFinite(v)&&v>=0.3&&v<=4?v:-1];}if(!Object.hasOwn(spec,name))throw Error('Unsupported native property.');const [lo,hi]=spec[name],v=Number(value.value);if(!Number.isFinite(v))throw Error('Invalid native property value.');return ['set_property',name,Math.max(lo,Math.min(hi,v))];}};if(!allowed[input.command])throw Error('Unsupported native command.');await command(s,allowed[input.command]());return {ok:true};
+    const allowed={play:()=>['set_property','pause',false],pause:()=>['set_property','pause',true],seek:()=>['seek',Math.max(0,Math.min(s.state.duration||604800,Number(input.value)||0)),'absolute'],speed:()=>['set_property','speed',Math.max(.0625,Math.min(4,Number(input.value)||1))],volume:()=>['set_property','volume',Math.max(0,Math.min(100,Number(input.value)*100))],mute:()=>['set_property','mute',!!input.value],audio:()=>nativeTrackCommand(s.state.tracks,'audio',input.value),sub:()=>nativeTrackCommand(s.state.tracks,'sub',input.value),vprop:()=>{const value=input.value;if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid native property packet.');const spec={brightness:[-100,100],contrast:[-100,100],saturation:[-100,100],gamma:[-100,100],hue:[-100,100],'video-zoom':[-2,2],panscan:[0,1],'audio-delay':[-10,10],'sub-delay':[-30,30],'video-pan-x':[-1,1],'video-pan-y':[-1,1]};const name=String(value.name||'');if(name==='video-rotate')return ['set_property',name,[0,90,180,270].includes(Number(value.value))?Number(value.value):0];if(name==='video-aspect-override'){const v=Number(value.value);return ['set_property',name,Number.isFinite(v)&&v>=0.3&&v<=4?v:-1];}if(!Object.hasOwn(spec,name))throw Error('Unsupported native property.');const [lo,hi]=spec[name],v=Number(value.value);if(!Number.isFinite(v))throw Error('Invalid native property value.');return ['set_property',name,Math.max(lo,Math.min(hi,v))];}};if(!allowed[input.command])throw Error('Unsupported native command.');await command(s,allowed[input.command]());return {ok:true};
    }
    throw Error('Unsupported native player operation.');
   }catch(error){if(opened&&session===opened){try{await stop();}catch(stopError){return {ok:false,error:stopError.message};}}return {ok:false,error:error.message};}

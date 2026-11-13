@@ -3,6 +3,19 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {EventEmitter}=require('node:events');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+test('transient hidden media geometry never resizes a native host to one pixel',()=>{
+ const source=fs.readFileSync(require.resolve('../src/native-player'),'utf8');
+ const start=source.indexOf(' function layout(s,bounds)'),end=source.indexOf(' async function stop()',start);
+ let hidden=0,visible=true,bounds={};const changes=[],host={isDestroyed:()=>false,getBounds:()=>bounds,isVisible:()=>visible,setBounds:r=>{bounds=r;changes.push(r);},hide:()=>{hidden++;visible=false;}},s={host};
+ const context={owner:()=>({getContentBounds:()=>({x:10,y:20,width:1920,height:1080})})};
+ vm.createContext(context);vm.runInContext(source.slice(start,end)+';this.layout=layout;',context);
+ context.layout(s,{x:0,y:0,width:640,height:360});assert.equal(changes.length,1);
+ context.layout(s,{x:0,y:0,width:640,height:360});assert.equal(changes.length,1);
+ assert.equal(context.layout(s,{x:0,y:0,width:0,height:0}),false);assert.equal(changes.length,1);
+ assert.equal(context.layout(s,{x:0,y:0,width:NaN,height:360}),false);assert.equal(changes.length,1);
+ assert.equal(context.layout(s,s.bounds),false);assert.equal(changes.length,1);assert.equal(hidden,1);
+ context.layout(s,{x:30,y:40,width:800,height:450});assert.equal(changes.length,2);
+});
 
 function setup(){
  let resolveSource, windows=0;
@@ -47,6 +60,8 @@ test('keep-open EOF emits one owner-scoped end and rearms after a seek leaves EO
  const context={s,session:s,owner:()=>({isDestroyed:()=>false,webContents:{send:(_name,row)=>sent.push(row)}}),clearTimeout,JSON,Error};
  const sendStart=source.indexOf(' function send('),sendEnd=source.indexOf(' async function command(',sendStart),start=source.indexOf("    let buffer='';s.socket.on('error'"),end=source.indexOf("    await command(s,['set_property','http-header-fields'",start);assert(start>=0&&end>start);vm.runInNewContext(source.slice(sendStart,sendEnd)+source.slice(start,end),context);
  const emit=row=>socket.emit('data',Buffer.from(JSON.stringify(row)+'\n'));
+ emit({event:'property-change',name:'track-list',data:[{id:2,type:'audio'}]});assert.equal(s.state.tracks[0].id,2);
+ emit({event:'property-change',name:'track-list',data:null});assert.equal(Array.isArray(s.state.tracks),true);assert.equal(s.state.tracks.length,0,'unavailable track property remains an empty list');
  emit({event:'property-change',name:'eof-reached',data:false});assert.equal(sent.length,0);emit({event:'property-change',name:'eof-reached',data:true});emit({event:'end-file',reason:'eof'});emit({event:'property-change',name:'eof-reached',data:true});assert.equal(sent.length,1);assert.equal(sent[0].type,'ended');assert.equal(sent[0].generation,2);
  emit({event:'property-change',name:'eof-reached',data:false});emit({event:'property-change',name:'eof-reached',data:true});assert.equal(sent.length,2);context.session={key:'B',generation:3};emit({event:'property-change',name:'eof-reached',data:false});emit({event:'property-change',name:'eof-reached',data:true});assert.equal(sent.length,2);
 });

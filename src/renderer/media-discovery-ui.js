@@ -17,9 +17,19 @@
     if (!result?.ok) throw Object.assign(Error(result?.error || t('Discovery could not be loaded.', 'Keşfet yüklenemedi.')), {errorCode:result?.errorCode});
     return result;
   }
-  function status(message, error = false) {
+  function status(message, error = false, { retryCatalog = false } = {}) {
     const node = state.root?.querySelector('.md-status');
-    if (node) { node.textContent = message; node.classList.toggle('mh-error', error); }
+    if (node) {
+      node.textContent = message; node.classList.toggle('mh-error', error);
+      // Yalnız katalog isteğinin hatası mevcut yükleme yolunu yeniden deneyebilir.
+      const retry = error && retryCatalog ? state.root?.querySelector('.md-retry') : null;
+      if (retry && node.closest('.cn-discover-page')) {
+        const again = document.createElement('button');
+        again.type = 'button'; again.className = 'md-status-retry'; again.textContent = t('Retry', 'Yeniden dene');
+        again.addEventListener('click', () => { if (!retry.disabled) retry.click(); });
+        node.append(again);
+      }
+    }
   }
   function safeImage(value) {
     try { const url = new URL(value); return url.protocol === 'https:' && ['images.metahub.space', 'image.tmdb.org'].includes(url.hostname) && !url.username && !url.password ? url.href : ''; } catch { return ''; }
@@ -394,7 +404,7 @@
       const timeout = /timeout|timed out|abort/i.test(String(error.message));
       status(window.MediaDiscoveryErrors ? failure(error)+' '+t('Your library is unchanged.','Kütüphanen değişmedi.')
         : timeout ? t('Discovery timed out. Retry; your library is unchanged.', 'Keşfet isteği zaman aşımına uğradı. Yeniden dene; kütüphanen değişmedi.')
-        : t('Discovery could not be reached. Check your connection and retry; your library is unchanged.', 'Keşfet kaynağına ulaşılamadı. Bağlantını kontrol edip yeniden dene; kütüphanen değişmedi.'), true);
+        : t('Discovery could not be reached. Check your connection and retry; your library is unchanged.', 'Keşfet kaynağına ulaşılamadı. Bağlantını kontrol edip yeniden dene; kütüphanen değişmedi.'), true, { retryCatalog: true });
     } finally { if (request === state.request && root === state.root && root.isConnected) { state.busy = false; cards(); if (state.applied < state.stamp && !state.loadError) void refreshLoaded(); } }
   }
   const listAction = tab => tab === 'preferences' ? 'feedback-list' : tab === 'personal' ? 'personal' : 'list';

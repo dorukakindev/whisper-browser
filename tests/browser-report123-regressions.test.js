@@ -71,7 +71,7 @@ test('dar browser ses üretimi düğmesinde etiket gizlenince erişilebilir simg
   const dom = new JSDOM(read('src/renderer/index.html'));
   const button = dom.window.document.getElementById('browserDubGenerate');
   assert(button.querySelector('svg[aria-hidden="true"]'));
-  assert.equal(button.querySelector('span').textContent, 'SRT → Ses');
+  assert.equal(button.querySelector('span').textContent, 'Dublaj üret');
   assert(button.getAttribute('aria-label'));
   assert.match(css, /\.browser-dub-button > span \{ display: none; \}/);
   assert.match(css, /#browserPageTranslate \{ min-width: 34px; width: 34px;/);
