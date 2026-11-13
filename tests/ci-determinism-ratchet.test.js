@@ -1,7 +1,7 @@
 'use strict';
 // R295: CI determinizm ratchet'i — testlerde duvar-saat/rastgele bağımlılığı
 // ancak AZALABİLİR. Sayaçların baseline'ı fixtures/ci-determinism-baseline.txt
-// dosyasındadır (css-hardcoded-color-baseline ile aynı sözleşme).
+// dosyasındadır. Bu sınır CI güvenilirliğini korur; estetik renk bütçesi değildir.
 //
 // İzlenen desenler:
 // - Math.random(    : testlerde sıfır olmalı — deterministik olmayan girdi yok.
