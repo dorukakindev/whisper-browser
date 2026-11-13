@@ -13,18 +13,22 @@ const ms=(h,m,s,f)=>((Number(h||0)*60+Number(m))*60+Number(s))*1000+Number(Strin
 
 // Independent scan of cue timing lines in source order (hours optional, NOTE/STYLE/REGION blocks skipped).
 function scanCues(text){
-  const rows=[];
+  const rows=[];let unprovedBlock=false;
   for(const block of String(text).replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split(/\n[ \t]*\n/)){
     const lines=block.split('\n');
+    if(!block.trim())continue;
     if(/^(?:WEBVTT|NOTE|STYLE|REGION)(?:[ \t]|$)/.test(lines[0]))continue;
     const index=lines.findIndex(line=>line.includes('-->'));
-    if(index<0||index>1)continue;
+    if(index<0||index>1){unprovedBlock=true;continue;}
     const match=TIMING.exec(lines[index]);
-    if(!match)continue;
+    if(!match){unprovedBlock=true;continue;}
     const body=squash(cleanCueText(lines.slice(index+1).join('\n')));
     if(!body)continue; // non-speech cue: nothing to dub, not counted
     rows.push({start:ms(match[1],match[2],match[3],match[4]),end:ms(match[5],match[6],match[7],match[8]),text:body});
   }
+  // Otherwise both scans can ignore the same malformed opening speech and
+  // misleadingly agree on the surviving valid cues.
+  if(unprovedBlock&&rows.length)throw fail('timing-not-preserved','Transcript contains unverified timing or speech blocks / Dökümde doğrulanamayan zaman veya konuşma satırları var.');
   return rows;
 }
 

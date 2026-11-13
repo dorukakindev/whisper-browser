@@ -614,7 +614,7 @@
       const sections = [], a11y = [];
       const merge=$('mergeContinuation');
       const workflowItems=merge?[{id:'sentence-merge',type:'checkbox',label:T('Cümleleri birleştir','Merge sentences'),value:merge.checked,disabled:!current(),
-        hint:T('Yeni altyazı ve çeviri işlerinde devam cümlelerini birleştirir; dublajı cümle akışıyla hazırlar. Çalışan iş değişmez.','Combines continuation sentences for new subtitle and translation jobs; prepares dubbing with sentence flow. Running jobs are unchanged.'),
+        hint:T('Devam cümlelerini birleştirir; kaynak dosyayı değiştirmez. Yeni Whisper işleri bu ayarı kullanır; çalışan işler değişmez.','Joins continuation cues without changing the source file. New Whisper jobs use this setting; running jobs are unchanged.')+(kind!=='shelf'?' '+(window.SentenceMergeControl?.summary?.()||''):''),
         onChange:value=>{if(!current())return;window.SentenceMergeControl?.set(value);}}]:[];
       if (kind !== 'shelf') {
         const roles = browserSubtitleRoleCues();

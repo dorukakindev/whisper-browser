@@ -10,6 +10,12 @@ const onlyTranslation = {
     sourceId: 'video-1', sourceHash: 'hash-1', status: 'complete', total: 2, completed: 2, failed: 0 }],
 };
 let selected = contract.selectOutputs(onlyTranslation);
+for(const status of ['failed','cancelled','running','pending','unknown']){
+  const event={files:['C:/out/rejected.tr.srt'],outputs:[{path:'C:/out/rejected.tr.srt',role:'translation',language:'tr',status,total:2,completed:2}]};
+  assert.equal(contract.selectOutputs(event).translation,null,`${status} output must never become a completed subtitle`);
+  assert.equal(contract.selectRepairOutput(event.outputs,event.files,'tr'),null);
+}
+assert(contract.selectRepairOutput([{path:'C:/out/partial.tr.srt',role:'translation',language:'tr',status:'partial',total:2,completed:1,failed:1}],['C:/out/partial.tr.srt'],'tr'),'a genuinely published partial output remains available for repair');
 assert.equal(selected.source, null, 'yalnız .tr.srt kaynak sanıldı');
 assert.equal(selected.translation.path, 'C:\\out\\film.tr.srt');
 

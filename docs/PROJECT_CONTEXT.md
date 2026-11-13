@@ -1,3 +1,17 @@
+2026-11-13 17:05: Kullanıcı birikmiş geliştirmelerin commit/push/master teslimini yetkilendirdi. [Teslim kaydı](devir/2026-11-13-1705.md). Son uzak HEAD Git üzerinden doğrulanır; önceki Git bekleme kayıtları tarihseldir.
+
+2026-11-13 16:57 yerel: pipeline denetiminde üç doğrulanmış aktarım açığı düzeltildi. [Devir](devir/2026-11-13-1657.md). Gerçek yerelFFmpeg/sentetik ses geçti; model/GPU/dinleme kabulü ayrı. Kullanıcı gerekli kısa canlı ücretli API testlerine izin verdi. Yeni Git teslimi yok; önceki farklar korunur.
+
+2026-11-13 16:41 yerel: model girdisinde aynı sahnedeki etiketli diyalog ve tam komşu cümle, sınırlı/kırpması belirtilen kaynak bağlamı ve yeni cache/TM politikası tamamlandı. [Devir](devir/2026-11-13-1641.md). Gerçek model kalite kabulü/Git teslimi yok; önceki farklar korunur.
+
+2026-11-13 16:11 yerel: cümle birleştirme ortak16senaryo ile geliştirildi; güvenli sınırlar ve iki kanal sayımı eklendi. [Devir](devir/2026-11-13-1611.md). Gerçek yeni ses kabulü/Git teslimi yok; önceki farklar korunur.
+
+2026-11-13 15:43 yerel güncelleme: araştırma paketindeki kaynak tekilleştirme ve asistan kanıt araması incelenip ek kimlik/filtre/konum onarımlarıyla uygulandı. [Devir](devir/2026-11-13-1543.md). Önceki dört akış ve kişisel farklar korundu; yeni Git/canlı model teslimi yok.
+
+2026-11-13 15:30: kullanıcı seçtiği dört akış uygulandı; agent yok. Anime/manga yorum analizi mevcut review contract/alıntı doğrulamasına, nedenler ve kısa sorular ayrı domain sinyallerine bağlandı. Bölüm/dizi çeviri editörü main snapshot, kuyruk ve Python prompt/cache/TM sahibine bağlandı. [Devir ve kabul sınırları](devir/2026-11-13-1530.md). Yerel farklar; commit/push yok.
+
+2026-11-13 14:50: kullanıcı agent kullanımını durdurdu. Anime/manga/manhwa ayrıntısı açılışta otomatik metadata, ayrı public cache, açıklamalı aynı-havuz uygunluk ve kimlikli AniList yorum okumaya bağlandı. H: Film Analizi kaynakları salt okunur incelendi. [Devir](devir/2026-11-13-1450.md). Değişiklikler yerel; yeni commit/push yapılmadı.
+
 2026-11-13 09:01: Ağ akışı HTTPS medya kaynağı mevcut main ses hazırlayıcısı üzerinden Whisper/çeviri zincirine bağlandı; dublaj aynı stream kimliğini korur. Yeni servis/UI/sahiplik testleri ve gerçek Electron sentetik yönlendirme geçti; canlı model/dinleme kabulü açık. Kullanıcı önceki doğrulanmış yerel işle birlikte commit/push/master teslimini açıkça istedi. [Devir](devir/2026-11-13-0901.md). Önceki Git bekleme ifadeleri tarihsel; kişisel farklar ve Sıradaki işler teslim dışıdır.
 
 2026-11-13 08:44: Claude son kümülatif Browser paketi, önceki asistan/Whisper/kayıt/performance runtime farkları korunarak yerelde birleşti; ek canlı ipucu/hareket/hub/katalog arama onarımları yapıldı. İzole gerçek Windows Electron/WebContentsView1920×1080 ve tek dar pencere kabulü geçti; güncel ekran LG ULTRAGEAR olarak algılandı. [Dosyalar/testler/sınırlar](devir/2026-11-13-0844.md). Kişisel veri ve Sıradaki işler korunur; kullanıcı bu tur Git teslimi istemedi.

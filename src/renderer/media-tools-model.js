@@ -3,7 +3,8 @@
 const text = (v, limit=2000) => String(v ?? '').replace(/\0/g,'').trim().slice(0,limit);
 function reviewMetadata(row={}) {
  const result={};try{const u=new URL(row.permalink);if(u.protocol==='https:'&&u.hostname==='letterboxd.com'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/[a-z0-9_-]+\/film\/[a-z0-9-]+\/(?:[1-9]\d*\/)?$/i.test(u.pathname))result.permalink=u.href;}catch{}
- const claimed=text(row.authorId,80).toLowerCase(),linked=result.permalink?new URL(result.permalink).pathname.split('/')[1].toLowerCase():'';
+ if(!result.permalink)try{const u=new URL(row.permalink);if(u.protocol==='https:'&&u.hostname==='anilist.co'&&!u.port&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/review\/[1-9]\d*\/?$/.test(u.pathname))result.permalink=u.href;}catch{}
+ const claimed=text(row.authorId,80).toLowerCase(),linked=result.permalink&&new URL(result.permalink).hostname==='letterboxd.com'?new URL(result.permalink).pathname.split('/')[1].toLowerCase():'';
  if(linked)result.authorId=linked;
  else if(!linked&&/^[a-z0-9_-]{1,80}$/.test(claimed))result.authorId=claimed;
  try{const parser=typeof module==='object'&&module.exports?require('../letterboxd-reviews'):globalThis.LetterboxdReviews,source=parser?.reviewPageSource(row.source?.url);
@@ -113,6 +114,9 @@ function reviewAssessment(reviews, points=[]) {
  const authors=reviews.map(row=>reviewMetadata(row).authorId),independentAuthors=new Set(authors.filter(Boolean)).size,unknownAuthors=authors.filter(value=>!value).length;
  return {shortTexts:reviews.filter(row=>text(row.text,20000).length<80).length,spoilerTexts:reviews.filter(row=>row.spoiler).length,total:reviews.length,distinct:unique.size,duplicates:reviews.length-unique.size,quoted:quoted.size,independentAuthors,unknownAuthors,limited:unique.size<5||independentAuthors<5};
 }
+function collectionProfile(value){
+ if(!value)return null;const rows=(Array.isArray(value.evidence)?value.evidence:[]).slice(0,8).filter(e=>e&&typeof e.key==='string'&&/^(genre|theme):/.test(e.key)&&['like','dislike'].includes(e.direction)).map(e=>({key:text(e.key,120),direction:e.direction,source:e.source==='quiz'?'quiz':'reason',title:text(e.title,100)}));return rows.length?{domain:['anime','manga'].includes(value.domain)?value.domain:'',revision:text(value.revision,64),evidence:rows}:null;
+}
 function personalEvidence(taste={}) {
  const aspects=['story','characters','pace','visuals','sound','emotion'],configured=taste.preferencesConfigured===true;
  const preferences=configured?{weights:Object.fromEntries(aspects.map(key=>[key,Math.max(0,Math.min(5,Number(taste.preferences?.weights?.[key])||0))])),avoid:aspects.filter(key=>taste.preferences?.avoid?.includes(key)),note:text(taste.preferences?.note,600)}:null;
@@ -126,7 +130,8 @@ function personalEvidence(taste={}) {
  const acceptedAnalysis=insights.length?{summary:text(taste.analysis.summary,400),createdAt:text(taste.analysis.createdAt,40),insights,historical:analysisState!=='current'}:null;
  const quiz=typeof module==='object'&&module.exports?require('../taste-quiz'):globalThis.TasteQuiz;
  let questionnaire=null;try{const saved=quiz?.restore(taste.quiz);if(saved)questionnaire={kind:'explicit_choices',answers:saved.answers.flatMap((answer,i)=>{const choice=quiz.questions[i].choices.find(row=>row[0]===answer);return choice?[{question:quiz.questions[i].id,choice:answer,meaning:choice[1]}]:[]})};}catch{}
- const result={preferencesConfigured:configured,preferences,analysisState,analysisCorpusRevision,profileEvidenceRevision,acceptedAnalysis,analysisEvidenceUnavailable:!!taste.analysis&&!acceptedAnalysis,questionnaire};
+ const collection=collectionProfile(taste.collectionPreferences);
+ const result={...(collection?{collectionPreferences:collection}:{}),preferencesConfigured:configured,preferences,analysisState,analysisCorpusRevision,profileEvidenceRevision,acceptedAnalysis,analysisEvidenceUnavailable:!!taste.analysis&&!acceptedAnalysis,questionnaire};
  // Keep the full personal context bounded too: a pathological quoted/profile
  // payload must not consume the public-review sample's entire context window.
  while(JSON.stringify(result).length>3000){
@@ -141,12 +146,14 @@ function personalEvidence(taste={}) {
  return result;
 }
 function decisionProviderIdentity(item={}) {
+ if(['anime','manga'].includes(item.kind||item.domain)){const domain=item.kind||item.domain,id=String(item.malId||item.providerId||'');return {domain,malId:/^[1-9]\d{0,9}$/.test(id)?id:''};}
  const imdbId=text(item.imdbId||item.providerId,40),tmdbId=text(item.tmdbId,40);
  return {imdbId:/^tt\d{7,12}$/.test(imdbId)?imdbId:'',tmdbId:/^(?:movie|tv):[1-9]\d*$/.test(tmdbId)?tmdbId:''};
 }
 function decisionIdentityMatch(item={},identity={}) {
  if(item.kind&&identity.kind&&item.kind!==identity.kind)return 'mismatch';
  const current=decisionProviderIdentity(item),saved=decisionProviderIdentity(identity);
+ if(current.domain||saved.domain)return current.domain===saved.domain&&current.malId&&current.malId===saved.malId?'matched':'mismatch';
  for(const key of ['imdbId','tmdbId'])if(current[key]&&saved[key]&&current[key]!==saved[key])return 'mismatch';
  if(item.year&&identity.year&&Number(item.year)!==Number(identity.year))return 'mismatch';
  if(['imdbId','tmdbId'].some(key=>current[key]&&current[key]===saved[key]))return 'matched';
@@ -172,7 +179,8 @@ function decisionEvidence(item,reviews,taste={}) {
 function normalizeReviewAnalysis(value) {
  try{
   if(typeof value!=='string'||value.length>64000)return null;
-  const raw=JSON.parse(value);if(!raw||!['film','series'].includes(raw.kind)||typeof raw.title!=='string'||!raw.title.trim()||raw.title.length>200||raw.year!==undefined&&(!Number.isInteger(raw.year)||raw.year<1800||raw.year>9999)||!Array.isArray(raw.reviews)||!raw.reviews.length||raw.reviews.length>48||JSON.stringify(raw.reviews).length>60000)return null;
+  const raw=JSON.parse(value);if(!raw||!['film','series','anime','manga'].includes(raw.kind)||typeof raw.title!=='string'||!raw.title.trim()||raw.title.length>200||raw.year!==undefined&&(!Number.isInteger(raw.year)||raw.year<1800||raw.year>9999)||!Array.isArray(raw.reviews)||!raw.reviews.length||raw.reviews.length>48||JSON.stringify(raw.reviews).length>60000)return null;
+  if(['anime','manga'].includes(raw.kind)&&(raw.identity?.domain!==raw.kind||!decisionProviderIdentity(raw.identity).malId))return null;
   const reviews=reviewRows(JSON.stringify(raw.reviews));if(reviews.length!==raw.reviews.length||reviews.some((row,i)=>row.id!==raw.reviews[i].id||row.text!==raw.reviews[i].text))return null;
   const given=raw.profile;if(!given||typeof given!=='object'||Array.isArray(given)||JSON.stringify(given).length>3000)return null;
   const bounded=(value,limit)=>typeof value==='string'?value.replace(/\0/g,'').slice(0,limit):'';
@@ -188,7 +196,8 @@ function normalizeReviewAnalysis(value) {
   const acceptedAnalysis=insights.length?{summary:bounded(given.acceptedAnalysis.summary,400),createdAt:bounded(given.acceptedAnalysis.createdAt,40),insights,historical:analysisState!=='current'}:null;
   let questionnaire=null;const quiz=typeof module==='object'&&module.exports?require('../taste-quiz'):globalThis.TasteQuiz;
   if(given.questionnaire?.kind==='explicit_choices'&&Array.isArray(given.questionnaire.answers)&&quiz){const answers=quiz.questions.flatMap(question=>{const answer=given.questionnaire.answers.find(row=>row?.question===question.id),choice=question.choices.find(row=>row[0]===answer?.choice);return choice?[{question:question.id,choice:choice[0],meaning:choice[1]}]:[];});if(answers.length)questionnaire={kind:'explicit_choices',answers};}
-  const profile={preferencesConfigured:configured,preferences,analysisState,analysisCorpusRevision,profileEvidenceRevision,acceptedAnalysis,analysisEvidenceUnavailable:given.analysisEvidenceUnavailable===true||!!given.acceptedAnalysis&&!acceptedAnalysis,questionnaire};
+  const collection=collectionProfile(given.collectionPreferences);
+  const profile={...(collection?{collectionPreferences:collection}:{}),preferencesConfigured:configured,preferences,analysisState,analysisCorpusRevision,profileEvidenceRevision,acceptedAnalysis,analysisEvidenceUnavailable:given.analysisEvidenceUnavailable===true||!!given.acceptedAnalysis&&!acceptedAnalysis,questionnaire};
   if(JSON.stringify(profile).length>3000)return null;
   const sampleAssessment=decisionSampleAssessment(reviews);
   if(!raw.sampleAssessment||Object.keys(raw.sampleAssessment).length!==4||Object.keys(sampleAssessment).some(key=>sampleAssessment[key]!==raw.sampleAssessment[key]))return null;

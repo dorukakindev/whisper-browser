@@ -5,6 +5,7 @@ const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),
 const {randomUUID}=require('node:crypto'),{pipeline}=require('node:stream/promises'),{Transform}=require('node:stream');
 const {isPrivateHost}=require('./podcast-transcript'),{isPublicMangaIpAddress}=require('./browser-manga');
 const {run:runMedia}=require('./browser-media-tools');
+const {inspectVoiceOutput}=require('./voice-output');
 const MAX_SECONDS=6*3600,MAX_OUTPUT=MAX_SECONDS*16000*2+65536,MAX_NETWORK=128*1024**3;
 const fail=code=>Object.assign(Error({UNSAFE:'The media source or redirect is not a safe public HTTPS file.',CANCELLED:'Audio preparation was cancelled.',LIMIT:'Audio preparation exceeded its time, size or request limit.',FORMAT:'This source does not provide a supported direct media file. HLS, DASH and protected streams are not supported here.',FAILED:'Could not prepare audio from this source. Existing playback and subtitles were kept.'}[code]||'Audio preparation failed.'),{code:'STREAM_AUDIO_'+code});
 function safeUrl(raw){try{const u=new URL(raw);if(u.protocol!=='https:'||u.username||u.password||u.href.length>8192||isPrivateHost(u.hostname))throw Error();return u;}catch{throw fail('UNSAFE');}}
@@ -85,8 +86,11 @@ function createStreamAudioPreparer({directory,ffmpeg,grantMedia,publicPin,run=ru
    combined.throwIfAborted();if(relayFailure)throw relayFailure;
    progress({phase:'checking',seconds:null});const stat=await fs.promises.lstat(output);
    if(!stat.isFile()||stat.isSymbolicLink()||stat.size<=44)throw fail('FAILED');if(stat.size>=MAX_OUTPUT-65536)throw fail('LIMIT');
-   const handle=await fs.promises.open(output,'r');let magic;try{magic=Buffer.alloc(12);await handle.read(magic,0,12,0);}finally{await handle.close();}
-   if(magic.toString('ascii',0,4)!=='RIFF'||magic.toString('ascii',8,12)!=='WAVE')throw fail('FAILED');
+   // Decoder exit 0 and a RIFF signature alone do not prove complete PCM data.
+   const audio=inspectVoiceOutput(output);
+   if(!audio||audio.channels!==1||audio.sampleRate!==16000||audio.bits!==16)throw fail('FAILED');
+   if(audio.seconds>MAX_SECONDS)throw fail('LIMIT');
+   combined.throwIfAborted();
    const granted=await grantMedia(output);combined.throwIfAborted();if(!granted)throw fail('FAILED');
    const result={path:typeof granted==='string'?granted:output,bytes:stat.size};completed.set(result.path,{output,root,size:stat.size,mtimeMs:stat.mtimeMs});root=null;return result;
   }catch(error){

@@ -13,6 +13,7 @@
   function panel(title){const n=el('section','mt-panel');n.append(el('h2','',title));return n;}
   function mount(target,profile){root=target;data=profile;generation++;pending=null;shown=20;reviewQuery='';importer=[...root.querySelectorAll('button')].find(node=>!node.closest('.mt-profile'))||null;draw();}
   function draw(){
+    root.querySelector('[data-collection-quiz]')?.remove();if(['anime','manga'].includes(data.domain)){const domain=data.domain,b=button(t('My taste · short questions','Zevkim · kısa sorular'),()=>window.CollectionPreferencesUI.quiz(domain,{onSaved:async()=>{const next=await request('taste-profile',{domain});if(data.domain!==domain||!root?.isConnected)return;data=next.taste;draw();}}));b.dataset.collectionQuiz='';root.prepend(b);}
     const compact=rows=>rows.slice(0,8).map(({name,count,average})=>({name:name.slice(0,100),count,average}));
     window.MediaExperience?.setContext(root,{id:data.domain&&data.domain!=='film'?'taste-profile:'+data.domain:'taste-profile',type:'taste-profile',title:t('My taste profile','Zevk profilim'),excerpt:JSON.stringify({domain:data.domain||'film',rated:data.rated,average:data.average,genres:compact(data.genres),directors:compact(data.directors),preferences:data.preferences,preferencesConfigured:data.preferencesConfigured})});
     chapterObserver?.disconnect();chapterObserver=null;root.querySelector('.mt-profile')?.remove();

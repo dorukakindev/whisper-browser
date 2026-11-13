@@ -63,7 +63,7 @@ test('queue removal/clear/cancel cleanup releases one owned token and marks retr
 test('actual player translation terminal persists original episode while stale generation cannot paint live cues',async()=>{
  const source=fs.readFileSync(path.join(__dirname,'../src/renderer/renderer.js'),'utf8'),start=source.indexOf('function playerJobEvent(event)'),end=source.indexOf('\nfunction completedSubtitleOutputs',start),saved=[];
  const job={kind:'translate',running:true,mediaKey:'A',generation:1,podcastBinding:{entryId:'A',sourceVersion:'a'.repeat(64),outputRole:'translation'}},node={classList:{add(){},remove(){}},style:{}},noop=()=>{};
- const context={window:{},player:{job,mediaKey:'A',generation:2,workspaceMode:'player',cues2:[]},state:{running:true,outputFiles:[]},$:()=>node,persistPodcastJobOutputs:async(e,b)=>{saved.push([e,b]);},updateBrowserWhisperActions:noop,updateMakeTransState:noop,updatePlayerAutoSyncState:noop,setTimeout:noop,logLine:noop,refreshHistory:noop};const helper=source.slice(source.indexOf('function podcastJobMatchesCurrent(job)'),source.indexOf('// Podcast uses the existing frozen-options queue'));vm.runInNewContext(helper+source.slice(start,end)+';globalThis.handle=playerJobEvent;',context);
+ const context={window:{},browserJobsDock:{owners:new Map(),terminals:new Map()},updatePlayerTaskCenter:noop,player:{job,mediaKey:'A',generation:2,workspaceMode:'player',cues2:[]},state:{running:true,outputFiles:[]},$:()=>node,persistPodcastJobOutputs:async(e,b)=>{saved.push([e,b]);},updateBrowserWhisperActions:noop,updateMakeTransState:noop,updatePlayerAutoSyncState:noop,setTimeout:noop,logLine:noop,refreshHistory:noop};const helper=source.slice(source.indexOf('function podcastJobMatchesCurrent(job)'),source.indexOf('// Podcast uses the existing frozen-options queue'));const terminal=source.slice(source.indexOf('function recordBrowserJobTerminal('),source.indexOf('function browserJobsWithTerminals('));vm.runInNewContext(helper+terminal+source.slice(start,end)+';globalThis.handle=playerJobEvent;',context);
  assert.equal(context.handle({type:'translation_chunk',segments:[{start:0,end:1,text:'stale'}]}),true);assert.equal(context.player.cues2.length,0);
  assert.equal(context.handle({type:'done',files:['translated.srt']}),true);await Promise.resolve();assert.equal(saved.length,1);assert.equal(saved[0][1].entryId,'A');assert.equal(saved[0][1].outputRole,'translation');assert.equal(job.doneHandled,true);
 });
@@ -152,6 +152,15 @@ test('dubbing derivation refuses input it cannot prove: no cues, reordered, repa
  assert.equal(code('WEBVTT\n\n00:01.000 --> 00:01.000\nZero\n'),'timing-not-preserved','uydurulmuş bitiş zamanı');
  assert.equal(code('WEBVTT\n\n00:01.000 --> 00:03.000\nSame\n\n00:01.400 --> 00:03.400\nSame\n'),'timing-not-preserved','birleştirilen yinelenen satır');
  assert.equal(code('WEBVTT\n\n00:01.000 --> 00:02.000\nOnly one\n'),'ok');
+});
+
+test('dubbing derivation cannot silently lose a malformed first cue or untimed speech block',()=>{
+ const {deriveDubSrt}=require('../src/podcast-dub-subtitle');
+ const valid='2\n00:00:03,000 --> 00:00:04,000\nKeep this line.\n';
+ for(const first of ['1\ngarbage --> nonsense\nLost speech.','1\n00:00:bad --> 00:00:02,000\nLost speech.','1\n00:00:01,000 -> 00:00:02,000\nLost speech.','1\nLost untimed speech.']){
+  assert.throws(()=>deriveDubSrt(first+'\n\n'+valid),e=>e.code==='timing-not-preserved');
+ }
+ assert.equal(deriveDubSrt('WEBVTT\n\nNOTE timing example: bad --> bad\n\n'+valid).cues,1,'real VTT metadata remains ignorable');
 });
 
 // --- Slice 1 / gereksinim 1 ve 8: zamanlı Podcast çevirisi gerçek handler'dan ortak kuyruğa, dondurulmuş seçeneklerle ---

@@ -13,6 +13,9 @@ const child=()=>{const p=new EventEmitter();p.exitCode=null;p.signalCode=null;p.
   const plan=await buildSourcePlan(options);
   assert.equal(plan.sourceHash,createHash('sha256').update(fs.readFileSync(srt)).digest('hex'));
   assert.equal(plan.groups[0].text,'Türkçe konuşma.');assert.equal(owned.exitCode,0);
+  const broken=path.join(root,'broken-leading.srt');
+  fs.writeFileSync(broken,'1\n00:00:bad --> 00:00:02,000\nLost opening speech.\n\n2\n00:00:03,000 --> 00:00:04,000\nKept speech.\n');
+  await assert.rejects(buildSourcePlan({...options,srt:broken}),/Invalid SRT|Ge[cç]ersiz/i,'the actual Python planner must not silently skip malformed opening speech');
   await assert.rejects(buildSourcePlan({...options,isCancelled:()=>true}),error=>error.code==='DUB_START_CANCELLED');
   const malformed=child();
   await assert.rejects(buildSourcePlan({...options,spawn:()=>{queueMicrotask(()=>{

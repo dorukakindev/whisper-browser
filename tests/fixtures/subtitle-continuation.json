@@ -1,0 +1,18 @@
+[
+  {"name":"hesitation-only cue stays intact","cues":[[0,1,"…"],[1.2,2,"Ready."]],"expected":[[0,1,"…"],[1.2,2,"Ready."]]},
+  {"name":"ordinary continuation","cues":[[0,1,"I think"],[1.2,2,"this works."]],"expected":[[0,2,"I think this works."]]},
+  {"name":"abbreviated title","cues":[[0,1,"We asked Dr."],[1.2,2,"Smith about it."]],"expected":[[0,2,"We asked Dr. Smith about it."]]},
+  {"name":"initialism","cues":[[0,1,"They arrived in the U.S."],[1.1,2,"last year."]],"expected":[[0,2,"They arrived in the U.S. last year."]]},
+  {"name":"complete sentence beats leading ellipsis","cues":[[0,1,"It is over."],[1.2,2,"...or is it?"]],"expected":[[0,1,"It is over."],[1.2,2,"...or is it?"]]},
+  {"name":"question beats ellipsis","cues":[[0,1,"Really?…"],[1.2,2,"...yes."]],"expected":[[0,1,"Really?…"],[1.2,2,"...yes."]]},
+  {"name":"dialogue on second line","cues":[[0,1,"I thought"],[1.1,2,"it was safe\n- No, it was not."]],"expected":[[0,1,"I thought"],[1.1,2,"it was safe\n- No, it was not."]]},
+  {"name":"named dialogue boundary","cues":[[0,1,"ALICE: I thought"],[1.1,2,"BOB: It is not."]],"expected":[[0,1,"ALICE: I thought"],[1.1,2,"BOB: It is not."]]},
+  {"name":"subtitle formatting is preserved","cues":[[0,1,"<i>I thought…</i>"],[1.1,2,"<i>...so.</i>"]],"expected":[[0,1,"<i>I thought…</i>"],[1.1,2,"<i>...so.</i>"]]},
+  {"name":"empty cue is a boundary","cues":[[0,1,"I thought"],[1.1,1.5,""],[1.6,2,"so."]],"expected":[[0,1,"I thought"],[1.1,1.5,""],[1.6,2,"so."]]},
+  {"name":"Japanese joins without invented space","cues":[[0,1,"これは"],[1.1,2,"テストです。"]],"expected":[[0,2,"これはテストです。"]]},
+  {"name":"speaker metadata boundary","speakers":{"0":"A","1":"B"},"cues":[[0,1,"I thought…"],[1.1,2,"...so."]],"expected":[[0,1,"I thought…"],[1.1,2,"...so."]]},
+  {"name":"known same speaker","speakers":{"0":"A","1":"A"},"cues":[[0,1,"I thought…"],[1.1,2,"...so."]],"expected":[[0,2,"I thought so."]]},
+  {"name":"configured silence boundary","gap":1,"cues":[[0,1,"I thought…"],[2.5,3,"...so."]],"expected":[[0,1,"I thought…"],[2.5,3,"...so."]]},
+  {"name":"overlap is a boundary","cues":[[0,2,"I thought…"],[1,3,"...so."]],"expected":[[0,2,"I thought…"],[1,3,"...so."]]},
+  {"name":"closed quotations remain separate","cues":[[0,1,"“I thought…”"],[1.1,2,"“...so.”"]],"expected":[[0,1,"“I thought…”"],[1.1,2,"“...so.”"]]}
+]

@@ -1,3 +1,38 @@
+# Git teslimi yetkilendirildi · 2026-11-13 17:05
+
+- Birikmiş ürün ve durum belgeleri ayrı commitlerle PR üzerinden master için hazırlanıyor. [Teslim kapsamı, son 101Node/9Python kontrolü, korunan farklar ve Claude sonraki işi](docs/devir/2026-11-13-1705.md). Önceki yerel Git bekleme notları tarihseldir; son PR/HEAD Git üzerinden doğrulanır.
+
+# Altyazı / Whisper / dublaj geçiş onarımları · 2026-11-13 16:57
+
+- Üç doğrulanmış kök açık düzeltildi: başarısız çıktıların complete sanılması, yetersiz WAV denetimi ve dublajda bozuk ilk konuşmanın kaybı. [Dosyalar,29Node+6script/24Python ve gerçek yerelFFmpeg kanıtı](docs/devir/2026-11-13-1657.md). Kalan: gerçek kaynakta kısa Whisper/dublaj/iptal ve dinleme kabulü. Kullanıcı gerekli kısa ücretli API testlerini yetkilendirdi; bu tur ihtiyaç olmadı. Yeni Git teslimi yok.
+
+# Birleşik cümle çeviri süreci geliştirildi · 2026-11-13 16:41
+
+- Aynı sahnedeki farklı konuşmacılar etiketli bağlamda korunur; komşu cümle pencere sınırında tamamlanır, uzun salt-okunur bağlam işaretli kırpılır. Cache/TM bağlam kimliği ve çıktı zamanı korundu. [Dosyalar,67Python/32Node ve sınırlar](docs/devir/2026-11-13-1641.md). Kalan: normal kişisel gerçek model kalite kabulü; yeni Git teslimi yok.
+
+# Cümle birleştirme geliştirildi · 2026-11-13 16:11
+
+- Kısaltma, tam cümle/konuşmacı/biçim sınırları, Unicode ve zincir koruması; kaynak/çeviri satır sayımı eklendi. [Dosyalar ve kanıt](docs/devir/2026-11-13-1611.md). 115Node+12Python+1dublaj scripti ve izole native kontrolü geçti. Kalan: normal oturum ve gerçek Whisper/pyannote ses kabulü; yeni Git teslimi yok.
+
+# Cümle birleştirme onarıldı · 2026-11-13 15:53
+
+- İşlem/canlı anahtar eşitlemesi, canlı gap ayarı ve konuşmacı tanıma sonrasında güvenli birleştirme düzeltildi. [Kanıt ve dosyalar](docs/devir/2026-11-13-1553.md). Kalan: normal oturum ve gerçek Whisper/pyannote ses kabulü; 96Node+10Python+1script bu kabul değildir. Geniş player-ui kontrolünün aynı 8 eski statik hatası baseline ile doğrulandı. Yeni Git teslimi yok.
+
+# Araştırma 1.0.0 yerel entegrasyonu · 2026-11-13 15:43
+
+- İki yama incelenip kimlik/filtre/konum bağlamı hataları düzeltilerek uygulandı. [Kanıt ve paket tariflerinin kararları](docs/devir/2026-11-13-1543.md). Önceki farklar korundu; Git teslimi yok.
+- Kalan kabul: gerçek iki eklentiyle tekilleştirme ve gerçek sorularda alıntı kalitesi. Feed taşıma/410 önerisi, retry ölçümü ve tam-video kapsam araştırması hazır uygulama sayılmadı; sonraki somut adımlar devirde.
+
+# Dört yerel akış tamamlandı · 2026-11-13 15:30
+
+- Anime/manga kanıtlı yorum analizi; neden sevdim/sevmedim; ayrı, isteğe bağlı zevk soruları; bölüm/dizi çeviri karar editörü ve dondurulan kuyruk bağlantısı uygulandı. [Dosyalar, gerçek main/preload ve testler](docs/devir/2026-11-13-1530.md). Agent kullanılmadı.
+- Kalan kabul: kişisel start.bat oturumunda kullanım; kullanıcının açık örnek onayıyla canlı AI kalitesi ve gerçek kısa bölümde terim/hitap tutarlılığı. 91Node+3Python kontrolü ve gerçek Electron kontrollü sağlayıcı kabulü canlı model/GPU/dinleme kabulü sayılmaz. Yeni commit/push yok.
+
+# Otomatik anime/manga ayrıntıları · 2026-11-13 14:50
+
+- Açılışta konu/alt tür bilgisi, ayrı public cache, puanlara dayalı açıklamalı uygunluk ve AniList yorum okuma yerelde tamamlandı. [Kaynaklar, canlı public API ve Electron kanıtı](docs/devir/2026-11-13-1450.md). Agent kullanılmadı; eski Film Analizi projesi yalnız okundu.
+- Kalan kullanıcı kabulü: normal kişisel oturumda sayfayı yeniden açma; yorumsuz yapımda boş durum, az puanda yetersiz veri açıklaması beklenir. UI görüntüleri fixture, public API kontrolü ayrıdır. Bu yeni iş için commit/push yok.
+
 # Ağ akışı ve toplu teslim · 2026-11-13 09:01
 
 - Ağ akışı HTTPS kaynağı mevcut Whisper ses hazırlama/çeviri/dublaj kimliğine bağlandı; kaynak/iptal izolasyonu ve gerçek Electron sentetik yönlendirme geçti. [Dosyalar, kanıt ve sınırlar](docs/devir/2026-11-13-0901.md).

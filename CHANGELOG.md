@@ -1,3 +1,31 @@
+## 2026-11-13 · Altyazı, ses hazırlığı ve dublaj aktarım güvenilirliği
+
+Başarısız/iptal edilmiş altyazı çıktıları tamamlanmış sayılmaz. Akış WAV'ı tam veri/biçim kontrolünden geçer; iptalde izin verilmez. Bozuk ilk altyazı satırı dublaj dönüşümü ve planlayıcıda sessizce atılmaz. [Doğrulama ve sınırlar](docs/devir/2026-11-13-1657.md).
+
+## 2026-11-13 · Cümle ve konuşmacı bilgili çeviri bağlamı
+
+Diyalog bağlamı konuşmacı değişiminde kaybolmaz; aynı sahnedeki komşu cümle tamamlanır. Uzun bağlam açık kırpma bilgisiyle sınırlanır; yeni bağlam politikası cache/TM kimliğinde korunur. [Hedefli doğrulama](docs/devir/2026-11-13-1641.md).
+
+## 2026-11-13 · Daha güvenli ve açıklamalı cümle birleştirme
+
+Oynatıcı/Whisper devam kuralları ortak örneklerle eşitlendi: kısaltma, konuşmacı/diyalog/biçim sınırı ve Unicode korumaları geliştirildi. Kaynak ve çevirinin kaç satıra birleştiği ayarda görünür. [Hedefli doğrulama ve sınırlar](docs/devir/2026-11-13-1611.md).
+
+## 2026-11-13 · Whisper cümle birleştirme
+
+Oynatıcı ve yeni iş ayarları eşitlendi; canlı birleştirme seçilen boşluk sınırını kullanır. Konuşmacı tanıma açıkken aynı bilinen konuşmacının devam satırları da birleştirilir. [Hedefli doğrulama ve sınırlar](docs/devir/2026-11-13-1553.md).
+
+## 2026-11-13 · Kaynak tekilleştirme ve transkript kanıt araması
+
+Aynı Stremio kaynağı kesin kimlikle tekilleşir; farklı bölüm, bağlantı ve altyazı seçenekleri korunur. Asistan kanıt sıralaması sözcük ağırlıklarıyla iyileştirildi; küçük sonuç sınırında oynatma bağlamı korunur. [13 hedefli dosya ve kabul sınırları](docs/devir/2026-11-13-1543.md).
+
+## 2026-11-13 · Kişisel nedenler, yorum analizi ve çeviri kararları
+
+Anime/manga için seçili gerçek yorum alıntılarıyla doğrulanan analiz, açık beğeni nedenleri ve isteğe bağlı zevk soruları eklendi. Bölüm/dizi çeviri kararları kaynak/dil sahibiyle kaydedilir; kuyruk snapshot ve çeviri cache/TM bağlamı korunur. [Doğrulama ve canlı kabul sınırları](docs/devir/2026-11-13-1530.md).
+
+## 2026-11-13 · Otomatik anime/manga/manhwa bilgileri
+
+Yapım sayfası açılırken eksik bilgiler otomatik alınır; kişisel puan/not/ilerleme değişmez. Alt türler/kategoriler, aynı havuzdaki açık puanlara dayalı açıklamalı uygunluk ve kaynak kimliği doğrulanan public yorum okuma eklendi. [Doğrulama ve sınırlar](docs/devir/2026-11-13-1450.md).
+
 ## 2026-11-13 · Ağ akışında Whisper ses hazırlama
 
 Doğrudan HTTPS ağ akışı mevcut güvenli ses hazırlayıcısına ve Whisper/çeviri zincirine bağlandı. Kaynak/nesil/iptal sahipliği korunur; dublaj mevcut medya kimliğini kullanır. HLS/DASH ve güvensiz protokollerde neden/sonraki adım görünür. İzole gerçek Electron yönlendirmesi sentetik sesle doğrulandı; yeni canlı model/dinleme kabulü yapılmadı. [Kanıt](docs/devir/2026-11-13-0901.md).

@@ -1,33 +1,54 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),C=require('./personal-collection'),{atomicWriteFileSync}=require('./fsync-utils'),{readLimitedBytes}=require('./catalog-discovery');
-const FIELDS='id idMal type title { romaji english native } coverImage { large } bannerImage description(asHtml:false) averageScore genres tags { name rank isMediaSpoiler isGeneralSpoiler } studios(isMain:true) { nodes { name } } countryOfOrigin format status episodes chapters volumes duration seasonYear startDate { year } isAdult siteUrl';
+const FIELDS='id idMal type title { romaji english native } coverImage { large } bannerImage description(asHtml:false) averageScore genres tags { name category rank isMediaSpoiler isGeneralSpoiler } studios(isMain:true) { nodes { name } } countryOfOrigin format status episodes chapters volumes duration seasonYear startDate { year } isAdult siteUrl';
 const text=(v,n=300)=>typeof v==='string'?v.trim().slice(0,n):'';
 function cover(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&/^s\d*\.anilist\.co$/.test(u.hostname)?u.href:'';}catch{return '';}}
 function normalize(raw,domain,now=Date.now()){
  if(!raw||!['anime','manga'].includes(domain)||raw.type!==domain.toUpperCase()||!Number.isSafeInteger(raw.idMal)||raw.idMal<1||!Number.isSafeInteger(raw.id)||raw.id<1)throw Error('AniList returned a different media identity.');
- const metadata={provider:'anilist',providerId:raw.id,malId:String(raw.idMal),domain,title:text(raw.title?.romaji||raw.title?.english||raw.title?.native),aliases:[raw.title?.romaji,raw.title?.english,raw.title?.native].filter(v=>typeof v==='string').map(v=>text(v)),cover:cover(raw.coverImage?.large),genres:(raw.genres||[]).filter(v=>typeof v==='string').slice(0,30).map(v=>text(v,100)),themes:(raw.tags||[]).filter(t=>!t.isMediaSpoiler&&!t.isGeneralSpoiler&&Number(t.rank)>=50).slice(0,40).map(t=>({name:text(t.name,100),rank:Math.min(100,Math.max(0,Number(t.rank)||0))})),studios:(raw.studios?.nodes||[]).map(s=>text(s.name,120)).filter(Boolean).slice(0,12),country:text(raw.countryOfOrigin,2),format:text(raw.format,40),status:text(raw.status,40),total:Math.max(0,Math.floor(Number(domain==='anime'?raw.episodes:raw.chapters)||0)),volumes:Math.max(0,Math.floor(Number(raw.volumes)||0)),duration:Math.max(0,Number(raw.duration)||0),year:Number(raw.seasonYear||raw.startDate?.year)||null,adult:raw.isAdult===true,url:'https://anilist.co/'+domain+'/'+raw.id,fetchedAt:now};
+ const metadata={provider:'anilist',providerId:raw.id,malId:String(raw.idMal),domain,title:text(raw.title?.romaji||raw.title?.english||raw.title?.native),aliases:[raw.title?.romaji,raw.title?.english,raw.title?.native].filter(v=>typeof v==='string').map(v=>text(v)),cover:cover(raw.coverImage?.large),genres:(raw.genres||[]).filter(v=>typeof v==='string').slice(0,30).map(v=>text(v,100)),themes:(raw.tags||[]).filter(t=>!t.isMediaSpoiler&&!t.isGeneralSpoiler&&Number(t.rank)>=50).slice(0,40).map(t=>({name:text(t.name,100),rank:Math.min(100,Math.max(0,Number(t.rank)||0)),...(text(t.category,120)?{category:text(t.category,120)}:{})})),studios:(raw.studios?.nodes||[]).map(s=>text(s.name,120)).filter(Boolean).slice(0,12),country:text(raw.countryOfOrigin,2),format:text(raw.format,40),status:text(raw.status,40),total:Math.max(0,Math.floor(Number(domain==='anime'?raw.episodes:raw.chapters)||0)),volumes:Math.max(0,Math.floor(Number(raw.volumes)||0)),duration:Math.max(0,Number(raw.duration)||0),year:Number(raw.seasonYear||raw.startDate?.year)||null,adult:raw.isAdult===true,url:'https://anilist.co/'+domain+'/'+raw.id,fetchedAt:now};
  metadata.banner=cover(raw.bannerImage);metadata.description=text(raw.description,8000).replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]*>/g,'');metadata.averageScore=Number.isInteger(raw.averageScore)&&raw.averageScore>0&&raw.averageScore<=100?raw.averageScore:null;
  const E=require('./metadata-evidence');metadata.identityProof={malId:String(raw.idMal),anilistId:raw.id,domain,at:now};metadata.evidence={version:1,fields:E.record(metadata,E.animeFields,'anilist',`anilist:${domain}:${raw.id}`,now)};return metadata;
 }
-function create({root,fetchImpl=fetch,now=Date.now,interval=800}={}){
+function create({root,fetchImpl=fetch,now=Date.now,interval=800,preferences}={}){
  let controller=null,task=Promise.resolve(),state={running:false,total:0,done:0,updated:0,failed:0,issue:'',stopped:false};
  const directory=()=>typeof root==='function'?root():root;
- // Detail enrichment is session-only. Opening or retrying a page never edits the archive.
- const detailCache=new Map();
+ // Public metadata cache is separate from the personal archive; read-only detail never changes ratings/progress.
+ const detailCache=new Map(),detailPending=new Map(),detailFailures=new Map(),reviewCache=new Map();let cacheLoaded=false,publicTail=Promise.resolve(),nextPublicAt=0;
+ const validMeta=(m,row)=>m?.provider==='anilist'&&m.domain===row.domain&&m.malId===row.providerId&&Number.isSafeInteger(m.providerId)&&m.providerId>0;
+ const fresh=m=>Number.isFinite(m?.fetchedAt)&&now()>=m.fetchedAt&&now()-m.fetchedAt<86400000;
+ function readCache(){if(cacheLoaded)return;cacheLoaded=true;try{const file=path.join(directory(),'collection-detail-cache.json');if(fs.statSync(file).size>4000000)return;const saved=JSON.parse(fs.readFileSync(file,'utf8'));if(saved.version===1&&Array.isArray(saved.rows))for(const m of saved.rows.slice(-50))if(['anime','manga'].includes(m?.domain)&&/^\d{1,10}$/.test(m.malId||'')&&validMeta(m,{domain:m.domain,providerId:m.malId}))detailCache.set('mal:'+m.domain+':'+m.malId,m);}catch(error){if(error.code!=='ENOENT')detailCache.clear();}}
+ function writeCache(){while(detailCache.size>50)detailCache.delete(detailCache.keys().next().value);const file=path.join(directory(),'collection-detail-cache.json'),json=JSON.stringify({version:1,rows:[...detailCache.values()]});if(Buffer.byteLength(json)>4000000)throw Error('Public detail cache limit exceeded.');atomicWriteFileSync(file,json);}
+ function merged(row,remote){const metadata={...(remote||{}),...(row.metadata||{})};for(const [key,value]of Object.entries(remote||{}))if(require('./metadata-evidence').missing(row.metadata?.[key])&&!row.metadataOverrides?.[key])metadata[key]=value;return metadata;}
+ function cachedRow(row){const cached=detailCache.get(row.id);return {...row,metadata:merged(row,validMeta(cached,row)?cached:null)};}
+ function queued(work){const pending=publicTail.catch(()=>{}).then(async()=>{const pause=nextPublicAt-now();if(pause>0)await new Promise(resolve=>setTimeout(resolve,pause));try{return await work();}finally{nextPublicAt=now()+interval;}});publicTail=pending;return pending;}
  async function detail({id,refresh=false}={}){
   if(typeof id!=='string'||typeof refresh!=='boolean')throw Error('Choose a collection title. / Arşivden bir yapım seç.');
-  const row=C.read(directory()).rows.find(r=>r.id===id);if(!row||!['anime','manga'].includes(row.domain))throw Error('Choose an Anime/Manga title. / Anime/Manga kaydı seç.');
-  const revision=C.hash(row),cacheKey=JSON.stringify([id,revision]),canRefresh=/^\d{1,10}$/.test(row.providerId||'')&&Number(row.providerId)>0;
-  let metadata=detailCache.get(cacheKey)||row.metadata||{};
-  if(refresh){
+  readCache();const rows=C.read(directory()).rows,row=rows.find(r=>r.id===id);if(!row||!['anime','manga'].includes(row.domain))throw Error('Choose an Anime/Manga title. / Anime/Manga kaydı seç.');
+  const revision=C.hash(row),canRefresh=/^\d{1,10}$/.test(row.providerId||'')&&Number(row.providerId)>0;let metadata=cachedRow(row).metadata,warning='',refreshed=false;
+  const saved=detailCache.get(id),needs=!(validMeta(saved,row)&&fresh(saved))&&!(validMeta(row.metadata,row)&&fresh(row.metadata)&&row.metadata.description);
+  if(refresh||canRefresh&&needs&&!(detailFailures.get(id)>now())){
    if(!canRefresh)throw Error('Correct the source identity first. / Önce kaynak kimliğini düzelt.');
-   const found=(await lookup([row]))[0];if(!found?.metadata)throw Error('Source unavailable. / Kaynak bulunamadı.');
-   const current=C.read(directory()).rows.find(r=>r.id===id);if(!current||C.hash(current)!==revision)throw Error('Title changed; reopen it. / Kayıt değişti; yeniden aç.');
-   const E=require('./metadata-evidence');metadata={...found.metadata};
-   for(const [key,value]of Object.entries(row.metadata||{}))if(!E.missing(value)||row.metadataOverrides?.[key])metadata[key]=value;
-   detailCache.set(cacheKey,metadata);while(detailCache.size>50)detailCache.delete(detailCache.keys().next().value);
-  }
-  return {id,revision,metadata,canRefresh,refreshed:refresh};
+   try{
+    const key=JSON.stringify([id,revision]);let pending=detailPending.get(key);
+    if(!pending){pending=queued(async()=>{const found=(await lookup([row]))[0];if(!found?.metadata)throw Error('Source unavailable. / Kaynak bulunamadı.');return found.metadata;});detailPending.set(key,pending);pending.finally(()=>{if(detailPending.get(key)===pending)detailPending.delete(key);}).catch(()=>{});}
+    const remote=await pending,current=C.read(directory()).rows.find(r=>r.id===id);
+    if(!current||C.hash(current)!==revision)throw Error('Title changed; reopen it. / Kayıt değişti; yeniden aç.');
+    detailCache.set(id,remote);detailFailures.delete(id);metadata=merged(row,remote);refreshed=true;
+    try{writeCache();}catch{warning='Public details loaded, but the cache could not be saved. / Bilgiler yüklendi; önbellek kaydedilemedi.';}
+   }catch(error){if(refresh||/changed; reopen/.test(error.message))throw error;detailFailures.set(id,now()+30000);warning='Public details unavailable; saved information is shown. Retry to reconnect. / Yapım bilgileri alınamadı; kayıtlı bilgiler gösteriliyor. Yeniden deneyebilirsin.';}
+  }else if(needs&&canRefresh)warning='Waiting before retrying the source. / Kaynağı yeniden denemeden önce bekleniyor.';
+  const match=require('./personal-recommendations').match(rows.map(cachedRow),{...row,metadata},{preferences:preferences?.(row.domain,row.id)});
+  return {id,revision,metadata,canRefresh,refreshed,warning,match};
+ }
+ async function reviews({id}={}){
+  readCache();const row=C.read(directory()).rows.find(r=>r.id===id);if(!row||!['anime','manga'].includes(row.domain)||!/^\d{1,10}$/.test(row.providerId||'')||Number(row.providerId)<1)throw Error('Choose an exact title. / Kesin yapım kimliği seç.');
+  const key=JSON.stringify([id,row.providerId,row.domain]),cached=reviewCache.get(key);if(cached&&now()-cached.at<600000)return {...cached.result};
+  const data=await queued(()=>query('query { Media(idMal:'+Number(row.providerId)+',type:'+row.domain.toUpperCase()+') { id idMal type reviews(perPage:12,sort:RATING_DESC) { nodes { id mediaId mediaType summary body(asHtml:false) score rating ratingAmount user { id name } } } } }',undefined,true));
+  const media=data.Media;if(!media||String(media.idMal)!==row.providerId||media.type!==row.domain.toUpperCase()||!Number.isSafeInteger(media.id)||media.id<1)throw Error('Review identity changed. / Yorum kimliği değişti.');
+  const current=C.read(directory()).rows.find(r=>r.id===id);if(!current||current.providerId!==row.providerId||current.domain!==row.domain)throw Error('Title changed; reopen it. / Kayıt değişti; yeniden aç.');
+  const plain=v=>text(v,20000).replace(/~![\s\S]*?!~/g,'[…]').replace(/<[^>]*>/g,'');
+  const result={id,provider:'anilist',rows:(media.reviews?.nodes||[]).filter(r=>Number.isSafeInteger(r?.id)&&r.id>0&&r.mediaId===media.id&&r.mediaType===media.type).slice(0,12).map(r=>({id:r.id,url:'https://anilist.co/review/'+r.id,author:text(r.user?.name,100),authorId:Number.isSafeInteger(r.user?.id)&&r.user.id>0?'anilist_'+r.user.id:'',summary:plain(r.summary).slice(0,500),body:plain(r.body),score:Number.isInteger(r.score)&&r.score>=0&&r.score<=100?r.score:null,helpful:Math.max(0,Number(r.rating)||0),votes:Math.max(0,Number(r.ratingAmount)||0)}))};
+  reviewCache.set(key,{at:now(),result});while(reviewCache.size>30)reviewCache.delete(reviewCache.keys().next().value);return result;
  }
  async function query(query,signal,strict=false){
   const response=await fetchImpl('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({query}),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000),redirect:'error',credentials:'omit'});
@@ -105,6 +126,6 @@ function create({root,fetchImpl=fetch,now=Date.now,interval=800}={}){
   }
   return {rows:[...rows.values()],partial,excluded,source:'anilist-public',domain};
  }
- return {lookup,apply,start,snapshot,cancel(){controller?.abort();return snapshot();},wait:()=>task,candidates,search,related,publicProfile,franchise,schedule,readProfile,refreshPreview,refreshApply,override,detail};
+ return {lookup,apply,start,snapshot,cancel(){controller?.abort();return snapshot();},wait:()=>task,candidates,search,related,publicProfile,franchise,schedule,readProfile,refreshPreview,refreshApply,override,detail,reviews,preferenceSignals:domain=>preferences?.(domain),enrichedRows(){readCache();return C.read(directory()).rows.map(cachedRow);}};
 }
 module.exports={create,normalize,cover};

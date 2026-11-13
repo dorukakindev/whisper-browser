@@ -1,3 +1,21 @@
+Güncel toplu Git teslimi: [Kapsam, doğrulama, korunan farklar ve Claude inceleme tabanı](docs/devir/2026-11-13-1705.md)
+
+Güncel pipeline denetimi: [Altyazı çıktı durumu, akış WAV doğrulaması ve dublaj ilk-satır koruması](docs/devir/2026-11-13-1657.md)
+
+Güncel çeviri bağlamı geliştirmesi: [Etiketli diyalog, tam komşu cümle, bütçe ve cache kanıtı](docs/devir/2026-11-13-1641.md)
+
+Güncel model girdisi doğrulaması: [Birleşik cümle ve önceki/sonraki bağlam](docs/devir/2026-11-13-1621.md)
+
+Güncel cümle birleştirme geliştirmesi: [Ortak kurallar, güvenli sınırlar, görünür sonuç ve testler](docs/devir/2026-11-13-1611.md)
+
+Güncel cümle birleştirme onarımı: [Whisper, canlı görünüm ve doğrulama](docs/devir/2026-11-13-1553.md)
+
+Güncel araştırma paketi: [Güvenli Stremio tekilleştirme ve asistan transkript araması](docs/devir/2026-11-13-1543.md)
+
+Güncel dört yerel geliştirme: [Yorum analizi, beğeni nedenleri, zevk soruları ve çeviri tercihleri](docs/devir/2026-11-13-1530.md)
+
+Güncel yerel anime/manga işi: [Otomatik bilgi, uygunluk, yorumlar ve eski projeden uyarlananlar](docs/devir/2026-11-13-1450.md)
+
 Güncel ağ akışı ve toplu Git teslimi: [Whisper ses hazırlama, çeviri/dublaj kimliği ve sınırlar](docs/devir/2026-11-13-0901.md)
 
 Güncel Claude yerel birleşimi: [Son teslim, korunan runtime ve Windows görünüm kabulü](docs/devir/2026-11-13-0844.md)

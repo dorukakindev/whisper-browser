@@ -389,7 +389,7 @@
     return { playable: playable.length, direct, torrent, whisper, off };
   }
   function filterStreams(rows, f) {
-    let out = rows.filter((s) => (!f.whisper || s.whisperAudio === 'ready') && (!f.res || (f.res === 'other' ? !RES_ORDER.slice(0, 4).includes(s.resolution) : s.resolution === f.res)) && (!f.addon || s.addonKey === f.addon)
+    let out = rows.filter((s) => (!f.whisper || s.whisperAudio === 'ready') && (!f.res || (f.res === 'other' ? !RES_ORDER.slice(0, 4).includes(s.resolution) : s.resolution === f.res)) && (!f.addon || s.addonKey === f.addon || s.alsoFrom?.some((addon) => addon.addonKey === f.addon))
       && (!f.q || (s.filename + ' ' + s.title + ' ' + s.name + ' ' + s.provider).toLowerCase().includes(f.q)) && (!f.playableOnly || s.playable) && (!f.multi || s.multiAudio) && (!f.subs || s.embeddedSubtitles > 0));
     if (f.sort === 'seeders') out = [...out].sort((a, b) => (b.seeders ?? -1) - (a.seeders ?? -1));
     if (f.sort === 'size') out = [...out].sort((a, b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0));

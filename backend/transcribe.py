@@ -54,7 +54,8 @@ from sentence_translation import (ABBREVIATIONS, SENTENCE_PROTOCOL_VERSION, sent
                                   validate_sentence_parts, normalized_text,
                                   uses_spaceless_script, translation_meaning_issues,
                                   translation_blocking_issues, detect_scene_boundaries,
-                                  scene_context_bounds, translation_retry_hint, reported_quote_continues)
+                                  scene_context_bounds, translation_retry_hint, reported_quote_continues,
+                                  complete_context_indexes, translation_context_rows, TRANSLATION_CONTEXT_PROTOCOL)
 
 
 # UTF-8 stdout (Windows'ta Türkçe karakter sorunları için)
@@ -3519,6 +3520,8 @@ def build_translate_prompt(target_lang, source_lang, glossary_terms, register="d
             "## BAGLAM (context_before / context_after)",
             "- Girdide bu iki alan olabilir: cevrilecek bloklardan ONCE ve SONRA gelen",
             "  altyazi satirlari. Bunlar YALNIZCA baglam icindir.",
+            "- Baglam satiri metin veya {t, sp, clipped} kaydi olabilir: t kaynak metin, sp bilinen konusmaci kimligi, clipped ise eksik bas/son bilgisidir.",
+            "- Konusmaci degisimi ayni sahnedeki soru/yaniti baglamdan silmez; kisileri birbirine karistirma, etiketten cinsiyet veya isim uydurma. clipped kaynak parcasi tam bir cumle veya tam sahne degildir.",
             "- Onlari CEVIRME ve ciktiya KOYMA. Yalnizca 'items' icindeki ID'leri dondur.",
             "- Baglami sunlar icin kullan: zamir ve hitap secimi (Turkcede sen/siz),",
             "  cinsiyet, kime hitap edildigi, devam eden cumleler, terim tutarliligi ve",
@@ -3695,6 +3698,7 @@ def build_refine_prompt(target_lang, max_cps=21, max_line_width=42, for_speech=F
         ("  nokta/soru/unlemle cumleyi erken BITIREMEZ; ayni grup icinde yuklem sona gelebilir."
          if for_speech else "  nokta/soru/unlemle cumleyi erken BITIREMEZ; kalan anlami sonraki ID'ye tasima."),
         "- context_before/context_after yalniz okunur kaynak baglamidir; ceviriye katma.",
+        "- Baglamdaki t kaynak metindir; sp bilinen konusmaci kimligidir. clipped=start/end olan satir eksik bir kaynak parcasidir; onu tam cumle sayma veya eksik bilgiyi uydurma.",
         "- items icindeki istege bagli 'sp' konusmaci bilgisini zamir, sen/siz, hitap",
         "  ve ton denetiminde kullan; etiketi ceviriye ekleme veya ciktiya dondurme.",
         "",
@@ -3837,8 +3841,11 @@ def translate_cache_key(text, args, target, source_lang=None,
         result = []
         for value in values or []:
             if isinstance(value, dict):
-                result.append({"t": nfc(value.get("t", value.get("text", ""))),
-                               "sp": nfc(value.get("sp", value.get("speaker", "")))})
+                row = {"t": nfc(value.get("t", value.get("text", ""))),
+                       "sp": nfc(value.get("sp", value.get("speaker", "")))}
+                if value.get('clipped') in ('start', 'end'):
+                    row['clipped'] = value['clipped']
+                result.append(row)
             else:
                 result.append({"t": nfc(value), "sp": ""})
         return result
@@ -3846,6 +3853,7 @@ def translate_cache_key(text, args, target, source_lang=None,
     cache_identity = {
         "v": 6,
         "sentence_protocol": SENTENCE_PROTOCOL_VERSION,
+        "context_protocol": TRANSLATION_CONTEXT_PROTOCOL,
         "group_shape": group_shape,
         "target": nfc(target).lower(),
         "source": nfc(source_lang).lower(),
@@ -3866,6 +3874,8 @@ def translate_cache_key(text, args, target, source_lang=None,
     }
     if work_context:
         cache_identity['work_context_v1'] = nfc(work_context)
+    if getattr(args, 'translation_preferences', None):
+        cache_identity['user_decisions_v1'] = args.translation_preferences
     if getattr(args, 'scene_context', None):
         cache_identity['user_scene_context_v1'] = args.scene_context
     if bool(getattr(args, "translate_refine", False)):
@@ -4267,6 +4277,11 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     # Parça satır sonu ve cümle sayımı hedef dilin sıra sayısı kuralını izlesin.
     _sentence_translation_module.set_target_language(target)
     glossary_terms = sanitize_glossary_terms(getattr(args, "glossary", ""))
+    preferences = getattr(args, 'translation_preferences', None)
+    from translation_preferences import hint as translation_preference_hint
+    preference_hint = translation_preference_hint(preferences, target)
+    if preferences:
+        glossary_terms += [row['source'] + '=' + row['target'] for row in preferences['rules'] if row['kind'] in ('term', 'character')]
     auto_glossary_terms = extract_auto_glossary(entries, source_lang=source_lang)
     series_memory, series_key = SeriesMemory.for_input(
         getattr(args, "cache_dir", None), getattr(args, "input", ""), source_lang, target)
@@ -4292,6 +4307,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         series_hint=series_hint,
         for_speech=bool(getattr(args, 'translate_for_speech', False)),
     )
+    system_prompt += preference_hint
     work_context = build_work_translation_context(entries, args, source_lang)
     if work_context:
         system_prompt += '\nWORK-LEVEL SOURCE CONTEXT: ' + WORK_TRANSLATION_CONTEXT_RULES
@@ -4304,7 +4320,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     log("Ceviri BASLIYOR - {} blok -> {}, model: {}, endpoint: {}{}".format(
         len(entries), target_name, args.translate_model, routes[0],
         " (+{} yedek rota)".format(len(routes) - 1) if len(routes) > 1 else ""))
-    log("Ceviri baglami: " + (f"her parcanin oncesi/sonrasi {CONTEXT_LINES} satir"
+    log("Ceviri baglami: " + (f"her parcanin oncesi/sonrasi yaklasik {CONTEXT_LINES} satir "
+        "(cumle tamamlanir; sahne ve boyut sinirlari korunur)"
         if CONTEXT_LINES else "KAPALI (satirlar baglamsiz cevrilecek)"))
     emit("status", stage="translate", text="Ceviriliyor: {}".format(target_name))
 
@@ -4381,6 +4398,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     media_memory_scope = series_key[0] if series_key else hashlib.sha256(
         input_identity.encode("utf-8", "replace")).hexdigest()[:20]
     tm_scope_identity = {
+        "context_protocol": TRANSLATION_CONTEXT_PROTOCOL,
         "target": target, "source": source_lang or "", "model": args.translate_model,
         "endpoint": str(args.translate_base_url).rstrip("/"), "register": args.translate_register,
         "profanity": args.translate_profanity, "refine": bool(args.translate_refine),
@@ -4388,6 +4406,8 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
         "scene_context": scene_context,
         "series_hint": series_hint,
     }
+    if preferences:
+        tm_scope_identity["user_decisions_v1"] = preferences
     if work_context:
         tm_scope_identity["work_context"] = work_context
     if bool(args.translate_refine):
@@ -4414,26 +4434,12 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
     def source_context_indexes(lo, hi):
         bound_lo, bound_hi = scene_context_bounds(
             scene_breaks, lo, hi, CONTEXT_LINES, len(entries))
-        before = []
-        left_speaker = speaker_map.get(lo)
-        for index in range(lo - 1, bound_lo - 1, -1):
-            neighbor_speaker = speaker_map.get(index)
-            if left_speaker and neighbor_speaker and neighbor_speaker != left_speaker:
-                break
-            before.append(index)
-        before.reverse()
-        after = []
-        right_speaker = speaker_map.get(hi)
-        for index in range(hi + 1, bound_hi + 1):
-            neighbor_speaker = speaker_map.get(index)
-            if right_speaker and neighbor_speaker and neighbor_speaker != right_speaker:
-                break
-            after.append(index)
-        return before, after
+        return complete_context_indexes(group_at, scene_breaks, lo, hi, bound_lo, bound_hi)
 
     def source_context(lo, hi):
         before, after = source_context_indexes(lo, hi)
-        return ([entries[i][2] for i in before], [entries[i][2] for i in after])
+        return (translation_context_rows(entries, before, speaker_map, before=True),
+                translation_context_rows(entries, after, speaker_map))
 
     def group_key(group):
         before, after = source_context(group[0], group[-1])
@@ -5708,7 +5714,7 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
             speech_review = bool(getattr(args, 'translate_for_speech', False))
             refine_prompt = build_refine_prompt(target, args.max_cps, args.max_line_width,
                                                for_speech=speech_review)
-            refine_prompt += locked_note
+            refine_prompt += locked_note + preference_hint
             if work_context:
                 refine_prompt += "\n" + WORK_TRANSLATION_CONTEXT_RULES
             if scene_context:
@@ -5740,7 +5746,10 @@ def llm_translate(entries, args, warn_list=None, source_lang=None, status_out=No
                             cost = len(src) + len(tr)
                             if size + cost > 2400:
                                 break
-                            rows.append({'source': src, 'translation': tr})
+                            row = {'source': src, 'translation': tr}
+                            if speaker_map.get(index):
+                                row['sp'] = speaker_map[index]
+                            rows.append(row)
                             size += cost
                         paired[side] = list(reversed(rows)) if side == 'before' else rows
                     if any(paired.values()):
@@ -6885,7 +6894,7 @@ def strip_continuation(text, at_start=False):
 
 def merge_continuation_lines(entries, max_gap=3.0, max_chars=120, max_dur=10.0,
                              tail_chars=45, tail_max_chars=170, tail_max_dur=13.0,
-                             speakers=None, return_speakers=False):
+                             speakers=None, return_speakers=False, max_parts=8):
     """Bir sonraki bloga tasan cumleleri tek blokta toplar.
 
     merge_incomplete_sentences'ten FARKI iki tane:
@@ -6908,40 +6917,71 @@ def merge_continuation_lines(entries, max_gap=3.0, max_chars=120, max_dur=10.0,
         return (entries, dict(speakers or {})) if return_speakers else entries
 
     DIALOG_STARTS = ("-", "—", "–", "[", "(", "♪", "*")
+    def protected(text):
+        return (not strip_continuation(strip_continuation(text, at_start=True))
+                or re.search(r'(?:^|\n)\s*(?:[-—–\[(♪♫*]|[^.!?:\n]{1,32}:\s)', text)
+                or re.search(r'<\/?(?:i|b|u|font|v|ruby|rt|c)(?:[ >.]|$)|\{\\', text, re.I))
+
+    def ended(text):
+        body = text.strip().rstrip("\"'“”‘’)}]»")
+        if body.endswith(CONTINUATION_MARKS):
+            return strip_continuation(body).endswith(tuple("!?！？।。"))
+        return text_ends_sentence(body)
+
+    def valid(row):
+        return (isinstance(row[0], (int, float)) and isinstance(row[1], (int, float))
+                and math.isfinite(row[0]) and math.isfinite(row[1])
+                and row[0] >= 0 and row[1] > row[0])
+
     out = []
+    parts = []
     out_speakers = {}
     for source_index, (s, e, txt) in enumerate(entries):
-        s, e, txt = float(s), float(e), (txt or "").strip()
-        if not txt:
-            continue
+        try:
+            s, e = float(s), float(e)
+        except (TypeError, ValueError):
+            pass  # Preserve malformed entries as boundaries, never consume their neighbors.
+        txt = (txt or "").strip()
         if not out:
             out.append([s, e, txt])
+            parts.append(1)
             if speakers and source_index in speakers:
                 out_speakers[0] = speakers[source_index]
             continue
         prev = out[-1]
-        gap = s - prev[1]
+        times_valid = valid(prev) and valid([s, e, txt])
+        gap = s - prev[1] if times_valid else float("inf")
         devam = (txt.lstrip().startswith(CONTINUATION_MARKS)
                  or prev[2].rstrip().endswith(CONTINUATION_MARKS))
-        yarim = not text_ends_sentence(prev[2])
+        yarim = not ended(prev[2])
         kuyruk = strip_continuation(txt, at_start=True)
-        birlesik = (strip_continuation(prev[2]) + " " + kuyruk).strip()
+        head = strip_continuation(prev[2])
+        no_space = (re.search(r'[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff、，]$', head)
+                    and re.match(r'[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]', kuyruk))
+        birlesik = (head + ("" if no_space else " ") + kuyruk).strip()
         kisa_kuyruk = len(kuyruk) <= tail_chars
         ust_krk = tail_max_chars if kisa_kuyruk else max_chars
         ust_sure = tail_max_dur if kisa_kuyruk else max_dur
-        same_speaker = (not speakers
-                        or speakers.get(source_index) == out_speakers.get(len(out) - 1))
-        if ((devam or yarim)
+        same_speaker = (speakers is None
+                        or bool(speakers.get(source_index))
+                        and speakers.get(source_index) == out_speakers.get(len(out) - 1))
+        separate_quotes = (prev[2].endswith(tuple('\"”’»')) and txt.startswith(tuple('\"“‘«')))
+        if (yarim and (devam or kuyruk)
+                and times_valid and not separate_quotes
+                and not protected(txt) and not protected(prev[2])
                 and same_speaker
                 and not txt.startswith(DIALOG_STARTS)
                 and not prev[2].startswith(DIALOG_STARTS)
                 and -0.05 <= gap <= max_gap
                 and len(birlesik) <= ust_krk
-                and (e - prev[0]) <= ust_sure):
-            prev[1] = e
+                and (max(e, prev[1]) - prev[0]) <= ust_sure
+                and parts[-1] < max_parts):
+            prev[1] = max(e, prev[1])
             prev[2] = birlesik
+            parts[-1] += 1
         else:
             out.append([s, e, txt])
+            parts.append(1)
             if speakers and source_index in speakers:
                 out_speakers[len(out) - 1] = speakers[source_index]
     merged = [(o[0], o[1], o[2]) for o in out]
@@ -8353,6 +8393,18 @@ def transcribe(args):
                 speakers_map = apply_speaker_rename(speakers_map, speaker_rename)
             unique = sorted(set(speakers_map.values()))
             log(f"{len(unique)} konuşmacı tespit edildi: {', '.join(unique)}", "success")
+
+        # With diarization, merge only after final times and speaker assignment.
+        # Unknown labels remain separate; an enabled option must not be silently
+        # skipped just because speaker recognition was also requested.
+        if args.merge_continuation and args.diarize:
+            _once = len(entries)
+            entries, speakers_map = merge_continuation_lines(
+                entries, max_gap=args.continuation_gap,
+                speakers=speakers_map, return_speakers=True)
+            if len(entries) != _once:
+                log(f"Cumle birlestirme: {_once} -> {len(entries)} blok "
+                    f"({_once - len(entries)} devam satiri onceki bloga katildi)")
 
         # Seçeneklere değil gerçek sonuca bak: zorunlu dedupe, yaygın hata
         # temizliği ve konuşmaya yaslama da önizlemeyi değiştirebilir.
@@ -10794,6 +10846,7 @@ def main():
                         help="Kismi ceviriyi okuyup tamamlanan bloklari koru; yalniz eksikleri cevir")
     parser.add_argument("--translate-retry-only", action="store_true",
                         help="Dogrulanmis mevcut metadata zorunlu; kaynak degisirse tam ceviriye geri donme")
+    parser.add_argument("--translation-preferences-file", default="", help="Job-frozen user translation decisions")
     parser.add_argument("--scene-context-file", default="", help="Job-local bounded scene notes JSON")
     parser.add_argument("--translate-cue-range", default="",
                         help="'BASLANGIC:BITIS' saniye araligiyla kesisen bloklari yeniden cevir; aralik disi mevcut ceviri/kaynakla korunur")
@@ -10864,6 +10917,10 @@ def main():
                         help="(deprecated) --split-mode kullanın")
 
     args = speech_translation_args(parser.parse_args())
+    args.translation_preferences = None
+    if args.translation_preferences_file:
+        from translation_preferences import load as load_translation_preferences
+        args.translation_preferences = load_translation_preferences(args.translation_preferences_file)
     args.scene_context = None
     if args.scene_context_file:
         if not args.translate_cue_range or not args.translate_only:
