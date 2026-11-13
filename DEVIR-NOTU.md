@@ -1,3 +1,23 @@
+Güncel ağ akışı ve toplu Git teslimi: [Whisper ses hazırlama, çeviri/dublaj kimliği ve sınırlar](docs/devir/2026-11-13-0901.md)
+
+Güncel Claude yerel birleşimi: [Son teslim, korunan runtime ve Windows görünüm kabulü](docs/devir/2026-11-13-0844.md)
+
+Güncel yerel performans/yaşam döngüsü: [Kart kurulumu, kapanış ve gerçek native medya fişi](docs/devir/2026-11-13-0824.md)
+
+Güncel yerel servis/performance onarımı: [Kayıt nesli, mod geçişi ve iş sahipliği](docs/devir/2026-11-13-0810.md)
+
+Güncel yerel kapanış kabulü: [Bekleyen A / güncel B ilerlemesi ve TorBox başlangıç ölçümü](docs/devir/2026-11-13-0755.md)
+
+Güncel yerel geçiş onarımı: [703satır altyazıyla gerçek TorBox A/B kabulü tamamlandı](docs/devir/2026-11-13-0744.md)
+
+Güncel yerel native/eklenti kabulü: [Güvenli açılış fişi, gerçek TorBox ve703satır altyazı onarımı](docs/devir/2026-11-13-0726.md)
+
+Güncel yerel servis onarımı: [Browser geçiş yarışı ve native terminal başlangıç hatası](docs/devir/2026-11-13-0715.md)
+
+Güncel yerel performans onarımı: [Oynatıcı / Podcast / Çift dilli kaynak bağlantısı darboğazı](docs/devir/2026-11-13-0711.md)
+
+Güncel yerel ekran düzeltmeleri: [İnceleme, plan, anime/manga ortak ayrıntısı ve görünüm kabulü](docs/devir/2026-11-13-0630.md)
+
 Güncel Git teslim kaydı: [Browser, Stremio ve servis düzeltmeleri · PR #922](docs/devir/2026-11-13-0534.md)
 
 Güncel yerel Browser birleşimi: [Son workbench paketi, korunan farklar ve Windows görünüm doğrulaması](docs/devir/2026-11-13-0518.md)
