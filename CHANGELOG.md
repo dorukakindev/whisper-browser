@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-13 · Browser çalışma tezgâhı birleşimi
+
+- Etiketli üst araç grupları, Altyazı merkezi, Asistan/Ayarlar kısayolları, düzenli ⋯ ve sayfa çevirisi menüleri, kaynak bandı ve İşler göstergesi kümülatif paketten alındı. Kütüphane kartı sütunları ve yer tutucu başlık koruması birleştirildi; mevcut kişisel kayıtlar değiştirilmedi.
+- Eski tamamlanma zamanlayıcısı yeni işi silemez; yerel Whisper/çıktı terminali mevcut olaydan iş/kaynak/nesil sahibiyle gösterilir, iptal başarı sayılmaz. Keşfet'te kişisel işlem hatası yanlış katalog yeniden denemesi sunmaz. Yerel sabit şerit ve önceki servis/asistan/Whisper/TorBox onarımları korundu. 32 hedefli kontrol ve gerçek Windows Electron görünümü geçti; tabandaki eski test hataları ayrıca doğrulandı. [Devir ve sınırlar](docs/devir/2026-11-13-0518.md).
+
+## 2026-11-13 · Stremio altyazı seçimi yarışları
+
+- Gömülü iz seçimini geç gelen otomatik/manuel eklenti altyazısı geri alamaz. Native iz bildirimiyle menü gövdesinin yenilenmesi, hâlen geçerli eklenti altyazısı yüklemesini iptal etmez. Native pencere boş geometride 1×1'e zorlanmaz; aynı boyut/görünürlük çağrıları tekrarlanmaz. 36 hedefli kontrol geçti. Gerçek ses/gömülü iz seçimi doğrulandı; eklenti/ikinci kaynak ve kararsız native başlangıç kabulü [açık sınırlarıyla kayıtlı](docs/devir/2026-11-13-0458.md).
+
+## 2026-11-13 · TorBox bulut kütüphanesi ve ses/altyazı erişimi
+
+- Stremio içinde ayrı Bulut kütüphanesi ve açık Yenile eylemi; eklentinin dosya listesi aynı gelişmiş detay sayfasında açılır. TorBox'un yalnız metadata içinde verdiği kaynaklar, özel adresler ana süreçte tutularak ebeveyn/eklenti/dosya sahibine bağlanır. Bekleyen debrid kaynağı anında hazır diye gösterilmez.
+- Oynatıcı, Çift dilli ve Podcast modlarında Ses/Altyazı düğmeleri; etkin motorun ses/gömülü altyazı izleri ve eklenti altyazıları mevcut panelden seçilir. Eski kaynak düğmeleri reddedilir; native iz kimliği türü ve mevcut listesi doğrulanır. [Hedefli testler ve canlı salt okuma sınırı](docs/devir/2026-11-13-0355.md).
+
+## 2026-11-13 · Paralel backend/servis onarımları
+
+- Zamansız podcast çevirisinde geri çekilen spoiler izni her parçada yeniden kontrol edilir; önceki sonuç/checkpoint korunur. Rafın gecikmiş kaynak bağı ve yayıncı metni yanıtı yeni kaynak/seçimi ezemez. Dublaj proje manifest yazımı sırasında iptal, son kurulumdan önce kontrol edilir. Sentetik son entegrasyon 10/10; Browser/renderer/asistan/Whisper korunur. [Yerel kapsam ve sınırlar](docs/devir/2026-11-13-0305.md).
+
+## 2026-11-13 · Konuşma aralarında sabit altyazı alanı
+
+- Çift dilli ve Podcast modunda video altındaki altyazı şeridi boşluklarda kaybolmaz; yalnız metin temizlenir. Şeridin yüksekliği sabittir, video ve transport yerleşimi oynamaz. Zamanı belirsiz veya altyazısız ses görünümünde gereksiz boş alan açılmaz; Browser videosunun kendi altyazı sahibi korunur. [Yerel doğrulama](docs/devir/2026-11-13-0229.md).
+
 ## 2026-11-13 · V6 oynatıcı ve doğrulanmış rapor onarımları
 
 - Film transport araçları ve HTML altyazı görünüm ayarları; Podcast/Çift dilli Aa menüsü, sinematik başlık ve asistan görünümü birleştirildi. Transkript alt araçları örtmez, kapanan menü otomatik gizleme kilidi bırakmaz; native altyazı görünümü mevcut native ayarlara yönlenir.

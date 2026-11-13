@@ -1,3 +1,17 @@
+Güncel Git teslim kaydı: [Browser, Stremio ve servis düzeltmeleri · PR #922](docs/devir/2026-11-13-0534.md)
+
+Güncel yerel Browser birleşimi: [Son workbench paketi, korunan farklar ve Windows görünüm doğrulaması](docs/devir/2026-11-13-0518.md)
+
+Paket üreticisinin önceki teslim kaydı: [Browser çalışma tezgâhı, dış ortam kanıtları](docs/devir/2026-11-13-0310.md)
+
+Güncel gerçek Stremio kabulü / yerel onarım: [Gerçek ses/gömülü iz seçimi, altyazı yarışları ve açık native başlangıç](docs/devir/2026-11-13-0458.md)
+
+Güncel yerel Stremio geliştirmesi: [TorBox bulut kütüphanesi ve oynatıcı ses/altyazı seçimi](docs/devir/2026-11-13-0355.md)
+
+Güncel yerel servis onarımları: [Claude Browser tasarımıyla paralel dört backend düzeltmesi](docs/devir/2026-11-13-0305.md)
+
+Güncel yerel düzeltme: [Çift dilli ve Podcast sabit altyazı şeridi](docs/devir/2026-11-13-0229.md)
+
 Güncel V6 inceleme ve entegrasyonu: [116 karar, görsel/davranış onarımları ve teslim sınırları](docs/devir/2026-11-13-0216.md)
 
 Güncel yerel geliştirme: [Stremio kaynak seçimi, Whisper uygunluğu, baştan oynatma ve panel okunurluğu](docs/devir/2026-11-11-1500.md)
