@@ -88,6 +88,7 @@ function registerDubWorkspace({app,ipcMain,authorized,dialog,owner,authorizeMedi
         qualityUnavailable:output.qualityUnavailable===true || !output.rows.length};
       check(op);await fsp.writeFile(path.join(staging,'project.json'),JSON.stringify(manifest,null,2),'utf8');
       // No overwrite: the unique staging directory is installed only at the end.
+      check(op);
       if(fs.existsSync(target))throw new Error('Project already exists.');
       await fsp.rename(staging,target);staging=null;return {ok:true,path:target};
     }finally{try{if(staging)await fsp.rm(staging,{recursive:true,force:true,maxRetries:5,retryDelay:100});}finally{end(op);}}

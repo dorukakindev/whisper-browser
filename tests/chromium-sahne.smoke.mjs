@@ -76,6 +76,27 @@ for (const [mode, variant, name] of cases) {
       continue;
     }
     check(`${name}: görünen metin satırı var ve hiçbiri boş değil, sayfa yatay taşmıyor`, g.visibleCards > 0 && g.blank === 0 && !g.docScrollX, JSON.stringify(g));
+    if (variant === 'both') {
+      const layout = await browser.evaluate(`(() => {
+        const stage = CinemaSahne.current, state = stage.a.state, info = stage.a.info;
+        stage.restoreCaptionFixture = () => { stage.a.state=state;stage.a.info=info;stage.tick(); };
+        stage.a.info=()=>({...info(),audio:false,webVideo:false});
+        const strip=stage.q(stage.o.mode==='study'?'[data-r=subs]':'[data-r=liveSpeech]');
+        const rect=el=>{const r=el.getBoundingClientRect();return [r.y,r.height];};
+        const frames=[21,27.5,28,27.5].map(time=>{
+          stage.a.state=()=>({...state(),time,displayTime:time});stage.tick();
+          const lines=stage.o.mode==='study'?['s','t']:['liveSource','liveTranslation'];
+          return {strip:rect(strip),video:rect(stage.q('.sh-screenwrap')),dock:rect(stage.q('.sh-dock')),
+            visible:!strip.hidden,text:lines.map(key=>stage.q('[data-r='+key+']').textContent.trim()).join('')};
+        });
+        return {frames,stable:frames.every(f=>f.visible&&f.strip[1]>0&&
+          ['strip','video','dock'].every(key=>f[key].every((v,i)=>Math.abs(v-frames[0][key][i])<1))),
+          clears:!!frames[0].text&&!frames[1].text&&!!frames[2].text&&!frames[3].text};
+      })()`);
+      check(`${name}: konuşma aralarında şerit kalır, eski metin temizlenir ve video/kontrol yerleşimi değişmez`,layout.stable&&layout.clears,JSON.stringify(layout));
+      await shot(name+'-silent-gap');
+      await browser.evaluate(`(() => { const stage=CinemaSahne.current;stage.restoreCaptionFixture();delete stage.restoreCaptionFixture; })()`);
+    }
     if (name === 'study-single') {
       const reading = await browser.evaluate(`(() => {
         const stage = CinemaSahne.current, subtitle = stage.q('[data-r=subs]');

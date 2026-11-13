@@ -90,11 +90,13 @@ test('renderer teşhis metnini locale’e göre seçer', () => {
   assert.match(renderer, /diagnosticField\(event\.diagnostic, 'label'\)/);
 });
 
-test('"Altyazı · N" çipi locale’e göre etiket + başlık üretir', () => {
-  assert.match(renderer, /label\.textContent = `\$\{globalThis\.UiLocale\?\.t\?\.\('Altyazı'\) \|\| 'Altyazı'\}\$\{count \? ` · \$\{count\}` : ''\}`;/);
+test('Altyazı merkezi etiketi locale’e göre üretilir; iz sayısı panel düğmesinde ve durum satırında', () => {
+  assert.match(renderer, /label\.textContent = globalThis\.UiLocale\?\.t\?\.\('Altyazı araçları'\) \|\| 'Altyazı araçları';/);
+  assert.match(renderer, /\$\('browserPanelTrackCount'\)\.textContent = tracks\.length \? String\(tracks\.length\) : ''/);
   assert.match(renderer, /en \? 'operation in progress; open details' : 'işlem sürüyor; ayrıntıları aç'/);
   const { translate } = require('../src/renderer/ui-locale');
   assert.equal(translate('Altyazı', 'en'), 'Subtitles');
+  assert.equal(translate('Altyazı araçları', 'en'), 'Subtitle tools');
 });
 
 if (!process.exitCode) console.log(`browser-report124-regressions: ${passed} test geçti`);

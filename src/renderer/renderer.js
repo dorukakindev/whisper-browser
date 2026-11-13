@@ -5215,6 +5215,7 @@ function playerJobEvent(event) {
 }
 
 function settlePlayerJobBar(job, outcome, delay = 4000) {
+  recordBrowserJobTerminal('local-player-job', job, outcome);
   const bar = $('playerJobBar');
   const terminal = {job, outcome, mediaKey:job.mediaKey, generation:job.generation ?? player.generation};
   player.jobBarTerminal = terminal;
@@ -5807,10 +5808,12 @@ window.api.onEvent((event) => {
           completedOutputJob.loading = false;
           if(result.loaded&&completedOutputJob.podcastBinding&&player.workspaceAudio?.entryId===completedOutputJob.podcastBinding.entryId&&player.mediaKey===completedOutputJob.mediaKey&&player.generation===completedOutputJob.generation){player.workspaceAudio.transcriptState='timed';window.PlayerWorkspaceIntegration?.refresh(true);}
           completedOutputJob.stage = result.loaded ? 'Oynatıcıya yüklendi' : result.reason;
+          if (result.loaded) recordBrowserJobTerminal('global-output-job', completedOutputJob, 'done');
           if (state.activeOutputJob === completedOutputJob) state.activeOutputJob = null;
           updatePlayerTaskCenter();
         });
       } else if (completedOutputJob?.manualSubtitleLoad) {
+        recordBrowserJobTerminal('global-output-job', completedOutputJob, 'done');
         state.activeOutputJob = null;
       }
       setProgress(100);
@@ -5852,6 +5855,7 @@ window.api.onEvent((event) => {
       // süreç kapanışında exit dalı iptal durumunu toparlar. Backend harici
       // sonlandırmada kind:'cancelled' yayar — yerel bayraksız da iptal say.
       if (state.cancelled || event.kind === 'cancelled') break;
+      recordBrowserJobTerminal('global-output-job', state.activeOutputJob, 'failed');
       logLine('Hata: ' + (event.message || 'Bilinmeyen hata'), 'error');
       setStatus('Hata', 'error');
 
@@ -10417,13 +10421,17 @@ function updateBrowserSubtitleSummary() {
   // Birlesik Whisper dugmesi: sayfada medya yoksa, iz yoksa ve islem surmuyorsa
   // tamamen gizli kalir; gorunurde dolu halka/etiket bulasmaz.
   const translateMenu = $('browserTranslateMenu');
-  const shouldHide = !count && !busy && !player.browserMediaSeen;
+  // Altyazı/çeviri/dublaj merkezi her zaman görünür kalır: araçların nerede
+  // olduğu video algılanmadan da bulunabilsin. Boştayken durum satırı nedenini
+  // ve bir sonraki adımı söyler; kullanılamayan öğeler kendi nedenini taşır.
+  const idle = !count && !busy && !player.browserMediaSeen;
   if (translateMenu) {
-    translateMenu.classList.toggle('hidden', shouldHide);
-    if (shouldHide && translateMenu.open) translateMenu.open = false;
+    translateMenu.classList.remove('hidden');
+    translateMenu.dataset.idle = idle ? 'true' : 'false';
   }
   const en = globalThis.UiLocale?.get?.() === 'en';
-  label.textContent = `${globalThis.UiLocale?.t?.('Altyazı') || 'Altyazı'}${count ? ` · ${count}` : ''}`;
+  label.textContent = globalThis.UiLocale?.t?.('Altyazı araçları') || 'Altyazı araçları';
+  renderBrowserHubStatus({ tab, count, busy, idle, en });
   button.dataset.state = stateName;
   button.setAttribute('aria-busy', busy ? 'true' : 'false');
   button.title = busy
@@ -10432,6 +10440,38 @@ function updateBrowserSubtitleSummary() {
       ? `${label.textContent} · ${en ? 'open tracks and translation options' : 'izleri ve çeviri seçeneklerini aç'}`
       : (en ? 'No subtitle track yet; open subtitle and translation settings' : 'Henüz altyazı izi yok; altyazı ve çeviri ayarlarını aç');
   renderBrowserProfileChip();
+}
+
+// Altyazı merkezindeki durum satırı: hangi kaynağın işlendiği, altyazı durumu ve
+// (varsa) sonraki adım. Kaynak adı kullanıcı içeriğidir; yalnız textContent ile
+// yazılır ve arayüz çeviricisine gönderilmez (data-ui-untranslated).
+function renderBrowserHubStatus({ tab, count, busy, idle, en }) {
+  const title = $('browserHubStatusTitle');
+  const text = $('browserHubStatusText');
+  if (!title || !text) return;
+  let host = '';
+  try { host = new URL(String(player.browserPageUrl || '')).hostname.replace(/^www\./, ''); } catch (_) { host = ''; }
+  const source = String(tab?.title || '').trim() || host;
+  title.textContent = source || (en ? 'No page open' : 'Açık sayfa yok');
+  let message;
+  if (busy) message = en ? 'An operation is running for this source. Open the subtitle panel to follow or cancel it.'
+    : 'Bu kaynak için bir işlem sürüyor. İlerlemeyi izlemek veya iptal etmek için altyazı panelini aç.';
+  else if (count) message = en ? `${count} subtitle track${count === 1 ? '' : 's'} found. Pick one in step 1, or translate it in step 2.`
+    : `${count} altyazı izi bulundu. 1. adımda birini seç veya 2. adımda çevir.`;
+  else if (idle) message = en ? 'No video detected in this tab. Open a video page to use Whisper and dubbing; file subtitles can still be loaded from settings.'
+    : 'Bu sekmede video algılanmadı. Whisper ve dublaj için bir video sayfası aç; dosyadan altyazı yine ayarlardan yüklenebilir.';
+  else message = en ? 'Video found but no subtitle track yet. Extract one with Whisper or load a subtitle file from settings.'
+    : 'Video bulundu ama altyazı izi yok. Whisper ile çıkar veya ayarlardan altyazı dosyası yükle.';
+  text.textContent = message;
+  $('browserHubStatus')?.setAttribute('data-state', busy ? 'busy' : count ? 'ready' : idle ? 'idle' : 'empty');
+  // Ayarlar sayfasındaki "Uygulandığı kaynak" bandı aynı durumdan beslenir (ikinci hesap yok).
+  const targetName = $('browserSettingsTargetName');
+  if (targetName) {
+    targetName.textContent = title.textContent;
+    const targetText = $('browserSettingsTargetText');
+    if (targetText) targetText.textContent = text.textContent;
+    $('browserSettingsTarget')?.setAttribute('data-state', busy ? 'busy' : count ? 'ready' : idle ? 'idle' : 'empty');
+  }
 }
 
 // Madde 30 — etkin profil kapsamı araç çubuğunda görünür; kullanıcı hangi
@@ -17628,7 +17668,13 @@ function renderCueList(filter = '') {
     box.innerHTML = '<div class="cue-list-empty cue-empty-rich" data-empty-kind="' + emptyKind + '">'
       + '<span class="cue-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 11h4M13 11h4M7 15h7M16 15h1"/></svg></span>'
       + '<div class="cue-empty-text">' + escapeHtml(emptyText) + '</div>'
-      + (emptyKind === 'no-media' ? ''
+      + (emptyKind === 'no-media' ? (browserMode
+          ? '<div class="cue-empty-cta cue-empty-cta-stack">'
+            + '<button type="button" class="cue-empty-primary" data-empty-action="address">' + escapeHtml(lt('Video sayfası aç')) + '</button>'
+            + '<button type="button" data-empty-action="file">' + escapeHtml(lt('Dosyadan altyazı yükle')) + '</button>'
+            + '<button type="button" data-empty-action="library">' + escapeHtml(lt('Medya kitaplığından aç')) + '</button>'
+            + '</div>'
+          : '')
         : emptyKind === 'tracks'
           ? '<div class="cue-empty-cta"><button type="button" class="cue-empty-primary" data-empty-action="tracks">'
             + escapeHtml(lt('Altyazı izini seç')) + '</button></div>'
@@ -17646,6 +17692,9 @@ function renderCueList(filter = '') {
       + (browserMode && !trackCount ? '<div class="bp-empty-how"><strong>' + escapeHtml(lt('Nasıl çalışır?')) + '</strong><span>' + escapeHtml(lt('Videoyu aç · altyazıyı seç veya oluştur · cümleleri takip et')) + '</span></div>' : '')
       + '</div>';
     box.querySelector('[data-empty-action="tracks"]')?.addEventListener('click', () => $('browserSubtitleSettingsMenu')?.click());
+    box.querySelector('[data-empty-action="address"]')?.addEventListener('click', () => { const input = $('browserAddress'); input?.focus(); input?.select?.(); });
+    box.querySelector('[data-empty-action="file"]')?.addEventListener('click', () => $('browserManualSubtitle')?.click());
+    box.querySelector('[data-empty-action="library"]')?.addEventListener('click', () => $('playerCatalogEntry')?.click());
     const make = box.querySelector('[data-empty-action="make"]');
     const pick = box.querySelector('[data-empty-action="pick"]');
     if (make) {
@@ -19992,7 +20041,7 @@ function currentWatchPatch(completed) {
     key: player.mediaKey,
     workKey: /^work:stremio:[a-f0-9]{64}$/.test(player.workKey||'')?player.workKey:'',
     type: player.mediaKey.startsWith('torrent:')?'torrent':player.mediaKey.startsWith('stream:')?'stream':browserMode ? 'browser' : (player.mediaKey.startsWith('youtube:') ? 'youtube' : 'local'),
-    title: $('playerTitle') ? $('playerTitle').textContent : '',
+    title: playerHistoryTitle(),
     sourceRef: player.mediaKey.startsWith('torrent:')?player.mediaKey:player.mediaKey.startsWith('stream:')?player.mediaKey:browserMode ? browserPlaceKey(player.browserPageUrl) : player.mediaKey.startsWith('youtube:')
       ? ((player.ytInfo && player.ytInfo.sourceUrl) || player.originalUrl || '')
       : player.localPath,
@@ -22701,7 +22750,7 @@ function savePlayerPosition() {
     player.positions[key] = {
       t: Math.round(t),
       d: Math.round(duration),
-      title: $('playerTitle') ? $('playerTitle').textContent : '',
+      title: playerHistoryTitle(),
       at: Date.now(),
     };
   }
@@ -25167,10 +25216,21 @@ if ($('browserSyncSave')) $('browserSyncSave').addEventListener('click', saveBro
 if ($('browserSyncCancel')) $('browserSyncCancel').addEventListener('click', cancelBrowserSyncPreview);
 if ($('browserSyncReset')) $('browserSyncReset').addEventListener('click', resetBrowserSync);
 
+// Ayarlar çekmecesi Browser'da araç çubuğunun altından başlar; Asistan, Ayarlar ve İşler
+// göstergesi açıkken de görünür ve erişilebilir kalır.
+function syncSettingsDrawerTop() {
+  const layer = $('playerLayer');
+  const toolbar = document.querySelector('#browserWorkspace .browser-toolbar');
+  if (!layer || !toolbar || player.workspaceMode !== 'browser') { layer?.style.removeProperty('--browser-toolbar-bottom'); return; }
+  const bottom = toolbar.getBoundingClientRect().bottom - layer.getBoundingClientRect().top;
+  if (Number.isFinite(bottom) && bottom > 0) layer.style.setProperty('--browser-toolbar-bottom', `${Math.round(bottom)}px`);
+}
+if (typeof window !== 'undefined') window.addEventListener('resize', () => { if (!$('settingsDrawer')?.classList.contains('hidden')) syncSettingsDrawerTop(); });
 function setSettingsDrawer(open) {
   const d = $('settingsDrawer');
   if (!d) return;
   const layer = $('playerLayer');
+  if (open) syncSettingsDrawerTop();
   const wasOpen = !d.classList.contains('hidden');
   if (open && !wasOpen) {
     const active = document.activeElement;
@@ -25268,6 +25328,7 @@ function playerTaskSnapshot() {
     const labels = { translate: 'Altyazı çevirisi', progressive: 'Whisper altyazı işi',
       sync: 'Altyazı senkronu', chat: 'AI yanıtı', explain: 'AI açıklaması' };
     rows.push({ id: 'local-player-job', label: labels[localJob.kind] || 'Altyazı işi',
+      jobOwner: localJob,
       detail: localJob.stage || 'Hazırlanıyor', context: player.workspaceMode === 'browser'
         ? player.browserPageTitle : ($('playerTitle')?.textContent || ''),
       completed: localJob.completed, total: localJob.total, percent: localJob.percent,
@@ -25277,6 +25338,7 @@ function playerTaskSnapshot() {
   } else if (state.activeOutputJob?.loading || (state.running && state.activeOutputJob)) {
     const job = state.activeOutputJob;
     rows.push({ id: 'global-output-job',
+      jobOwner: job,
       label: job.translateRequested ? 'Altyazı + çeviri' : 'Altyazı işi',
       detail: job.stage || 'Hazırlanıyor', context: job.input ? job.input.split(/[\\/]/).pop() : '',
       completed: job.completed, total: job.total, percent: job.percent,
@@ -25481,6 +25543,151 @@ function browserTaskRow(job) {
   };
 }
 
+// İzleme geçmişi başlığı: üst başlık gerçek ad yokken "Tarayıcı"/"Oynatıcı" yer tutucusuna düşer;
+// kütüphaneye bu adlarla kayıt girmesin diye gerçek başlık, yoksa sayfa sunucusu/dosya adı kullanılır.
+function playerHistoryTitle() {
+  const placeholders = ['', 'tarayıcı', 'browser', 'oynatıcı', 'player'];
+  const real = (value) => { const text = String(value ?? '').trim(); return placeholders.includes(text.toLocaleLowerCase('tr')) ? '' : text; };
+  const shown = real($('playerTitle')?.textContent);
+  if (player.workspaceMode === 'browser') {
+    const title = real(player.browserPageTitle) || shown;
+    if (title) return title;
+    try { return new URL(String(player.browserPageUrl || '')).hostname.replace(/^www\./, ''); } catch (_) { return ''; }
+  }
+  return shown || real(player.ytInfo?.title) || (player.localPath ? String(player.localPath).split(/[\\/]/).pop() : '');
+}
+// --- browser jobs dock
+// Araç çubuğu "İşler" göstergesi: Görev merkezinin tek toplayıcısından (updatePlayerTaskCenter)
+// beslenir; ikinci bir iş yolu veya durum kaynağı yoktur. Çalışırken halka, bitince onay,
+// hatada uyarı gösterir; tıklama mevcut Görev merkezini açar.
+const browserJobsDock = { seen: new Map(), flash: null, timer: 0, owners: new Map(), terminals: new Map() };
+// Terminal receipts come only from existing job completion/error paths. The
+// tracked job object and source generation prevent late results from an old
+// job/source from changing the toolbar; disappearance never means success.
+function recordBrowserJobTerminal(id, job, outcome) {
+  const owner = browserJobsDock.owners.get(id);
+  if (!owner || owner.job !== job || owner.key !== player.mediaKey || owner.generation !== player.generation) return;
+  if (['done', 'failed'].includes(outcome) && !job.cancelled) {
+    browserJobsDock.terminals.set(id, { ...owner, id, state: outcome });
+  } else browserJobsDock.terminals.delete(id);
+  updatePlayerTaskCenter({ refresh: false });
+}
+function browserJobsWithTerminals(rows) {
+  const dock = browserJobsDock, list = Array.isArray(rows) ? rows : [];
+  for (const row of list) {
+    if (!row.jobOwner) continue;
+    const previous = dock.owners.get(row.id);
+    if (previous?.job === row.jobOwner) continue;
+    dock.terminals.delete(row.id);
+    dock.owners.set(row.id, { job: row.jobOwner, key: row.jobOwner.mediaKey,
+      generation: row.jobOwner.generation ?? player.generation, label: row.label });
+  }
+  for (const [id, terminal] of dock.terminals) {
+    if (terminal.key !== player.mediaKey || terminal.generation !== player.generation || dock.owners.get(id)?.job !== terminal.job) dock.terminals.delete(id);
+  }
+  return list.filter(row => !dock.terminals.has(row.id))
+    .concat([...dock.terminals.values()].map(terminal => ({ id: terminal.id, label: terminal.label,
+      state: terminal.state, terminalOwner: terminal })));
+}
+// İş türü yalnız görünür sözcükler ve animasyon için etiketten çıkarılır (iş mantığına girmez).
+function browserJobKind(label) {
+  const text = String(label || '').toLowerCase();
+  if (/ses üretimi|voice production|dublaj|\bdub/.test(text)) return 'dub';
+  if (/seslendirme|narration/.test(text)) return 'narration';
+  if (/indirme|download/.test(text)) return 'download';
+  if (/çeviri|translat/.test(text)) return 'translate';
+  if (/altyaz|subtitle|whisper|transkrip/.test(text)) return 'subtitle';
+  return 'job';
+}
+const BROWSER_JOB_WORDS = {
+  dub: { run: ['Dublaj üretiliyor', 'Generating dub'], done: ['Dublaj hazır', 'Dub ready'], fail: ['Dublaj başarısız', 'Dub failed'] },
+  narration: { run: ['Seslendirme üretiliyor', 'Generating narration'], done: ['Seslendirme hazır', 'Narration ready'], fail: ['Seslendirme başarısız', 'Narration failed'] },
+  download: { run: ['İndiriliyor', 'Downloading'], done: ['İndirme tamamlandı', 'Download complete'], fail: ['İndirme başarısız', 'Download failed'] },
+  translate: { run: ['Çevriliyor', 'Translating'], done: ['Çeviri hazır', 'Translation ready'], fail: ['Çeviri başarısız', 'Translation failed'] },
+  subtitle: { run: ['Altyazı oluşturuluyor', 'Creating subtitles'], done: ['Altyazı hazır', 'Subtitles ready'], fail: ['Altyazı işi başarısız', 'Subtitle job failed'] },
+  job: { run: ['Çalışıyor', 'Working'], done: ['Tamamlandı', 'Completed'], fail: ['İşlem hata verdi', 'Job failed'] },
+};
+function browserJobWord(kind, phase) {
+  const pair = (BROWSER_JOB_WORDS[kind] || BROWSER_JOB_WORDS.job)[phase];
+  return interfaceChoice(pair[0], pair[1]);
+}
+function browserJobBucket(row) {
+  const st = String(row.state || row.status || '');
+  if (['failed', 'error'].includes(st) || (row.failed && st !== 'running')) return 'error';
+  if (['done', 'completed', 'success', 'ready'].includes(st)) return row.review ? 'other' : 'done';
+  if (row.review || row.recoverable || ['cancelled', 'paused'].includes(st)) return 'other';
+  return 'running';
+}
+function renderBrowserJobsDock(rows) {
+  const chip = $('browserJobsChip');
+  if (!chip) return;
+  const dock = browserJobsDock;
+  const key = (row) => String(row.id || row.label || '');
+  const list = browserJobsWithTerminals(rows);
+  const flashOwner = dock.flash?.terminalOwner;
+  if (flashOwner && (flashOwner.key !== player.mediaKey || flashOwner.generation !== player.generation
+      || dock.owners.get(flashOwner.id)?.job !== flashOwner.job)) dock.flash = null;
+  let event = null;
+  for (const row of list) {
+    const now = browserJobBucket(row);
+    const was = dock.seen.get(key(row));
+    if (was === 'running' && (now === 'done' || now === 'error')) event = { kind: now, label: String(row.label || ''), jobKind: browserJobKind(row.label), terminalOwner: row.terminalOwner };
+    dock.seen.set(key(row), now);
+  }
+  for (const id of [...dock.seen.keys()]) if (!list.some((row) => key(row) === id)) dock.seen.delete(id);
+  if (event) {
+    dock.flash = { ...event, until: Date.now() + 6500 };
+    clearTimeout(dock.timer);
+    if (event.kind === 'done') dock.timer = setTimeout(() => updatePlayerTaskCenter({ refresh: false }), 6600);
+    const note = $('browserJobsAnnounce');
+    if (note) note.textContent = `${browserJobWord(event.jobKind, event.kind === 'done' ? 'done' : 'fail')}: ${event.label}`;
+  }
+  if (dock.flash?.kind === 'error' && !list.some((row) => browserJobBucket(row) === 'error')) dock.flash = null;
+  if (dock.flash?.kind === 'done' && Date.now() >= dock.flash.until) dock.flash = null;
+  const running = list.filter((row) => browserJobBucket(row) === 'running');
+  const stateEl = $('browserJobsState');
+  const labelEl = $('browserJobsLabel');
+  let next = 'idle';
+  if (dock.flash) next = dock.flash.kind;
+  else if (running.length) next = 'running';
+  const percents = running.map((row) => PlayerTaskCenterModel.progressOf(row).percent).filter((value) => value !== null && Number.isFinite(value));
+  const pct = percents.length === running.length && percents.length ? Math.round(percents.reduce((a, b) => a + b, 0) / percents.length) : null;
+  let shownKind = 'job';
+  if (next === 'running') {
+    shownKind = running.length === 1 ? browserJobKind(running[0].label) : 'job';
+    const verb = browserJobWord(shownKind, 'run');
+    stateEl.textContent = running.length > 1 ? interfaceChoice(`${running.length} iş sürüyor`, `${running.length} jobs running`)
+      : pct !== null ? `${verb} · %${pct}` : verb;
+    labelEl.textContent = running.length === 1 ? String(running[0].label || '') : '';
+  } else if (next === 'done') {
+    shownKind = dock.flash.jobKind || 'job';
+    stateEl.textContent = browserJobWord(shownKind, 'done');
+    labelEl.textContent = dock.flash.label;
+  } else if (next === 'error') {
+    shownKind = dock.flash.jobKind || 'job';
+    stateEl.textContent = browserJobWord(shownKind, 'fail');
+    labelEl.textContent = dock.flash.label;
+  }
+  const ring = chip.querySelector('.jobs-ring-fill');
+  if (ring) ring.style.strokeDashoffset = String(100 - (next === 'running' && pct !== null ? pct : next === 'idle' ? 100 : 100));
+  const previous = chip.dataset.state;
+  chip.dataset.state = next;
+  chip.dataset.kind = shownKind;
+  chip.dataset.indeterminate = next === 'running' && pct === null ? 'true' : 'false';
+  chip.classList.toggle('hidden', next === 'idle');
+  const summary = next === 'running' ? `${stateEl.textContent}${labelEl.textContent ? ` · ${labelEl.textContent}` : ''}`
+    : next === 'idle' ? '' : `${stateEl.textContent}: ${labelEl.textContent}`;
+  chip.title = summary || interfaceChoice('Aktif işler', 'Active jobs');
+  chip.setAttribute('aria-label', `${interfaceChoice('Aktif işleri aç', 'Open active jobs')}${summary ? ` — ${summary}` : ''}`);
+  if (previous !== next && (next === 'done' || next === 'error')) {
+    chip.classList.remove('jobs-celebrate');
+    void chip.offsetWidth;
+    chip.classList.add('jobs-celebrate');
+  }
+}
+if (typeof $ === 'function') $('browserJobsChip')?.addEventListener('click', () => { if (browserJobsDock.flash) { browserJobsDock.flash = null; updatePlayerTaskCenter({ refresh: false }); } });
+// --- end browser jobs dock
+
 function updatePlayerTaskCenter({ refresh = true, listTarget = null } = {}) {
   updateBrowserWhisperActions();
   if (refresh) scheduleBrowserUnifiedJobsRefresh();
@@ -25494,6 +25701,7 @@ function updatePlayerTaskCenter({ refresh = true, listTarget = null } = {}) {
     badge.textContent = String(rows.length);
     badge.classList.toggle('hidden', rows.length < 1);
   }
+  renderBrowserJobsDock(rows);
   const list = listTarget || $('playerTaskCenterList');
   if (!list) return;
   list.replaceChildren();
@@ -25998,6 +26206,14 @@ if (moreSearch) {
   // Menü açılınca odak arama kutusuna düşer (klavyeyle ilk ↓ aramayı atlıyordu);
   // kapanınca arama sıfırlanır, aksi halde bir sonraki açılışta öğeler gizli
   // kalıyor ve menü "eksik" görünüyordu.
+  // Gruplar her zaman açık ve görünür (iç içe kapalı alt menü yok); özet başlığı
+  // tıklanınca kapanmaz. Arama yine eşleşmeyen grupları gizler.
+  morePopover?.querySelectorAll('.browser-more-sub > summary').forEach((summary) => {
+    summary.addEventListener('click', (event) => event.preventDefault());
+  });
+  $('browserMoreMenu')?.addEventListener('toggle', (event) => {
+    if (event.currentTarget.open) morePopover?.querySelectorAll('.browser-more-sub').forEach((sub) => { sub.open = true; });
+  });
   $('browserMoreMenu')?.addEventListener('toggle', (event) => {
     if (event.currentTarget.open) { moreSearch.focus(); return; }
     if (!moreSearch.value) return;
@@ -27314,6 +27530,15 @@ function toggleBrowserPanelRail() {
   }
 }
 $('browserPanelMain')?.addEventListener('click', toggleBrowserPanelRail);
+// Asistan kısayolu: yan paneli (kapalıysa) açar ve mevcut Asistan sekmesine geçer.
+// Yeni bir asistan yolu değildir; bağlam ve oturum mevcut sekmeden devam eder.
+$('browserAssistantOpen')?.addEventListener('click', () => {
+  closeBrowserToolbarMenus();
+  const narrowNow = window.matchMedia('(max-width: 1099px)').matches;
+  const shownNow = narrowNow ? responsivePanelTakeoverActive() : sidebarIsVisible();
+  if (!shownNow) toggleBrowserPanelRail();
+  setSideTab('ai', { focusContent: true });
+});
 $('browserPanelApply')?.addEventListener('click', () => {
   if (player.browserTracks.length) $('browserTrackLoad')?.click();
   else $('browserSubtitleSettingsMenu')?.click();

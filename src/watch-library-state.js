@@ -175,6 +175,12 @@ function mergeSession(previous, incoming) {
   return merged;
 }
 
+// Oynatıcı başlığı gerçek başlık yokken mod adına düşer; bunlar kütüphane başlığı olamaz.
+const PLACEHOLDER_WATCH_TITLES = new Set(['', 'tarayıcı', 'browser', 'oynatıcı', 'player']);
+function isPlaceholderWatchTitle(value) {
+  return PLACEHOLDER_WATCH_TITLES.has(String(value ?? '').trim().toLocaleLowerCase('tr'));
+}
+
 function applyWatchUpsert(rawDocument, rawPatch, options = {}) {
   const document = normalizeWatchLibraryDocument(rawDocument);
   if (!rawPatch || typeof rawPatch !== 'object' || Array.isArray(rawPatch)
@@ -272,6 +278,9 @@ function applyWatchUpsert(rawDocument, rawPatch, options = {}) {
     } else if (field === 'lastWatched') {
       const newest = Math.max(finiteNumber(item.lastWatched), finiteNumber(value, now));
       setField(field, newest);
+    } else if (field === 'title' && isPlaceholderWatchTitle(value) && String(item.title || '').trim() && !isPlaceholderWatchTitle(item.title)) {
+      // Arayüz yer tutucusu ("Tarayıcı", "Oynatıcı") gerçek başlığın üstüne yazılmaz.
+      continue;
     } else {
       setField(field, value);
     }
@@ -462,6 +471,7 @@ function replaceWatchLibraryItems(rawDocument, rawItems, options = {}) {
 }
 
 module.exports = {
+  isPlaceholderWatchTitle,
   WATCH_LIBRARY_DOCUMENT_VERSION,
   applyWatchRemove,
   applyWatchUpsert,

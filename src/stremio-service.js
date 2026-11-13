@@ -46,6 +46,28 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
   const addonsFile = () => path.join(root(), 'stremio-addons.json');
   const progressFile = () => path.join(root(), 'stremio-progress.json');
   const previews = new Map(), streamSessions = new Map(), subtitleSessions = new Map(), headerGrants = new Map();
+  // Some library addons expose file streams exclusively inside meta.videos[].
+  // Private URLs stay in this bounded, short-lived main-process bridge.
+  const inlineMetas = new Map(), metaRequests = new Map(), INLINE_TTL = 10 * 60 * 1000;
+  let inlineDisposed = false;
+  const inlineKey = (addonKey, type, id) => JSON.stringify([addonKey, type, id]);
+  const inlineCurrent = (entry, records = loadAddons().addons) => entry && now() - entry.at <= INLINE_TTL
+    && records.some(r => r.enabled !== false && r.key === entry.addonKey && r.manifestUrl === entry.manifestUrl && JSON.stringify(r.manifest) === entry.manifestStamp);
+  function rememberInline(record, type, id, raw, value) {
+    const key = inlineKey(record.key, type, id), addon = ctx(record);
+    const entry = { at: now(), token: randomUUID(), addonKey: record.key, type, manifestUrl: record.manifestUrl, manifestStamp: JSON.stringify(record.manifest), children: new Map() };
+    const counts = new Map(); for (const v of value.videos) counts.set(v.id, (counts.get(v.id) || 0) + 1);
+    const validIds = new Set(value.videos.filter(v => counts.get(v.id) === 1).map(v => v.id)); let budget = A.LIMITS.maxStreams;
+    for (const video of (Array.isArray(raw?.videos) ? raw.videos : []).slice(0, A.LIMITS.maxVideos)) {
+      if (!video || !validIds.has(video.id) || entry.children.has(video.id) || !Array.isArray(video.streams)) continue;
+      const candidates = video.streams.slice(0, budget); budget -= candidates.length;
+      const rows = candidates.map(s => A.normalizeStream(s, addon)).filter(Boolean);
+      if (rows.length) entry.children.set(video.id, rows.map(r => ({ ...r, inlineSource: { key, token: entry.token } })));
+      if (!budget) break;
+    }
+    remember(inlineMetas, key, entry);
+    for (const video of value.videos) video.hasInlineStreams = entry.children.has(video.id);
+  }
   const playedSources=new Map();
   let activePlayback=null,audioPreparation=null;
   function ownPlayback(token,streamId,key){
@@ -61,6 +83,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     if(!selected||selected.token!==input.token||selected.streamId!==input.streamId||selected.key!==input.key)throw err('Reopen the current source before preparing audio.','AUDIO_SOURCE');
     const row=sessionFor(input.token).rows.get(input.streamId);
     if(!row?.playable||row.kind!=='url'||!row.url.startsWith('https:'))throw err('Audio preparation requires a direct HTTPS media source.','AUDIO_UNSUPPORTED');
+    if(audioSupport(row)==='pending')throw err('This source is still being prepared by the debrid provider; refresh sources when it is ready.','STREAM_AUDIO_PENDING');
     if(audioSupport(row)==='adaptive')throw err('Adaptive HLS/DASH streams cannot be prepared for Whisper; choose a direct file source.','STREAM_AUDIO_FORMAT');
     if(typeof prepareAudio!=='function')throw err('Audio preparation is unavailable.','AUDIO_UNSUPPORTED');
     if(typeof input.requestId!=='string'||!/^[a-z0-9_-]{1,80}$/i.test(input.requestId))throw err('Invalid audio request.','BAD_REQUEST');
@@ -226,12 +249,17 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     }else if(existing){existing.manifest=plan.manifest;existing.enabled=true;}
     else {if(data.addons.length>=MAX_ADDONS)throw err(`En fazla ${MAX_ADDONS} eklenti eklenebilir.`,'LIMIT');data.addons.push({key:plan.key,manifestUrl:plan.manifestUrl,installedAt:now(),enabled:true,manifest:plan.manifest});}
     saveAddons(data); previews.delete(token);
+    const changedKeys = new Set([plan.key, plan.replacement?.key]);
+    for (const [key, entry] of inlineMetas) if (changedKeys.has(entry.addonKey)) inlineMetas.delete(key);
+    for (const key of metaRequests.keys()) if (changedKeys.has(JSON.parse(key)[0])) metaRequests.delete(key);
     return { addons: data.addons.map(publicAddon) };
   }
   function addonMutate(input, apply) {
     const data = loadAddons(), index = data.addons.findIndex((r) => r.key === input.key);
     if (index < 0) throw err('Eklenti bulunamadı.', 'NOT_FOUND');
     apply(data, index); saveAddons(data);
+    for (const [key, entry] of inlineMetas) if (entry.addonKey === input.key) inlineMetas.delete(key);
+    for (const key of metaRequests.keys()) if (JSON.parse(key)[0] === input.key) metaRequests.delete(key);
     return { addons: data.addons.map(publicAddon) };
   }
   async function addonRefresh({ key }, signal) {
@@ -266,14 +294,14 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     }
     return rows;
   }
-  async function catalog({ addonKey, type, catalogId, extra = {} }, signal) {
+  async function catalog({ addonKey, type, catalogId, extra = {}, refresh = false }, signal) {
     const record = loadAddons().addons.find((r) => r.key === addonKey && r.enabled !== false);
     const definition = record?.manifest.catalogs.find((c) => c.type === type && c.id === catalogId);
     if (!definition) throw err('Katalog bulunamadı.', 'NOT_FOUND');
     const allowed = new Set(definition.extra.map((f) => f.name)), clean = {};
     for (const [k, v] of Object.entries(extra || {})) if (allowed.has(k) && v != null && v !== '') clean[k] = String(v).slice(0, 200);
     const addon = ctx(record);
-    const payload = await call(addon, A.buildResourceUrl(addon.baseUrl, 'catalog', type, catalogId, clean), { signal });
+    const payload = await call(addon, A.buildResourceUrl(addon.baseUrl, 'catalog', type, catalogId, clean), { signal, fresh: refresh === true });
     const items = (Array.isArray(payload?.metas) ? payload.metas : []).slice(0, A.LIMITS.maxCatalogItems).map((m) => A.normalizeMetaPreview(m, addon)).filter(Boolean);
     return { items, hasMore: items.length >= 20 && allowed.has('skip') };
   }
@@ -293,16 +321,21 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     for (const r of results) for (const item of r.items || []) { const k = item.type + ':' + item.id; if (!seen.has(k)) { seen.add(k); items.push(item); } }
     return { items: items.slice(0, 120), errors: results.filter((r) => r.error).map((r) => r.error) };
   }
-  async function meta({ type, id }, signal) {
-    const records = enabledFor('meta', type, id);
+  async function meta({ type, id, addonKey }, signal) {
+    if (inlineDisposed) throw err('Stremio service is closed.', 'EXPIRED');
+    const records = enabledFor('meta', type, id).filter(r => !addonKey || r.key === addonKey);
     let last = null;
     for (const record of records) {
       const addon = ctx(record);
+      const key = inlineKey(record.key, type, id), owner = {};
+      inlineMetas.delete(key); remember(metaRequests, key, owner);
       try {
         const payload = await call(addon, A.buildResourceUrl(addon.baseUrl, 'meta', type, id), { signal });
         const value = A.normalizeMeta(payload?.meta, addon);
-        if (value) { value.progress = progressFor(type, id); return { meta: value, addonName: addon.name }; }
-      } catch (error) { last = error; }
+        if (inlineDisposed || metaRequests.get(key) !== owner || !loadAddons().addons.some(r => r.key === record.key && r.enabled !== false && r.manifestUrl === record.manifestUrl && JSON.stringify(r.manifest) === JSON.stringify(record.manifest))) throw err('Addon metadata changed; reopen the item.', 'CONFIG_STALE');
+        if (value) { rememberInline(record, type, id, payload.meta, value); value.progress = progressFor(type, id); return { meta: value, addonName: addon.name }; }
+      } catch (error) { if (inlineDisposed) throw error; last = error; }
+      finally { if (metaRequests.get(key) === owner) metaRequests.delete(key); }
     }
     throw last || err('Bu yapım için ayrıntı veren etkin bir eklenti yok. Cinemeta gibi bir katalog eklentisi ekle.', 'NO_META');
   }
@@ -315,6 +348,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
   // torrent: raw torrent (local file only after download); none: not playable here.
   const audioSupport = (row) => {
     if (!row?.playable) return 'none';
+    if (row.availability === 'download') return 'pending';
     if (row.kind === 'torrent') return 'torrent';
     if (row.kind !== 'url') return 'none';
     let url; try { url = new URL(row.url); } catch { return 'none'; }
@@ -322,11 +356,27 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
     if (/\.(?:m3u8|mpd)$/i.test(url.pathname)) return 'adaptive';
     return 'ready';
   };
-  async function streams({ type, id, season = null, episode = null }, signal) {
+  async function streams({ type, id, season = null, episode = null, addonKey, metaId }, signal) {
+    if (inlineDisposed) throw err('Stremio service is closed.', 'EXPIRED');
     const videoId = videoIdFor(type, id, int(season), int(episode));
+    const addons = loadAddons().addons;
+    for (const [key, entry] of inlineMetas) if (!inlineCurrent(entry, addons)) inlineMetas.delete(key);
+    let inline;
+    if (addonKey || metaId) {
+      if (!addonKey || !metaId) throw err('Choose the library item again.', 'BAD_REQUEST');
+      const entry = inlineMetas.get(inlineKey(addonKey, type, metaId));
+      if (!entry) throw err('Library metadata expired; reopen the item.', 'EXPIRED');
+      const rows = entry.children.get(videoId);
+      if (!rows) throw err('This file is no longer available in the library item.', 'NOT_FOUND');
+      inline = { addon: ctx(addons.find(r => r.key === addonKey)), value: rows };
+    } else {
+      const matches = [...inlineMetas.values()].filter(entry => entry.type === type && entry.children.has(videoId));
+      if (matches.length > 1) throw err('Choose the file from its library item.', 'AMBIGUOUS_INLINE');
+      if (matches.length) inline = { addon: ctx(addons.find(r => r.key === matches[0].addonKey)), value: matches[0].children.get(videoId) };
+    }
     const records = enabledFor('stream', type, videoId);
-    if (!records.length) throw err('Kaynak sağlayan etkin bir eklenti yok. Eklentiler sayfasından Torrentio gibi bir eklenti ekle.', 'NO_ADDONS');
-    const settled = await fanOut(records, async (record, addon) => {
+    if (!inline && !records.length) throw err('Kaynak sağlayan etkin bir eklenti yok. Eklentiler sayfasından Torrentio gibi bir eklenti ekle.', 'NO_ADDONS');
+    const settled = inline ? [inline] : await fanOut(records, async (record, addon) => {
       const payload = await call(addon, A.buildResourceUrl(addon.baseUrl, 'stream', type, videoId), { signal, timeoutMs: 15000 });
       return (Array.isArray(payload?.streams) ? payload.streams : []).slice(0, A.LIMITS.maxStreams).map((s) => A.normalizeStream(s, addon)).filter(Boolean);
     });
@@ -341,7 +391,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
         id: r.id, addonKey: r.addonKey, addonName: r.addonName, name: r.name, label: r.label, title: r.title, description: r.description.slice(0, 600),
         kind: r.kind, playable: r.playable, reason: r.reason, resolution: r.resolution, seeders: r.seeders, sizeBytes: r.sizeBytes, provider: r.provider,
         codec: r.codec, hdr: r.hdr, source: r.source, flags: r.flags, multiAudio: r.multiAudio, notWebReady: r.notWebReady, usesHeaders: r.usesHeaders === true, bingeGroup: r.bingeGroup || '', score: r.score, tags: r.tags, warns: r.warns, audio: r.audio, channels: r.channels, group: r.group, filename: r.filename,
-        host: r.kind === 'url' ? hostOf(r.url) : r.kind === 'external' ? hostOf(r.externalUrl) : '', embeddedSubtitles: r.subtitles.length, whisperAudio: audioSupport(r),
+        host: r.kind === 'url' ? hostOf(r.url) : r.kind === 'external' ? hostOf(r.externalUrl) : '', embeddedSubtitles: r.subtitles.length, whisperAudio: audioSupport(r), availability: r.availability,
       })),
     };
   }
@@ -353,6 +403,10 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
   async function play({ token, streamId, title = '' }, event) {
     const session = sessionFor(token), row = session.rows.get(streamId);
     if (!row) throw err('Kaynak bulunamadı; listeyi yenile.', 'NOT_FOUND');
+    if (row.inlineSource) {
+      const entry = inlineMetas.get(row.inlineSource.key);
+      if (!inlineCurrent(entry) || entry.token !== row.inlineSource.token) throw err('Library metadata changed; reopen the item.', 'EXPIRED');
+    }
     if (!row.playable) throw err(row.reason === 'needs-headers' ? 'Bu kaynak, güvenli listede olmayan özel istek başlıkları gerektiriyor; oynatılamaz.' : 'Bu kaynak türü uygulama içinde oynatılamıyor.', 'UNPLAYABLE');
     const position = progressFor(session.type, session.id, session.season, session.episode);
     // Work identity comes from the token-owned catalog context, never from a stream URL/title.
@@ -542,7 +596,7 @@ function createStremioService({ root, fetch: fetchImpl = globalThis.fetch, asser
       default: throw err('Desteklenmeyen Stremio işlemi.', 'BAD_REQUEST');
     }
   }
-  return { handle, headersFor, dispose:()=>audioPreparation?.controller.abort(), _internals: { previews, streamSessions, subtitleSessions, headerGrants } };
+  return { handle, headersFor, dispose:()=>{audioPreparation?.controller.abort();inlineDisposed=true;inlineMetas.clear();metaRequests.clear();}, _internals: { previews, streamSessions, subtitleSessions, headerGrants, inlineMetas } };
 }
 
 function registerStremio({ ipcMain, authorized, ...options }) {

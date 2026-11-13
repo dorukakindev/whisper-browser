@@ -347,7 +347,9 @@ test('Podcast live speech follows independent subtitle times and skips ads',t=>{
  assert.equal(f.sh.q('[data-r=liveTranslation]').textContent,'Canlı çeviri');
  adPlaying=true;f.sh.tick();
  assert.equal(f.sh.cur,-1);
- assert(f.sh.q('[data-r=liveSpeech]').hidden);
+ assert.equal(f.sh.q('[data-r=liveSpeech]').hidden,false);
+ assert.equal(f.sh.q('[data-r=liveSource]').textContent,'');
+ assert.equal(f.sh.q('[data-r=liveTranslation]').textContent,'');
  assert.match(f.sh.q('[data-r=transportHint]').textContent,/Reklam/);
  adPlaying=false;f.sh.tick();
  assert.equal(f.sh.cur,0);
@@ -497,22 +499,31 @@ test('manual transcript browsing remains stopped; return follows without seeking
  f.sh.q('[data-a=follow]').click();assert.equal(f.sh.s.follow,true);assert.equal(f.commands.length,0);
  assert.equal(f.sh.rows[0].trs.length,2);
 });
-test('bilingual captions collapse when the selected track has no text at the current time',t=>{
- const f=mount(t,{study:true}), captions=f.sh.q('[data-r=subs]');
- f.setTime(12);
- f.sh.tick();
- assert.equal(captions.hidden,false);
- f.sh.q('[data-d=tr]').click();
- assert.equal(captions.hidden,true);
- f.setTime(2);
- f.sh.tick();
- assert.equal(captions.hidden,false);
- f.setTime(12);
- f.sh.tick();
- assert.equal(captions.hidden,true);
- f.sh.q('[data-d=both]').click();
- assert.equal(captions.hidden,false);
- assert.equal(f.commands.some(([type])=>type==='seek'||type==='seekCue'),false);
+test('study and podcast subtitle strips remain visible through selected-track and silent gaps',t=>{
+ for(const study of [true,false]){
+  const f=mount(t,{study}), captions=f.sh.q(study?'[data-r=subs]':'[data-r=liveSpeech]');
+  const translation=f.sh.q(study?'[data-r=t]':'[data-r=liveTranslation]');
+  const state=f.sh.a.state;
+  f.sh.a.state=()=>({...state(),captionTracks:[
+   {timed:true,cues:f.rows.map(row=>({...row,text:row.src}))},
+   {timed:true,cues:f.rows.filter(row=>row.trs.length).map(row=>({...row,text:row.trs.join(' ')}))}
+  ]});
+  f.setTime(12);f.sh.tick();
+  assert.equal(captions.hidden,false);
+  f.sh.q('[data-d=tr]').click();
+  assert.equal(captions.hidden,false);
+  assert.equal(translation.textContent,'');
+  f.setTime(2);f.sh.tick();
+  assert.equal(captions.hidden,false);
+  assert.notEqual(translation.textContent,'');
+  f.setTime(24);f.sh.tick();
+  assert.equal(captions.hidden,false);
+  assert.equal(translation.textContent,'');
+  assert.equal(f.sh.q(study?'[data-r=s]':'[data-r=liveSource]').textContent,'');
+  f.sh.q('[data-d=both]').click();
+  assert.equal(captions.hidden,false);
+  assert.equal(f.commands.some(([type])=>type==='seek'||type==='seekCue'),false);
+ }
 });
 test('the active caption refreshes at the same index and clears through a silent gap',t=>{
  const f=mount(t,{study:true});
@@ -524,7 +535,7 @@ test('the active caption refreshes at the same index and clears through a silent
  assert.equal(f.sh.lines[0].getAttribute('aria-current'),'true');
  f.setTime(24);f.sh.tick();
  assert.equal(f.sh.q('[data-r=s]').textContent,'');
- assert.equal(f.sh.q('[data-r=subs]').hidden,true);
+ assert.equal(f.sh.q('[data-r=subs]').hidden,false);
  assert.equal(f.sh.lines[0].hasAttribute('aria-current'),false);
 });
 test('a single available language hides the redundant selector and two languages restore it',t=>{

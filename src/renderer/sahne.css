@@ -208,7 +208,6 @@
 .sh .sh-subs.sh-single-caption :is(.s,.t):not(:empty){
   max-inline-size:64ch;margin-inline:auto;text-wrap:balance;overflow-wrap:anywhere;
 }
-.sh.sh-browser-study .sh-subs.sh-single-caption{block-size:108px;max-block-size:120px}
 .sh.sh-local .sh-subs.sh-single-caption{block-size:clamp(104px,16vh,172px);align-content:safe center}
 .sh.sh-local .sh-subs.sh-single-caption :is(.s,.t){font-size:clamp(20px,2.1vw,34px);line-height:1.3}
 .sh.sh-local .sh-search-navigation{display:flex;align-items:center;gap:6px;flex:1 0 100%}

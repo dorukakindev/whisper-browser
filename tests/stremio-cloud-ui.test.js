@@ -1,0 +1,36 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),{JSDOM}=require('jsdom');
+const settle=()=>new Promise(resolve=>setImmediate(resolve));
+test('cloud catalogs refresh explicitly and unnumbered files use their own stream identity',async t=>{
+ const dom=new JSDOM('<main id="host"></main><div id="playerLayer"><div id="playerStage"></div></div>',{url:'https://test.invalid',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
+ let dispose;t.after(()=>{dispose?.dispose?.();w.close();});const calls=[];
+ w.UiLocale={get:()=> 'tr'};w.player={mediaKey:'',generation:0,cues:[],cues2:[]};w.MediaHomeUI={currentPage:()=> 'stremio'};
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+ const item={id:'private-parent',type:'other',name:'Library fixture',addonKey:'torbox',genres:[]};
+ w.api={stremio:async input=>{calls.push(input);switch(input.action){
+  case 'catalogs':return {ok:true,catalogs:[{addonKey:'torbox',addonName:'Torrentio TB',type:'other',id:'library',name:'TorBox Torrents',searchOnly:false,genres:[],paged:true}]};
+  case 'catalog':return {ok:true,items:[item],hasMore:false};
+  case 'meta':return {ok:true,meta:{...item,videos:[{id:'private-file-1',title:'Fixture file',available:true,hasInlineStreams:true},{id:'private-file-2',title:'Pending file',available:false}],defaultVideoId:'private-file-1'}};
+  case 'streams':return {ok:true,streams:[],groups:[],token:'fixture'};
+  case 'progress-title':return {ok:true,entries:[]};
+  case 'library-list':case 'continue-list':case 'history-list':return {ok:true,items:[]};
+  case 'library-has':return {ok:true,saved:false};
+  default:return {ok:true,addons:[],rating:null};
+ }}};
+ w.MediaDiscoveryUI={openDetail:async(_item,options)=>{const sourceHost=w.document.createElement('div'),actions=w.document.createElement('div'),status=w.document.createElement('p');w.document.body.append(sourceHost,actions,status);options.onReady({page:{open:true,addEventListener(){}},sourceHost,actions,status});return {ok:true};}};
+ w.eval(fs.readFileSync(require.resolve('../src/renderer/stremio-ui.js'),'utf8'));
+ dispose=w.StremioUI.mount(w.document.getElementById('host'));await settle();await settle();
+ const cloud=[...w.document.querySelectorAll('.sx-mode')].find(b=>b.textContent.includes('Bulut'));
+ assert(cloud,'cloud library has a visible independent navigation entry');cloud.click();await settle();await settle();
+ assert(calls.some(c=>c.action==='catalog'&&c.type==='other'&&c.catalogId==='library'));
+ const host=w.document.querySelector('.sx-cloud-host');assert(host&&!host.hidden);
+ const refresh=[...host.querySelectorAll('button')].find(b=>b.textContent==='Yenile');assert(refresh);refresh.click();await settle();await settle();
+ assert(calls.some(c=>c.action==='catalog'&&c.refresh===true),'explicit refresh bypasses transport cache');
+ await w.StremioUI.openTitle(item);await settle();await settle();
+ const files=w.document.querySelector('.sx-library-files');assert(files,'library files are listed without fabricated season numbers');
+ const buttons=[...files.querySelectorAll('button')];assert(buttons.some(b=>b.disabled&&b.textContent.includes('Pending file')));
+ const play=buttons.find(b=>!b.disabled&&b.textContent.includes('Fixture file'));assert(play);play.click();await settle();await settle();
+ assert(calls.some(c=>c.action==='streams'&&c.type==='other'&&c.id==='private-file-1'),'selected file ID reaches stream lookup');
+ assert(calls.some(c=>c.action==='streams'&&c.metaId==='private-parent'&&c.addonKey==='torbox'),'inline file lookup retains its parent and addon owner');
+ assert(!calls.some(c=>c.action==='play'),'opening a file picker does not start playback');
+});

@@ -970,8 +970,9 @@ test('Aşama A toolbar tekil kontrolleri adres, Çeviri ve Diğer altında topla
   assert(!/data-browser-proxy="browserPageTranslate"/.test(layer),
     'Sayfayı çevir hem ayrı buton hem menü öğesi olarak çift tanımlanıyor');
   assert(/id="browserPageTranslate"/.test(layer), 'Sayfayı çevir araç çubuğu butonu eksik');
-  for (const label of ['Sayfa', 'Video', 'Site', 'Görünüm ve yardım']) {
-    assert(layer.includes(`<summary><span class="browser-menu-label">${label}</span>`), `${label} Diğer menüsü alt menüsü eksik`);
+  // Diğer menüsü gruplarının hepsi açık ve etiketlidir (iç içe kapalı alt menü yok).
+  for (const label of ['Sayfa araçları', 'Video ve oynatma', 'Site ve yerler', 'Görünüm ve gelişmiş']) {
+    assert(layer.includes(`<details class="browser-more-sub" open><summary><span class="browser-menu-label">${label}</span>`), `${label} Diğer menüsü grubu eksik`);
   }
   assert(/id="browserMoreSearch"/.test(layer), 'Diğer menüsü içi arama eksik');
   assert(/class="browser-more-quick"/.test(layer), 'Diğer menüsü hızlı eylem satırı eksik');

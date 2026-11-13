@@ -251,3 +251,18 @@ html[data-motion=off] :is(.sx-feature-bg,.sx-skeleton,.sx-next-bar,.sx-page,.sx-
 .sx-native-tools.is-actions{left:12px;right:12px;top:auto;bottom:86px;width:auto;max-height:42%}
 
 .sx-work-tracks{padding:12px;border:1px solid var(--border-strong);border-radius:10px;background:var(--bg-1)}.sx-work-tracks summary{cursor:pointer;color:var(--accent)}.sx-work-track{display:grid;gap:5px;padding:10px 0;border-top:1px solid var(--border)}.sx-work-track strong,.sx-work-track p{overflow-wrap:anywhere}.sx-work-track small{color:var(--text-dim)}
+
+/* Stremio owns these entry points; the shared Browser/Stage toolbar is unchanged. */
+.sx-track-access{display:inline-flex;gap:4px;align-items:center;flex:none}
+.sx-track-access-btn{min-height:34px;padding:6px 11px;border:1px solid var(--border-strong);border-radius:999px;background:var(--bg-1);color:var(--text);font:600 12px/1.2 var(--font-body,inherit);cursor:pointer;white-space:nowrap}
+.sx-track-access-btn:hover{border-color:var(--accent);color:var(--accent)}
+.sx-track-access-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sh>.sx-player-panel{bottom:calc(var(--sh-local-dock-clearance,150px) + 12px);max-height:calc(100% - 180px)}
+.sh-top-r:has(>.sx-track-access){flex-wrap:wrap}
+@media(max-width:700px){.sx-track-access-btn{padding-inline:8px;font-size:11px}.sh>.sx-player-panel{right:12px;width:calc(100% - 24px);bottom:166px;max-height:calc(100% - 190px)}}
+
+.sx-cloud-host[hidden]{display:none!important}
+.sx-cloud-host>.sx-hint{max-width:85ch;margin-block:8px 20px;line-height:1.6}
+.sx-library-files{display:grid;gap:10px;margin-block:20px;max-width:100%;min-width:0}
+.sx-library-files>.sx-h3,.sx-library-files>.sx-hint{margin:0}
+.sx-library-file{justify-content:flex-start;text-align:start;white-space:normal;overflow-wrap:anywhere;min-height:46px;height:auto;padding:12px 16px;max-width:100%}

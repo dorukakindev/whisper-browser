@@ -181,7 +181,7 @@ async function readBounded(response, maxBytes) {
 }
 
 /** Sınırlı gövde okuma. assertUrl: her sıçramada (DNS dahil) hedefi doğrulayan isteğe bağlı kanca. */
-async function fetchBuffer(url, { fetch: fetchImpl = globalThis.fetch, signal, timeoutMs = LIMITS.timeoutMs, maxBytes = LIMITS.jsonBytes, assertUrl, accept = 'application/json' } = {}) {
+async function fetchBuffer(url, { fetch: fetchImpl = globalThis.fetch, signal, timeoutMs = LIMITS.timeoutMs, maxBytes = LIMITS.jsonBytes, assertUrl, accept = 'application/json', fresh = false } = {}) {
   if(signal?.aborted)throw fail('İstek iptal edildi.','ABORTED');
   if (typeof fetchImpl !== 'function') throw fail('Ağ erişimi kullanılamıyor.', 'NETWORK');
   const controller = new AbortController();
@@ -194,7 +194,8 @@ async function fetchBuffer(url, { fetch: fetchImpl = globalThis.fetch, signal, t
       if (assertUrl) await assertUrl(target);
       try {
         response = await fetchImpl(target, { method: 'GET', redirect: 'manual', signal: controller.signal,
-          headers: { Accept: accept, 'User-Agent': USER_AGENT } });
+          ...(fresh === true ? { cache: 'no-store' } : {}),
+          headers: { Accept: accept, 'User-Agent': USER_AGENT, ...(fresh === true ? { 'Cache-Control': 'no-cache' } : {}) } });
       } catch (error) {
         if (controller.signal.aborted) throw fail(signal?.aborted ? 'İstek iptal edildi.' : 'Eklenti zamanında yanıt vermedi.', signal?.aborted ? 'ABORTED' : 'TIMEOUT');
         throw fail('Eklentiye ulaşılamadı.', 'NETWORK');
@@ -320,7 +321,11 @@ function scoreStream(row) {
   if (row.kind === 'torrent') {
     const seeds = row.seeders;
     if (seeds == null) score += 6; else { score += Math.min(25, Math.round(Math.log10(seeds + 1) * 9)); if (seeds < 5) warns.push('lowseed'); if (seeds >= 100) tags.push('fast'); }
-  } else score += 20, tags.push('instant');
+  } else {
+    score += 20;
+    if (row.availability === 'cached') tags.push('instant');
+    else if (row.availability === 'download') warns.push('debrid-download');
+  }
   const src = row.source || '';
   if (src === 'remux') score += 10, tags.push('remux'); else if (/^blu/.test(src)) score += 8, tags.push('bluray'); else if (src === 'webdl') score += 7, tags.push('webdl'); else if (src === 'webrip') score += 5; else if (src === 'hdtv') score += 2;
   else if (src === 'cam' || src === 'telesync') score -= 40, warns.push('cam');
@@ -340,6 +345,10 @@ function normalizeStream(raw, addon = {}) {
   const host = String(addon.host || '').toLowerCase();
   const hints = raw.behaviorHints && typeof raw.behaviorHints === 'object' ? raw.behaviorHints : {};
   const name = text(raw.name, 200), description = text(raw.description || raw.title, 1200);
+  // Provider labels are hints, never a claim that every direct URL is already cached.
+  const availabilityLabel = name + '\n' + description;
+  const availability = /\[(?:TB|TorBox|RD|AD|PM|DL|ED|OC|P2P)[ -]+download\]/i.test(availabilityLabel) ? 'download'
+    : /\[(?:TB|TorBox|RD|AD|PM|DL|ED|OC)\+\]/i.test(availabilityLabel) ? 'cached' : 'unknown';
   const parsed = parseStreamText(name, description, text(hints.filename, 300));
   const row = {
     addonKey: addon.key || '', addonName: text(addon.name, 120), name: name.split('\n')[0] || text(addon.name, 120),
@@ -348,7 +357,7 @@ function normalizeStream(raw, addon = {}) {
     resolution: parsed.resolution || '', seeders: Number.isFinite(parsed.seeders) ? parsed.seeders : null, provider: parsed.provider || '',
     codec: parsed.codec || '', hdr: parsed.hdr || '', source: parsed.source || '', flags: parsed.flags || [], multiAudio: parsed.multiAudio === true,
     notWebReady: hints.notWebReady === true, bingeGroup: text(hints.bingeGroup, 200), subtitles: [], audio: parsed.audio || '', channels: parsed.channels || '', tenBit: parsed.tenBit === true, group: parsed.group || '',
-    kind: 'unsupported', playable: false, reason: 'unsupported', url: '', infoHash: '', fileIdx: null, trackers: [], externalUrl: '', ytId: '',
+    availability, kind: 'unsupported', playable: false, reason: 'unsupported', url: '', infoHash: '', fileIdx: null, trackers: [], externalUrl: '', ytId: '',
   };
   const headerSource = hints.proxyHeaders?.request && Object.keys(hints.proxyHeaders.request).length ? hints.proxyHeaders.request : hints.headers;
   const needsHeaders = !!(headerSource && typeof headerSource === 'object' && Object.keys(headerSource).length);
@@ -470,9 +479,12 @@ function normalizeMeta(raw, addon = {}) {
     const episode = metadataEpisodeNumber(video.episode ?? video.number);
     const released = typeof video.released === 'string' && !Number.isNaN(Date.parse(video.released)) ? new Date(video.released).toISOString() : '';
     videos.push({ id, title: text(video.title || video.name, 300), season, episode, released,
+      ...(typeof video.available === 'boolean' ? { available: video.available } : {}),
       thumbnail: safeImage(video.thumbnail, String(addon.host || '').toLowerCase()), overview: text(video.overview || video.description, 1200) });
   }
-  return { ...base, videos, cast: (Array.isArray(raw.cast) ? raw.cast : []).filter((v) => typeof v === 'string').map((v) => text(v, 80)).slice(0, 20),
+  const defaultId = raw.behaviorHints?.defaultVideoId;
+  return { ...base, videos, defaultVideoId: typeof defaultId === 'string' && ID_PATTERN.test(defaultId) ? defaultId : '',
+    cast: (Array.isArray(raw.cast) ? raw.cast : []).filter((v) => typeof v === 'string').map((v) => text(v, 80)).slice(0, 20),
     director: (Array.isArray(raw.director) ? raw.director : []).filter((v) => typeof v === 'string').map((v) => text(v, 80)).slice(0, 6),
     writer: (Array.isArray(raw.writer) ? raw.writer : []).filter((v) => typeof v === 'string').map((v) => text(v, 80)).slice(0, 6),
     awards: text(raw.awards, 300), country: text(raw.country, 120), language: text(raw.language, 120), released: typeof raw.released === 'string' && !Number.isNaN(Date.parse(raw.released)) ? new Date(raw.released).toISOString().slice(0, 10) : '',
