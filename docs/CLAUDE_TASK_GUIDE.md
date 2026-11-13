@@ -2,6 +2,10 @@
 
 Kullanıcı talimatı · 2026-11-10. Bu belge Claude için görev promptu hazırlayan asistana yöneliktir. Claude'un iç çalışma biçimi hakkında varsayım değil, bu proje için istenen görev verme ve çalışma sözleşmesidir.
 
+## Güncel kullanıcı çalışma tercihi
+
+Tasarım görevine koyu tema önceliğini açıkça yaz; kullanıcı istemedikçe açık/beyaz tema görüntüsü veya ek görsel test turu isteme. Güçlü, modern, sinematik ve canlı kompozisyon ile anlamlı efekt/hareket iste; yalnız kozmetik cila veya çalışan form yeterli değildir. [Kendime çalışma promptu](design/DESIGN_SELF_BRIEF.md) ve [görselli referans dersleri](design/2026-11-13-claude-design-lessons.md) depodadır. Kapsamlı görsel değişiklikte önce mevcut/öneri karşılaştırması, onaydan sonra uygulama; önceden onaylanan kapsamda rutin kararları tekrar sorma. Skill/agent kullanma talimatını koru.
+
 ## Tasarım görevlerinde estetik yetki
 
 Sabit amber/sarı düğme, palet, font, köşe, boşluk veya mevcut yerleşimi koruma zorunluluğunu prompta taşıma. Minimalizm/sakinlik ya da gradyan/parıltı yasağı ekleme. Tasarımcı içeriğe uygun özgün kompozisyon kurabilir; erişilebilirlik, özellikler ve veri/güvenlik sınırları korunur. Eski devirlerdeki stil kısıtları güncel yetki değildir. Güncel çerçeve DESIGN.md içindedir.
@@ -43,4 +47,4 @@ Prompt sırası:
 
 - Yalnız inceleme/öneri görevinde kod değiştirme veya Git teslimi isteme; yukarıdaki uygulama maddeleri uygulama görevi içindir. Yeni sohbetin kısa ürün/mimari/çalışma bağlamı [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
 - Kümülatif/artımlı paket, BASE.json hash ve LF/CRLF kuralını doğrula; çakışan mevcut kodu körlemesine kopyalama. Mevcut değerli düzeltmeler, kişisel farklar ve test sözleşmeleri korunur. Eksik test/ara teslim açık yazılır; paket hazır olması entegrasyonun tamamlandığı anlamına gelmez.
-- Agent kullanımı yetkili; dosya sahipliğini ayır, nihai entegrasyon/doğrulama ana asistandadır. High/medium somut işe göre seçilir, topluca high varsayılmaz.
+- Mevcut kullanıcı talimatı gereği agent kullanma; önceki genel yetkilendirme bu talimatın yerine geçmez. High/medium somut işe göre seçilir, topluca high varsayılmaz.

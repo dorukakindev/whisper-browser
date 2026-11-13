@@ -4,6 +4,10 @@
 
 # Ayrıntılı çalışma rehberi
 
+## Güncel çalışma kararı · 2026-11-13
+
+Koyu tema esas; kullanıcı istemedikçe açık tema görsel turu yapılmaz. Kapsamlı görsel işte önce/öneri karşılaştırması ve onay, ardından kapsamı tamamlayan uygulama ve kısa hedefli gerçek render kontrolü gerekir. Onaylı kapsamda rutin kararlar yeniden sorulmaz. Agent/skill kullanılmaz. Sabit renk/font/yerleşim yerine güçlü, modern, sinematik ve canlı kompozisyon hedeflenir. Ayrıntılı kalıcı karar [DESIGN.md](../DESIGN.md) ve [kendime çalışma promptunda](design/DESIGN_SELF_BRIEF.md).
+
 ## Güncel tasarım yetkisi · 2026-11-13
 
 Renk, font, köşe, boşluk, düğme biçimi veya yerleşim için sabit bir estetik zorunluluk yoktur. Sarı/amber birincil düğme, tek vurgu rengi, mevcut paleti aynen sürdürme, minimalizm/sakinlik veya gradyan/parıltı yasağı uygulanmaz. Mevcut CSS değerleri değiştirilebilir uygulama ayrıntılarıdır; tasarım şartnamesi değildir.

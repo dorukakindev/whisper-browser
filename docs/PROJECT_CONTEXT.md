@@ -1,3 +1,5 @@
+2026-11-13 19:49: Kalıcı tasarım/çalışma kararı güncellendi: koyu tema esas; gereksiz açık tema görsel turu yok; modern/sinematik/canlı kompozisyon, önce/öneri ve onaylı uygulama, kısa hedefli doğrulama. [Çalışma promptu](design/DESIGN_SELF_BRIEF.md), [görselli dersler](design/2026-11-13-claude-design-lessons.md), [devir](devir/2026-11-13-1949.md). Bu teslim belge/referans kapsamındadır; önceki yerel ürün farkları ayrıdır.
+
 2026-11-13 19:03: Sabit palet, sarı düğme, font/ölçü ve mevcut yerleşim zorunlulukları kaldırıldı. Güncel tasarım yetkisi DESIGN.md; tarihî stil kısıtları uygulanmaz. [Devir](devir/2026-11-13-1903.md). Önceki yerel ürün çalışması bu kural tesliminden ayrıdır.
 
 2026-11-13 17:05: Kullanıcı birikmiş geliştirmelerin commit/push/master teslimini yetkilendirdi. [Teslim kaydı](devir/2026-11-13-1705.md). Son uzak HEAD Git üzerinden doğrulanır; önceki Git bekleme kayıtları tarihseldir.

@@ -114,6 +114,8 @@ Proje bilgisi sohbetle sınırlı tutulmaz. Yeni çalışmaya aşağıdaki kök 
 | [DESIGN.md](https://github.com/dorukakindev/whisper-browser/blob/master/DESIGN.md) | Onaylı görsel kimlik ve ekran kararları. |
 | [YENI-BILGISAYAR.md](https://github.com/dorukakindev/whisper-browser/blob/master/YENI-BILGISAYAR.md) | Ortamı yeniden kurma ve özel verileri koruma bilgisi. |
 
+Güncel UI çalışma yaklaşımı: **koyu tema**, güçlü modern/sinematik kompozisyon, anlamlı efektler; sabit palet/font/düğme şablonu yok. Kapsamlı görsel iş önce/öneri ve onayla başlar. [Kendime çalışma promptu](docs/design/DESIGN_SELF_BRIEF.md) · [Görselli Claude dersleri](docs/design/2026-11-13-claude-design-lessons.md).
+
 Ayrıntılı teknik kurallar [çalışma rehberinde](docs/WORKING_GUIDE.md), mimari [ARCHITECTURE.md](docs/ARCHITECTURE.md) içindedir. Arşivdeki bir rapor, tek başına o işin hâlâ açık olduğunu göstermez. Yarım iş BACKLOG'a yazılır; yalnız doğrulanmış tamamlanmış değişiklik CHANGELOG'a geçirilir.
 
 Claude tam v2 tasarımının ürün entegrasyonu tamamlandı; kapsam ve doğrulama sınırları [tasarım devam kaydında](docs/design/claude-redesign-handoff-2026-11-05.md), açık işler [BACKLOG.md](BACKLOG.md) içindedir. Maket görüntüsü ile çalışan ürün kanıtı ayrı tutulur.

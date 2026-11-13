@@ -1,3 +1,5 @@
+Güncel kalıcı çalışma kararı: [Koyu tema, tasarım anlayışı ve çalışma kuralları](docs/devir/2026-11-13-1949.md)
+
 Güncel tasarım yetkisi: [Sabit palet/biçim dayatmalarının kaldırılması ve ayrı Git teslimi](docs/devir/2026-11-13-1903.md)
 
 Güncel toplu Git teslimi: [Kapsam, doğrulama, korunan farklar ve Claude inceleme tabanı](docs/devir/2026-11-13-1705.md)
