@@ -1,3 +1,5 @@
+Güncel tasarım yetkisi: [Sabit palet/biçim dayatmalarının kaldırılması ve ayrı Git teslimi](docs/devir/2026-11-13-1903.md)
+
 Güncel toplu Git teslimi: [Kapsam, doğrulama, korunan farklar ve Claude inceleme tabanı](docs/devir/2026-11-13-1705.md)
 
 Güncel pipeline denetimi: [Altyazı çıktı durumu, akış WAV doğrulaması ve dublaj ilk-satır koruması](docs/devir/2026-11-13-1657.md)

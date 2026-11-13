@@ -1,3 +1,5 @@
+2026-11-13 19:03: Sabit palet, sarı düğme, font/ölçü ve mevcut yerleşim zorunlulukları kaldırıldı. Güncel tasarım yetkisi DESIGN.md; tarihî stil kısıtları uygulanmaz. [Devir](devir/2026-11-13-1903.md). Önceki yerel ürün çalışması bu kural tesliminden ayrıdır.
+
 2026-11-13 17:05: Kullanıcı birikmiş geliştirmelerin commit/push/master teslimini yetkilendirdi. [Teslim kaydı](devir/2026-11-13-1705.md). Son uzak HEAD Git üzerinden doğrulanır; önceki Git bekleme kayıtları tarihseldir.
 
 2026-11-13 16:57 yerel: pipeline denetiminde üç doğrulanmış aktarım açığı düzeltildi. [Devir](devir/2026-11-13-1657.md). Gerçek yerelFFmpeg/sentetik ses geçti; model/GPU/dinleme kabulü ayrı. Kullanıcı gerekli kısa canlı ücretli API testlerine izin verdi. Yeni Git teslimi yok; önceki farklar korunur.
@@ -49,7 +51,7 @@ Güncel kayıt: 2026-11-11 12:49 Europe/Istanbul. Önce kök AGENTS/README/BACKL
 
 ## Ürün ve teknoloji
 
-Windows `D:\Whisper Local`, normal açılış `start.bat`. Film/dizi, anime/manga, müzik, kitap/PDF, podcast/RSS ve keşfi kişisel medya kütüphanesinde birleştirir. Player/browser, iki dilli altyazı, çeviri, VoxCPM2 dublaj ve bağlamlı asistan aynı ürünün parçalarıdır. Türkçe/İngilizce arayüz; üst medya gezinmesi, sıcak amber/grafit ve canlı sinematik tasarım korunur. Nötr/siyah-beyaz tasarım reddedildi.
+Windows `D:\Whisper Local`, normal açılış `start.bat`. Film/dizi, anime/manga, müzik, kitap/PDF, podcast/RSS ve keşfi kişisel medya kütüphanesinde birleştirir. Player/browser, iki dilli altyazı, çeviri, VoxCPM2 dublaj ve bağlamlı asistan aynı ürünün parçalarıdır. Türkçe/İngilizce arayüz. Sabit renk, font, düğme veya yerleşim zorunluluğu kaldırıldı; tasarım güncel ihtiyaca göre özgürce geliştirilebilir. [Güncel tasarım yetkisi](../DESIGN.md).
 
 Electron + Node.js; düz JavaScript/HTML/CSS. Main/servisler dosya, ağ, güvenli anahtar deposu ve iş süreçlerinin sahibidir; preload sınırlı IPC köprüsü, sandbox renderer sunum/etkileşim katmanıdır. Python tarafında faster-whisper, CTranslate2/PyTorch ve VoxCPM2; işlem olayları NDJSON → main → IPC → renderer. Dublajın eski metin protokolü geçiş uyumluluğuyla korunur. Oynatmada HTML5/HLS ve native mpv; torrent için checksum ile doğrulanan rqbit, eklenti katalog/kaynakları için Stremio akışı vardır.
 

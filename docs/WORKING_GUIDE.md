@@ -4,20 +4,31 @@
 
 # Ayrıntılı çalışma rehberi
 
+## Güncel tasarım yetkisi · 2026-11-13
+
+Renk, font, köşe, boşluk, düğme biçimi veya yerleşim için sabit bir estetik zorunluluk yoktur. Sarı/amber birincil düğme, tek vurgu rengi, mevcut paleti aynen sürdürme, minimalizm/sakinlik veya gradyan/parıltı yasağı uygulanmaz. Mevcut CSS değerleri değiştirilebilir uygulama ayrıntılarıdır; tasarım şartnamesi değildir.
+
+Ekranın içeriğine ve kullanımına uygun özgün kompozisyon kur. Renkleri, tipografiyi, ölçeği, yüzeyleri, gezinmeyi ve etkileşimleri birlikte tasarla; aynı kapsül düğmeyi her yere tekrarlamayı varsayılan çözüm sayma. Mevcut görünümü koruma zorunluluğu yerine görsel bütünlüğü ve işlevlere ulaşılabilirliği değerlendir. Yeni tasarımda ortak tokenları gerekirse geliştir; token kullanımı tek bir palete bağlılık değildir.
+
+Özellikler, ileri ayarlar, kişisel veriler, kaynak/zaman/iş sahipliği ve güvenlik korunur. Okunabilir kontrast, klavye erişimi, görünür odak ve azaltılmış hareket tercihi geçerlidir. Bunlar renk veya stil dayatması değildir. Yetkili kapsamda tasarım kararları için rutin onay döngüsü oluşturma; gerçek render üzerinden kompozisyonu ve etkileşimleri kontrol et. Bu karar yeni bir ürün yeniden tasarımı başlatmaz.
+
+Eski devirler, paket promptları ve aşağıdaki uygulama kayıtları geçmişin kanıtıdır; içlerindeki palet/font/yerleşim koruma ifadeleri güncel tasarım talimatı değildir. Güncel kullanıcı isteği önceliklidir. Kullanıcının mevcut talimatı doğrultusunda tasarım skill'i veya agent kullanılmaz.
+
+
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Yeni oturumda önce oku — kalıcı kullanıcı tercihleri
 
-- Kullanıcının 2026-11-02 kesin tasarım çalışma kuralı: HER arayüz işinde önce görsel tasarım yap, sonra üretim kodunu uygula. Gerçek veya açıkça işaretlenmiş temsilî içerikle ekranın tamamlanmış görsel kompozisyonunu hazırlayıp göster; yerleşim/hiyerarşi, tipografi, yüzeyler, medya atmosferi ve etkileşim durumları çözülmeden CSS/kart eklemeye başlama. Mevcut düzenin boşluk/kenarlık düzeltmesini özgün tasarım diye sunma. Gri kutulara metin dağıtmak, daha fazla amber veya animasyon eklemek kalite kanıtı değildir. Beğenilmiş üst medya menüsü ve film üst bölümü gibi alanları kullanıcı istemedikçe değiştirme; grafit/amber medya player/browser kimliğini koru. Uygulama sonrası gerçek geniş/dar görüntüyü taslakla karşılaştır; taşmama ve test başarısını estetik başarısı sayma. Görmeden “güzel/mükemmel oldu” deme. Gereksiz onay döngüsü yaratma; fakat görsel taslağı atlayıp tekrar bitmiş ürün iddiasıyla teslim etme.
+- Kullanıcının 2026-11-02 kesin tasarım çalışma kuralı: HER arayüz işinde önce görsel tasarım yap, sonra üretim kodunu uygula. Gerçek veya açıkça işaretlenmiş temsilî içerikle ekranın tamamlanmış görsel kompozisyonunu hazırlayıp göster; yerleşim/hiyerarşi, tipografi, yüzeyler, medya atmosferi ve etkileşim durumları çözülmeden CSS/kart eklemeye başlama. Mevcut düzenin boşluk/kenarlık düzeltmesini özgün tasarım diye sunma. Gri kutulara metin dağıtmak, daha fazla amber veya animasyon eklemek kalite kanıtı değildir. Beğenilmiş üst medya menüsü ve film üst bölümü gibi alanları kullanıcı istemedikçe değiştirme; medya içeriğine uygun yeni görsel çözümler geliştirebilirsin. Uygulama sonrası gerçek geniş/dar görüntüyü taslakla karşılaştır; taşmama ve test başarısını estetik başarısı sayma. Görmeden “güzel/mükemmel oldu” deme. Gereksiz onay döngüsü yaratma; fakat görsel taslağı atlayıp tekrar bitmiş ürün iddiasıyla teslim etme.
 
 - Kullanıcının 2026-11-01 son teslim tercihi: GitHub Actions kredisi bitti; yeni Actions çalışması başlatma. Push/PR/merge teslimlerini `[skip ci]` ile yap; uzun CI veya gereksiz test tekrarlarıyla bekletme. Değişen akışın kısa anlamlı yerel ve gerekirse native kontrolü korunur; görülmeyen sonuç başarılı sayılmaz.
 
 
 - Kullanıcının son somut gezinme tercihi: Üst medya araçları tek planlı yatay çizgide olacak; ikincil hedefler ve araçlar en soldaki uygulama simgesinden hover ile açılan, menüden ayrılınca kapanan bir yüzeyde bulunacak. Tıklama/klavye erişimi korunur; ekran daraldığında yazıları ezmek veya ikinci rastgele satır açmak yerine tam kontroller bu menüye taşınır. Tüm yüzeylerde önce hiyerarşi, sinematik medya kimliği ve estetik bütünlük; yalnız süs ekleyerek başarı iddiası yok.
 
-- Kullanıcının 2026-11-01 kesin tasarım yönü: Program genelinde güçlü, özgün, modern ve özenli bir medya player/browser deneyimi istiyor; yalnız temizlik veya ufak cila yeterli değil. ÜST MEDYA MENÜSÜ, önceki grafit/siyaha yakın palet, sıcak amber ve medya oynatıcı ruhu korunacak. Soldan gezinmeli/paper-plane/landing-page yönü kullanıcı tarafından reddedildi; bunu üretime taşıma. Luna kalite referansı, piksel kopyası değil; bizim zengin kaynak/altyazı/dublaj/asistan akışlarımız kendi kimliğimizi taşımalı. Kullanıcının 2026-11-05 güncellemesi: görünüm en önemli önceliktir; güçlü hareketler, parıltı, belirgin hover ve sürekli dekoratif animasyon tasarıma göre kullanılabilir. Zorunlu sakinlik/minimalizm veya düşük hareket kısıtı yoktur; görsel çözümü tasarımcı belirler. İleri ayarlar ve mevcut yetenekler korunur. Hesap istemeyen uygun araçlarla gerçek Windows görüntüsü ve hareketli önizleme üzerinde doğrula. Mevcut bug raporları kullanıcı ayrıca söyleyene kadar yeni iş değildir; aktif görev tasarımdır.
+- Kullanıcının 2026-11-01 kesin tasarım yönü: Program genelinde güçlü, özgün, modern ve özenli bir medya player/browser deneyimi istiyor; yalnız temizlik veya ufak cila yeterli değil. Bu tarihli sabit palet ve gezinme kısıtları kaldırılmıştır; yerleşim kullanım ihtiyacına göre değişebilir. Luna kalite referansı, piksel kopyası değil; bizim zengin kaynak/altyazı/dublaj/asistan akışlarımız kendi kimliğimizi taşımalı. Kullanıcının 2026-11-05 güncellemesi: görünüm en önemli önceliktir; güçlü hareketler, parıltı, belirgin hover ve sürekli dekoratif animasyon tasarıma göre kullanılabilir. Zorunlu sakinlik/minimalizm veya düşük hareket kısıtı yoktur; görsel çözümü tasarımcı belirler. İleri ayarlar ve mevcut yetenekler korunur. Hesap istemeyen uygun araçlarla gerçek Windows görüntüsü ve hareketli önizleme üzerinde doğrula. Mevcut bug raporları kullanıcı ayrıca söyleyene kadar yeni iş değildir; aktif görev tasarımdır.
 
-- Kullanıcının 2026-10-28 tasarım tercihi: Tasarım ve tema uyumu önceliklidir. Yeni veya yenilenen ekranı yalnız işlevsel diye teslim etme; uygulamanın ortak grafit/amber temasını, tek dilde etiketleri, okunabilir düzeni, dar ekranı ve gerçek Windows görüntüsünü kontrol et. Ayrı platformun varsayılan kontrollerini renklendirip ortak tasarıma eşdeğer sayma.
+- Kullanıcının 2026-10-28 tasarım tercihi: Tasarım ve tema uyumu önceliklidir. Yeni veya yenilenen ekranı yalnız işlevsel diye teslim etme; görsel bütünlüğü, tek dilde etiketleri, okunabilir düzeni, dar ekranı ve gerçek Windows görüntüsünü kontrol et. Ayrı platformun varsayılan kontrollerini renklendirip ortak tasarıma eşdeğer sayma.
 
 - Kullanıcının 2026-10-28 kapsam kararı: Ürün100 planındaki müzik analizi paketine yeni geliştirme/test hedefi ekleme; P081–P090 tarihsel kayıt olarak korunur, kalan90 hedefe devam et. Kullanıcı DeepSeek V4.1 API’sinin gerekli canlı asistan/çeviri testlerinde kullanımına açık izin verdi. Mevcut güvenli kaydı kullan; anahtarları ve kişisel bağlamı log/rapor/commit içine koyma. Bu izin gereksiz token tüketme veya kişisel ayarları test uğruna değiştirme gerekçesi değildir.
 
@@ -131,7 +142,7 @@ HF token ve LLM API key **argv'den değil ortam değişkeninden** geçer (`WHISP
 - SRT ve ASS çıktıları **UTF-8 BOM** (`utf-8-sig`) ile yazılır (Windows oynatıcılarında Türkçe karakter sorunu için); JSON bilinçli olarak BOM'suz.
 - CSP `index.html`'de katı (`script-src 'self'`); inline script ekleme, harici CDN kullanma.
 - Renderer'dan dış kaynağa erişim yok — dosya yolu (`webUtils.getPathForFile`), pano, harici link, ortam bilgisi hepsi preload `api` + main IPC üzerinden gider.
-- Arayüzün kanonik paleti mürekkep/grafit zeminli “ses çalışma istasyonu” düzenidir; tek vurgu rengi sıcak amber `--accent: #d5a35c` değeridir. Yeni stillerde mevcut tasarım tokenlarını kullan; atmosfer, ışık ve efektleri görsel kaliteyi yükseltecek biçimde tasarla.
+- Tema/token altyapısı genişletilebilir; tek vurgu rengi veya sabit palet zorunluluğu yoktur. Görsel seçimler güncel tasarıma göre yapılır.
 
 
 ## Kalıcı devir notu kuralı
@@ -173,4 +184,4 @@ StremioUI.openTitle metadata kimliğini ve async açılış sahibini doğrulayı
 
 ## V3 üst katman onayları — 2026-11-11
 
-Plain managed app dialogs, açık native dialogun üstünde etkileşim gerektiğinde mevcut node/portal anchor ile native host içine taşınır. Üst host kapandığında captureclose onayı iptal eder ve node'u shell silinmeden geri getirir; closeManagedModal listener/anchor temizler. Background inert ancestor.contains(modal) durumunu dışlar. Stremio addon remove app-owned onayı bekler; owner dialog kapalı/ayrılmışsa geç true sonucu silme yapmaz. Mevcut Shelf portal ve modal kuyruk/odak sözleşmesi korunur. V3 CSS üç scoped dosyayla yüklenir; önceki asistan baloncuğunun38pxamber kimliği ve kapalı addon yazılarınınopacity1 okunurluğu ek açık kurallarla korunur.
+Plain managed app dialogs, açık native dialogun üstünde etkileşim gerektiğinde mevcut node/portal anchor ile native host içine taşınır. Üst host kapandığında captureclose onayı iptal eder ve node'u shell silinmeden geri getirir; closeManagedModal listener/anchor temizler. Background inert ancestor.contains(modal) durumunu dışlar. Stremio addon remove app-owned onayı bekler; owner dialog kapalı/ayrılmışsa geç true sonucu silme yapmaz. Mevcut Shelf portal ve modal kuyruk/odak sözleşmesi korunur. V3 CSS üç scoped dosyayla yüklenir; asistan erişimi ve kapalı addon yazılarınınopacity1 okunurluğu ek açık kurallarla korunur.

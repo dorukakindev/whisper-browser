@@ -67,8 +67,8 @@ function contrast(a, b) {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-ok('tema, boşluk, köşe ve ortak amber aksan sözleşmesi var', () => {
-  for (let i = 1; i <= 6; i++) assert.match(css, new RegExp(`--space-${i}:\\s*${i * 4}px`));
+ok('tema ve mevcut bileşenlerin semantik rolleri var; değerler tasarıma aittir', () => {
+  for (let i = 1; i <= 6; i++) assert.match(css, new RegExp(`--space-${i}:\\s*[^;]+;`));
   for (const token of ['radius-xs', 'radius-sm', 'radius', 'radius-lg', 'radius-pill',
     'accent-dim', 'accent-contrast']) assert.match(css, new RegExp(`--${token}:`));
   assert.match(css, /html\[data-theme="light"\]\s*\{/);
@@ -81,9 +81,8 @@ ok('tema kontrolü güvenli ayar şemasıyla birlikte kalıcı', () => {
   assert.match(security, /uiTheme:\s*\['system', 'dark', 'light'\]/);
 });
 
-ok('ilk açılışta temel ayarlar sade ve kullanıcı tercihiyle kalıcı', () => {
+ok('temel ayar özeti ve kullanıcının açık/kapalı tercihi kalıcı', () => {
   assert.match(html, /<details class="settings-overview" id="primarySettingsOpen">/);
-  assert.doesNotMatch(html, /<details class="settings-overview" id="primarySettingsOpen"[^>]*\sopen(?:\s|>)/);
   for (const id of ['settingsOverviewModel', 'settingsOverviewLanguage', 'settingsOverviewOutput']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
@@ -106,29 +105,19 @@ ok('odak göstergeleri bileşen kuralları tarafından kapatılmıyor', () => {
   assert.doesNotMatch(css, /:focus-visible[^{}]*\{[^}]*outline\s*:\s*none/i);
 });
 
-// Amber dolgu uzerindeki metin rengi TEMAYA GORE donmek zorunda. Sabit bir renk
-// (ya da baska bir token) yazildiginda bir tema mutlaka kaybediyor: beyaz metin
-// koyu temanin acik amberi uzerinde 2,28:1; sabit koyu metin acik temanin koyu
-// amberi uzerinde 3,2-3,4:1 -- ikisi de WCAG AA'nin (4,5:1) altinda.
-// var(--accent-contrast) her iki temada da 5,2:1 ve uzerini garanti eder.
-ok('amber vurgu dolgusu üzerindeki metin her zaman --accent-contrast kullanır', () => {
+// Component accent foregrounds follow the selected theme; no hue is prescribed.
+ok('vurgu dolgusu üzerindeki metin temanın kontrast rolünü kullanır', () => {
   const offenders = [];
   for (const match of css.matchAll(/(?:^|\n)([^{}\n]{1,160})\{([^}]*)\}/g)) {
     const [, selector, body] = match;
-    if (!/background(?:-color)?\s*:\s*(?:var\(--accent\)|#e2ab5b)/i.test(body)) continue;
+    if (!/background(?:-color)?\s*:\s*var\(--accent\)/i.test(body)) continue;
     const color = body.match(/(?<!-)color\s*:\s*([^;]+);/i);
-    if (color && !color[1].includes('accent-contrast')) {
-      offenders.push(`${selector.trim()} -> color: ${color[1].trim()}`);
-    }
+    if (color && !color[1].includes('accent-contrast')) offenders.push(selector.trim());
   }
-  assert.deepEqual(offenders, [], 'amber vurgu dolgusu üzerinde tema dışı metin rengi: ' + offenders.join(' | '));
+  assert.deepEqual(offenders, [], 'Vurgu üzerinde tema dışı metin rengi');
 });
 
-ok('kanonik palet iki renderer girisinden once yuklenir ve ortak amber aksan tek kaynakta tanimlanir', () => {
-  const declaration = /--theme-accent\s*:\s*#e2ab5b\s*;/i;
-  assert.match(palette, declaration);
-  assert.equal((palette.replace(declaration, '').match(/#e2ab5b/gi) || []).length, 0);
-  assert.doesNotMatch(css, /#e2ab5b/i);
+ok('ortak tema rolleri iki renderer girişinden önce yüklenir', () => {
   assert.match(css, /--accent:\s*var\(--theme-accent\)/);
   for (const [markup, component] of [[html, 'styles.css'], [assistantHtml, 'assistant-overlay.css']]) {
     assert(markup.indexOf('theme-palette.css') >= 0);
@@ -150,29 +139,35 @@ ok('rapordaki kontrast düzeltmeleri kaynakta sabit', () => {
   assert.match(css, /\.sub-hidden-hint\s*\{[^}]*color:\s*var\(--ink-bright\)/);
   assert.match(css, /\.learning-badge\s*\{[^}]*color:\s*var\(--ink-bright\)/);
   assert.match(css, /\.browser-error-surface code\s*\{[^}]*color:\s*var\(--text-muted\)/);
-  assert(contrast('#21170c', '#e2ab5b') >= 4.5);
-  assert(contrast('#ffffff', '#865019') >= 4.5);
-  assert(contrast('#84929c', '#141415') >= 4.5);
-  assert(contrast('#6d655d', '#fffdf8') >= 4.5);
 });
 
-ok('ortak amber aksan tek kaynaktır; oyuncu, Browser ve asistan ayrı renk tanımlamaz', () => {
-  const dir=path.join(ROOT,'src/renderer');
-  for(const file of fs.readdirSync(dir).filter(n=>n.endsWith('.css')&&n!=='theme-palette.css')){
-    const body=fs.readFileSync(path.join(dir,file),'utf8');
-    assert.doesNotMatch(body,/#(?:d5a35c|9fc6ff)\b/i,file+' contains a retired accent');
-    assert.doesNotMatch(body,/--theme-accent(?:-hover|-contrast)?\s*:/,file+' overrides the canonical palette');
+function checkThemeContrast(source) {
+  const blocks = [...source.matchAll(/(:root|html\[data-theme="light"\])\s*\{([^}]+)\}/g)];
+  assert.equal(blocks.length, 2, 'Koyu/açık tema blokları bulunamadı');
+  for (const [, theme, body] of blocks) {
+    const colour = role => {
+      const match = body.match(new RegExp(`--theme-${role}:\\s*(#[0-9a-f]{6})\\s*;`, 'i'));
+      assert(match, `${theme}: ${role} için kontrast kontrolünü gerçek CSS renk biçimine uyarlayın`);
+      return match[1];
+    };
+    assert(contrast(colour('accent'), colour('accent-contrast')) >= 4.5, `${theme}: vurgu metni kontrastı`);
+    for (const role of ['text', 'text-dim', 'text-muted']) {
+      for (const surface of ['bg-0', 'bg-1', 'bg-2', 'bg-3']) {
+        assert(contrast(colour(role), colour(surface)) >= 4.5, `${theme}: ${role}/${surface} kontrastı`);
+      }
+    }
   }
-  assert.match(palette,/--media-player-accent-rgb:\s*from var\(--theme-accent\) r g b;/);
-  assert.match(palette,/--media-art-accent-rgb:\s*from var\(--theme-accent\) r g b;/);
-  const light=/html\[data-theme="light"\]\s*\{([^}]+)/.exec(palette)[1];
-  assert.match(light,/--theme-accent:\s*#865019;/);
-  for(const color of ['#e2ab5b','#865019']){
-    const channels=[1,3,5].map(i=>parseInt(color.slice(i,i+2),16));
-    assert(Math.max(...channels)-Math.min(...channels)>=70,'Warm amber must retain its colour character');
-  }
-  const mini=fs.readFileSync(path.join(dir,'browser-mini.html'),'utf8');
-  assert(mini.indexOf('theme-palette.css')<mini.indexOf('browser-mini.css'));
+}
+
+ok('seçilen gerçek tema renkleri hue bağımsız okunabilir kontrasta sahip', () => {
+  checkThemeContrast(palette);
+  const alternate = palette.replace(/--theme-accent:\s*#[0-9a-f]{6};/gi, '--theme-accent: #000000;')
+    .replace(/--theme-accent-contrast:\s*#[0-9a-f]{6};/gi, '--theme-accent-contrast: #ffffff;');
+  checkThemeContrast(alternate);
+  assert.throws(() => checkThemeContrast(alternate.replace(/--theme-accent-contrast:\s*#[0-9a-f]{6};/gi,
+    '--theme-accent-contrast: #000000;')), /kontrastı/);
+  const mini=fs.readFileSync(path.join(ROOT,'src/renderer/browser-mini.html'),'utf8');
+  assert(mini.indexOf('theme-palette.css') < mini.indexOf('browser-mini.css'));
 });
 
 console.log('\nTasarım sistemi ve tema sözleşmesi geçti.');

@@ -1,5 +1,7 @@
 # Sahne referansından tasarım çalışma rehberi — 2026-11-05
 
+Güncellik: palet/font/yerleşim koruma kısıtları 2026-11-13 tarihinde kaldırıldı. Bu belge tarihî referanstır; güncel yetki [DESIGN.md](../../DESIGN.md) içindedir.
+
 ## Kaynak ve yetki
 
 Kullanıcı beğendiği Claude tasarımından öğrenilenlerin DESIGN.md ve hafızaya kaydedilmesini istedi. Kaynak `C:/Users/K/Downloads/files (5).zip`; SHA256 `f0a9b277e0ac2682c36bffcecf9e8f557a9be2d2ae5ef748b0be9d3cdb1c86ee`. Dış ve iç ZIP CRC kontrolü geçti. İncelenenler: KURULUM.md, tasarim-notlari.md, DOGRULAMA.md, doğrulama betiklerinin açıklaması, Sahne CSS/JS ve podcast/çift dilli uygulama PNG'leri.
@@ -30,7 +32,7 @@ Tasarımın karakterini taşıyanlar: medya ölçeği, metnin satır uzunluğu, 
 | Okuma | Pasif transkriptte blur yerine okunur opaklık; açık aktif satır. | Geçmiş cümleleri okunamaz yapmak. |
 | Alan | Video + transport kısa ekranda birlikte görünür; uzun altyazının alanı sınırlı. | Başlık/altyazı büyürken oynatmayı ekran dışına itmek. |
 
-Paketin sayıları evrensel yeni token değildir. Örneğin kapak için `clamp(150px,27vh,300px)`, başlık için `clamp(20px,2.1vw,32px)` medya ile pencere yüksekliği arasındaki bağı gösterir. Yeni yüzeyde mevcut font/renk/hareket sahipleri kullanılır; referansın paleti, tipografisi, köşeleri ve hareketleri yeni ekranın kompozisyonuna ve ürün kimliğine göre uyarlanır; yoğun veya sürekli hareket için genel yasak yoktur. Onaylı medya sayfalarının IBM Plex Sans ailesi ve kendi bileşen sözleşmeleri korunur.
+Paketin sayıları evrensel yeni token değildir. Örneğin kapak için `clamp(150px,27vh,300px)`, başlık için `clamp(20px,2.1vw,32px)` medya ile pencere yüksekliği arasındaki bağı gösterir. Yeni yüzeyde font, renk ve hareket tasarım ihtiyacına göre seçilir; referansın paleti, tipografisi, köşeleri ve hareketleri yeni ekranın kompozisyonuna ve ürün kimliğine göre uyarlanır; yoğun veya sürekli hareket için genel yasak yoktur. Font ailesi değişebilir; bileşenlerin işlev/veri sözleşmeleri korunur.
 
 ## Her UI işinde kısa çalışma akışı
 
