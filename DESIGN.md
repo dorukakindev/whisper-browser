@@ -449,3 +449,10 @@ Kartın köşesinde erişilebilir seçim kutusu, listede sayı/inceleme/temizlem
 ## Ekran yoğunluğu ve koleksiyon ayrıntısı — 2026-11-13
 
 Anime/manga/manhwa ayrı bir görsel sistem kurmaz; `CinemaUI.film` kompozisyonunun koleksiyon türünü kullanır. Hikâye/yapım bilgisi ve kişisel durum/puan/ilerleme ayrıdır; film karşılaştırma veya video seçici araçları bu türde açılmaz. Arşiv kahramanı ve kartları daha sıkıdır; ileri arşiv araçları korunur. Sesli sinema kontrolleri pencere yerine kendi kapsayıcı genişliğine göre satırlara ayrılır; konuşma aralarındaki sabit altyazı şeridi korunur. Ağ haritasında sığmayan ikincil etiket gizlenir, tam başlık/klavye ve Liste kalır. İzole ASUS Electron tam ekran görüntüleri, kontrollü veriyle incelendi; canlı medya kabulü değildir.
+
+
+## Anime/manga kararları ve çeviri tercihleri · 2026-11-13
+
+Mevcut sinematik yapım hero kompozisyonu korunur. Nedenler ve isteğe bağlı kısa sorular yapım eylemlerinden/profil havuzundan açılan merkezli, tek scroll sahibi modallardır. Grafit yüzey, amber ana kaydet/gönder eylemi ve görünür odak kullanılır. Yorum seçimi, gönderilecek örnek/kişisel bağlam ve onay ayrı adımlardır. Kaynak/yorum metinleri UI çevirisinden ayrıdır. Çeviri kararları scope/dil çifti, okunur karar satırları ve açık kuyruk snapshot açıklamasıyla sunulur. [Gerçek Electron kontrollü görünüm ve sınırlar](docs/devir/2026-11-13-1530.md).
+
+2026-11-13 cümle birleştirme: mevcut anahtar altında kaynak/çeviri satır sayımı, aday-yok/kapalı durumları ve amber okunur vurgu; yeni panel yok. Devir: docs/devir/2026-11-13-1611.md.
