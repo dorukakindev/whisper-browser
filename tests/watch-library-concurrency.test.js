@@ -380,12 +380,13 @@ test('fake webContents kapanış handshakeini ACK veya 750 ms timeout ile sını
     saveWatchItemBeforeClose: (request) => { order.push(`save:${request.kind}`); return { ok: true, revision: 2 }; },
     finishWatchFlushBeforeClose: (token) => order.push(`ack:${token}`),
   } };
-  new Function('window', 'currentWatchPatch', 'applyWatchMutationResult', 'watchMutationRequest',
+  new Function('window', 'currentWatchPatch', 'applyWatchMutationResult', 'watchMutationRequest', 'flushPendingWatchProgressBeforeClose',
     renderer.slice(subStart, subEnd))(
     fakeRendererWindow,
     () => ({ key: 'file:a', lastWatched: 1 }),
     () => order.push('apply'),
     (_patch, kind) => ({ kind }),
+    () => { fakeRendererWindow.api.saveWatchItemBeforeClose({ kind: 'close-progress' }); order.push('apply'); },
   );
   rendererHandler('close-token');
   assert(order.join(',') === 'save:close-progress,apply,ack:close-token', `renderer kapanış sırası ${order.join(',')}`);

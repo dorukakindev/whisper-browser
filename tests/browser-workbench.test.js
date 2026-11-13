@@ -228,3 +228,44 @@ assert(/prefers-reduced-motion/.test(css) && /\[data-motion=off\]/.test(css), 'i
 }
 
 console.log('browser-workbench: gruplar, Altyazı merkezi, Asistan/Ayarlar, kaynak bandı ve şerit sabitliği doğrulandı.');
+
+// 11) Etiket kademeleri, hub'da "Sayfayı çevir" vekili, ayrı Ayarlar simgesi ve Whisper boş-durum/neden sahipliği.
+{
+  const css = read('src/renderer/browser-workbench.css');
+  const step2 = hub.querySelector('.browser-hub-step[data-step="2"]'), step3 = hub.querySelector('.browser-hub-step[data-step="3"]');
+  const proxy = hub.querySelector('[data-browser-proxy="browserPageTranslate"]');
+  assert(proxy && (step2.compareDocumentPosition(proxy) & 4) && (proxy.compareDocumentPosition(step3) & 4), 'Sayfayı çevir vekili hub 2. adımında değil');
+  assert(!byId('browserSettingsQuick').innerHTML.includes('M12 2v3M12 19v3'), 'Ayarlar simgesi parlaklık/güneş simgesine benziyor');
+  assert(/@container browser-workspace \(max-width: 1399px\) \{\s*\.browser-tool-btn:not\(\.browser-jobs-chip\) > span \{ display: none; \}/.test(css), 'Asistan/Ayarlar etiket kademesi 1399px değil');
+  assert(/@container browser-workspace \(max-width: 1259px\) \{\s*html:root body \.tb-media \.browser-panel-menu-label \{ display: none; \}/.test(css), 'merkez etiketi kademesi 1259px değil');
+  for (const key of ['Çeviri ve dublaj', 'Web sayfasındaki metni hedef dile çevirir; seçenekler yan ok menüsünde']) assert(locale.includes(`'${key}'`), `EN karşılığı yok: ${key}`);
+  // Boş durum Whisper düğmeleri render anında kopyalanmaz; sahibi updateBrowserWhisperActions'tır ve gerçek neden menüde data-reason olur.
+  assert(/syncCueEmptyWhisperActions\(\);\s*updateBrowserSubtitleSummary\(\);/.test(renderer), 'updateBrowserWhisperActions boş durumu senkronlamıyor');
+  assert(/syncCueEmptyWhisperActions\(\);\s*return;\s*\}\s*\$\('playerSide'\)\?\.classList\.remove\('no-cues'\)/.test(renderer), 'renderCueList boş durum sonunda senkron çağrısı yok');
+  assert(/menuButton\.dataset\.reason = browserWhisperBlockReason\(available, busy, true\)/.test(renderer), 'menü öğesi gerçek neden taşımıyor');
+  assert(/pause\.hidden = !\(player\.browserPageTranslateBusy \|\| player\.browserPagePaused\)/.test(renderer), 'Duraklat yalnız ilgili durumda görünmüyor');
+}
+
+// The start-only empty-state hint must never invoke the live button's Stop/Cancel action.
+{
+  const fixture = new JSDOM('<div id="cueList"><button data-empty-action="source"></button><p data-empty-reason></p><button data-empty-action="live">Open Live Whisper</button></div><button id="browserLiveAsr"></button>');
+  const helpers = read('src/renderer/renderer-helpers.js');
+  const start = renderer.indexOf('function browserWhisperBlockReason('), end = renderer.indexOf('function updateBrowserWhisperActions(', start);
+  const buttonStart = helpers.indexOf('function updateBrowserLiveAsrButton('), buttonEnd = helpers.indexOf('function syncBrowserLiveAsrClock(', buttonStart);
+  const player = {workspaceMode:'browser',browserLiveAsrActive:false,browserLiveAsrStarting:false};
+  const state = {running:false,queueRunning:false};
+  const context = {player,state,browserAudioPreparation:null,$:id=>fixture.window.document.getElementById(id),
+    currentBrowserYoutubeUrl:()=>'',currentBrowserWhisperAudio:()=>null,interfaceChoice:(_tr,en)=>en};
+  vm.createContext(context);vm.runInContext(renderer.slice(start,end)+helpers.slice(buttonStart,buttonEnd),context);
+  const hint = fixture.window.document.querySelector('[data-empty-action="live"]');
+  context.syncCueEmptyWhisperActions();assert.equal(hint.hidden,false,'an idle unsupported page still offers live capture');
+  player.browserLiveAsrActive=true;context.updateBrowserLiveAsrButton();
+  assert.equal(hint.hidden,true,'Open Live Whisper must not stop an active capture');
+  player.browserLiveAsrActive=false;player.browserLiveAsrStarting=true;context.updateBrowserLiveAsrButton();
+  assert.equal(hint.hidden,true,'Open Live Whisper must not cancel capture startup');
+  player.browserLiveAsrStarting=false;player.browserLiveAsrCapture={stopping:true};context.updateBrowserLiveAsrButton();
+  assert.equal(hint.hidden,true,'a stopping capture must settle before offering Start');
+  player.browserLiveAsrCapture=null;context.updateBrowserLiveAsrButton();assert.equal(hint.hidden,false);
+  state.running=true;context.syncCueEmptyWhisperActions();assert.equal(hint.hidden,true,'busy reason still suppresses live startup');
+  fixture.window.close();
+}

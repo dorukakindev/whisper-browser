@@ -50,6 +50,12 @@
     const title = String(value || '').trim();
     return !!title && !/^(?:\(\d+\)\s*)?YouTube\s*$/i.test(title);
   }
+  function canFeature(item) {
+    const web = ['browser', 'youtube'].includes(item?.type) || /^(?:browser|youtube):/.test(item?.key || '') || ['url', 'web', 'youtube', 'browser'].includes(item?.source?.type);
+    // Access/status pages remain available in history, but are not a media title
+    // to promote on the home screen. Never apply this heuristic to local works.
+    return !web || !/^(?:bu hesap ozel|this account is private|video unavailable|this video is unavailable|bu video kullanilamiyor|access denied|erisim engellendi)(?:[\s.!…]|$)/.test(fold(item?.title).trim());
+  }
   function hasArtwork(item) { return !!(item?.hasPoster && item.id || thumbnail(item)); }
   function snapshot(catalog, history) {
     const items = Array.isArray(catalog) ? catalog.filter(row => row && typeof row.id === 'string') : [];
@@ -77,5 +83,5 @@
     }).sort((a, b) => number(b.lastWatched) - number(a.lastWatched));
     return { items, watch, continuing: watch.filter(row => progress(row).resume) };
   }
-  return Object.freeze({ progress, medium, matches, snapshot, thumbnail, hasArtwork });
+  return Object.freeze({ progress, medium, matches, snapshot, thumbnail, hasArtwork, canFeature });
 });

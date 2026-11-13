@@ -508,6 +508,7 @@ function updateBrowserLiveAsrButton(message = '') {
   button.setAttribute('aria-pressed', player.browserLiveAsrActive ? 'true' : 'false');
   button.textContent = player.browserLiveAsrActive ? 'Canlı Whisper’ı durdur' : player.browserLiveAsrStarting ? 'Canlı Whisper’ı iptal et' : 'Canlı Whisper';
   if (message) button.title = message;
+  if (typeof syncCueEmptyWhisperActions === 'function') syncCueEmptyWhisperActions();
 }
 
 function syncBrowserLiveAsrClock() {

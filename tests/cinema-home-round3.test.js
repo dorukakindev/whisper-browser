@@ -78,6 +78,17 @@ test('v2 home opens catalog details when no playable source exists and keeps sto
   }finally{h.dom.window.close();}
 });
 
+test('Home feature skips web access error pages while keeping their history card',()=>{
+ const h=setup();try{
+  const rows=[{key:'browser:https://tiktok.com/@private',type:'browser',title:'Bu hesap özel. Videolarını görmek için bu hesabı takip edin',position:5,duration:6},{key:'file:d:/film.mkv',title:'A real film',position:10,duration:100}];
+  const view=h.w.CinemaUI.home(h.d.querySelector('main'),{items:[],continuing:rows,progress:h.w.MediaHomeModel.progress,
+   art:(_,cls)=>{const node=h.d.createElement('div');node.className=cls;return node;},hasArtwork:()=>false,play(){},details(){},page(){},addFolder(){},minutes:()=>'',onFeature(){}});
+  assert.equal(h.d.querySelector('.cn-home-hero h1').textContent,'A real film');
+  assert(h.d.querySelector('.cn-home-shelves').textContent.includes('Bu hesap özel'));
+  assert.equal(rows.length,2);view.dispose();
+ }finally{h.dom.window.close();}
+});
+
 test('Home hero says where and when you left off, names the source once, never shows a tab title as the video name, and offers the other unfinished items', async () => {
   const h = setup(); try {
     const played = [], now = Date.now(), art = (_, cls) => { const node = h.d.createElement('div'); node.className = cls; return node; };

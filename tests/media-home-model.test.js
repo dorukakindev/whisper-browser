@@ -78,3 +78,13 @@ test('artwork and alias matching never turn non-video or lookalike pages into Yo
  const result=model.snapshot([],[{key:'youtube:abcdefghijk',title:'Custom title',lastWatched:2},{key:'browser:https://www.youtube.com/shorts/abcdefghijk',title:'Earlier',lastWatched:1},{key:'youtube:Abcdefghijk',title:'Different video'}]);
  assert.equal(result.watch.length,2);assert.equal(result.watch[0].title,'Custom title');
 });
+
+test('private or unavailable web pages stay in history without becoming home features',()=>{
+ const blocked={key:'browser:https://www.tiktok.com/@private',type:'browser',title:'Bu hesap özel. Videolarını görmek için bu hesabı takip edin',position:5,duration:6};
+ const before=structuredClone(blocked),data=model.snapshot([],[blocked]);
+ assert.equal(model.canFeature(data.continuing[0]),false);
+ assert.deepEqual(blocked,before);assert.equal(data.watch.length,1);
+ for(const title of ['This account is private.','Video unavailable','Bu video kullanılamıyor.','Access denied'])assert.equal(model.canFeature({...blocked,title}),false);
+ assert.equal(model.canFeature({...blocked,title:'A real video about privacy'}),true);
+ assert.equal(model.canFeature({type:'local',title:'Access Denied',localPath:'D:/film.mkv'}),true);
+});

@@ -4590,7 +4590,8 @@ function progressiveRanges(duration, current, windowSec = 600, overlapSec = 4) {
 }
 
 async function startProgressiveChunk(job) {
-  if (!job || job !== player.job || job.mediaKey !== player.mediaKey) return;
+  if (!job || job !== player.job || job.mediaKey !== player.mediaKey
+      || Number.isFinite(job.generation) && job.generation !== player.generation) return;
   const range = job.ranges[job.rangeIndex];
   const opts = { ...job.baseOpts, clipStart: range.start, clipEnd: range.end,
     formats: 'srt', resume: false, skipHistory: job.rangeIndex < job.ranges.length - 1 };
@@ -4618,7 +4619,9 @@ async function startProgressiveChunk(job) {
 }
 
 async function finishProgressiveJob(job) {
-  if (!job || job !== player.job || job.mediaKey !== player.mediaKey) return;
+  const current = () => job && job === player.job && job.mediaKey === player.mediaKey
+    && (!Number.isFinite(job.generation) || job.generation === player.generation);
+  if (!current()) return;
   const source = mergeLiveCues([], job.liveSource || []);
   const translated = mergeLiveCues([], [...(job.liveTranslation || new Map()).values()]);
   player.cueQualitySource = source.slice();
@@ -4630,12 +4633,12 @@ async function finishProgressiveJob(job) {
     if (!result?.ok) throw new Error(result?.error || 'Kaynak altyazı dosyası yazılamadı.');
     noteSubtitleStat(job.sourceFile, result);
   }
-  if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  if (!current()) return;
   if (job.translationFile && translated.length) {
     const result = await window.api.writeSubtitle(job.translationFile, cuesToSrt(translated), null, subtitleStatFor(job.translationFile));
     if (!result?.ok) throw new Error(result?.error || 'Çevrilmiş altyazı dosyası yazılamadı.');
     noteSubtitleStat(job.translationFile, result);
-    if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+    if (!current()) return;
   }
   const selectionChanged = (job.selectedSubPath || '') !== (player.subPath || '')
     || (job.secondSubPath || '') !== (player.sub2Path || '');
@@ -4658,7 +4661,7 @@ async function finishProgressiveJob(job) {
   const terminalEvent = { files: job.outputFiles || [], outputs: job.outputDescriptors || [] };
   const loaded = await attachCompletedJobSubtitles(terminalEvent, job);
   job.loading = false;
-  if (job !== player.job || job.mediaKey !== player.mediaKey) return;
+  if (!current()) return;
   job.assistantOutcome = { loaded: !!loaded.loaded, sourceCount: source.length,
     translationCount: translated.length, reason: loaded.reason || '',
     translationStopped: !!job.translationTerminal?.stopProgressive,
@@ -4702,11 +4705,13 @@ async function finishProgressiveJob(job) {
 }
 
 async function handleProgressiveTerminal(event, job) {
-  if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId
-      || job.mediaKey !== player.mediaKey || player.workspaceMode !== 'browser' || (job.browserMediaToken && browserWhisperSourceChanged(job)))) {
+  const sourceCurrent = () => job.mediaKey === player.mediaKey
+    && (!Number.isFinite(job.generation) || job.generation === player.generation);
+  if (!sourceCurrent() || job.browserTabId && (job.browserTabId !== player.browserActiveTabId
+      || player.workspaceMode !== 'browser' || (job.browserMediaToken && browserWhisperSourceChanged(job)))) {
     if (event.type === 'done') {
       job.browserWhisperSaved=event.browserWhisperSaved===true;
-      if (!job.browserWhisperSaved) rememberPendingPlayerLoad(event, job, 'Whisper çıktısı hazır; kaynak sekme artık açık görünümde değil.');
+      if (!job.browserWhisperSaved) rememberPendingPlayerLoad(event, job, interfaceChoice('Whisper çıktısı hazır; kaynak oynatma oturumu artık açık değil.', 'The Whisper output is ready; its playback session is no longer open.'));
     }
     if (event.type === 'exit') {
       job.running = false; job.awaitingExit = false; state.running = false;
@@ -4750,12 +4755,12 @@ async function handleProgressiveTerminal(event, job) {
     job.awaitingExit = false;
     const continueWhenCurrent = (next) => {
       if (job !== player.job) return;
-      if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId
-          || job.mediaKey !== player.mediaKey || player.workspaceMode !== 'browser' || (job.browserMediaToken && browserWhisperSourceChanged(job)))) {
+      if (!sourceCurrent() || job.browserTabId && (job.browserTabId !== player.browserActiveTabId
+          || player.workspaceMode !== 'browser' || (job.browserMediaToken && browserWhisperSourceChanged(job)))) {
         job.running = false;
         state.running = false;
         if(!job.browserWhisperSaved)rememberPendingPlayerLoad({ files: job.outputFiles || [], outputs: job.outputDescriptors || [] }, job,
-          'Bölümler arasında sekme değişti; mevcut Whisper çıktısı korundu.');
+          interfaceChoice('Oynatma oturumu değişti; mevcut Whisper çıktısı korundu.', 'The playback session changed; the saved Whisper output was kept.'));
         finishRun(false);
         return;
       }
@@ -4990,9 +4995,11 @@ function playerJobEvent(event) {
       fill.style.width = '0%';
     }
   }
+  const sourceCurrent = job.mediaKey === player.mediaKey
+    && (!Number.isFinite(job.generation) || job.generation === player.generation);
   if (event.type === 'segment') {
     job.liveSource = mergeLiveCues(job.liveSource || [], liveSegments(event));
-    if (job.mediaKey === player.mediaKey && job.kind !== 'translate') {
+    if (sourceCurrent && job.kind !== 'translate') {
       player.cues = job.liveSource.slice().sort((a, b) => a.start - b.start);
       player.activeIdx = -1;
       scheduleLiveCueRender();
@@ -5002,7 +5009,7 @@ function playerJobEvent(event) {
     const fresh = liveSegments(event);
     const range = job.kind === 'progressive' ? job.ranges?.[job.rangeIndex] : null;
     job.liveSource = replaceLiveCuesForRefresh(job.liveSource || [], fresh, range);
-    if (job.mediaKey === player.mediaKey && job.kind !== 'translate') {
+    if (sourceCurrent && job.kind !== 'translate') {
       player.cues = (job.liveSource || []).slice().sort((a, b) => a.start - b.start);
       player.activeIdx = -1;
       scheduleLiveCueRender();
@@ -5012,7 +5019,7 @@ function playerJobEvent(event) {
     job.liveTranslation = job.liveTranslation || new Map();
     liveSegments(event).forEach((s) => job.liveTranslation.set(
       job.kind === 'progressive' ? cueKey(s) : s.index, s));
-    if (job.mediaKey === player.mediaKey) {
+    if (sourceCurrent) {
       player.cues2 = [...job.liveTranslation.values()].sort((a, b) => a.start - b.start);
       player.activeIdx2 = -1;
       scheduleLiveCueRender();
@@ -5020,7 +5027,7 @@ function playerJobEvent(event) {
     }
   } else if (event.type === 'translation_refresh') {
     const fresh = liveSegments(event);
-    if (fresh.length && job.mediaKey === player.mediaKey) {
+    if (fresh.length && sourceCurrent) {
       if (job.kind === 'progressive') {
         const range = job.ranges?.[job.rangeIndex] || null;
         const replaced = replaceLiveCuesForRefresh(
@@ -5306,11 +5313,15 @@ async function attachCompletedJobSubtitlesCore(event, job = state.activeOutputJo
   if (player.mediaKey !== job.mediaKey || job.podcastBinding && !podcastJobMatchesCurrent(job)) {
     return { loaded: false, reason: 'Çıktı başka videoya ait olduğu için yüklenmedi.' };
   }
+  if (!options.force && Number.isFinite(job.generation) && job.generation !== currentGeneration()) {
+    return { loaded: false, reason: interfaceChoice('Oynatma oturumu değişti; kayıtlı çıktı otomatik yüklenmedi.', 'The playback session changed; saved output was not loaded automatically.') };
+  }
   if (job.browserTabId && (job.browserTabId !== player.browserActiveTabId || player.workspaceMode !== 'browser')) {
     return { loaded: false, reason: 'Çıktının kaynak sekmesi seçili değil.' };
   }
+  const gen = currentGeneration();
   const draftOpen = () => player.editing === true;
-  const stopLoad = () => draftOpen() || options.isCancelled?.();
+  const stopLoad = () => draftOpen() || options.isCancelled?.() || staleGeneration(gen) || player.mediaKey !== job.mediaKey;
   if (options.isCancelled?.()) return {loaded:false,reason:'Source changed or load cancelled.'};
   if (draftOpen()) {
     const reason = interfaceChoice('Altyazı taslağı açık. Çıktıyı taslağı kapattıktan sonra yükleyin.',
@@ -5325,7 +5336,6 @@ async function attachCompletedJobSubtitlesCore(event, job = state.activeOutputJo
     rememberPendingPlayerLoad(event, job, 'Altyazı seçimi işlem sırasında değişti; yeni seçim korunarak çıktı yüklenmedi.');
     return { loaded: false, reason: 'Altyazı seçimi değişti.' };
   }
-  const gen = currentGeneration();
   registerCompletedBrowserOutputs(outputs, job);
   for (const item of outputs.items) {
     addSubtitleOption(item.path, subtitleOutputContract.outputLabel(item), item);
@@ -5369,7 +5379,8 @@ async function attachCompletedJobSubtitlesCore(event, job = state.activeOutputJo
   }
   if (!loadedPath && outputs.dual) {
     $('playerSubSelect').value = outputs.dual.path;
-    await loadSubtitle(outputs.dual.path, false, { silent: true, role: 'source', isCancelled: stopLoad });
+    const dualResult = await loadSubtitle(outputs.dual.path, false, { silent: true, role: 'source', isCancelled: stopLoad });
+    if (stopLoad() || dualResult?.ok === false || dualResult?.loaded === false) return {loaded:false,reason:'Source changed or load cancelled.'};
     loadedPath = player.subPath === outputs.dual.path ? outputs.dual.path : '';
   }
   if (!loadedPath) return { loaded: false, reason: 'Yüklenebilir çıktı bulunamadı.' };
@@ -10430,7 +10441,7 @@ function updateBrowserSubtitleSummary() {
     translateMenu.dataset.idle = idle ? 'true' : 'false';
   }
   const en = globalThis.UiLocale?.get?.() === 'en';
-  label.textContent = globalThis.UiLocale?.t?.('Altyazı araçları') || 'Altyazı araçları';
+  label.textContent = globalThis.UiLocale?.t?.('Çeviri ve dublaj') || 'Çeviri ve dublaj';
   renderBrowserHubStatus({ tab, count, busy, idle, en });
   button.dataset.state = stateName;
   button.setAttribute('aria-busy', busy ? 'true' : 'false');
@@ -12188,6 +12199,33 @@ function browserWhisperFailureText(raw, preparing, stage) {
     ?interfaceChoice('Ses hazırlanamadı. Bölümü oynatıp yeniden deneyin.','Audio preparation failed. Play the episode and retry.')
     :interfaceChoice('Whisper işlemi tamamlanamadı. Aynı kapsamı yeniden deneyebilirsiniz.','Whisper could not complete. You can retry the same scope.');
 }
+// Whisper uygun değilken kullanıcıya gerçek nedeni ve sonraki adımı söyler (menü, panel ve boş durum aynı kaynaktan).
+function browserWhisperBlockReason(available, busy, compact = false) {
+  if (compact) return busy ? interfaceChoice('Başka bir altyazı işi çalışıyor.', 'Another subtitle job is running.')
+    : !available ? interfaceChoice('YouTube videosu veya sesi erişilebilen bölüm gerekir.', 'Needs a YouTube video or an episode with accessible audio.') : '';
+  if (busy) return interfaceChoice('Başka bir altyazı işi çalışıyor; bitince veya iptal edince yeniden dene.',
+    'Another subtitle job is running; retry when it finishes or is cancelled.');
+  if (!available) return interfaceChoice('Whisper, YouTube videosunda veya sesi erişilebilen bölümlerde çalışır. Başka sitelerde Canlı Whisper’ı aç ya da altyazı dosyası seç.',
+    'Whisper works on YouTube videos and episodes with accessible audio. On other sites open Live Whisper or choose a subtitle file.');
+  return '';
+}
+// Boş altyazı durumundaki Whisper düğmeleri render anında kopyalanıp bayat kalmasın: sahibi updateBrowserWhisperActions'tır.
+function syncCueEmptyWhisperActions() {
+  const box = $('cueList');
+  if (!box || player.workspaceMode !== 'browser') return;
+  const available = !!(currentBrowserYoutubeUrl() || currentBrowserWhisperAudio());
+  const busy = !!(state.running || state.queueRunning || browserAudioPreparation);
+  const blocked = !available || busy, reason = browserWhisperBlockReason(available, busy);
+  for (const node of box.querySelectorAll('[data-empty-action="make"], [data-empty-action="source"]')) {
+    node.disabled = blocked;
+    if (blocked) node.title = reason; else node.removeAttribute('title');
+  }
+  const note = box.querySelector('[data-empty-reason]');
+  if (note) { note.textContent = blocked ? reason : ''; note.hidden = !blocked; }
+  const live = box.querySelector('[data-empty-action="live"]');
+  if (live) live.hidden = !(blocked && !busy && $('browserLiveAsr') && !$('browserLiveAsr').disabled)
+    || !!(player.browserLiveAsrActive || player.browserLiveAsrStarting || player.browserLiveAsrCapture?.stopping);
+}
 function updateBrowserWhisperActions() {
   const url = currentBrowserYoutubeUrl();
   const audio=currentBrowserWhisperAudio(),available=!!(url||audio);
@@ -12219,6 +12257,10 @@ function updateBrowserWhisperActions() {
       menuButton.disabled = !available || busy;
       menuButton.setAttribute?.('aria-disabled', menuButton.disabled ? 'true' : 'false');
       menuButton.title = busy ? 'Başka bir altyazı işi çalışıyor.' : title;
+      if (menuButton.dataset) {
+        if (menuButton.disabled) menuButton.dataset.reason = browserWhisperBlockReason(available, busy, true);
+        else delete menuButton.dataset.reason;
+      }
     }
   }
   const watchBtn = $('browserWatchInPlayer');
@@ -12229,6 +12271,7 @@ function updateBrowserWhisperActions() {
       ? 'Açık YouTube videosunu uygulama oynatıcısında izle'
       : 'Bu işlem yalnız açık bir YouTube video sayfasında kullanılabilir';
   }
+  syncCueEmptyWhisperActions();
   updateBrowserSubtitleSummary();
   syncSubtitlePrimaryAction();
 }
@@ -12467,6 +12510,7 @@ async function toggleBrowserLiveAsr() {
   const intent = { cancelled: false, sessionId: null };
   player.browserLiveAsrStartIntent = intent;
   player.browserLiveAsrStarting = true;
+  updateBrowserLiveAsrButton();
   const current = () => player.browserLiveAsrStartIntent === intent && !intent.cancelled
     && player.browserActiveTabId === tabId && browserTabState(tabId) === tab
     && tab?.generation === source.generation && player.mediaKey === source.mediaKey && player.browserPageUrl === source.url;
@@ -17689,6 +17733,8 @@ function renderCueList(filter = '') {
               + '<button type="button" data-empty-action="pick">' + escapeHtml(lt('Altyazı dosyası seç')) + '</button>'
               + '</div>'
               + '<button type="button" class="cue-empty-hint" data-empty-action="setup">' + escapeHtml(lt('Çeviri için API anahtarı ekle')) + '</button>'))
+      + (browserMode && emptyKind === 'none' ? '<p class="cue-empty-reason" data-empty-reason hidden></p>'
+          + '<button type="button" class="cue-empty-hint" data-empty-action="live" hidden>' + escapeHtml(interfaceChoice('Canlı Whisper’ı aç', 'Open Live Whisper')) + '</button>' : '')
       + (browserMode && !trackCount ? '<div class="bp-empty-how"><strong>' + escapeHtml(lt('Nasıl çalışır?')) + '</strong><span>' + escapeHtml(lt('Videoyu aç · altyazıyı seç veya oluştur · cümleleri takip et')) + '</span></div>' : '')
       + '</div>';
     box.querySelector('[data-empty-action="tracks"]')?.addEventListener('click', () => $('browserSubtitleSettingsMenu')?.click());
@@ -17711,6 +17757,8 @@ function renderCueList(filter = '') {
         : startProgressivePlayerTranscription({ translateOverride: false })));
     }
     box.querySelector('[data-empty-action="setup"]')?.addEventListener('click', openTranslationKeySetup);
+    box.querySelector('[data-empty-action="live"]')?.addEventListener('click', () => $('browserLiveAsr')?.click());
+    syncCueEmptyWhisperActions();
     return;
   }
   $('playerSide')?.classList.remove('no-cues');
@@ -19838,6 +19886,8 @@ let watchLibraryCache = [];
 // yazdigini eziyordu (ilerleme geri gidiyordu). Kuyruk + baseItemRevision
 // ikilisi hem sirayi hem de "yazarken kayit degisti mi" sorusunu cozer.
 let watchMutationQueue = Promise.resolve();
+// Only unfinished progress receipts; close coalesces them by media key.
+const pendingWatchProgress = new Set();
 let watchMutationSequence = 0;
 const watchWriterId = `renderer-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -19865,6 +19915,7 @@ function watchMutationRequest(patch, kind) {
 function applyWatchMutationResult(res) {
   if (res && res.ok && res.item) {
     const index = watchLibraryCache.findIndex((item) => item.key === res.item.key);
+    if (index >= 0 && Number(watchLibraryCache[index].revision || 0) > Number(res.item.revision || 0)) return res;
     if (index >= 0) watchLibraryCache.splice(index, 1);
     watchLibraryCache.unshift(res.item);
   }
@@ -20062,18 +20113,27 @@ function currentWatchPatch(completed) {
 async function flushWatchState(completed = false, refresh = false) {
   const patch = currentWatchPatch(completed);
   if (!patch || !window.api.updateWatchItem) return;
+  let outgoingSeriesKey=null;try{outgoingSeriesKey=seriesKeyForPlayer();}catch(_){}
+  const receipt={request:watchMutationRequest(patch,'progress'),closed:false,result:null};
+  pendingWatchProgress.add(receipt);
   return serializeWatchMutation(async () => {
+    if(receipt.closed)return receipt.result;
+    let saveResult;
     try {
-      const res = applyWatchMutationResult(
-        await window.api.updateWatchItem(watchMutationRequest(patch, 'progress')));
+      const response=await window.api.updateWatchItem(receipt.request);
+      if(receipt.closed)return receipt.result;
+      // Failed close saves can represent deletion; do not restore an old response.
+      if(receipt.closeAttempted&&!watchItemByKey(receipt.request.key))return response;
+      const res=applyWatchMutationResult(response);
+      saveResult=res;
       if (res && res.ok && res.item && refresh) renderPlayerLibrary();
-    } catch (_) {}
+    } catch (_) {if(receipt.closed)return receipt.result;saveResult={ok:false,error:'watch-save-failed'};}
     // Dizi düzeyinde tercihler: medya anahtarına bağlı kütüphane kaydı yanında
     // seri anahtarına da altyazı/yazı/hız altkümesi yazılır; yeni bölüm açılınca
     // restoreWatchProfile bunu varsayılan olarak uygular (bölüm kaydı varsa
     // bölümün kendi prefs'i alan alan üstün gelir).
     try {
-      const sKey = seriesKeyForPlayer();
+      const sKey = outgoingSeriesKey;
       if (sKey && patch.prefs) {
         const next = seriesWatchSubset(patch.prefs);
         if (Object.keys(next).length
@@ -20084,7 +20144,8 @@ async function flushWatchState(completed = false, refresh = false) {
       }
     } catch (_) {}
     updateSeriesChip();
-  });
+    return saveResult;
+  }).finally(()=>pendingWatchProgress.delete(receipt));
 }
 
 
@@ -23374,14 +23435,37 @@ function setPlayerSource(src, title, key, meta) {
 // Kapanista promise tabanli invoke yarida kalabilir; son anlik goruntu SENKRON
 // IPC ile yazilir. ACK her durumda gonderilir ki ana surec 750 ms sinirini
 // gereksiz yere beklemesin.
+function flushPendingWatchProgressBeforeClose(currentPatch) {
+  if (!window.api.saveWatchItemBeforeClose) return;
+  const latest = new Map();
+  for (const receipt of pendingWatchProgress) latest.set(receipt.request.key, { receipt });
+  if (currentPatch) latest.set(currentPatch.key, { patch: currentPatch });
+  for (const [key, entry] of latest) {
+    try {
+      for (const receipt of pendingWatchProgress) {
+        if (receipt.request.key === key) receipt.closeAttempted = true;
+      }
+      const captured = entry.receipt?.request;
+      const request = entry.patch ? watchMutationRequest(entry.patch, 'close-progress') : {
+        ...captured,
+        _watchMutation: { ...captured._watchMutation, kind: 'close-progress', sequence: ++watchMutationSequence },
+      };
+      const result = applyWatchMutationResult(window.api.saveWatchItemBeforeClose(request));
+      if (result?.ok) {
+        for (const receipt of pendingWatchProgress) {
+          if (receipt.request.key !== key) continue;
+          receipt.closed = true;
+          receipt.result = result;
+          pendingWatchProgress.delete(receipt);
+        }
+      }
+    } catch (_) { /* Other media snapshots must still get their close attempt. */ }
+  }
+}
 if (window.api.onWatchFlushBeforeClose) {
   window.api.onWatchFlushBeforeClose((token) => {
     try {
-      const patch = currentWatchPatch(false);
-      if (patch && window.api.saveWatchItemBeforeClose) {
-        applyWatchMutationResult(window.api.saveWatchItemBeforeClose(
-          watchMutationRequest(patch, 'close-progress')));
-      }
+      flushPendingWatchProgressBeforeClose(currentWatchPatch(false));
     } catch (_) {
       // Kapanis yine sinirli surede ilerler; main timeout'u son guvenlik agi.
     } finally {
@@ -25657,7 +25741,7 @@ function renderBrowserJobsDock(rows) {
     shownKind = running.length === 1 ? browserJobKind(running[0].label) : 'job';
     const verb = browserJobWord(shownKind, 'run');
     stateEl.textContent = running.length > 1 ? interfaceChoice(`${running.length} iş sürüyor`, `${running.length} jobs running`)
-      : pct !== null ? `${verb} · %${pct}` : verb;
+      : pct !== null ? `${verb} · ${interfaceChoice('%' + pct, pct + '%')}` : verb;
     labelEl.textContent = running.length === 1 ? String(running[0].label || '') : '';
   } else if (next === 'done') {
     shownKind = dock.flash.jobKind || 'job';
@@ -25684,6 +25768,17 @@ function renderBrowserJobsDock(rows) {
     void chip.offsetWidth;
     chip.classList.add('jobs-celebrate');
   }
+  syncBrowserHubJobLine();
+}
+// Altyazı merkezindeki iş satırı: aynı toplayıcıdan beslenir (ikinci iş yolu yok); ne çalışıyor, yüzde kaç, bitti mi/hata mı burada da görünür.
+function syncBrowserHubJobLine() {
+  const line = $('browserHubJob'), open = $('browserHubJobOpen'), chip = $('browserJobsChip');
+  if (!line || !chip) return;
+  const stateName = chip.dataset.state || 'idle';
+  const show = stateName !== 'idle' && !chip.classList.contains('hidden');
+  line.hidden = !show; if (open) open.hidden = !show;
+  line.dataset.state = show ? stateName : 'idle';
+  line.textContent = show ? [$('browserJobsState')?.textContent, $('browserJobsLabel')?.textContent].filter(Boolean).join(' — ') : '';
 }
 if (typeof $ === 'function') $('browserJobsChip')?.addEventListener('click', () => { if (browserJobsDock.flash) { browserJobsDock.flash = null; updatePlayerTaskCenter({ refresh: false }); } });
 // --- end browser jobs dock
@@ -26650,10 +26745,14 @@ function renderBrowserPageReport(event = {}) {
     button.dataset.active = button.getAttribute('data-page-view') === player.browserPageView ? 'true' : 'false';
   });
   const autoContinue = $('browserPageAutoContinue');
-  if (autoContinue) autoContinue.textContent = player.browserPageAutoContinue ? 'Otomatik devamı durdur' : 'Otomatik devamı aç';
+  if (autoContinue) {
+    autoContinue.textContent = player.browserPageAutoContinue ? 'Otomatik devamı durdur' : 'Otomatik devamı aç';
+    autoContinue.hidden = !(player.browserPageTranslateBusy || player.browserPageTranslated > 0 || $('browserPageAuto')?.checked);
+  }
   const pause = $('browserPagePause');
   if (pause) {
     pause.disabled = !player.browserPageTranslateBusy;
+    pause.hidden = !(player.browserPageTranslateBusy || player.browserPagePaused);
     pause.textContent = player.browserPagePaused ? 'Çeviriyi sürdür' : 'Çeviriyi duraklat';
     pause.title = player.browserPagePaused ? (player.browserPagePauseReason || 'Çeviri duraklatıldı.') : 'Yeni API isteklerini geçici olarak duraklat';
   }
@@ -27765,10 +27864,11 @@ if ($('showTranslation')) $('showTranslation').addEventListener('change', onSubt
 
 async function preparePlayerStreamWhisperAudio(source) {
   const key=player.mediaKey,generation=player.generation,selection=[player.subPath||'',player.sub2Path||''];
+  const request = input => source?.owner === 'mediaHub' ? window.api.mediaHub(input) : window.api.stremio(input);
   const current=()=>player.mediaKey===key&&player.generation===generation&&player.workspaceMode!=='browser';
   const requestId='stream-audio-'+Date.now().toString(36);
   const job={kind:'stream-audio',mediaKey:key,generation,running:true,cancelled:false,stage:interfaceChoice('Akıştan ses hazırlanıyor…','Preparing audio from the stream…')};
-  job.cancel=async()=>{job.cancelled=true;await window.api.stremio({action:'audio-cancel',requestId}).catch(()=>{});};
+  job.cancel=async()=>{job.cancelled=true;await request({action:'audio-cancel',requestId}).catch(()=>{});};
   player.job=job;state.running=true;
   player.streamAudioFailure=null;
   $('playerJobBar')?.classList.remove('hidden');$('playerJobBar')?.removeAttribute?.('data-terminal');
@@ -27780,7 +27880,7 @@ async function preparePlayerStreamWhisperAudio(source) {
     if(polling||job.cancelled)return;
     if(!current()||(selection[0]!==String(player.subPath||'')||selection[1]!==String(player.sub2Path||''))){await job.cancel();return;}
     polling=true;
-    try{const result=await window.api.stremio({action:'audio-status',requestId});
+    try{const result=await request({action:'audio-status',requestId});
       if(current()&&player.job===job&&result?.active&&Number.isFinite(result.progress?.seconds)){
         job.stage=interfaceChoice('Ses hazırlanıyor: ','Preparing audio: ')+Math.floor(result.progress.seconds)+interfaceChoice(' sn',' s');
         if($('playerJobText'))$('playerJobText').textContent=job.stage;
@@ -27788,7 +27888,7 @@ async function preparePlayerStreamWhisperAudio(source) {
     }catch{/* The awaited preparation request owns the terminal error. */}finally{polling=false;}
   },750);
   try{
-    const result=await window.api.stremio({action:'audio-prepare',...source,requestId});
+    const result=await request({action:'audio-prepare',...source,requestId});
     if(job.cancelled||!current()||(selection[0]!==String(player.subPath||'')||selection[1]!==String(player.sub2Path||'')))return null;
     if(!result?.ok||result.key!==key||!result.path){
       if(result?.code!=='AUDIO_CANCELLED'){
@@ -27811,6 +27911,8 @@ async function startProgressivePlayerTranscription(config = {}) {
   }
   const opts = buildOptsFromUI();
   const key = player.mediaKey || '';
+  const ownerGeneration = player.generation, ownerWorkspace = player.workspaceMode;
+  const ownerSelection = [player.subPath || '', player.sub2Path || ''];
   let verifiedAudioRange=null;
   const browserYoutube = config.browserYoutube === true || player.workspaceMode === 'browser';
   if (browserYoutube) {
@@ -27883,6 +27985,9 @@ async function startProgressivePlayerTranscription(config = {}) {
       // Freeze the explicit translation intent before the asynchronous audio stage.
       config={...config,translateOverride:Object.prototype.hasOwnProperty.call(config,'translateOverride')?config.translateOverride:!!opts.translate};
       path=await preparePlayerStreamWhisperAudio(creation.stream);
+      if (config.isCancelled?.() || player.mediaKey !== key || player.generation !== ownerGeneration
+          || player.workspaceMode !== ownerWorkspace || (player.subPath || '') !== ownerSelection[0]
+          || (player.sub2Path || '') !== ownerSelection[1]) return {ok:false,cancelled:true};
       if(!path)return {ok:false,message:interfaceChoice('Ses hazırlığı tamamlanmadı.','Audio preparation did not complete.')};
     }
     opts.input = path;
@@ -28017,7 +28122,10 @@ function playerSubtitleCreationState() {
   if(player.workspaceMode==='browser')return {available:!!(currentBrowserYoutubeUrl()||currentBrowserWhisperAudio()),reason:interfaceChoice('Whisper için bir YouTube videosu veya erişilebilir bölüm sesi açın. Diğer sitelerde Canlı Whisper kullanılabilir.','Open a YouTube video or accessible episode audio for Whisper. Other sites can use Live Whisper.')};
   if(String(player.mediaKey||'').startsWith('youtube:'))return {available:!!(player.ytInfo?.sourceUrl||$('playerYtUrl')?.value?.trim()),reason:interfaceChoice('Önce geçerli bir YouTube videosu yükleyin.','Load a valid YouTube video first.')};
   const path=String(player.localPath||'').trim();
-  if(!path){const stream=window.StremioUI?.whisperSource?.();if(stream)return {available:true,stream,reason:''};
+  if(!path){
+    const network=window.MediaHubUI?.whisperStatus?.();
+    if(network){const stream=window.MediaHubUI.whisperSource?.();return stream?{available:true,stream,reason:''}:{available:false,reason:network.message,network:network.kind};}
+    const stream=window.StremioUI?.whisperSource?.();if(stream)return {available:true,stream,reason:''};
     // An active Stremio source that cannot feed Whisper explains why and what to choose instead.
     const blocked=window.StremioUI?.whisperStatus?.();if(blocked&&!blocked.ok)return {available:false,reason:blocked.message,stremio:blocked.kind};}
   return {available:!!path&&!['Seçilmedi','Not selected'].includes(path),reason:player.mediaKey?interfaceChoice('Whisper için tamamlanmış yerel medya dosyası gerekli. Akışı önce indirin veya yerel dosya açın. Yüklü altyazıyı çevirebilirsiniz.','Whisper needs a completed local media file. Download the stream or open a local file first. Loaded subtitles can still be translated.'):interfaceChoice('Whisper için önce yerel medya dosyası veya YouTube videosu açın.','Open a local media file or YouTube video for Whisper first.')};
@@ -28261,6 +28369,8 @@ async function startPlayerSubtitleTranslation(config = {}) {
     const translationJob=player.job;
     const r = await startTranscribeSafe(opts);
     if(r?.ok)translationJob.backendJobId=r.jobId;
+    // A late start response owns only the job it started, never a newer source's UI.
+    if (player.job !== translationJob) return {ok:!!r?.ok,error:r?.error,jobId:r?.jobId,job:r?.ok?translationJob:null,stale:true};
     state.translateForSpeechOverride = null;
     state.forceRetranslate = false;
     state.translateCueRange = null;

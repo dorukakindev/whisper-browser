@@ -541,7 +541,7 @@
       const audioLanguage=subtitleLanguageCode(c.meta?.language)||subtitleLanguageCode(document.getElementById('language')?.value);
       const asTranslation = !!audioLanguage && audioLanguage!==targetLanguage && subtitleLanguageCode(saved.language) === targetLanguage;
       addSubtitleOption(saved.filePath, `${saved.label} · ${saved.addonName}`, { role: asTranslation ? 'translation' : 'source', language: saved.language });
-      await loadSubtitle(saved.filePath, false, {isCancelled:()=>!current()}); if(session!==s||player.mediaKey!==mediaOwner.key||player.generation!==mediaOwner.generation||player.subPath!==saved.filePath)return;rememberWorkTracks(); toast(t('Subtitle added automatically', 'Altyazı otomatik eklendi') + ' · ' + (saved.language || '').toUpperCase());
+      await loadSubtitle(saved.filePath, false, {select:true,isCancelled:()=>!current()}); if(session!==s||player.mediaKey!==mediaOwner.key||player.generation!==mediaOwner.generation||player.subPath!==saved.filePath)return;rememberWorkTracks(); toast(t('Subtitle added automatically', 'Altyazı otomatik eklendi') + ' · ' + (saved.language || '').toUpperCase());
     } catch (_) { /* otomatik altyazı isteğe bağlıdır */ }
   }
   // Expired lists and vanished rows are fixed by asking the addons again, not by clicking the same row.
@@ -703,7 +703,8 @@
   /* ================= Stremio sayfası ================= */
   const reduceMotion = () => { try { return !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } };
   const typeLabel = (type, plural = false) => (type === 'series' ? (plural ? t('Series', 'Diziler') : t('Series', 'Dizi')) : type === 'movie' ? (plural ? t('Films', 'Filmler') : t('Film', 'Film')) : type === 'other' ? t('Addon library','Eklenti kütüphanesi') : type);
-  const metaLine = (m) => [m.year || m.releaseInfo, m.imdbRating ? '★ ' + m.imdbRating : '', (m.genres || []).slice(0, 3).join(' · ')].filter(Boolean).join('  ·  ');
+  const genreLabel = value => window.MediaVisual?.genre?.(value) ?? value;
+  const metaLine = (m) => [m.year || m.releaseInfo, m.imdbRating ? '★ ' + m.imdbRating : '', (m.genres || []).slice(0, 3).map(genreLabel).join(' · ')].filter(Boolean).join('  ·  ');
   const playTitle = (m) => (m.type === 'series' ? openTitle(m) : openStreams({ type: m.type, id: m.id, name: m.name, poster: m.poster, season: null, episode: null, episodeTitle: '', next: null }));
 
   const ratingTier = (r) => (r >= 8 ? 'is-top' : r >= 7 ? 'is-good' : r >= 6 ? 'is-ok' : 'is-low');
@@ -851,7 +852,8 @@
       if (m.background || m.poster) { const bg = el('img', 'sx-feature-bg'); bg.src = m.background || m.poster; bg.alt = ''; bg.referrerPolicy = 'no-referrer'; bg.onerror = () => bg.remove(); box.append(bg); }
       const copy = el('div', 'sx-feature-copy'); copy.setAttribute('aria-live', held || !timer ? 'polite' : 'off');
       const title = el('h2', 'sx-feature-title', m.name);
-      if (m.logo) { const logo = el('img', 'sx-feature-logo'); logo.src = m.logo; logo.alt = m.name; logo.referrerPolicy = 'no-referrer'; logo.onerror = () => { logo.remove(); title.hidden = false; }; title.hidden = true; copy.append(logo); }
+      // Addon logos may be dark or transparent. The readable text title is the
+      // primary identity on every background, including successfully loaded logos.
       copy.append(el('small', '', t('Featured', 'Öne çıkan') + ' · ' + typeLabel(m.type)), title, el('p', 'sx-feature-meta', metaLine(m)));
       if (m.description) copy.append(el('p', 'sx-feature-desc', m.description));
       const actions = el('div', 'sx-actions');
@@ -905,7 +907,7 @@
     function draw() {
       const out = visible(); grid.replaceChildren(...out.map(mediaCard));
       active.replaceChildren(); const chip = (label, clear) => { const c = el('button', 'sx-chip-genre is-active', label + ' ×'); c.type = 'button'; c.setAttribute('aria-label', t('Remove filter: ', 'Süzgeci kaldır: ') + label); c.onclick = clear; active.append(c); };
-      if (genreSel.value) chip(genreSel.value, () => { genreSel.value = ''; void load(true); });
+      if (genreSel.value) chip(genreLabel(genreSel.value), () => { genreSel.value = ''; void load(true); });
       if (ratingSel.value !== '0') chip('★ ' + ratingSel.value + '+', () => { ratingSel.value = '0'; draw(); });
       if (yearSel.value) chip(yearSel.options[yearSel.selectedIndex].text, () => { yearSel.value = ''; draw(); });
       active.hidden = !active.children.length;
@@ -938,7 +940,7 @@
       const rows = list.filter((c) => c.type === typeSel.value); const prevCat = catSel.value;
       catSel.replaceChildren(...rows.map((c) => new Option(`${c.name} · ${c.addonName}`, c.addonKey + '|' + c.id))); if (rows.some((c) => c.addonKey + '|' + c.id === prevCat)) catSel.value = prevCat;
       current = rows.find((c) => c.addonKey + '|' + c.id === catSel.value) || rows[0] || null;
-      genreSel.replaceChildren(new Option(t('All categories', 'Tüm kategoriler'), ''), ...(current?.genres || []).map((g) => new Option(g, g))); genreSel.hidden = !(current?.genres || []).length;
+      genreSel.replaceChildren(new Option(t('All categories', 'Tüm kategoriler'), ''), ...(current?.genres || []).map((g) => new Option(genreLabel(g), g))); genreSel.hidden = !(current?.genres || []).length;
       typeSel.hidden = types.length < 2;
     }
     typeSel.onchange = () => { catSel.value = ''; fillCatalogs(); void load(true); };
@@ -961,7 +963,8 @@
     const root = el('section', 'sx-page'); root.dataset.uiUntranslated = ''; host.append(root);
     let disposed = false, ticket = 0, mode = 'home', catalogsCache = null;
     const head = el('header', 'sx-page-head'), copy = el('div');
-    copy.append(el('small', '', t('Whisper Browser · Stremio', 'Whisper Browser · Stremio')), el('h1', '', t('Watch from your addons', 'Eklentilerinden izle')));
+    const kicker = el('small', '', t('Whisper Browser · Stremio', 'Whisper Browser · Stremio')); kicker.lang = 'en'; kicker.dataset.uiUntranslated = '';
+    copy.append(kicker, el('h1', '', t('Watch from your addons', 'Eklentilerinden izle')));
     const form = el('form', 'sx-search'); form.setAttribute('role', 'search');
     const input = el('input'); input.type = 'search'; input.maxLength = 120; input.placeholder = t('Search films and series…', 'Film ve dizi ara…'); input.setAttribute('aria-label', input.placeholder);
     const go = el('button', 'mh-action', t('Search', 'Ara')); go.type = 'submit'; form.append(input, go);
@@ -1031,7 +1034,7 @@
       let state; try { state = await call('catalogs'); } catch (e) { say(status, e.message, true); return; }
       if (disposed || mine !== ticket) return; catalogsCache = state; browse.invalidate();cloud.invalidate(); if (mode === 'browse') browse.activate(state.catalogs);if(mode==='cloud')cloud.activate(state.catalogs.filter(c=>c.type==='other'));
       chips.replaceChildren(); const gsrc = state.catalogs.find((c) => !c.searchOnly && c.genres?.length);
-      if (gsrc) { for (const g of gsrc.genres.slice(0, 12)) { const b = el('button', 'sx-chip-genre', g); b.type = 'button'; b.onclick = () => { setMode('browse'); browse.preset(state.catalogs, { type: gsrc.type, genre: g }); }; chips.append(b); } chips.hidden = false; } else chips.hidden = true;
+      if (gsrc) { for (const g of gsrc.genres.slice(0, 12)) { const b = el('button', 'sx-chip-genre', genreLabel(g)); b.type = 'button'; b.onclick = () => { setMode('browse'); browse.preset(state.catalogs, { type: gsrc.type, genre: g }); }; chips.append(b); } chips.hidden = false; } else chips.hidden = true;
       const addonList = (await call('status')).addons;
       if (!addonList.length) { hero.node.hidden = true; const empty = el('div', 'sx-onboard'); empty.append(el('h2', '', t('Add your first addons', 'İlk eklentilerini ekle')), el('p', '', t('Stremio addons bring catalogs, sources and subtitles. Add Cinemeta for catalogs and Torrentio (or another source addon) for streams.', 'Stremio eklentileri katalog, kaynak ve altyazı getirir. Katalog için Cinemeta, kaynak için Torrentio (veya başka bir kaynak eklentisi) ekle.')), button(t('Add addons', 'Eklenti ekle'), () => openAddons(), 'mh-action mh-primary')); shelves.append(empty); return; }
       const browsable = state.catalogs.filter((c) => !c.searchOnly).slice(0, 8);
@@ -1263,7 +1266,7 @@
             if(player.hls){player.hls.subtitleDisplay=false;player.hls.subtitleTrack=-1;}
             for(const track of Array.from(videoEl()?.textTracks||[]))if(['subtitles','captions'].includes(track.kind))track.mode='disabled';
             addSubtitleOption(saved.filePath, `${saved.label} · ${saved.addonName}`, { role: 'source', language: saved.language });
-            const result=await loadSubtitle(saved.filePath,false,{isCancelled:()=>!validChoice()});if(!validChoice()||!result?.loaded||player.subPath!==saved.filePath)return;if(typeof currentSubtitleMode==='function'&&currentSubtitleMode()==='off'&&typeof setSubtitleMode==='function')setSubtitleMode('source'); rememberWorkTracks(); say(status, t('Subtitle loaded.', 'Altyazı yüklendi.')); toast(t('Subtitle loaded: ', 'Altyazı yüklendi: ') + (saved.label || '')); if (!body.querySelector('.sx-dub-next')) body.prepend(button(t('Dub this subtitle →', 'Bu altyazıyla dublaj yap →'), () => drawPanel('dub'), 'mh-action mh-primary sx-dub-next'));
+            const result=await loadSubtitle(saved.filePath,false,{select:true,isCancelled:()=>!validChoice()});if(!validChoice()||!result?.loaded||player.subPath!==saved.filePath)return;if(typeof currentSubtitleMode==='function'&&currentSubtitleMode()==='off'&&typeof setSubtitleMode==='function')setSubtitleMode('source'); rememberWorkTracks(); say(status, t('Subtitle loaded.', 'Altyazı yüklendi.')); toast(t('Subtitle loaded: ', 'Altyazı yüklendi: ') + (saved.label || '')); if (!body.querySelector('.sx-dub-next')) body.prepend(button(t('Dub this subtitle →', 'Bu altyazıyla dublaj yap →'), () => drawPanel('dub'), 'mh-action mh-primary sx-dub-next'));
           })); list.append(row);
         }
       } catch (e) { if(valid())say(status, e.message, true); }

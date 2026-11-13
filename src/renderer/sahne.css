@@ -365,6 +365,22 @@ html[data-sahne-hidden=true] .sh *{animation-play-state:paused!important}
 .sh-audio.sh-local .sh-theater{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:0}
 .sh-audio.sh-local .sh-subs{position:relative;inset:auto;max-height:60%;margin:0 0 24px}
 .sh-audio.sh-local .sh-dock{position:relative;inset:auto;margin:0}
+.sh.sh-audio.sh-local .sh-theater{container:audio-cinema / inline-size;min-width:0}
+.sh.sh-audio.sh-local .sh-screenwrap{display:none}
+/* The audio theater can be narrow even in a wide window beside its transcript. */
+@container audio-cinema (max-width:1150px){
+ .sh.sh-audio.sh-local .sh-dock{grid-template-columns:auto minmax(0,1fr);gap:12px 16px}
+ .sh.sh-audio.sh-local .sh-dock>.sh-cinema-transport{grid-column:1;grid-row:3}
+ .sh.sh-audio.sh-local .sh-dock>.sh-cinema-sentences{grid-column:2;grid-row:3;flex-wrap:wrap;min-width:0}
+ .sh.sh-audio.sh-local .sh-dock>.sh-local-extra{grid-column:1/-1;grid-row:4;flex-wrap:wrap;justify-content:flex-start}
+ .sh.sh-audio.sh-local .sh-dock>.sh-dock-tools{grid-column:1/-1;grid-row:5;justify-self:stretch;justify-content:flex-end;flex-wrap:wrap}
+ .sh.sh-audio.sh-local .sh-local-extra label{display:flex}
+}
+@container audio-cinema (max-width:560px){
+ .sh.sh-audio.sh-local .sh-dock>.sh-cinema-sentences{grid-column:1/-1;grid-row:4;border:0;padding:0}
+ .sh.sh-audio.sh-local .sh-dock>.sh-local-extra{grid-row:5}
+ .sh.sh-audio.sh-local .sh-dock>.sh-dock-tools{grid-row:6;justify-content:flex-start}
+}
 .sh-audio.sh-local .sh-cardsbox{position:relative;inset:auto;display:flex;width:auto;min-height:0}.sh-audio .sh-up-next{display:none}
 @media(max-width:1099px){.sh-audio.sh-local .sh-main{display:block}.sh-audio.sh-local .sh-theater{height:100%}.sh-audio.sh-local .sh-cardsbox{display:none;position:absolute;inset:12px 16px 24px auto;width:min(440px,calc(100% - 32px))}.sh-audio.sh-local.transcript-open .sh-cardsbox{display:flex}}
 

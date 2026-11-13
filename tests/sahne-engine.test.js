@@ -1,17 +1,55 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],sections=[],timingNotice='',save=false,processing=false}={}){
+function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],sections=[],timingNotice='',save=false,processing=false,intro=false,configure}={}){
  const dom=new JSDOM('<div id="host"></div>',{url:'https://test.invalid',pretendToBeVisual:true,runScripts:'outside-only'}),w=dom.window;
  w.UiLocale={get:()=> 'tr'};w.matchMedia=()=>({matches:true});w.Element.prototype.scrollTo=function(value){this.scrollTop=value.top;};
+ configure?.(w);
  let time=2,revision="r1",canSeek=true;const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
  const adapter={processing:processing?()=>({duration:30}):null,caps:{loop:true,cinema,study:true,save},identity:()=>identity,actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections,job:{state:'idle'}})};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/browser-study-view.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/podcast-task-scope.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
- const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro:false,prefs});
+ const sh=new w.Sahne(w.document.getElementById('host'),adapter,{mode:cinema?'cinema':study?'study':'podcast',intro,prefs});
  t.after(()=>{sh.destroy();w.close();});return {w,sh,rows,commands,setTime:value=>time=value,setCanSeek:value=>canSeek=value,setRevision:value=>revision=value};
 }
+test('destroy cancels intro frames and delayed cleanup without touching the removed root',async t=>{
+ for(const delay of [0,70]){
+  const pending=new Set();
+  const f=mount(t,{intro:true,configure(w){
+   const schedule=w.setTimeout.bind(w),cancel=w.clearTimeout.bind(w);
+   w.setTimeout=(fn,ms,...args)=>{const id=schedule(()=>{pending.delete(id);fn(...args);},ms);if(ms===1900)pending.add(id);return id;};
+   w.clearTimeout=id=>{pending.delete(id);cancel(id);};
+  }});
+  if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
+  const root=f.sh.root;f.sh.destroy();
+  assert.equal(pending.size,0,'detached intro cleanup must be cancelled');
+  const classes=root.className;await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(root.className,classes,'intro frame must not mutate a destroyed stage');
+ }
+});
+
+test('transcript templates preserve word ranges, safe text, timestamps and special-row markup',t=>{
+ for(const mode of [{study:true},{},{cinema:true}]){
+  const f=mount(t,mode),templates=new Map(),text=' <b>& first second!',study=f.sh.o.mode!=='podcast';
+  const rowHTML=f.sh.rowHTML;let parses=0;
+  f.sh.rowHTML=function(...args){parses++;return rowHTML.apply(this,args);};
+  const base={timed:true,start:65,src:text,trs:['Çeviri <b> & güvenli'],unc:[],words:[{s:6,e:11},{s:12,e:18}]};
+  const rows=[base,{...base,start:3723,src:' <i>& other words!',trs:['Başka metin']},
+   {...base,translationMissing:'confirmed'},{...base,translationReview:true},{...base,standaloneTranslation:true},
+   {...base,words:null,trs:[]},{...base,trs:['Bir','İki'],translationRanges:[{start:1},{start:2}]},
+   {...base,unc:['Belirsiz']},{...base,timed:false,recordedRange:{start:1,end:2}}];
+  rows.forEach((row,i)=>{
+   const actual=f.sh.createTranscriptRow(row,i,study,templates),expected=f.w.document.createElement('div');
+   expected.innerHTML=rowHTML.call(f.sh,row,i,study);
+   assert.equal(actual.innerHTML,expected.innerHTML);
+   assert.equal(actual.querySelector('.src').textContent,row.src);
+   assert.equal(actual.querySelector('.src b,.src i'),null,'user text must not become markup');
+  });
+  assert.equal(parses,rows.length-1,'same-shape word rows share one parse without sharing their text');
+ }
+});
+
 test('closing a cinema dock popup releases idle and native occlusion state',t=>{
  const f=mount(t,{cinema:true});f.sh.openDockPop('style');
  assert.equal(f.sh.dockPop,'style');assert.equal(f.sh.root.classList.contains('sh-pop-open'),true);
@@ -2049,4 +2087,27 @@ test('cinema keyboard: arrows seek, F fullscreen, arrow volume and M mute use th
   press('ArrowLeft', { shiftKey: true }); assert.deepEqual(c.commands.at(-1).slice(0, 2), ['seekBy', -10]);
   press('f'); assert.equal(c.commands.at(-1)[0], 'fullscreen');
   assert.ok(c.sh.q('[data-a=mute]'), 'mute button replaces the dead Volume label');
+});
+
+test('mode handoff avoids transcript geometry only while following and retains manual/chapter anchors',t=>{
+ const f=mount(t,{study:true}),scroll=f.sh.q('[data-r=scroll]');
+ let measured=0;f.sh.readingPosition=()=>{measured++;return {viewportAnchor:{id:'b',offset:-12}};};
+ Object.defineProperty(scroll,'scrollTop',{configurable:true,get(){throw Error('Following handoff must not force layout');}});
+ const following=f.sh.prefs(true).reading;
+ assert.equal(following.follow,true);assert.equal(following.viewportAnchor,null);assert.equal(following.scrollTop,0);assert.equal(measured,0);
+ Object.defineProperty(scroll,'scrollTop',{configurable:true,value:321,writable:true});
+ f.sh.s.follow=false;const manual=f.sh.prefs(true).reading;
+ assert.equal(manual.viewportAnchor.id,'b');assert.equal(manual.scrollTop,321);assert.equal(measured,1);
+ f.sh.s.follow=true;f.sh.root.classList.add('sh-chapters-open');f.sh.transcriptReading={viewportAnchor:{id:'a',offset:4}};f.sh.transcriptScroll=125;
+ const chapters=f.sh.prefs(true).reading;assert.equal(chapters.viewportAnchor.id,'a');assert.equal(chapters.scrollTop,125);
+});
+
+test('hidden chapter refresh avoids layout reads and writes while visible filtering resets scroll',t=>{
+ const f=mount(t,{study:true}),list=f.sh.q('[data-r=chaps]');
+ assert.equal(list.hidden,true);
+ Object.defineProperty(list,'scrollTop',{configurable:true,get(){throw Error('Hidden chapter scroll read');},set(){throw Error('Hidden chapter scroll write');}});
+ f.sh.chapterStamp=undefined;f.sh.drawChapters([{t:0,label:'Opening'}]);f.sh.filterChapters();
+ assert.equal(list.querySelectorAll('.sh-chap').length,1);
+ Object.defineProperty(list,'scrollTop',{configurable:true,value:123,writable:true});list.hidden=false;f.sh.filterChapters();
+ assert.equal(list.scrollTop,0);
 });

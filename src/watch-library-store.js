@@ -498,9 +498,24 @@ function createWatchLibraryStore(options) {
     const restored = new Set(replaceOptions.restoreRemoved
       ? (Array.isArray(items) ? items : []).map((item) => canonicalWatchKey(item && item.key)).filter(Boolean)
       : []);
+    const tombstonesByKey = new Map(tombstones.map((item) => [item.key, item]));
+    const previousByKey = new Map(allItems(current).map((item) => [item.key, item]));
+    const replacementItems = (Array.isArray(items) ? items : []).map((item) => {
+      if (!isObject(item)) return item;
+      const key = canonicalWatchKey(item.key);
+      const removedItem = restored.has(key) && tombstonesByKey.get(key);
+      if (removedItem) {
+        const revision = Math.max(Number(item.revision) || 0, Number(removedItem.item?.revision) || 0) + 1;
+        return { ...item, revision, _createdRevision: revision };
+      }
+      const createdRevision = Number(previousByKey.get(key)?._createdRevision) || 0;
+      return createdRevision > 0
+        ? { ...item, revision: Math.max(Number(item.revision) || 0, createdRevision), _createdRevision: createdRevision }
+        : item;
+    });
     const source = {
       ...current,
-      items: Array.isArray(items) ? items : [],
+      items: replacementItems,
       overflowItems: [],
       tombstones: tombstones.filter((item) => !restored.has(item.key)),
       overflowTombstones: [],
@@ -536,6 +551,12 @@ function createWatchLibraryStore(options) {
     const previous = index >= 0
       ? items[index]
       : (removed && isObject(removedTombstone.item) ? removedTombstone.item : {});
+    // Restoring a deleted key starts a new incarnation. A queued renderer
+    // snapshot may have a stale revision within its own incarnation, but may
+    // never cross this persisted creation floor (including after restart).
+    const createdRevision = Math.max(0, Number(previous._createdRevision) || 0);
+    if (!removed && isObject(patch._watchMutation) && createdRevision > 0
+        && !(Number(patch._watchMutation.baseItemRevision) >= createdRevision)) return null;
     const sessions = Array.isArray(previous.sessions) ? previous.sessions.slice(-40) : [];
     if (isObject(patch.session) && patch.session.id) {
       const sessionIndex = sessions.findIndex((session) => session.id === patch.session.id);
@@ -571,6 +592,8 @@ function createWatchLibraryStore(options) {
       completed: completionOverride === null ? automaticCompleted : completionOverride,
       revision: Math.max(0, Number(previous.revision) || 0) + 1,
     };
+    if (removed) merged._createdRevision = merged.revision;
+    else if (createdRevision > 0) merged._createdRevision = createdRevision;
     if(merged.type==='stream'&&/^stream:[a-f0-9]{64}$/.test(key))merged.sourceRef=key;
     if (completionOverride === null) delete merged.completionOverride;
     else merged.completionOverride = completionOverride;

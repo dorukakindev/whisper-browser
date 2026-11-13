@@ -1233,3 +1233,11 @@ test('Fable OYN-01: Sahne mirrors Pro and active Stremio tools without reviving 
  f.document.getElementById('playerStremioBtn').hidden=true;assert(!items().some(i=>i.id==='player-tool-stremio'),'unrelated local media does not show Stremio tools');stream.run();assert.equal(calls.length,2,'old action checks live visibility');
  f.player.generation++;pro.run();assert.equal(calls.length,2,'old action checks media generation');
 });
+
+test('programmatic local Stage close stays closed after study and podcast evaluation',t=>{
+ for(const mode of ['study','podcast']){
+  const f=fixture(t);f.open(mode);
+  f.window.CinemaSahne.close();f.window.CinemaSahne.evaluate();
+  assert.equal(f.window.CinemaSahne.current,null,mode+' must release its local presentation owner');
+ }
+});

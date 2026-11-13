@@ -43,16 +43,20 @@ test('A generated-output proof cannot attach after the source changes while it l
     assert.equal(h.attached.length,0,'even a valid saved source proof cannot authorize an obsolete page generation');
   }finally{h.close();}
 });
-test('A pending Use cannot attach an older output after a new production starts',async()=>{
+test('A pending Use locks new production until its owned attachment settles',async()=>{
   const h=fixture('player');
   try{
     await h.start();await h.finish();let reply;const oldProof=h.proof();
     h.w.api.latestDub=()=>new Promise(resolve=>reply=resolve);
-    h.el('dubGeneratorUse').click();await tick();h.el('dubGeneratorStart').click();await tick();
-    const status=h.el('dubGeneratorStatus').textContent;
+    h.el('dubGeneratorUse').click();await tick();
+    assert.equal(h.el('dubGeneratorStart').disabled,true,'pending attachment must lock generation');
+    assert.equal(h.w.DubGeneratorUI.experience().busy,true);
+    h.el('dubGeneratorStart').click();await tick();
+    assert.equal(h.proof().id,oldProof.id,'a disabled start must not create a new production');
     reply({ok:true,output:oldProof});await tick();
-    assert.equal(h.attached.length,0);assert.equal(h.el('dubGeneratorStatus').textContent,status);
-    assert.equal(h.el('dubGeneratorUse').disabled,true,'the new production owns availability after an older Use request settles');
+    assert.equal(h.attached.length,1,'the still-current owned result can attach once');
+    assert.equal(h.w.DubGeneratorUI.experience().busy,false);
+    assert.equal(h.el('dubGeneratorUse').disabled,false,'the attachment lock clears after its result settles');
   }finally{h.close();}
 });
 test('An explicitly imported project remains manually usable without a production log id',async()=>{

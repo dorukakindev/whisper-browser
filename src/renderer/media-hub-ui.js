@@ -1,7 +1,18 @@
 (() => {
  'use strict';const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
  const el=(tag,cls,text)=>{const n=document.createElement(tag);n.className=cls||'';if(text!==undefined)n.textContent=String(text);return n;};
- let modal,page='open',token=null,currentTorrent=null,poll=null,sceneRequest=0;
+ let modal,page='open',token=null,currentTorrent=null,poll=null,sceneRequest=0,currentStreamAudio=null;
+ const streamAudioCurrent=()=>currentStreamAudio&&player.workspaceMode!=='browser'&&player.mediaKey===currentStreamAudio.key&&currentGeneration()===currentStreamAudio.generation;
+ const whisperSource=()=>streamAudioCurrent()&&currentStreamAudio.kind==='ready'&&currentStreamAudio.source.token?{...currentStreamAudio.source}:null;
+ function whisperStatus(){
+  if(!streamAudioCurrent())return null;
+  const kind=currentStreamAudio.kind;
+  if(kind==='ready'&&currentStreamAudio.source.token)return {ok:true,kind};
+  const message=kind==='adaptive'
+   ?t('Whisper audio preparation needs a direct HTTPS media file; HLS/DASH sources are not supported. Choose a direct source, or translate loaded subtitles.','Whisper ses hazırlığı doğrudan HTTPS medya dosyası gerektirir; HLS/DASH desteklenmez. Doğrudan kaynak seçin veya yüklü altyazıyı çevirin.')
+   :t('Whisper audio preparation needs a direct public HTTPS source. Choose a supported source, or translate loaded subtitles.','Whisper ses hazırlığı doğrudan herkese açık bir HTTPS kaynağı gerektirir. Desteklenen kaynak seçin veya yüklü altyazıyı çevirin.');
+  return {ok:false,kind,message};
+ }
  const api=async(action,values={})=>{const r=await window.api.mediaHub({action,...values});if(!r?.ok)throw Error(r?.error||t('Media action failed.','Medya işlemi başarısız.'));return r;};
  const torrent=async(action,values={})=>{const r=await window.api.mediaTorrents({action,...values});if(!r?.ok)throw Object.assign(Error((window.UiLocale?.get?.()==='tr'&&r?.errorTr)||r?.error||t('Torrent action failed.','Torrent işlemi başarısız.')),{code:r?.code});return r;};
  const note=(text,error=false)=>{const n=modal?.querySelector('.mhx-status');if(n){n.textContent=text;n.classList.toggle('mh-error',error);}};
@@ -72,12 +83,21 @@
   if(isCancelled())return false;
   const intent=++player.openIntent;let persistence=null;
   if(/^stream:[a-f0-9]{64}$/.test(result.key||'')){persistence=await window.api.mediaHub({action:'remember-stream',key:result.key,url:result.url}).catch(()=>null);if(intent!==player.openIntent||isCancelled())return false;}
-  await flushWatchState(false,false);if(intent!==player.openIntent||isCancelled())return false;document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('player',false);player.pendingAutoOpen=null;
+  // flushWatchState captures the outgoing patch before its first await and keeps
+  // its serialized writer. Saving progress must not hold the old transcript on
+  // screen while a new source is waiting to reset it.
+  const saveFailed=()=>{const message=t('The previous playback progress could not be saved.','Önceki oynatmanın ilerlemesi kaydedilemedi.');if(typeof osd==='function')osd(message);else note(message,true);};
+  try{void Promise.resolve(flushWatchState(false,false)).then(result=>{if(result?.ok===false)saveFailed();}).catch(saveFailed);}catch(_){saveFailed();}
+  if(intent!==player.openIntent||isCancelled())return false;document.getElementById('playerLayer').classList.remove('hidden');setWorkspaceMode('player',false);player.pendingAutoOpen=null;
   let localPath=result.localPath||'';if(result.hash){const completed=await window.api.mediaTorrents({action:'local',hash:result.hash,index:result.index});if(completed?.ok)localPath=completed.path;}
   if(intent!==player.openIntent||isCancelled())return false;
   const usesHls=/^https:\/\/.+\.m3u8(?:[?#]|$)/i.test(result.url);
   if(usesHls){player.localPath='';setPlayerHls(result.url,result.title,result.key,{localPath:'',autoplay,workKey:result.workKey});}
   else setPlayerSource(result.url,result.title,result.key,{localPath,workKey:result.workKey});player.originalUrl=result.url.startsWith('whisper-media:')?result.key:result.url;
+  const audio=result.audioSource;
+  currentStreamAudio=audio?.owner==='mediaHub'&&audio.key===result.key
+   ?{key:result.key,generation:currentGeneration(),kind:result.whisperAudio,source:{owner:'mediaHub',key:audio.key,token:typeof audio.token==='string'?audio.token:''}}:null;
+  if(typeof syncSubtitlePrimaryAction==='function')syncSubtitlePrimaryAction();
   player.pendingLibrarySeek={key:result.key,generation:currentGeneration(),seconds:Number(seconds)||0};
   if(result.hash){currentTorrent={hash:result.hash,index:result.index};if(!localPath&&!usesHls)watchTorrentLocal(currentTorrent);else stopLocalWatch();}else{currentTorrent=null;stopLocalWatch();}
   if(autoplay&&!usesHls){
@@ -129,5 +149,5 @@
  }
  async function reopenTorrent(item,seconds){const parts=item.key.split(':');const r=await torrent('reopen',{hash:parts[1],index:Number(parts[2])});await playStream(r,seconds);}
  const entry=document.getElementById('playerMediaCenter');if(entry){entry.dataset.uiUntranslated='';const label=()=>entry.textContent=t('Playback, scenes & sources','Oynatma, sahneler ve kaynaklar');label();document.addEventListener('ui-locale-change',label);entry.onclick=()=>{document.getElementById('playerMore').open=false;open('player');};}
- window.MediaHubUI=Object.freeze({open,playStream,reopenTorrent,installTorrentEngine,_test:{watchTorrentLocal,stopLocalWatch}});
+ window.MediaHubUI=Object.freeze({open,playStream,reopenTorrent,installTorrentEngine,whisperSource,whisperStatus,_test:{watchTorrentLocal,stopLocalWatch}});
 })();

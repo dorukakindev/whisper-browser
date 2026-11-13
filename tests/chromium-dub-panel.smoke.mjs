@@ -31,11 +31,14 @@ const scenarios = {
     await browser.viewport(1920, 1080);
     await open('ready');
     const visible = id => `document.getElementById('${id}').checkVisibility({contentVisibilityAuto:true})`;
-    check('simple: üç hazırlık satırı görünür, seçim ve ileri araçlar kapalı',
-      await browser.evaluate(`${visible('dubReadySource')}&&${visible('dubReadyVoice')}&&${visible('dubReadyRange')}&&${visible('dubGeneratorStart')}&&!${visible('dubPodcastSource')}&&!${visible('dubVerification')}&&!${visible('dubProjectOpen')}&&!${visible('dubTextStudio')}`));
-    check('simple: varsayılan denetim başlatmadan okunur',
-      await browser.evaluate(`${visible('dubVerificationAtStart')}&&/Dengeli.*Whisper/.test(document.getElementById('dubVerificationAtStart').textContent)`));
+    check('simple: üç hazırlık satırı ve kaynak seçimi görünür, ileri araçlar ayrı sekmede',
+      await browser.evaluate(`DubStudioLayout.current()==='prepare'&&${visible('dubReadySource')}&&${visible('dubReadyVoice')}&&${visible('dubReadyRange')}&&${visible('dubGeneratorStart')}&&${visible('dubPodcastSource')}&&!${visible('dubVerification')}&&!${visible('dubProjectOpen')}&&!${visible('dubTextStudio')}`));
     await shot('simple');
+    await browser.click('document.getElementById("dubTab-settings")');
+    await browser.click('document.querySelector("#dubAdvancedSettings > summary")');
+    check('simple: varsayılan denetim Ayarlar’da üretim başlamadan okunur',
+      await browser.evaluate(`${visible('dubVerification')}&&document.getElementById('dubVerification').value==='balanced'&&/Dengeli.*denetimi/.test(document.getElementById('dubVerification').selectedOptions[0].textContent)&&!window.__dub.started`));
+    await browser.click('document.getElementById("dubTab-prepare")');
     await browser.click('document.querySelector("[data-choice=source]")');
     check('simple: altyazı seçicisi kendi satırından açılır', await browser.evaluate(visible('dubPodcastSource')));
     await browser.click('document.querySelector("[data-choice=scope]")');
@@ -46,9 +49,9 @@ const scenarios = {
     check('simple: dar pencerede yatay taşma yok', narrow.scrollW <= narrow.clientW);
     await shot('simple-narrow');
     await browser.viewport(1920, 1080);
-    await browser.click('document.querySelector("#dubManualSettings > summary")');
-    await browser.click('document.querySelector("#dubAdvancedSettings > summary")');
-    check('simple: ayrıntılı denetim hâlâ değiştirilebilir', await browser.evaluate(visible('dubVerification')));
+    await browser.click('document.getElementById("dubTab-settings")');
+    await browser.evaluate(`document.getElementById('dubVerification').value='detailed';document.getElementById('dubVerification').dispatchEvent(new Event('change',{bubbles:true}));true`);
+    check('simple: ayrıntılı denetim hâlâ değiştirilebilir', await browser.evaluate(`${visible('dubVerification')}&&document.getElementById('dubVerification').value==='detailed'&&!window.__dub.started`));
     return narrow;
   },
   async ready() { await open('ready'); await openSubtitles(); const s = await snapshot(); await shot('ready');
@@ -127,7 +130,8 @@ const scenarios = {
     await browser.click('document.getElementById("dubSampleHere")');
     await browser.until('!document.getElementById("dubGenerationGate").hidden','sample review visible');
     await browser.click('document.querySelector("#dubGenerationGate button")');
-    check('sampleReview: denetim yalnız örneğin planını gösterir ve onayı bekler', await browser.evaluate(`!window.__dub.started && window.__dub.samplePlans.length===1 && window.__dub.samplePlans[0].positionSample===true`));
+    check('sampleReview: denetim yalnız örneğin planını gösterir ve onayı bekler', await browser.evaluate(`DubStudioLayout.current()==='text' && !window.__dub.started && window.__dub.samplePlans.length===1 && window.__dub.samplePlans[0].positionSample===true`));
+    await browser.click('document.getElementById("dubTab-prepare")');
     await browser.click('document.querySelector("#dubGenerationGate button:nth-of-type(2)")');
     await browser.until('!!window.__dub.started','approved position sample submitted');
     check('sampleReview: onay özgün oynatma aralığını başlatır', await browser.evaluate('window.__dub.started.positionSample && window.__dub.started.range.start===42 && window.__dub.started.range.end===62'));
@@ -141,7 +145,7 @@ const scenarios = {
     check('partial: kısmi, eksik parçaları tamamla ana eylem, sayılar gerçek sonuçtan', s.phase === 'partial' && /Eksik parçaları tamamla/.test(s.next) && /1 parça üretilemedi/.test(s.reason) && /1 parça inceleme/.test(s.reason), JSON.stringify(s));
     check('partial: üç sonuç eylemi pencerenin içinde', s.scrollW<=s.clientW);
     await browser.click('document.getElementById("dubNaturalReviewOpen")');
-    check('partial: sonuçtaki inceleme eylemi grup araçlarını açar', await browser.evaluate('document.getElementById("dubReviewTools").open&&document.getElementById("dubQualityResults").open'));
+    check('partial: sonuçtaki inceleme eylemi Sonuç sekmesindeki kalite gruplarını açar', await browser.evaluate('DubStudioLayout.current()==="result"&&document.getElementById("dubQualityResults").open&&document.getElementById("dubQualityResults").checkVisibility({contentVisibilityAuto:true})'));
     return s; },
   async failedrun() { await open('ready'); await startRun(); await emit({ type: 'done', name: 'dub.wav', url: 'data:audio/wav;base64,UklGRgAAAABXQVZF', path: 'C:/Dubs/dub.wav', elapsedSeconds: 40, quality: { groups: [{ key: 'g1', group: 1, status: 'ready' }] } });
     await browser.evaluate(`document.getElementById('dubGeneratorStart').click();true`); await sleep(1200); await emit({ type: 'error', error: 'Engine closed unexpectedly / Motor beklenmedik biçimde kapandı.', elapsedSeconds: 12 });

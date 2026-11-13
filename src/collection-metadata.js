@@ -1,23 +1,41 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),C=require('./personal-collection'),{atomicWriteFileSync}=require('./fsync-utils'),{readLimitedBytes}=require('./catalog-discovery');
-const FIELDS='id idMal type title { romaji english native } coverImage { large } genres tags { name rank isMediaSpoiler isGeneralSpoiler } studios(isMain:true) { nodes { name } } countryOfOrigin format status episodes chapters volumes duration seasonYear startDate { year } isAdult siteUrl';
+const FIELDS='id idMal type title { romaji english native } coverImage { large } bannerImage description(asHtml:false) averageScore genres tags { name rank isMediaSpoiler isGeneralSpoiler } studios(isMain:true) { nodes { name } } countryOfOrigin format status episodes chapters volumes duration seasonYear startDate { year } isAdult siteUrl';
 const text=(v,n=300)=>typeof v==='string'?v.trim().slice(0,n):'';
 function cover(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&/^s\d*\.anilist\.co$/.test(u.hostname)?u.href:'';}catch{return '';}}
 function normalize(raw,domain,now=Date.now()){
  if(!raw||!['anime','manga'].includes(domain)||raw.type!==domain.toUpperCase()||!Number.isSafeInteger(raw.idMal)||raw.idMal<1||!Number.isSafeInteger(raw.id)||raw.id<1)throw Error('AniList returned a different media identity.');
  const metadata={provider:'anilist',providerId:raw.id,malId:String(raw.idMal),domain,title:text(raw.title?.romaji||raw.title?.english||raw.title?.native),aliases:[raw.title?.romaji,raw.title?.english,raw.title?.native].filter(v=>typeof v==='string').map(v=>text(v)),cover:cover(raw.coverImage?.large),genres:(raw.genres||[]).filter(v=>typeof v==='string').slice(0,30).map(v=>text(v,100)),themes:(raw.tags||[]).filter(t=>!t.isMediaSpoiler&&!t.isGeneralSpoiler&&Number(t.rank)>=50).slice(0,40).map(t=>({name:text(t.name,100),rank:Math.min(100,Math.max(0,Number(t.rank)||0))})),studios:(raw.studios?.nodes||[]).map(s=>text(s.name,120)).filter(Boolean).slice(0,12),country:text(raw.countryOfOrigin,2),format:text(raw.format,40),status:text(raw.status,40),total:Math.max(0,Math.floor(Number(domain==='anime'?raw.episodes:raw.chapters)||0)),volumes:Math.max(0,Math.floor(Number(raw.volumes)||0)),duration:Math.max(0,Number(raw.duration)||0),year:Number(raw.seasonYear||raw.startDate?.year)||null,adult:raw.isAdult===true,url:'https://anilist.co/'+domain+'/'+raw.id,fetchedAt:now};
+ metadata.banner=cover(raw.bannerImage);metadata.description=text(raw.description,8000).replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]*>/g,'');metadata.averageScore=Number.isInteger(raw.averageScore)&&raw.averageScore>0&&raw.averageScore<=100?raw.averageScore:null;
  const E=require('./metadata-evidence');metadata.identityProof={malId:String(raw.idMal),anilistId:raw.id,domain,at:now};metadata.evidence={version:1,fields:E.record(metadata,E.animeFields,'anilist',`anilist:${domain}:${raw.id}`,now)};return metadata;
 }
 function create({root,fetchImpl=fetch,now=Date.now,interval=800}={}){
  let controller=null,task=Promise.resolve(),state={running:false,total:0,done:0,updated:0,failed:0,issue:'',stopped:false};
  const directory=()=>typeof root==='function'?root():root;
+ // Detail enrichment is session-only. Opening or retrying a page never edits the archive.
+ const detailCache=new Map();
+ async function detail({id,refresh=false}={}){
+  if(typeof id!=='string'||typeof refresh!=='boolean')throw Error('Choose a collection title. / Arşivden bir yapım seç.');
+  const row=C.read(directory()).rows.find(r=>r.id===id);if(!row||!['anime','manga'].includes(row.domain))throw Error('Choose an Anime/Manga title. / Anime/Manga kaydı seç.');
+  const revision=C.hash(row),cacheKey=JSON.stringify([id,revision]),canRefresh=/^\d{1,10}$/.test(row.providerId||'')&&Number(row.providerId)>0;
+  let metadata=detailCache.get(cacheKey)||row.metadata||{};
+  if(refresh){
+   if(!canRefresh)throw Error('Correct the source identity first. / Önce kaynak kimliğini düzelt.');
+   const found=(await lookup([row]))[0];if(!found?.metadata)throw Error('Source unavailable. / Kaynak bulunamadı.');
+   const current=C.read(directory()).rows.find(r=>r.id===id);if(!current||C.hash(current)!==revision)throw Error('Title changed; reopen it. / Kayıt değişti; yeniden aç.');
+   const E=require('./metadata-evidence');metadata={...found.metadata};
+   for(const [key,value]of Object.entries(row.metadata||{}))if(!E.missing(value)||row.metadataOverrides?.[key])metadata[key]=value;
+   detailCache.set(cacheKey,metadata);while(detailCache.size>50)detailCache.delete(detailCache.keys().next().value);
+  }
+  return {id,revision,metadata,canRefresh,refreshed:refresh};
+ }
  async function query(query,signal,strict=false){
   const response=await fetchImpl('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({query}),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000),redirect:'error',credentials:'omit'});
   if(!response.ok){const e=Error('AniList HTTP '+response.status);e.status=response.status;e.retryAfter=Math.min(60,Math.max(1,Number(response.headers.get('retry-after'))||15));throw e;}
   const data=JSON.parse(Buffer.from(await readLimitedBytes(response,2000000,'AniList')).toString('utf8'));if(data.errors?.length&&(strict||!data.data))throw Error(text(data.errors[0]?.message)||'AniList query failed.');return data.data||{};
  }
  async function lookup(rows,signal){if(!Array.isArray(rows)||rows.length<1||rows.length>5||rows.some(r=>!['anime','manga'].includes(r.domain)||!/^\d{1,10}$/.test(r.providerId||'')))throw Error('Choose up to five exact MAL identities.');if(rows.some(r=>Number(r.providerId)===0)){const valid=rows.filter(r=>Number(r.providerId)>0),found=valid.length?await lookup(valid,signal):[];return rows.map(r=>found.find(x=>x.id===r.id)||{id:r.id,missing:true,reason:'missing-provider-identity'});}const body=rows.map((r,i)=>'m'+i+': Media(idMal:'+Number(r.providerId)+',type:'+r.domain.toUpperCase()+') { '+FIELDS+' }').join('\n'),data=await query('query { '+body+' }',signal,true).catch(async error=>{if(error.status!==404)throw error;if(rows.length===1)return {};const singles=[];for(const row of rows)singles.push(...await lookup([row],signal));return {split:singles};});if(data.split)return data.split;return rows.map((r,i)=>{const raw=data['m'+i];if(!raw)return {id:r.id,missing:true};const metadata=normalize(raw,r.domain,now());if(metadata.malId!==r.providerId)throw Error('MAL identity changed.');return {id:r.id,metadata};});}
- function apply(results){const d=C.read(directory()),E=require('./metadata-evidence');let updated=0;for(const found of results){const row=d.rows.find(r=>r.id===found.id);if(!row||!found.metadata)continue;if(row.providerId!==found.metadata.malId||row.domain!==found.metadata.domain)throw Error('Metadata target changed.');const old=row.metadata||{},next={...found.metadata,evidence:{...found.metadata.evidence,fields:{...found.metadata.evidence.fields}}};for(const key of E.animeFields)if(!E.missing(old[key])||row.metadataOverrides?.[key]){next[key]=old[key];next.evidence.fields[key]=old.evidence?.fields?.[key]||{provider:old.provider==='anilist'?'anilist':'unknown',identity:old.providerId?'anilist:'+row.domain+':'+old.providerId:'',at:old.fetchedAt||null,valueHash:E.digest(old[key]),legacy:true};}row.metadata=next;if(!row.total&&found.metadata.total)row.total=found.metadata.total;if(row.domain==='manga'&&!row.kindEditedAt){const kind={KR:'manhwa',CN:'manhua',JP:'manga'}[found.metadata.country];if(kind)row.kind=kind;}updated++;}if(updated)C.write(directory(),d);return updated;}
+ function apply(results){const d=C.read(directory()),E=require('./metadata-evidence');let updated=0;for(const found of results){const row=d.rows.find(r=>r.id===found.id);if(!row||!found.metadata)continue;if(row.providerId!==found.metadata.malId||row.domain!==found.metadata.domain)throw Error('Metadata target changed.');const old=row.metadata||{},next={...found.metadata,evidence:{...found.metadata.evidence,fields:{...found.metadata.evidence.fields}}};for(const key of E.animeFields)if(!E.missing(old[key])||row.metadataOverrides?.[key]){next[key]=old[key];next.evidence.fields[key]=old.evidence?.fields?.[key]||{provider:old.provider==='anilist'?'anilist':'unknown',identity:old.providerId?'anilist:'+row.domain+':'+old.providerId:'',at:old.fetchedAt||null,valueHash:E.digest(old[key]),legacy:true};}for(const key of ['description','banner','averageScore'])if(!E.missing(old[key])||row.metadataOverrides?.[key])next[key]=old[key];row.metadata=next;if(!row.total&&found.metadata.total)row.total=found.metadata.total;if(row.domain==='manga'&&!row.kindEditedAt){const kind={KR:'manhwa',CN:'manhua',JP:'manga'}[found.metadata.country];if(kind)row.kind=kind;}updated++;}if(updated)C.write(directory(),d);return updated;}
  async function refreshPreview({id}={}){
   const row=C.read(directory()).rows.find(r=>r.id===id);if(!row||!['anime','manga'].includes(row.domain)||Number(row.providerId)<1)throw Error('Choose a valid Anime/Manga identity. / Geçerli Anime/Manga kimliği seç.');const revision=C.hash(row),found=(await lookup([row]))[0];
   if(!found?.metadata)throw Error('Source unavailable. / Kaynak bulunamadı.');const current=C.read(directory()).rows.find(r=>r.id===id);if(!current||C.hash(current)!==revision)throw Error('Title changed; preview again. / Kayıt değişti; yeniden önizle.');
@@ -87,6 +105,6 @@ function create({root,fetchImpl=fetch,now=Date.now,interval=800}={}){
   }
   return {rows:[...rows.values()],partial,excluded,source:'anilist-public',domain};
  }
- return {lookup,apply,start,snapshot,cancel(){controller?.abort();return snapshot();},wait:()=>task,candidates,search,related,publicProfile,franchise,schedule,readProfile,refreshPreview,refreshApply,override};
+ return {lookup,apply,start,snapshot,cancel(){controller?.abort();return snapshot();},wait:()=>task,candidates,search,related,publicProfile,franchise,schedule,readProfile,refreshPreview,refreshApply,override,detail};
 }
 module.exports={create,normalize,cover};

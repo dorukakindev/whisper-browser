@@ -131,6 +131,7 @@
     const kindLabel = item => ({web:t('Web video','Web videosu'),series:t('Series','Dizi'),audio:t('Audio','Ses'),film:t('Film','Film')})[kind(item)];
     const seen = new Set();
     const candidates = [...continuing, ...items.filter(item => item.source || hasArtwork(item))].filter(item => {
+      if (window.MediaHomeModel?.canFeature?.(item) === false) return false;
       if (seen.has(key(item))) return false;
       seen.add(key(item)); return true;
     });
@@ -269,9 +270,10 @@
     page.addEventListener("close", dispose, { once: true });
     const oldHero = page.querySelector(".mtd-hero,.md-page-hero");
     if (!oldHero) return;
+    const isCollection = page.dataset.pageKind === 'collection';
     const isDiscovery = page.dataset.pageKind === "discovery", oldCopy = page.querySelector(".mtd-copy,.md-detail-copy"), oldActions = page.querySelector(".mtd-actions,.md-primary-actions");
     const primary = oldActions?.firstElementChild, poster2 = page.querySelector(".mtd-poster,.md-detail-poster"), backdrop = page.querySelector(".mtd-backdrop,.md-page-backdrop"), back = page.querySelector(".mtd-header button,.md-page-back"), manage = page.querySelector(".mtd-header button:nth-child(2)"), story = page.querySelector(".mtd-story,.md-page-story"), review = page.querySelector(".film-review-section"), cast = page.querySelector(".film-cast-scene"), extras = page.querySelector(".film-extra-section"), episodes = page.querySelector(".mtd-episodes"), status = page.querySelector(".mtd-status,.md-status");
-    const navKey = isDiscovery ? page.dataset.filmNavigationPage==='stremio'?'stremio':"discover" : item.kind === "series" ? "series" : "films";
+    const navKey = isCollection ? 'watched' : isDiscovery ? page.dataset.filmNavigationPage==='stremio'?'stremio':"discover" : item.kind === "series" ? "series" : "films";
     const tabs = [...document.querySelectorAll("#mediaHome [data-home-page]")];
     const priorTabs = tabs.map(tab => tab.getAttribute("aria-current"));
     const tabValues = tabs.map(tab => tab.dataset.homePage === navKey ? "page" : "false");
@@ -284,7 +286,7 @@
       });
     }
     const personalHost = page.querySelector(".md-personal-host"), personal = personalHost?.querySelector(".pm-panel") || oldCopy?.querySelector(".pm-panel"), basis = page.querySelector(".md-recommendation-basis"), membership = page.querySelector(".md-membership"), advanced = n("details", "cn-accordion"), advancedBody = n("div", "cn-advanced-body");
-    advanced.append(n("summary", "", t("Viewing & sources", "\u0130zleme ve kaynaklar")), advancedBody);
+    advanced.append(n("summary", "", isCollection?t('Your record & sources','Kaydın ve kaynaklar'):t("Viewing & sources", "\u0130zleme ve kaynaklar")), advancedBody);
     advanced.open = !!viewState.advanced;
     advanced.addEventListener("toggle", () => {
       if (advanced.isConnected) viewState.advanced = advanced.open;
@@ -365,7 +367,7 @@
     if (synopsis && !isDiscovery) copy.append(synopsis);
     const actions = n("div", "cn-hero-actions");
     if (primary) {
-      rebutton(primary, "primary", isDiscovery ? "plus" : item.source || item.episodes?.some((e) => e.source) ? "play" : "folder");
+      rebutton(primary, "primary", isCollection ? "star" : isDiscovery ? "plus" : item.source || item.episodes?.some((e) => e.source) ? "play" : "folder");
       actions.append(primary);
     }
     const favorite = oldActions?.querySelector("[data-title-action=favorite]");
@@ -381,7 +383,7 @@
       personal.querySelectorAll(".pm-actions>button")[index]?.click();
       personal.scrollIntoView({ block: "center" });
     }, "icon", symbol));
-    actions.append(action(t("Ask about this film", "Bu filmi asistana sor"), () => window.api.showAssistant(), "icon", "chat"));
+    if(!isCollection)actions.append(action(t("Ask about this film", "Bu filmi asistana sor"), () => window.api.showAssistant(), "icon", "chat"));
     if (manage) rest.push(manage);
     if (!isDiscovery) {
       rest.push(...page.querySelectorAll(".mtd-aside > button"));
@@ -391,7 +393,7 @@
     const plotToggle = page.querySelector(".film-plot-toggle");
     if (plotToggle) rest.push(plotToggle);
     if(!isDiscovery&&item.kind==='film'&&window.RecommendationHubUI&&/^tt\d{7,12}$/.test(item.imdbId||item.providerId||''))rest.push(action(t('Recommend similar','Benzerlerini öner'),()=>window.RecommendationHubUI.open({...item,providerId:item.imdbId||item.providerId}),'ghost'));
-    if (window.AssistantFilmActions&&page.dataset.sourceOnly!=='true') rest.push(action(t("Compare films", "Filmleri kar\u015F\u0131la\u015Ft\u0131r"), () => window.AssistantFilmActions.openPicker(page.dataset.filmItemId), "ghost"));
+    if (!isCollection&&window.AssistantFilmActions&&page.dataset.sourceOnly!=='true') rest.push(action(t("Compare films", "Filmleri kar\u015F\u0131la\u015Ft\u0131r"), () => window.AssistantFilmActions.openPicker(page.dataset.filmItemId), "ghost"));
     if (rest.length) {
       rest.forEach((b) => rebutton(b, "ghost"));
       const more = window.MediaVisual.overflow(rest);
@@ -519,11 +521,11 @@
       body.append(profile);
     }
     const sources = n('section','cv2-film-sources');
-    sources.append(n('h2','cn-section-heading',t('Sources & your viewing','Kaynak ve izleme durumun')));
+    sources.append(n('h2','cn-section-heading',isCollection?t('Your library record','Kütüphane kaydın'):t('Sources & your viewing','Kaynak ve izleme durumun')));
     if (source) sources.append(source);
     sources.append(advanced);body.append(sources);
     const nav = n("nav", "cn-film-nav"), navInner = n("div", "cn-container");
-    nav.setAttribute("aria-label", t("On this film page", "Film sayfas\u0131nda gezinme"));
+    nav.setAttribute("aria-label", isCollection?t('On this title page','Yapım sayfasında gezinme'):t("On this film page", "Film sayfas\u0131nda gezinme"));
     for (const [section, en, tr] of [[story, "Story", "Konu"], [cast, "Cast", "Oyuncular"], [review, "Reviews & analysis", "Yorumlar ve analiz"], [sources, "Sources & status", "Kaynak ve durum"], [extras, "Details", "Ayr\u0131nt\u0131lar"]]) if (section&&!section.hidden) {
       const b = action(t(en, tr), () => {
         if (section === sources) advanced.open = true;
@@ -548,11 +550,11 @@
     page.append(body);
     if (attribution) body.append(attribution);
     arrangeCredits(page);
-    accordionRow(advanced,'folder',t('Sources, viewing and your film journal','Kaynaklar, izleme ve film günlüğün'));
+    accordionRow(advanced,'folder',isCollection?t('Status, progress, rating and metadata sources','Durum, ilerleme, puan ve bilgi kaynakları'):t('Sources, viewing and your film journal','Kaynaklar, izleme ve film günlüğün'));
     accordionRow(profile,'heart',t('What stays with you; what to discover next','Sende kalanlar ve sıradaki keşiflerin'));
-    const toolOwner=window.CinemaFilmTools?.mount(page,advancedBody,personal,actions);
+    const toolOwner=!isCollection&&window.CinemaFilmTools?.mount(page,advancedBody,personal,actions);
     if(toolOwner)disposers.push(()=>toolOwner.dispose());
-    const round4Owner=window.CinemaFilmRound4?.mount(page,advancedBody);
+    const round4Owner=!isCollection&&window.CinemaFilmRound4?.mount(page,advancedBody);
     if(round4Owner)disposers.push(()=>round4Owner.dispose());
     let shownProfile=profile;
     const syncProfile=()=>{

@@ -100,8 +100,8 @@ test('yerleşim: boş sekme gizlenince ekran dışına iner, sayfalı sekme yuva
 // hemen sonrası offscreen taşıma zorunlu.
 test('oluşturma yolu: addChildView sonrası görünüm ekran dışına taşınır', () => {
   const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
-  const add = source.indexOf('mainWindow.contentView.addChildView(view)');
-  assert.ok(add > 0, 'ensureBrowserView addChildView bulunamadı');
+  const add = source.indexOf('browserViewRegistry.attach(tab.id,view,mainWindow)', source.indexOf('function ensureBrowserView('));
+  assert.ok(add > 0, 'ensureBrowserView registry attach bulunamadı');
   const hide = source.indexOf('hideBrowserViewOffscreen(view)', add);
   assert.ok(hide > add && hide - add < 600,
     'addChildView hemen sonrası hideBrowserViewOffscreen çağrısı beklenir');
@@ -164,4 +164,29 @@ test('ikincil sekme: bozulmuş webContents sayfasız sayılır', () => {
   const dead = { id: 'b', view: { webContents: { isDestroyed: () => true } } };
   tabs.set('b', dead);
   assert.equal(context.secondaryBrowserTab(), null);
+});
+
+test('late hide cannot disable capture, detach or pause a newly shown browser', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+  const body = source.slice(source.indexOf('let browserHideSequence = 0;'), source.indexOf('\nfunction destroyBrowserView()', source.indexOf('let browserHideSequence = 0;')));
+  for (const phase of ['flush', 'toggle', 'tab', 'generation', 'normal']) {
+    let flushDone, toggleDone;const calls=[];
+    const tab={id:'A',view:makeView(),generation:1};
+    const context={browserView:tab.view,browserVisible:true,browserTabs:new Map([['A',tab]]),browserStateGeneration:1,
+      activeBrowserTab:()=>context.active,active:tab,secondaryBrowserTab:()=>null,
+      browserEventContext:t=>({tabId:t.id,generation:t.generation}),isCurrentBrowserContext:c=>c.generation===context.active.generation&&c.stateGeneration===context.browserStateGeneration,
+      browserExtras:{mini:{owns:()=>false}},stopBrowserPolling(){},setBrowserViewShown(){},
+      flushBrowserCaptureQueue:()=>new Promise(r=>flushDone=r),browserCaptureToggleScript:()=> 'toggle',
+      executeBrowserViewFrames:(view,script)=>{calls.push(script==='toggle'?'toggle':'pause');return script==='toggle'?new Promise(r=>toggleDone=r):Promise.resolve();},
+      detachBrowserDebugger:()=>calls.push('detach'),browserDebuggerReady:true,browserCaptureHookFrames:new WeakSet(),WeakSet};
+    vm.createContext(context);vm.runInContext(body,context);const work=context.hideBrowserView();
+    if(phase==='flush')context.browserVisible=true;
+    if(phase==='generation')context.browserStateGeneration++;
+    if(phase==='tab'){context.active={id:'B',view:makeView(),generation:2};context.browserView=context.active.view;}
+    flushDone();await new Promise(setImmediate);
+    if(phase==='toggle')context.browserVisible=true;
+    toggleDone?.();await work;
+    assert.deepEqual(calls,phase==='normal'?['toggle','detach','pause']:phase==='toggle'?['toggle']:[],phase);
+    if(phase!=='normal')assert.equal(context.browserDebuggerReady,true,phase);
+  }
 });

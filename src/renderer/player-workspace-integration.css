@@ -59,3 +59,10 @@
 .pw-existing-tools #playerSide:has(#cueList>.cue-list-empty) :is(#cueIssueTools,#subtitleWorkSummary,.cue-position,.transcript-progress){display:none}
 .pw-existing-tools #playerSide:has(#cueList>.cue-list-empty) #cueList{min-height:0;height:auto;border:0;background:transparent;overflow:visible}
 .pw-existing-tools #playerSide .subtitle-work-summary,.pw-existing-tools #playerSide .cue-issue-tools{border:0;background:var(--bg-2);border-radius:8px}
+
+/* The advanced dialog owns a fixed header and one scroll surface inside the side panel. */
+#playerWorkspaceV3 .pw-existing-tools[open]{display:flex;flex-direction:column;overflow:hidden;height:min(760px,calc(100dvh - 80px));max-height:calc(100dvh - 80px)}
+#playerWorkspaceV3 .pw-existing-tools>.pw-existing-tools-head{flex:none}
+#playerWorkspaceV3 .pw-existing-tools>#playerSide{flex:1 1 auto;height:auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+#playerWorkspaceV3 .pw-existing-tools>#playerSide:has(#settingsDrawer:not(.hidden)){overflow:hidden}
+#playerWorkspaceV3 .pw-existing-tools #settingsDrawer:not(.hidden){min-height:0;max-height:100%;box-sizing:border-box;overflow-y:auto}

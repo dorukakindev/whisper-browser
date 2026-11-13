@@ -10,7 +10,7 @@
 
 /* ── Başlık ───────────────────────────────────────────────────────────────── */
 .pl-v2 .pl-heading { align-items: flex-end; margin-bottom: 18px; }
-.pl-v2 .pl-heading h1 { font-size: clamp(40px, 4.2vw, 60px); letter-spacing: -.045em; }
+.pl-v2 .pl-heading h1 { font-size: clamp(32px, 3vw,44px); letter-spacing: -.035em; margin-block:0 12px; }
 .pl-v2 .pl-heading p { color: var(--text-dim); }
 .pl-v2 .pl-counts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: 12.5px; color: var(--text-dim); }
 .pl-v2 .pl-head-actions button { min-height: 40px; border-radius: 999px; padding: 0 20px; font-weight: 600; }
@@ -54,8 +54,8 @@
   grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; padding: 28px 32px; border-radius: 30px;
   box-shadow: 0 40px 90px -50px #000, inset 0 1px 0 rgb(255 255 255 / .05);
 }
-.pl-v2 .pl-hero { grid-template-columns: 200px minmax(0, 1fr); gap: 36px; }
-.pl-v2 .pl-hero h2 { font-size: clamp(28px, 2.6vw, 40px); letter-spacing: -.035em; }
+.pl-v2 .pl-hero { grid-template-columns: 168px minmax(0, 1fr); gap: 28px; }
+.pl-v2 .pl-hero h2 { font-size: clamp(24px, 2.1vw,32px); line-height:1.25; letter-spacing: -.03em; overflow-wrap:anywhere; }
 .pl-v2 .pl-hero .pl-eyebrow { font-size: 11px; letter-spacing: .22em; }
 .pl-v2 .pl-hero .pl-episode-actions { gap: 10px; margin-top: 16px; }
 .pl-v2 .pl-hero .pl-episode-actions button { min-height: 42px; border-radius: 999px; padding: 0 22px; font-weight: 600; }
@@ -139,3 +139,11 @@
 .pl-v2 .pl-episodes-view .pl-content>.pl-section{order:3}
 .pl-v2 .pl-episodes-view>.pl-list-content{order:4}
 .pl-v2 .pl-episodes-view .pl-jump{display:none}
+
+/* A saved external episode is an entry point, not a second oversized hero. */
+.pl-v2 .pl-spotify{grid-template-columns:112px minmax(0,1fr);gap:24px;padding:20px 24px;border-radius:18px}
+.pl-v2 .pl-spotify>.pl-art{width:112px;font-size:28px}
+.pl-v2 .pl-spotify>div{min-width:0}
+.pl-v2 .pl-spotify h3{font-size:clamp(22px,1.8vw,28px);line-height:1.3;overflow-wrap:anywhere;margin-block:8px 12px}
+.pl-v2 .pl-spotify .pl-meta{margin-top:12px}
+@media(max-width:560px){.pl-v2 .pl-spotify{grid-template-columns:72px minmax(0,1fr);gap:14px;padding:16px}.pl-v2 .pl-spotify>.pl-art{width:72px;margin:0}.pl-v2 .pl-spotify h3{font-size:21px}}

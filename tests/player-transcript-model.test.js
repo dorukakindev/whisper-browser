@@ -5,6 +5,34 @@ const M = require('../src/renderer/player-transcript-model.js');
 const track = (id, role, cues, extra = {}) => ({ id, revision: 'r1', language: 'en', role, origin: 'human', offsetSeconds: 0, cues, ...extra });
 const cue = (id, start, end, text) => ({ id, start, end, text });
 
+// Full-film provenance must be indexed once, not searched again for every row.
+for (const count of [2500, 10000]) {
+ let inspected=0;
+ const source=track('S','source',Array.from({length:count},(_,i)=>cue('s'+i,i*2,i*2+1,'Source '+i)));
+ const secondary=track('T','translation',Array.from({length:count},(_,i)=>cue('t'+i,i*2,i*2+1,'Translation '+i)),{
+  sourceLinks:Array.from({length:count},(_,i)=>({get sourceTrackId(){inspected++;return 'S';},sourceRevision:'r1',sourceCueIds:['s'+i],cueId:'t'+i}))
+ });
+ const rows=M.buildTranscriptRows({sourceTrack:source,secondaryTrack:secondary,mediaKey:'film',generation:2});
+ assert.equal(rows.length,count);assert(rows.every((row,i)=>row.pairing==='origin-linked'&&row.secondaryText==='Translation '+i));
+ assert.equal(inspected,count,'each provenance link is inspected once per build');
+}
+
+// Link order and duplicate target-cue resolution must survive the index.
+{
+ const source=track('S','source',[cue('s',0,1,'Source')]);
+ const secondary=track('T','translation',[cue('a',10,11,'First duplicate'),cue('b',20,21,'Second'),cue('a',30,31,'Last duplicate')],{sourceLinks:[
+  {sourceTrackId:'S',sourceRevision:'old',sourceCueIds:['s'],cueId:'b'},
+  {sourceTrackId:'S',sourceRevision:'r1',sourceCueIds:['s','s'],cueId:'a'},
+  {sourceTrackId:'S',sourceRevision:'r1',sourceCueIds:['s'],cueId:'missing'},
+  {sourceTrackId:'S',sourceRevision:'r1',sourceCueIds:['s'],cueId:'b'},
+  {sourceTrackId:'S',sourceRevision:'r1',sourceCueIds:['s'],cueId:'a'}
+ ]});
+ const before=JSON.stringify([source,secondary]);
+ const row=M.buildTranscriptRows({sourceTrack:source,secondaryTrack:secondary,mediaKey:'m',generation:1})[0];
+ assert.deepEqual(row.secondaryCueIds,['a','b']);assert.equal(row.secondaryText,'Last duplicate\nSecond');
+ assert.equal(JSON.stringify([source,secondary]),before);
+}
+
 // 1) Kaynak rolü: yalnız role=source; ikincil kanalda da olabilir; ikisi birden → null
 {
   const src = track('S', 'source', [cue('s1', 10, 14, 'Hello')]); const tr = track('T', 'translation', [cue('t1', 10, 14, 'Merhaba')]);

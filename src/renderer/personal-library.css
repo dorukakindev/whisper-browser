@@ -56,14 +56,16 @@
 
 /* R854 cinematic redesign — My viewing: a poster-led library. Depth comes from light and glass, not from colour fills. */
 .plog-page{max-width:1480px;padding:0 0 90px}
-.plog-hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:20px 40px;min-height:230px;padding:56px 40px 34px;margin:0 0 6px;border-radius:0 0 34px 34px;overflow:hidden;background:radial-gradient(90% 140% at 12% 0%,color-mix(in srgb,var(--text) 11%,transparent),transparent 60%),radial-gradient(60% 100% at 100% 100%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 70%),linear-gradient(180deg,var(--bg-2),var(--bg-0));border-bottom:1px solid color-mix(in srgb,var(--text) 8%,transparent)}
+.plog-hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:20px 32px;min-height:160px;box-sizing:border-box;padding:28px 32px;margin:0 0 6px;border-radius:0 0 26px 26px;overflow:hidden;background:radial-gradient(90% 140% at 12% 0%,color-mix(in srgb,var(--text) 11%,transparent),transparent 60%),radial-gradient(60% 100% at 100% 100%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 70%),linear-gradient(180deg,var(--bg-2),var(--bg-0));border-bottom:1px solid color-mix(in srgb,var(--text) 8%,transparent)}
 .plog-hero::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 118px,color-mix(in srgb,var(--text) 3.5%,transparent) 118px 119px)}
-.plog-hero h1{position:relative;font-size:clamp(44px,5vw,76px);line-height:1;letter-spacing:-.045em;margin:0 0 14px;font-weight:650}
+.plog-hero h1{position:relative;font-size:clamp(32px,3.2vw,48px);line-height:1.1;letter-spacing:-.035em;margin:0 0 12px;font-weight:650}
 .plog-hero p{position:relative;max-width:52ch;margin:0;font-size:16px;line-height:1.7;color:var(--text-dim)}
 .plog-hero .plog-actions{position:relative;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end}
 .plog-hero .plog-actions>.mh-action,.plog-archive-menu>summary{border-radius:999px;background:color-mix(in srgb,var(--text) 7%,transparent);border:1px solid color-mix(in srgb,var(--text) 12%,transparent);padding:9px 18px;font-size:13px;backdrop-filter:blur(8px)}
 .plog-workspaces{gap:6px;padding:18px 40px 0;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,transparent,black 24px,black calc(100% - 40px),transparent);mask-image:linear-gradient(90deg,transparent,black 24px,black calc(100% - 40px),transparent)}
 .plog-workspaces::-webkit-scrollbar{display:none}
+/* Geniş alanda tüm çalışma sekmeleri görünür (sarmalı); kırpılan/gizli sekme kalmaz. Dar alanda kaydırmalı şerit korunur. */
+@media(min-width:1000px){.plog-workspaces{flex-wrap:wrap;overflow-x:visible;row-gap:4px;-webkit-mask-image:none;mask-image:none}}
 .plog-workspace{flex:0 0 auto;border:0;border-radius:999px;background:none;padding:9px 16px;font-size:13.5px;color:var(--text-dim);white-space:nowrap;transition:background .18s,color .18s}
 .plog-workspace:hover{color:var(--text);background:color-mix(in srgb,var(--text) 7%,transparent)}
 .plog-workspace[aria-pressed=true],.plog-workspace.is-active,.plog-workspace[aria-current=page]{color:var(--text);background:color-mix(in srgb,var(--text) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text) 14%,transparent)}
@@ -88,3 +90,13 @@ html:not([data-motion=off]):not([data-motion=reduce]) .plog-card:hover{transform
 .plog-card-actions{display:flex;flex-direction:column;gap:8px;align-self:center}
 .plog-card-actions button,.plog-card-actions summary{border-radius:999px;font-size:12px;padding:7px 14px;background:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid color-mix(in srgb,var(--text) 10%,transparent);white-space:nowrap}
 @media(max-width:900px){.plog-hero{grid-template-columns:1fr;padding:36px 22px 26px}.plog-hero .plog-actions{justify-content:flex-start}.plog-workspaces,.plog-pools,.plog-controls,.plog-list,.plog-summary{padding-inline:22px;margin-inline:0}.plog-bulk-bar{margin-inline:22px}.plog-list{grid-template-columns:1fr}.plog-card{grid-template-columns:auto 76px minmax(0,1fr)}.plog-identity{width:76px;height:114px}.plog-card-actions{grid-column:2/-1;flex-direction:row;flex-wrap:wrap}}
+
+/* Compact records retain the checkbox/poster/body/action areas used by every pool. */
+.plog-page .plog-list .plog-card{grid-template-columns:20px 80px minmax(0,1fr);column-gap:12px;row-gap:8px;padding:14px;border-radius:16px}
+.plog-page .plog-list .plog-card:not(:has(>.plog-record-check)){grid-template-columns:80px minmax(0,1fr)}
+.plog-page .plog-identity{width:80px;height:120px;border-radius:9px}
+.plog-page .plog-copy :is(h3,strong,.plog-title){font-size:17px;line-height:1.35}
+.plog-page .plog-facts{margin-top:4px}
+.plog-page .plog-progress{margin:6px 0}
+@media(max-width:900px){.plog-page .plog-hero{padding:24px 22px;min-height:0}}
+@media(max-width:500px){.plog-page .plog-list{padding-inline:12px}.plog-page .plog-list .plog-card{column-gap:8px;padding:12px;grid-template-columns:20px 64px minmax(0,1fr)}.plog-page .plog-list .plog-card:not(:has(>.plog-record-check)){grid-template-columns:64px minmax(0,1fr)}.plog-page .plog-identity{width:64px;height:96px}.plog-page .plog-search{min-width:0;width:100%;box-sizing:border-box}}

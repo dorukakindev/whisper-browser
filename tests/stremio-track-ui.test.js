@@ -87,8 +87,11 @@ test('native track state redraw does not cancel the addon selection that disable
  const f=await fixture(t),base=f.w.api.stremio;let committed=false;
  const sample={tracks:[{id:3,type:'sub',title:'Embedded English',selected:true}]};
  f.w.api.stremio=async r=>r.action==='subtitles'?{ok:true,token:'subs',subtitles:[{id:'s',label:'Addon subtitle',language:'en',addonName:'Fixture'}]}:r.action==='subtitle-save'?{ok:true,filePath:'addon.srt',language:'en'}:base(r);
- f.w.addSubtitleOption=()=>{};f.w.loadSubtitle=async(path,_secondary,options={})=>{if(options.isCancelled?.())return;committed=true;f.w.player.subPath=path;return{ok:true,loaded:true};};
+ const select=f.d.createElement('select');select.id='playerSubSelect';select.append(new f.w.Option('Off',''));f.d.body.append(select);
+ // The real loader rejects a read whose path was not explicitly selected.
+ f.w.addSubtitleOption=(path,label)=>select.append(new f.w.Option(label||path,path));
+ f.w.loadSubtitle=async(path,_secondary,options={})=>{if(options.select===true)select.value=path;await tick();if(options.isCancelled?.()||select.value!==path)return;committed=true;f.w.player.subPath=path;return{ok:true,loaded:true};};
  f.w.NativePlayerUI={active:()=>true,state:()=>sample,command:async()=>{sample.tracks[0].selected=false;f.video.dispatchEvent(new f.w.Event('timeupdate'));await tick();return{ok:true};}};
- f.UI.togglePanel('subs');await until(()=>f.find('Kullan'));f.find('Kullan').click();await tick();await tick();
+ f.UI.togglePanel('subs');await until(()=>f.find('Kullan'));f.find('Kullan').click();await until(()=>committed);
  assert.equal(committed,true);assert.equal(f.w.player.subPath,'addon.srt');
 });

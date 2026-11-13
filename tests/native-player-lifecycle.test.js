@@ -3,6 +3,24 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {EventEmitter}=require('node:events');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+test('terminal startup process events stop IPC retries immediately even while close is pending',async()=>{
+ for(const terminal of ['error','exit']){
+  let clock=0,attempts=0,stopped=0,destroyed=0;const proc=new EventEmitter();proc.stdout=new EventEmitter();proc.stderr=new EventEmitter();
+  const events=[];const app=new EventEmitter();app.getPath=()=>'/synthetic';const win=new EventEmitter();win.isDestroyed=()=>false;win.webContents={send(channel,value){events.push(value);}};
+  const module={exports:{}};
+  vm.runInNewContext(fs.readFileSync(require.resolve('../src/native-player'),'utf8'),{module,Buffer,Date:{now:()=>clock},process:{platform:'win32',env:{}},
+   setTimeout(fn,ms){clock+=ms;queueMicrotask(fn);return 1;},clearTimeout(){},setInterval(){},clearInterval(){},require(name){
+    if(name==='node:fs')return{existsSync:()=>true,statSync:()=>({size:9000}),writeFileSync(){}};
+    if(name==='node:child_process')return{spawn:()=>proc};
+    if(name==='node:net')return{createConnection(){attempts++;const socket=new EventEmitter();socket.destroy=()=>{};queueMicrotask(()=>{if(attempts===1)proc.emit(terminal,terminal==='error'?Error('synthetic spawn failure'):1);socket.emit('error',Error('pipe unavailable'));});return socket;}};
+    if(name==='./process-lifecycle')return{terminateProcessTreeAndWait:async()=>{stopped++;return true;}};
+    if(name==='./settings-security')return{withoutSecretEnv:x=>x};return require(name);
+   }});
+  const player=module.exports.registerNativePlayer({app,ipcMain:{handle(){}},owner:()=>win,authorized:()=>true,authorizeMedia:async()=>'/synthetic.mp4',torrents:{},dialog:{},BrowserWindow:class{constructor(){assert.equal(events.at(-1).type,'startup');assert.equal(events.at(-1).startup.phase,'host-create');}getNativeWindowHandle(){return Buffer.alloc(8);}isDestroyed(){return false;}destroy(){destroyed++;}}});
+  const result=await player.handler({}, {action:'start',path:'/synthetic.mp4',key:'A',generation:1});
+  assert.equal(result.ok,false);assert.equal(attempts,1,terminal+' must not wait for the full IPC deadline');assert(clock<1000);assert.equal(stopped,1);assert.equal(destroyed,1);assert.doesNotMatch(result.error,/IPC startup timed out/);assert.equal(result.startup.outcome,'failed');assert.equal(result.startup.phase,'ipc-connect');assert(events.some(e=>e.startup?.phase==='ipc-connect'));for(const e of events.filter(e=>e.type==='startup')){assert.deepEqual(Object.keys(e).sort(),['startup','type']);assert.doesNotMatch(JSON.stringify(e),/synthetic|failure|path|key|generation/);}
+ }
+});
 test('transient hidden media geometry never resizes a native host to one pixel',()=>{
  const source=fs.readFileSync(require.resolve('../src/native-player'),'utf8');
  const start=source.indexOf(' function layout(s,bounds)'),end=source.indexOf(' async function stop()',start);
@@ -57,8 +75,8 @@ test('a new explicit request after a canceled start still reaches normal startup
 
 test('keep-open EOF emits one owner-scoped end and rearms after a seek leaves EOF',()=>{
  const source=fs.readFileSync(require.resolve('../src/native-player'),'utf8'),socket=new EventEmitter(),sent=[],s={socket,pending:new Map(),state:{},key:'A',generation:2};
- const context={s,session:s,owner:()=>({isDestroyed:()=>false,webContents:{send:(_name,row)=>sent.push(row)}}),clearTimeout,JSON,Error};
- const sendStart=source.indexOf(' function send('),sendEnd=source.indexOf(' async function command(',sendStart),start=source.indexOf("    let buffer='';s.socket.on('error'"),end=source.indexOf("    await command(s,['set_property','http-header-fields'",start);assert(start>=0&&end>start);vm.runInNewContext(source.slice(sendStart,sendEnd)+source.slice(start,end),context);
+ const context={s,session:s,startup:null,trace:{},owner:()=>({isDestroyed:()=>false,webContents:{send:(_name,row)=>sent.push(row)}}),clearTimeout,JSON,Error};
+ const sendStart=source.indexOf(' function send('),sendEnd=source.indexOf(' async function command(',sendStart),start=source.indexOf("    let buffer='';s.socket.on('error'"),end=source.indexOf("    trace.mark('configure')",start);assert(start>=0&&end>start);vm.runInNewContext(source.slice(sendStart,sendEnd)+source.slice(start,end),context);
  const emit=row=>socket.emit('data',Buffer.from(JSON.stringify(row)+'\n'));
  emit({event:'property-change',name:'track-list',data:[{id:2,type:'audio'}]});assert.equal(s.state.tracks[0].id,2);
  emit({event:'property-change',name:'track-list',data:null});assert.equal(Array.isArray(s.state.tracks),true);assert.equal(s.state.tracks.length,0,'unavailable track property remains an empty list');
@@ -70,11 +88,11 @@ test('mpv file errors stop an active session once and fail startup without emitt
  const source=fs.readFileSync(require.resolve('../src/native-player'),'utf8');
  const sendStart=source.indexOf(' function send('),sendEnd=source.indexOf(' async function command(',sendStart);
  const start=source.indexOf("    let buffer='';s.socket.on('error'");
- const end=source.indexOf("    await command(s,['set_property','http-header-fields'",start);
+ const end=source.indexOf("    trace.mark('configure')",start);
  for(const ready of [false,true]){
   const socket=new EventEmitter(),sent=[],s={socket,pending:new Map(),state:{},key:'A',generation:2,ready};
   let stopped=0;
-  const context={s,session:s,stop:async()=>{stopped++;},owner:()=>({isDestroyed:()=>false,webContents:{send:(_name,row)=>sent.push(row)}}),clearTimeout,JSON,Error};
+  const context={s,session:s,startup:null,trace:{},stop:async()=>{stopped++;},owner:()=>({isDestroyed:()=>false,webContents:{send:(_name,row)=>sent.push(row)}}),clearTimeout,JSON,Error};
   vm.runInNewContext(source.slice(sendStart,sendEnd)+source.slice(start,end),context);
   const failed=Buffer.from(JSON.stringify({event:'end-file',reason:'error'})+'\n');
   socket.emit('data',failed);
@@ -89,13 +107,13 @@ test('HTTP EOF well before known duration recovers instead of completing',()=>{
  const source=fs.readFileSync(require.resolve('../src/native-player'),'utf8');
  const sendStart=source.indexOf(' function send('),sendEnd=source.indexOf(' async function command(',sendStart);
  const start=source.indexOf("    let buffer='';s.socket.on('error'");
- const end=source.indexOf("    await command(s,['set_property','http-header-fields'",start);
+ const end=source.indexOf("    trace.mark('configure')",start);
  for(const [network,time,duration,expected] of [
   [true,13,30,'error'],[true,29.8,30,'ended'],[true,13,0,'ended'],[false,13,30,'ended'],
  ]){
   const socket=new EventEmitter(),sent=[],s={socket,pending:new Map(),state:{},key:'A',generation:2,ready:true,network};
   let stopped=0;
-  const context={s,session:s,stop:async()=>{stopped++;},owner:()=>({isDestroyed:()=>false,webContents:{send:(_name,row)=>sent.push(row)}}),clearTimeout,JSON,Error};
+  const context={s,session:s,startup:null,trace:{},stop:async()=>{stopped++;},owner:()=>({isDestroyed:()=>false,webContents:{send:(_name,row)=>sent.push(row)}}),clearTimeout,JSON,Error};
   vm.runInNewContext(source.slice(sendStart,sendEnd)+source.slice(start,end),context);
   const emit=row=>socket.emit('data',Buffer.from(JSON.stringify(row)+'\n'));
   emit({event:'property-change',name:'duration',data:duration});
@@ -106,4 +124,50 @@ test('HTTP EOF well before known duration recovers instead of completing',()=>{
   assert.deepEqual(sent.map(row=>[row.type,row.time]),[[expected,time]]);
   assert.equal(stopped,expected==='error'?1:0);
  }
+});
+
+
+test('startup receipts remain readable during authorization and preserve superseded attempt ownership without private data',async()=>{
+ const f=setup();
+ const pending=f.player.handler({}, {action:'start',path:'C:/private/token-secret.mp4',key:'https://secret.example/token',generation:987});
+ const a=(await f.player.handler({}, {action:'startup-diagnostics'})).startup;
+ assert.equal(a.outcome,'pending');assert.equal(a.phase,'authorize');assert.match(a.attemptId,/^[a-f0-9-]{36}$/);
+ const bPending=f.player.handler({}, {action:'start',path:'C:/second/private.mp4',key:'private-key'});
+ const b=(await f.player.handler({}, {action:'status'})).startup;
+ assert.notEqual(a.attemptId,b.attemptId);
+ await f.player.stop();f.resolveSource('C:/private/secret.mp4');
+ const old=await pending,current=await bPending;
+ assert.equal(old.startup.attemptId,a.attemptId);assert.equal(old.startup.outcome,'cancelled');
+ assert.equal(current.startup.attemptId,b.attemptId);assert.equal(current.startup.outcome,'cancelled');
+ const latest=(await f.player.handler({}, {action:'startup-diagnostics'})).startup;
+ assert.equal(latest.attemptId,b.attemptId);assert.equal(latest.outcome,'cancelled');
+ assert(latest.elapsedMs>=0);assert(latest.stages.length<=12);
+ const serialized=JSON.stringify(latest);assert.doesNotMatch(serialized,/private|secret|https|987|path|generation|token/);
+ latest.stages[0].phase='tampered';assert.equal((await f.player.handler({}, {action:'startup-diagnostics'})).startup.stages[0].phase,'authorize');
+});
+
+test('startup media diagnostics retain only bounded milestones and finite cache fields from the current attempt',()=>{
+ const source=fs.readFileSync(require.resolve('../src/native-player'),'utf8');let clock=0;
+ const start=source.indexOf(' function startupTrace(){'),end=source.indexOf(' const configFile=',start);
+ const context={performance:{now:()=>clock},randomUUID:()=> 'synthetic-attempt',owner:()=>null};
+ vm.createContext(context);vm.runInContext(source.slice(start,end)+';this.receipt=startupTrace();',context);
+ const trace=context.receipt;
+ for(const event of ['start-file','file-loaded','playback-restart']){clock+=10;trace.observe({event,filename:'https://private/?token=secret'});trace.observe({event});}
+ trace.observe({event:'private-error',message:'secret'});
+ trace.observe({event:'property-change',name:'cache-speed',data:1234});
+ trace.observe({event:'property-change',name:'demuxer-cache-state',data:{'raw-input-rate':456,'total-bytes':789,'cache-duration':3.5,underrun:false,idle:true,'reader-pts':99,filename:'secret'}});
+ trace.observe({event:'property-change',name:'cache-speed',data:Infinity});
+ trace.observe({event:'property-change',name:'demuxer-cache-state',data:{'raw-input-rate':-1,'total-bytes':'secret','cache-duration':NaN,underrun:'secret'}});
+ const current=trace.snapshot();assert.equal(current.media.events.length,3);assert.deepEqual(Array.from(current.media.events,row=>row.elapsedMs),[10,20,30]);
+ assert.deepEqual(JSON.parse(JSON.stringify(current.media.cache)),{bytesPerSecond:1234,inputBytesPerSecond:456,totalBytes:789,durationSeconds:3.5,underrun:false,idle:true});
+ assert.doesNotMatch(JSON.stringify(current),/secret|private|filename|reader-pts/);
+ current.media.events[0].event='tampered';current.media.cache.totalBytes=0;assert.equal(trace.snapshot().media.events[0].event,'start-file');assert.equal(trace.snapshot().media.cache.totalBytes,789);
+ trace.finish('failed');trace.observe({event:'property-change',name:'cache-speed',data:999});assert.equal(trace.snapshot().media.cache.bytesPerSecond,1234);
+ // Actual socket dispatch must not feed an old attempt or a superseded session.
+ const socket=new EventEmitter(),s={socket,pending:new Map(),state:{},key:'A',generation:1};let observations=0;
+ const active={observe(){observations++;}},dispatch={s,session:s,startup:active,trace:active,send(){},stop:async()=>{},clearTimeout,JSON,Error};
+ const dataStart=source.indexOf("    let buffer='';s.socket.on('error'"),dataEnd=source.indexOf("    trace.mark('configure')",dataStart);
+ vm.createContext(dispatch);vm.runInContext(source.slice(dataStart,dataEnd),dispatch);
+ const emit=()=>socket.emit('data',Buffer.from(JSON.stringify({event:'start-file'})+'\n'));
+ emit();assert.equal(observations,1);dispatch.startup={};emit();assert.equal(observations,1);dispatch.startup=active;dispatch.session={};emit();assert.equal(observations,1);
 });
