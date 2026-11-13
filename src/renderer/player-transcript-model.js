@@ -52,14 +52,21 @@
   const overlapOf = (a, b) => Math.max(0, Math.min(a.end, b.end) - Math.max(a.start, b.start));
   const acceptedOverlap = (ov, aDur, bDur) => ov > Math.min(OVERLAP_CAP_SECONDS, Math.min(aDur, bDur) * OVERLAP_FRACTION);
 
-  function originLinked(secondaryTrack, sourceTrack, sourceCueId) {
+  function originLinkIndex(secondaryTrack, sourceTrack) {
     const links = Array.isArray(secondaryTrack && secondaryTrack.sourceLinks) ? secondaryTrack.sourceLinks : [];
-    const ids = new Set();
+    const index = new Map();
     for (const link of links) {
-      if (link && link.sourceTrackId === sourceTrack.id && link.sourceRevision === sourceTrack.revision
-        && Array.isArray(link.sourceCueIds) && link.sourceCueIds.includes(sourceCueId)) ids.add(link.cueId);
+      if (!link || link.sourceTrackId !== sourceTrack.id || link.sourceRevision !== sourceTrack.revision) continue;
+      const sourceIds = link.sourceCueIds;
+      if (!Array.isArray(sourceIds)) continue;
+      for (const sourceId of sourceIds) {
+        let ids = index.get(sourceId);
+        if (!ids) index.set(sourceId, ids = new Set());
+        // Set order retains first link order; duplicate cue IDs are still resolved by secById.
+        ids.add(link.cueId);
+      }
     }
-    return ids;
+    return index;
   }
 
   /**
@@ -74,14 +81,15 @@
     const sec = cuesOf(secondaryTrack).map((cue, order) => ({ cue, order, span: mediaSpan(cue, secOff) }))
       .sort((a, b) => a.span.start - b.span.start || a.span.end - b.span.end || a.order - b.order);
     const secById = new Map(sec.map((x) => [x.cue.id, x]));
+    const linkedBySource = originLinkIndex(secondaryTrack, sourceTrack);
     const prefixEnd=[];for(const x of sec)prefixEnd.push(Math.max(prefixEnd.at(-1)??-Infinity,x.span.end));
 
     return src.map((cue) => {
       const span = mediaSpan(cue, srcOff);
-      const linkedIds = secondaryTrack ? originLinked(secondaryTrack, sourceTrack, cue.id) : new Set();
+      const linkedIds = linkedBySource.get(cue.id);
       let matches = []; let pairing = 'missing';
 
-      if (linkedIds.size) {
+      if (linkedIds?.size) {
         matches = Array.from(linkedIds).map((id) => secById.get(id)).filter(Boolean);
         if (matches.length) pairing = 'origin-linked';
       }

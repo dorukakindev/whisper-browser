@@ -10,8 +10,35 @@ function versionKey(name){
  const title=stem.replace(/[ ._-]+(?:2160p|1080p|1080i|720p|480p|4k|bluray|blu-ray|web-dl|webrip|bdrip|x264|x265|hevc)(?:[ ._-].*)?$/i,'').replace(/[._]+/g,' ').trim();
  return path.join(dir,title||stem).toLowerCase();
 }
-function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,authorizeMedia,grantMedia,catalogStore,ffmpeg,ffprobe,relinkHistory,safeStorage}){
+function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,authorizeMedia,grantMedia,catalogStore,ffmpeg,ffprobe,relinkHistory,safeStorage,prepareAudio,sourceHeaders=()=>[]}){
  const relinkUndos=new Map();
+ const audioGrants=new Map();let audioPreparation=null;
+ const audioError=code=>Object.assign(Error({AUDIO_SOURCE:'Reopen the current network source before preparing audio.',AUDIO_UNSUPPORTED:'Audio preparation requires a direct public HTTPS media file.',AUDIO_BUSY:'Audio preparation is already running.',BAD_REQUEST:'Invalid audio request.',AUDIO_CANCELLED:'Audio preparation cancelled.'}[code]||'Audio could not be prepared. Existing playback and subtitles were kept.'),{code});
+ function networkAudioSource(url,key,event){
+  const kind=url.protocol!=='https:'?'insecure':/\.(?:m3u8|mpd)$/i.test(url.pathname)?'adaptive':'ready';
+  // A newly selected network address retires extraction work from the old source.
+  if(audioPreparation&&audioPreparation.sender===event.sender)audioPreparation.controller.abort();
+  const token=kind==='ready'?randomUUID():'';
+  if(token){audioGrants.set(token,{key,url:url.href,sender:event.sender,at:Date.now()});while(audioGrants.size>24)audioGrants.delete(audioGrants.keys().next().value);}
+  return {whisperAudio:kind,audioSource:{owner:'mediaHub',key,token}};
+ }
+ async function prepareNetworkAudio(event,input){
+  const grant=audioGrants.get(input.token);
+  if(!grant||grant.sender!==event.sender||grant.key!==input.key||Date.now()-grant.at>6*3600*1000)throw audioError('AUDIO_SOURCE');
+  if(typeof prepareAudio!=='function')throw audioError('AUDIO_UNSUPPORTED');
+  if(typeof input.requestId!=='string'||!/^[a-z0-9_-]{1,80}$/i.test(input.requestId))throw audioError('BAD_REQUEST');
+  if(audioPreparation)throw audioError('AUDIO_BUSY');
+  const job={id:input.requestId,sender:event.sender,controller:new AbortController(),progress:{phase:'checking',seconds:null}};audioPreparation=job;
+  try{
+   const result=await prepareAudio({url:grant.url,headers:sourceHeaders(grant.url),signal:job.controller.signal,onProgress:progress=>{
+    job.progress={phase:progress?.phase==='extracting'?'extracting':'checking',seconds:Number.isFinite(progress?.seconds)&&progress.seconds>=0?progress.seconds:null};
+   }});
+   if(job.controller.signal.aborted){await prepareAudio.discard?.(result.path);throw audioError('AUDIO_CANCELLED');}
+   if(!result||typeof result.path!=='string'||!result.path)throw audioError('AUDIO_FAILED');
+   return {ok:true,path:result.path,key:grant.key,requestId:job.id};
+  }catch(error){throw audioError(job.controller.signal.aborted||error?.code==='AUDIO_CANCELLED'?'AUDIO_CANCELLED':/^STREAM_AUDIO_[A-Z_]+$/.test(error?.code||'')?error.code:'AUDIO_FAILED');}
+  finally{if(audioPreparation===job)audioPreparation=null;}
+ }
  const sourceVault=new (require('./secret-store').SafeSecretStore)({filePath:path.join(app.getPath('userData'),'stream-sources.safe.json'),fields:['sources'],safeStorage});
  const streamSources=new Map();let sourcesLoaded=false,vaultWritable=false;
  function loadSources(){if(sourcesLoaded)return;sourcesLoaded=true;const saved=sourceVault.load();if(!saved.ok)return;try{const data=JSON.parse(saved.secrets.sources||'{}');if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).length>2000)return;for(const [key,value]of Object.entries(data)){if(!/^stream:[a-f0-9]{64}$/.test(key)||typeof value!=='string')return;streamUrl(value);}vaultWritable=true;for(const [key,value]of Object.entries(data))streamSources.set(key,value);}catch(_){}}
@@ -196,10 +223,13 @@ function registerMediaHub({app,ipcMain,authorized,dialog,owner,inspectMedia,auth
    }finally{relinkBusy=false;}
   }
   if(input.action==='remember-stream')return rememberStream(input);
-  if(input.action==='network'){loadSources();const stored=input.key?streamSources.get(input.key):null;if(input.key&&!stored)throw Error('Saved stream address is unavailable; open a fresh source.');const url=streamUrl(stored||input.url);return {ok:true,url:url.href,key:input.key||'stream:'+createHash('sha256').update(url.href).digest('hex'),title:url.pathname.split('/').pop()||url.hostname};}
+  if(input.action==='network'){loadSources();const stored=input.key?streamSources.get(input.key):null;if(input.key&&!stored)throw Error('Saved stream address is unavailable; open a fresh source.');const url=streamUrl(stored||input.url),key=input.key||'stream:'+createHash('sha256').update(url.href).digest('hex');return {ok:true,url:url.href,key,title:url.pathname.split('/').pop()||url.hostname,...networkAudioSource(url,key,event)};}
+  if(input.action==='audio-prepare')return await prepareNetworkAudio(event,input);
+  if(input.action==='audio-cancel'){const own=audioPreparation&&audioPreparation.sender===event.sender&&audioPreparation.id===input.requestId;if(own)audioPreparation.controller.abort();return {ok:true,cancelled:!!own};}
+  if(input.action==='audio-status'){const own=audioPreparation&&audioPreparation.sender===event.sender&&audioPreparation.id===input.requestId;return {ok:true,active:!!own,progress:own?{...audioPreparation.progress}:null};}
   if(input.action==='scenes'){const file=await authorizeMedia(input.path);const duration=Number(input.duration);if(!Number.isFinite(duration)||duration<=0||duration>604800)throw Error('Invalid video duration.');const out=path.join(app.getPath('temp'),'whisper-scenes-'+randomUUID());await fsp.mkdir(out,{recursive:true});const rows=[];try{for(let i=0;i<12;i++){const at=Math.max(0,Math.min(duration-.05,duration*(i+.5)/12)),target=path.join(out,`${i}.jpg`);await run(ffmpeg(),['-hide_banner','-loglevel','error','-ss',String(at),'-i',file,'-frames:v','1','-vf','scale=240:-2','-q:v','5',target],undefined,undefined,15000);const bytes=await fsp.readFile(target);if(bytes.length>500000)throw Error('Preview image too large.');rows.push({at,image:'data:image/jpeg;base64,'+bytes.toString('base64')});}return {ok:true,rows};}finally{for(const name of await fsp.readdir(out).catch(()=>[]))await fsp.unlink(path.join(out,name)).catch(()=>{});await fsp.rmdir(out).catch(()=>{});}}
   throw Error('Unsupported media operation.');
- }catch(e){return {ok:false,error:e.message};}};
- ipcMain.handle('media-hub:request',handle);app.on('before-quit',()=>{for(const w of watchers.values())w.close();for(const timer of timers.values())clearTimeout(timer);});return {handle};
+ }catch(e){return {ok:false,error:e.message,...(typeof e.code==='string'&&/^(?:AUDIO_[A-Z_]+|STREAM_AUDIO_[A-Z_]+|BAD_REQUEST)$/.test(e.code)?{code:e.code}:{})};}};
+ ipcMain.handle('media-hub:request',handle);app.on('before-quit',()=>{audioPreparation?.controller.abort();audioGrants.clear();for(const w of watchers.values())w.close();for(const timer of timers.values())clearTimeout(timer);});return {handle};
 }
 module.exports={registerMediaHub,versionKey};

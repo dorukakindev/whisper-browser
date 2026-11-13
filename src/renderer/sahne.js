@@ -12,7 +12,9 @@
     back: 'M11 5 5 10l6 5|M5 10h8a6 6 0 0 1 0 12h-2', fwd: 'M13 5l6 5-6 5|M19 10h-8a6 6 0 0 0 0 12h2', replay: 'M4 12a8 8 0 1 0 2.6-5.9|M4 4v5h5',
     loop: 'M17 2l4 4-4 4|M3 11V9a3 3 0 0 1 3-3h15|M7 22l-4-4 4-4|M21 13v2a3 3 0 0 1-3 3H3', moon: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a6.6 6.6 0 0 0 10.5 10.5Z',
     focus: 'M4 9V5h4|M20 9V5h-4|M4 15v4h4|M20 15v4h-4', close: 'M6 6l12 12|M18 6 6 18', copy: 'M9 9h10v10H9z|M5 15V5h10', star: 'M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 17l-5.2 2.7 1-5.9L3.5 9.7l5.9-.8Z',
-    classic: 'M4 5h16v14H4z|M15 5v14', chat: 'M20 11a8 8 0 0 1-8 8H4l1.8-4A8 8 0 1 1 20 11Z|M9 9h6|M9 13h4', search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z|m15.5 15.5 4 4', swap: 'M7 7h13l-3-3|M17 17H4l3 3', chev: 'm15 5-7 7 7 7',
+    classic: 'M4 5h16v14H4z|M15 5v14',
+    transcript: 'M5 6h14|M5 10h14|M5 14h9|M5 18h6',
+    bilingual: 'M3 6h8v12H3z|M13 6h8v12h-8z', chat: 'M20 11a8 8 0 0 1-8 8H4l1.8-4A8 8 0 1 1 20 11Z|M9 9h6|M9 13h4', search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z|m15.5 15.5 4 4', swap: 'M7 7h13l-3-3|M17 17H4l3 3', chev: 'm15 5-7 7 7 7',
     volume: 'M11 5 6 9H3v6h3l5 4V5Z|M15 8a6 6 0 0 1 0 8|M18 5a10 10 0 0 1 0 14', mic: 'M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 6 0Z|M6 11a6 6 0 0 0 12 0|M12 17v4', tools: 'M4 7h10|M18 7h2|M4 17h2|M10 17h10|M14 4v6|M6 14v6', down: 'M12 5v14|m6 13 6 6 6-6'
   };
   P.volumeZero = 'M11 5 6 9H3v6h3l5 4V5Z|m15 10 5 5|m20 10-5 5';
@@ -168,6 +170,9 @@
       const prefs = { focus, disp, readingSize: this.readingSize };
       if (preserveReading && this.id0) {
         const match=this.matchLine&&!this.matchLine.hidden?this.rows[Number(this.matchLine.dataset.i)]:null;
+        // Follow mode restores the speaking cue after layout. Measuring its old
+        // transcript viewport forces the whole freshly rendered card list to lay out.
+        const followingTranscript=follow&&!this.root.classList.contains('sh-chapters-open');
         prefs.reading = {
           identity: this.id0, mode:this.o.mode, follow, sleep, sleepAt, lastAudibleVolume: this.lastAudibleVolume, panelWork:this.panelWork,
           assistantChoice:this.assistantPassage()?{...this.assistantChoice}:null,noteDraft:this.noteDraft||null,
@@ -177,9 +182,9 @@
           searchMatch:match?{rev:this.st?.rev,id:match.id,trackId:match.trackId,standaloneTranslation:!!match.standaloneTranslation}:null,
           processingScope:this.scopeBox?{mode:this.scopeMode,start:this.scopeBox.querySelector('[data-scope-time=start]').value,end:this.scopeBox.querySelector('[data-scope-time=end]').value,open:!this.scopeBox.querySelector('.sh-scope-fields').hidden}:null,
           chapterQuery: this.q('[data-r=chapterSearch]')?.value || '',
-          viewportAnchor: this.readingScroll?.viewportAnchor ?? (this.root.classList.contains('sh-chapters-open')
+          viewportAnchor: followingTranscript ? null : this.readingScroll?.viewportAnchor ?? (this.root.classList.contains('sh-chapters-open')
             ? this.transcriptReading?.viewportAnchor : this.readingPosition().viewportAnchor),
-          scrollTop: this.readingScroll?.scrollTop ?? (this.root.classList.contains('sh-chapters-open')
+          scrollTop: followingTranscript ? 0 : this.readingScroll?.scrollTop ?? (this.root.classList.contains('sh-chapters-open')
             ? this.transcriptScroll : this.q('[data-r=scroll]')?.scrollTop) ?? 0
         };
       }
@@ -222,7 +227,7 @@
         <div class="sh-bg" aria-hidden="true"><div class="sh-aurora"></div><div class="sh-aurora b"></div><div class="sh-grain"></div><div class="sh-vignette"></div></div>
         <header class="sh-top">
           <div><button class="sh-btn" data-a="close" type="button">${ic('close')}<span>${T('Kapat', 'Close')}</span></button></div>
-          <div class="sh-seg" role="tablist" style="--n:${this.caps.cinema?3:2};--i:${this.caps.cinema?['cinema','podcast','study'].indexOf(m):(study?1:0)}" aria-label="${T('Sahne türü', 'Stage type')}">${this.caps.cinema?`<button role="tab" type="button" data-mode="cinema" aria-selected="${cinema}">${ic('play')}${T('Oynatıcı','Player')}</button>`:''}<button role="tab" type="button" data-mode="podcast" aria-selected="${m==='podcast'}">${ic('mic')}${T('Podcast', 'Podcast')}</button><button role="tab" type="button" data-mode="study" ${this.caps.study===false?`disabled title="${T('Ses kaynağında iki dil alttaki dil seçicisinden okunur.','Read both languages with the language selector below.')}"`:""} aria-selected="${m==='study'}">${ic('classic')}${T('Çift dilli', 'Bilingual')}</button></div>
+          <div class="sh-seg" role="tablist" style="--n:${this.caps.cinema?3:2};--i:${this.caps.cinema?['cinema','podcast','study'].indexOf(m):(study?1:0)}" aria-label="${T('Sahne türü', 'Stage type')}">${this.caps.cinema?`<button role="tab" type="button" data-mode="cinema" aria-selected="${cinema}">${ic('play')}${T('Oynatıcı','Player')}</button>`:''}<button role="tab" type="button" data-mode="podcast" aria-selected="${m==='podcast'}">${ic('mic')}${T('Podcast', 'Podcast')}</button><button role="tab" type="button" data-mode="study" ${this.caps.study===false?`disabled title="${T('Ses kaynağında iki dil alttaki dil seçicisinden okunur.','Read both languages with the language selector below.')}"`:""} aria-selected="${m==='study'}">${ic('bilingual')}${T('Çift dilli', 'Bilingual')}</button></div>
           <div class="sh-top-r">${this.caps.queue?`<button class="sh-btn" data-a="listeningQueue" type="button">${ic('list')}<span>${T('Dinleme kuyruğu', 'Listening queue')}</span></button>`:''}<button class="sh-btn" data-a="panel" type="button" aria-pressed="false" aria-haspopup="dialog">${ic('tools')}<span>${T('İşlemler', 'Tasks')}</span></button><button class="sh-btn" data-a="sleep" type="button" aria-pressed="false" aria-label="${T('Uyku zamanlayıcısı', 'Sleep timer')}" title="${T('Uyku zamanlayıcısı', 'Sleep timer')}">${ic('moon')}<span data-r="sleeplbl">${T('Uyku', 'Sleep')}</span></button><button class="sh-btn" data-a="classic" type="button" aria-label="${T('Klasik panele dön', 'Back to classic panel')}" title="${T('Klasik panele dön', 'Back to classic panel')}">${ic('classic')}<span>${T('Klasik panel', 'Classic panel')}</span></button></div>
         </header>
         <div class="sh-job" data-r="job" role="status" hidden><span class="sh-job-t" data-r="jobt"></span><span class="sh-job-bar" data-r="jobbar"><i></i></span><span class="sh-job-percent" data-r="jobpercent" aria-hidden="true" hidden></span><button class="sh-chip" data-a="jobcancel" type="button" hidden>${T('İptal', 'Cancel')}</button><button class="sh-chip" data-a="jobretry" type="button" hidden>${T('Yeniden dene', 'Retry')}</button></div>
@@ -245,9 +250,21 @@
         main.append(this.el(`<aside class="sh-cardsbox"><div class="sh-cards-h"><span class="sh-lang" data-r="lsb"></span>${ic('swap')}<span class="sh-lang" data-r="ltb"></span><label class="sh-search">${ic('search')}<input data-r="q" placeholder="${T('Cümlelerde ara', 'Search sentences')}" aria-label="${T('Cümlelerde ara', 'Search sentences')}"></label>${seg()}</div><div class="sh-cards-wrap"><div class="sh-cards" data-r="scroll"></div>${follow}</div></aside>`));
       }
       this.host.append(root);
-      if(study){const toggle=this.el(`<button class="sh-btn sh-transcript-toggle" type="button" data-a="transcript" aria-expanded="false" aria-label="${T('Transkript','Transcript')}">${ic('classic')}<span>${T('Transkript','Transcript')}</span></button>`);this.q('.sh-top-r').prepend(toggle);}
+      if(study){const toggle=this.el(`<button class="sh-btn sh-transcript-toggle" type="button" data-a="transcript" aria-expanded="false" aria-label="${T('Transkript','Transcript')}">${ic('transcript')}<span>${T('Transkript','Transcript')}</span></button>`);this.q('.sh-top-r').prepend(toggle);}
       this.q('.sh-top-r [data-a=panel]').before(this.el(`<button class="sh-btn icon sh-assistant-bubble" type="button" data-a="assistant" aria-label="${T('Asistanı aç','Open assistant')}" title="${T('Asistanı aç','Open assistant')}">${ic('chat')}</button>`));
-      if (this.o.intro) requestAnimationFrame(() => requestAnimationFrame(() => { root.classList.add('go'); setTimeout(() => { root.classList.remove('sh-enter', 'go'); root.querySelector('.sh-bars')?.remove(); }, 1900); }));
+      if (this.o.intro) this.introRaf = requestAnimationFrame(() => {
+        if (this.dead) return;
+        this.introRaf = requestAnimationFrame(() => {
+          this.introRaf = 0;
+          if (this.dead) return;
+          root.classList.add('go');
+          this.introTimer = setTimeout(() => {
+            this.introTimer = 0;
+            if (this.dead) return;
+            root.classList.remove('sh-enter', 'go'); root.querySelector('.sh-bars')?.remove();
+          }, 1900);
+        });
+      });
       const slot = this.q('[data-r=slot]'), el = this.a.slot?.(m); if (slot && el) { slot.textContent = ''; slot.append(el); const mini = this.q('[data-r=mini]'); if (mini) mini.hidden = false; }
       if(cinema){
         const title=this.el(`<div class="sh-cinema-meta"><h1></h1><p></p></div>`);this.q('.sh-top>div').append(title);
@@ -1470,6 +1487,44 @@
         : `<span class="at">${time}</span>`;
       return `${stamp}<span class="src${shared ? ' cue-card-src' : ''}" dir="auto">${src}</span>${trs}${unc}${standalone}${review}${missing}${acts}`;
     }
+    createTranscriptRow(c, i, study, templates) {
+      // Templates live for this rebuild only. All listeners stay on this Stage;
+      // no row state or user content is retained across source changes.
+      if (!c.timed || c.trs.length > 1 || c.unc?.length) {
+        const row = document.createElement('div'); row.innerHTML = this.rowHTML(c, i, study); return row;
+      }
+      const words = c.words || [], shape = JSON.stringify([words.length,c.trs.length,c.translationMissing||'',!!c.translationReview,!!c.standaloneTranslation]);
+      let template = templates.get(shape);
+      if (!template) {
+        template = document.createElement('div'); template.innerHTML = this.rowHTML(c, i, study);
+        if (words.length) {
+          const source = template.querySelector('.src'); source.replaceChildren();
+          words.forEach((_word, k) => {
+            const span = document.createElement('span'); span.className = 'w'; span.dataset.k = k;
+            source.append(document.createTextNode(''), span);
+          });
+          source.append(document.createTextNode(''));
+        }
+        templates.set(shape, template);
+      }
+      const row = template.cloneNode(true), source = row.querySelector('.src'), text = String(c.src ?? '');
+      if (words.length) {
+        let at = 0;
+        words.forEach((word, k) => {
+          source.childNodes[k*2].nodeValue = text.slice(at, word.s);
+          source.childNodes[k*2+1].textContent = text.slice(word.s, word.e); at = word.e;
+        });
+        source.lastChild.nodeValue = text.slice(at);
+      } else source.textContent = text;
+      const translation = row.querySelector('.tr > span');
+      if (translation) translation.textContent = String(c.trs[0] ?? '');
+      const stamp = row.querySelector('.at'), time = fmt(c.start);
+      if (stamp.tagName === 'BUTTON') {
+        stamp.querySelector('span').textContent = time;
+        stamp.setAttribute('aria-label', time + ' · ' + T('Cümleye git', 'Go to sentence'));
+      } else stamp.textContent = time;
+      return row;
+    }
     rebuild(st, info) {
       const scroll=this.q('[data-r=scroll]'),study=this.o.mode!=='podcast';
       const previousScroll = scroll.scrollTop;
@@ -1511,11 +1566,12 @@
         frag.append(this.el(`<div class="sh-empty">${ic(available || youtube ? 'classic' : 'mic')}<h2>${title}</h2><p>${hint}</p>${browser}<button class="sh-btn" type="button" data-a="panel" ${available ? 'data-caption-entry' : ''}>${action}</button></div>`));
       }
       if (st.untimed) { const n = document.createElement('p'); n.className = 'sh-note'; n.textContent = st.timingNotice || T('Bu transkript zamansız: satırlar yalnızca okunur; atlama ve etkin satır yoktur.', 'This transcript has no timing: lines are read-only; no seeking or active line.'); if(this.a.verifyTiming?.()){const button=document.createElement('button');button.type='button';button.className='sh-btn sh-verify-audio';button.dataset.a='verifiedAudio';button.textContent=T('Zamanlı ses kopyasıyla aç','Open with the timed audio copy');n.append(document.createElement('br'),button);}frag.append(n); }
+      const templates = new Map();
       st.rows.forEach((c, i) => {
-        const row = document.createElement('div'); row.className = (this.o.mode !== 'cinema' ? 'sh-card cue-card' : 'sh-card') + (c.timed ? '' : ' is-untimed'); row.dataset.i = i;
+        const row = this.createTranscriptRow(c, i, study, templates); row.className = (this.o.mode !== 'cinema' ? 'sh-card cue-card' : 'sh-card') + (c.timed ? '' : ' is-untimed'); row.dataset.i = i;
         if (c.translationMissing && !c.src) row.classList.add('sh-missing-translation-only');
         if (c.timed && this.o.mode === 'cinema') { row.tabIndex = 0; row.setAttribute('role', 'button'); row.addEventListener('keydown', (e) => { if (this.canSeek && ['Enter',' '].includes(e.key) && e.target === row) {e.preventDefault();e.stopPropagation();this.run('seekCue', i);} }); }
-        row.innerHTML = this.rowHTML(c, i, study); frag.append(row); this.lines.push(row);
+        frag.append(row); this.lines.push(row);
       });
       scroll.append(frag);
       if (matchRow) this.matchLine = this.lines[this.rows.findIndex(row => sameRow(row,matchRow))];
@@ -1594,7 +1650,7 @@
       const oldButtons=[...host.querySelectorAll('button.sh-chap')];
       const focused=oldButtons.indexOf(document.activeElement);
       const focusKey=focused>=0?{time:oldButtons[focused].dataset.t,label:oldButtons[focused].querySelector('span')?.textContent}:null;
-      const previousScroll=host.scrollTop;
+      const previousScroll=host.hidden?0:host.scrollTop;
       this.chapterStamp=stamp;
       const navigation = this.q('[data-r=readingNav]');
       if (navigation) {
@@ -1628,7 +1684,7 @@
         note.textContent=T('Zamanı doğrulanmayan başlıklar salt okunur.','Chapters without verified timing are read-only.');
         host.append(note);
       }
-      if (navigation) { this.filterChapters(); host.scrollTop=previousScroll; }
+      if (navigation) { this.filterChapters(); if(!host.hidden)host.scrollTop=previousScroll; }
       if(focusKey){
         const available=[...host.querySelectorAll('button.sh-chap')].filter(button=>!button.hidden&&!button.disabled);
         const target=available.find(button=>button.dataset.t===focusKey.time&&button.querySelector('span')?.textContent===focusKey.label)
@@ -1652,7 +1708,7 @@
       const count = this.q('[data-r=chapterCount]');
       count.hidden = !query;
       count.textContent = matches ? T(`${matches} başlık`, `${matches} chapters`) : T('Eşleşen başlık yok','No matching chapters');
-      list.scrollTop = 0;
+      if(!list.hidden)list.scrollTop = 0;
     }
     focusPassage(time, {role} = {}) {
       this.tick();
@@ -2464,6 +2520,8 @@
     frame() { const f = () => { if (this.dead) return; if (this.cur >= 0 && this.st && !this.st.paused) this.wordsTick(); this.raf = requestAnimationFrame(f); }; this.raf = requestAnimationFrame(f); }
     destroy() {
       if(this.dead)return;
+      cancelAnimationFrame(this.introRaf); clearTimeout(this.introTimer);
+      this.introRaf = 0; this.introTimer = 0;
       this.clearMatchHighlight();
       cancelAnimationFrame(this.readingLayoutRaf);
       if(this.readingAnchorLine){const previous=this.readingAnchorLine;previous.line.style.contentVisibility=previous.visibility;this.readingAnchorLine=null;}

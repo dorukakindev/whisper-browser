@@ -60,8 +60,8 @@ details.browser-translate-split { border: 0; background: transparent; }
 .browser-hub-popover .browser-whisper-action-row #browserWhisperRangeSettings { grid-template-columns: 22px; justify-content: center; }
 .browser-translate-split[data-idle="true"] > summary.browser-subtitle-settings-button { color: var(--text-muted); }
 
-/* Dar çalışma alanı: etiketler simgeye iner, erişim ve ad (aria-label/title) korunur */
-@container browser-workspace (max-width: 1720px) {
+/* Dar çalışma alanı: etiketler kademeli olarak simgeye iner (Asistan/Ayarlar ≥1400, merkez etiketi ≥1260); erişim ve ad (aria-label/title) korunur */
+@container browser-workspace (max-width: 1399px) {
   .browser-tool-btn:not(.browser-jobs-chip) > span { display: none; }
   .browser-tool-btn:not(.browser-jobs-chip) { width: 34px; padding: 0; justify-content: center; }
   .browser-jobs-chip .jobs-text { display: none; }
@@ -80,13 +80,15 @@ html:root body .browser-hub-popover .browser-whisper-action-row { display: grid;
 html:root body .browser-hub-popover .browser-whisper-action-row > [role="menuitem"] { min-width: 0; width: auto; }
 html:root body .browser-hub-popover .browser-whisper-action-row > #browserWhisperRangeSettings { width: 44px; grid-template-columns: 1fr; justify-items: center; padding-inline: 0; }
 html:root body .browser-hub-popover > * { flex: 0 0 auto; }
-html:root body .browser-hub-popover { max-height: min(calc(100vh - 110px), 800px); padding: 8px; }
+html:root body .browser-hub-popover { width: min(420px, calc(100vw - 24px)); max-height: min(calc(100vh - 110px), 800px); padding: 8px; }
 html:root body .browser-hub-popover [role="menuitem"] { min-height: 42px; padding-block: 6px; }
 html:root body .browser-hub-popover .browser-menu-hint { font-size: 11px; }
 .browser-hub-status { padding: 8px 10px; }
 /* Orta genişlik: adres alanı ezilmesin; etiketler simgeye iner (ad/title/aria-label korunur). */
-@container browser-workspace (max-width: 1720px) {
+@container browser-workspace (max-width: 1259px) {
   html:root body .tb-media .browser-panel-menu-label { display: none; }
+}
+@container browser-workspace (max-width: 1720px) {
   html:root body .tb-page #browserPageLabel { display: none; }
   html:root body .tb-page #browserPageTranslate { width: 34px; padding: 0; justify-content: center; }
   .browser-toolbar-actions { gap: 6px; }
@@ -320,3 +322,24 @@ html:root body .cn-discover-page > .md-status.mh-error::before {
   color: var(--accent-contrast); background: var(--accent); border: 0; }
 .md-status-retry:hover { background: var(--accent-hover, var(--accent)); }
 .md-status-retry:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* Boş altyazı durumu: Whisper neden kapalıysa gerçek neden ve sonraki adım görünür */
+.cue-empty-reason { margin: 8px auto 0; max-width: 34ch; font-size: 12px; line-height: 1.5; color: var(--text-dim); text-align: center; }
+.cue-empty-reason[hidden], .cue-empty-hint[hidden] { display: none; }
+/* Sayfa çevirisi menüsü: duraklat/otomatik devam yalnız ilgili durumda */
+#browserPagePause[hidden], #browserPageAutoContinue[hidden] { display: none !important; }
+html:root body .tb-media .browser-translate-split > summary.browser-subtitle-settings-button .browser-panel-menu-label { font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+
+/* Altyazı merkezi iş satırı: çalışan/biten/hatalı işin adı ve yüzdesi, kaynak başlığının hemen altında */
+.browser-hub-job { margin-top: 4px; padding-top: 6px; border-top: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--border)); font-size: 12px; font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; }
+.browser-hub-job::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+.browser-hub-job[data-state="done"]::before { background: var(--success, #5fb37c); }
+.browser-hub-job[data-state="error"] { color: var(--danger); }
+.browser-hub-job[data-state="error"]::before { background: var(--danger); }
+.browser-hub-job[hidden], .browser-hub-job-open[hidden] { display: none; }
+html:root body .browser-hub-popover .browser-hub-job-open:not(#_a) { display: block; width: 100%; box-sizing: border-box; min-height: 0; margin: 0 0 6px; padding: 7px 10px; border-radius: 10px; text-align: left; font-size: 12px; font-weight: 650; color: var(--accent); background: transparent; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); cursor: pointer; }
+html:root body .browser-hub-popover .browser-hub-job-open:not(#_a):hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+html:root body .browser-hub-popover .browser-hub-job-open:not(#_a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+html:root body .browser-hub-popover .browser-hub-job-open:not(#_a)[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) { html:not([data-motion="off"]):not([data-motion="reduce"]) .browser-hub-job[data-state="running"]::before { animation: hubjob-pulse 1.4s ease-in-out infinite; } }
+@keyframes hubjob-pulse { 50% { opacity: .35; } }

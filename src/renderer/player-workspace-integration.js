@@ -25,6 +25,7 @@
   summary.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   summary.onclick=()=>{advanced.close?.();advanced.hidden=true;advanced.removeAttribute('data-pw-occludes-native');view.querySelector('.pw-player-heading-actions button:last-child')?.focus();};
   advanced.addEventListener('close',()=>{advanced.hidden=true;advanced.removeAttribute('data-pw-occludes-native');});
+  document.addEventListener('ui-locale-change',()=>{const en=window.UiLocale?.get?.()==='en';advancedTitle.textContent=en?'Advanced tools':'İleri araçlar';summary.setAttribute('aria-label',en?'Close advanced tools':'İleri araçları kapat');summary.title=summary.getAttribute('aria-label');});
   const scrim=document.createElement('button');scrim.type='button';scrim.className='pw-panel-scrim';scrim.hidden=true;host.append(scrim);
   host.append(advanced); body.append(host);
   let mounted = false, tab = 'transcript', query = '', follow = true, scope = 'watched';

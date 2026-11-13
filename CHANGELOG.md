@@ -1,3 +1,45 @@
+## 2026-11-13 · Ağ akışında Whisper ses hazırlama
+
+Doğrudan HTTPS ağ akışı mevcut güvenli ses hazırlayıcısına ve Whisper/çeviri zincirine bağlandı. Kaynak/nesil/iptal sahipliği korunur; dublaj mevcut medya kimliğini kullanır. HLS/DASH ve güvensiz protokollerde neden/sonraki adım görünür. İzole gerçek Electron yönlendirmesi sentetik sesle doğrulandı; yeni canlı model/dinleme kabulü yapılmadı. [Kanıt](docs/devir/2026-11-13-0901.md).
+
+## 2026-11-13 · Claude Browser son teslimi ve yerel inceleme
+
+Browser menü/iş/Whisper akışları, gezinme ve bağlı görsel düzenlemeler önceki runtime düzeltmeleri korunarak birleştirildi. Aktif Canlı Whisper'a yanlış başlangıç ipucu, hareket tercihi ve dar hub genişliği düzeltildi; mevcut Keşfet katalog araması geri açıldı. İzole gerçek Windows Electron/WebContentsView görünüm kontrolü geçti. [Kanıt ve sınırlar](docs/devir/2026-11-13-0844.md).
+
+## 2026-11-13 · Kart kurulum maliyeti ve Stage kapanış yaşam döngüsü
+
+Transkript satırlarının ortak yapısı yalnız rebuild süresince klonlanır; metin, kelimeler ve zaman etiketleri yenilenir. Programatik local Stage kapatma yeniden açılmaz; intro frame/timeout işleri destroy'da iptal edilir. Native başlangıç fişine özel veri içermeyen medya olayları/cache sayaçları eklendi. [Kontrollü performans, kaynak kontrolü ve gerçek TorBox ölçümü](docs/devir/2026-11-13-0824.md).
+
+## 2026-11-13 · Kayıt nesli, hızlı mod geçişi ve eski iş izolasyonu
+
+Geri yüklenen kaydı eski kuyruk yazımından koruyan kalıcı nesil tabanı eklendi. Takipte ve gizli bölüm listesinde gereksiz layout ölçümleri kaldırıldı; kontrollü2500satır geçişleri hızlandı. Whisper/çeviri hazırlık, canlı cue, terminal ve çıktı yükleme yollarında nesil/iptal sahipliği korundu; eski yanıt yeni işi temizlemez. [Hedefli testler, ölçümler ve sınırlar](docs/devir/2026-11-13-0810.md).
+
+## 2026-11-13 · Kaynak değişimi ardından kapanış kaydı
+
+Kapanışta renderer kuyruğundaki eski medya ilerlemesi ve güncel medya ayrı kaydedilir; başarılı senkron kayıttan sonra gecikmiş yanıt eski ilerlemeyi cache'e geri uygulamaz. İzole gerçek Electron/main/preload kapanışında iki sentetik medyanın ilerleme ve ses tercihleri diskte doğrulandı. [Kanıt ve sınırlar](docs/devir/2026-11-13-0755.md).
+
+## 2026-11-13 · Yüklü altyazıyla kaynak değişimi
+
+Kaynak değişimi eski ilerleme kuyruğunu bekleyip eski transkripti ekranda tutmaz; kayıt sırası ve eski medyanın/dizinin sahipliği korunur. Kayıt başarısızlığı genel uyarıyla görünür.703satır eklenti altyazısı yüklüyken gerçekTorBox ikinci kaynak açılışı ve eski seçimlerin etkisiz kalması doğrulandı. [Kanıt ve sınırlar](docs/devir/2026-11-13-0744.md).
+
+## 2026-11-13 · Güvenli native başlangıç fişi ve eklenti altyazısı
+
+Native başlangıcın aşama/süre bilgisi bellekte, yetkili IPC ve mevcut event kanalında okunur; özel adres/anahtar/yol kaydedilmez. Manuel/otomatik Stremio eklenti altyazısında dosyanın açık seçilmesi sağlandı; gerçek703cue yüklemesi geçti. Kaynak değişimi ve sağlayıcı sınırları [devirde](docs/devir/2026-11-13-0726.md).
+
+## 2026-11-13 · Geçiş sahipliği ve native terminal hata
+
+Gecikmiş Browser gizleme yalnız başladığı sekme/görünüm/nesle uygulanır. mpv terminal error/exit sonrası IPC bağlantısı boşuna8sn denenmez; sahip olunan süreç temizlenir. Hedefli testler ve gerçek izole mpv kanıtının sınırları [devirde](docs/devir/2026-11-13-0715.md).
+
+## 2026-11-13 · Mod geçişinde transkript bağlantı indeksi
+
+Kaynak/çeviri bağlantıları her satırda tekrar taranmaz; bir kez indekslenir. Kimlik, revizyon ve eşleşme sırası korunur. Hedefli model ve kontrollü mod geçişi ölçümü geçti; gerçek kişisel kabul ve kart çizim maliyeti ayrı kalır. [Devir](docs/devir/2026-11-13-0711.md).
+
+## 2026-11-13 · Ekran yerleşimleri ve ortak anime/manga ayrıntısı
+
+- Anime/manga/manhwa kapakları ve arama sonuçları ortak sinematik ayrıntıyı açar; AniList bilgisi salt okunur gelir, kişisel puan ve ilerleme ayrı kalır.
+- Arşiv ve Podcast başlık/kart ölçüleri, Windows üst menü güvenli alanı, sesli oynatıcı kontrol çakışması ve iç içe ayarlar kaydırması düzeltildi. Ağ etiketleri üst üste çizilmez; düğümler ve eşdeğer Liste korunur.
+- Ana sayfa erişim hatasını eser başlığı olarak öne çıkarmaz; Stremio başlığı okunur, tür etiketleri yerelleştirilir; bölüm/podcast geçmişi doğru görünüm türüne ayrılır. [Yerel doğrulama ve sınırlar](docs/devir/2026-11-13-0630.md).
+
 # Changelog
 
 ## 2026-11-13 · Browser çalışma tezgâhı birleşimi

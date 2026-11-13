@@ -1,3 +1,17 @@
+2026-11-13 09:01: Ağ akışı HTTPS medya kaynağı mevcut main ses hazırlayıcısı üzerinden Whisper/çeviri zincirine bağlandı; dublaj aynı stream kimliğini korur. Yeni servis/UI/sahiplik testleri ve gerçek Electron sentetik yönlendirme geçti; canlı model/dinleme kabulü açık. Kullanıcı önceki doğrulanmış yerel işle birlikte commit/push/master teslimini açıkça istedi. [Devir](devir/2026-11-13-0901.md). Önceki Git bekleme ifadeleri tarihsel; kişisel farklar ve Sıradaki işler teslim dışıdır.
+
+2026-11-13 08:44: Claude son kümülatif Browser paketi, önceki asistan/Whisper/kayıt/performance runtime farkları korunarak yerelde birleşti; ek canlı ipucu/hareket/hub/katalog arama onarımları yapıldı. İzole gerçek Windows Electron/WebContentsView1920×1080 ve tek dar pencere kabulü geçti; güncel ekran LG ULTRAGEAR olarak algılandı. [Dosyalar/testler/sınırlar](devir/2026-11-13-0844.md). Kişisel veri ve Sıradaki işler korunur; kullanıcı bu tur Git teslimi istemedi.
+
+2026-11-13 08:24: kart kurulumunda kontrollü ek %10–18 kazanç; programatik Stage kapatma ve intro timer iptali onarıldı. 12 geçişte dinleyiciler sabit, arta kalan Stage/timer yok. Gerçek TorBox 5893 ms; yeni güvenli medya olay/cache fişi doğrulandı, 12 sn hata yeniden oluşmadı. [Dosyalar/testler/sınırlar](devir/2026-11-13-0824.md). Claude tasarımı ve önceki runtime farkları korundu; yeni Git teslimi yok.
+
+2026-11-13 08:10: gerçek store geri yükleme nesli ve Whisper/çeviri kaynak sahipliği onarıldı; kontrollü2500satır mod geçişi %38–50 hızlandı. [Dosyalar/testler/sınırlar](devir/2026-11-13-0810.md). Claude dönüşü renderer/sahne/store runtime farklarını ezmemeli. Tasarım, kişisel profil, önceki asistan/Whisper korundu; yeni Git teslimi yok.
+
+2026-11-13 07:55: kaynak değişimi ardından hemen kapanışta bekleyen A ilerlemesi de korunur; gerçek izole Electron/main/preload ve sentetik A/B disk kabulü geçti. Gerçek TorBox/mpv yeni süreç açılışı 3212 ms; önceki 12 sn takılma yeniden oluşmadı, genel cold-start kabulü açık. [Devir](devir/2026-11-13-0755.md). Claude tasarımı ve önceki asistan/Whisper/runtime farkları korunur; yeni Git teslimi yok.
+
+2026-11-13 07:44: yüklü703cuealtyazıyla TorBoxBgeçiş beklemesi runtime düzeltmesiyle çözüldü; gerçekA/B kabulüok:true. [Devir](devir/2026-11-13-0744.md). Outgoingprogress kuyruğu korunur,seriesprefsA→Bsızmaz. Claude teslimi bu ve önceki native/model/select:true düzeltmelerini ezmemeli. Yeni Git teslimi yapılmadı.
+
+2026-11-13 06:40: 11 ekranın istenen denetim/plan/onarımı ve anime/manga/manhwa ortak film tarzı ayrıntısı yerelde uygulandı. [Kapsam ve doğrulama](devir/2026-11-13-0630.md). Başlangıç/son HEAD `bbdcf1fe`; bu yeni çalışma için Git teslimi yok. Kişisel veri, asistan/Whisper ve Claude/Sıradaki işler sınırı korunur.
+
 # Yeni sohbet için Whisper Browser özeti
 
 2026-11-13 05:34 Git teslim kaydı: kullanıcı mevcut düzeltmelerin commit/push/master teslimini açıkça yetkilendirdi. Ürün commit'i `a69fcbb76f7c2ba301014267cd65d46265068a0d`; belgeler ayrı, [PR #922 ve sınırlar](devir/2026-11-13-0534.md). 80/80 hedefli kontrol geçti; son master/merge kimliği Git ve PR'dan doğrulanır. Sıradaki işler ve Claude'a bırakılan kapsam, kişisel veri ve ilgisiz yerel farklar dışarıda. Bu yetki bu teslim içindir; sonraki yeni Git işi yeni açık komut bekler. Aşağıdaki eski Git bekleme notları tarihsel aşamadır.

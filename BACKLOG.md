@@ -1,3 +1,57 @@
+# Ağ akışı ve toplu teslim · 2026-11-13 09:01
+
+- Ağ akışı HTTPS kaynağı mevcut Whisper ses hazırlama/çeviri/dublaj kimliğine bağlandı; kaynak/iptal izolasyonu ve gerçek Electron sentetik yönlendirme geçti. [Dosyalar, kanıt ve sınırlar](docs/devir/2026-11-13-0901.md).
+- Kalan: gerçek ağ URL'sinde uçtan uca model/çeviri/dublaj ve dinleme kabulü. Önceki kişisel uzun içerik/cold-start/Letterboxd sınırları sürer. Kullanıcı önceki doğrulanmış işle birlikte Git teslimini bu tur açıkça yetkilendirdi; eski bekleme notları tarihsel.
+
+- Mevcut ortak ses hazırlığında sonuç döndükten hemen sonra kaynak değişirse kullanılmayan geçici dosya kalabilir; yanlış medyaya bağlanmaz. Bu teslim otomatik cache temizliği eklemez.
+
+# Claude son teslimi yerelde birleşti · 2026-11-13 08:44
+
+- Son kümülatif paket, önceki asistan/Whisper/kayıt/performance düzeltmeleri korunarak birleştirildi. Canlı Whisper başlangıç ipucu, hareket tercihi, hub genişliği ve gizlenmiş katalog araması onarıldı. [Dosyalar, gerçek Windows görüntüsü, testler ve sınırlar](docs/devir/2026-11-13-0844.md).
+- Sonraki kabul: kişisel gerçek içerikte kullanım; bu tur yeni canlı sağlayıcı/model/dinleme denemesi yok. Fixture'ın kurmadığı gecikmiş Letterboxd yorum okuma yolu ayrıca doğrulanmalı. Önceki cold-start ve uzun transkript kabul sınırları korunur. Sıradaki işler değişmedi; kullanıcı açıkça Git teslimi istemedi.
+
+# Kart kurulumu / kaynak yaşam döngüsü · 2026-11-13 08:24
+
+- Kart yapısının tekrar parse maliyeti azaltıldı; aynı kontrollü 2500 satırda ek %10–18 kazanç. Programatik kapatma sonrası yeniden açılma ve kapatılmış kökün intro zamanlayıcıları düzeltildi. Son 12 geçişte dinleyiciler sabit; arta kalan Stage/timer/rAF yok. [Kanıt/testler](docs/devir/2026-11-13-0824.md).
+- Kalan: gerçek kişisel uzun filmde akıcılık kabulü; senkron kart kurulumu tamamen kalkmadı. Gerçek TorBox bu kez 5893 ms açıldı; 12 sn hata oluşmadı. Yeni güvenli start-file/file-loaded/cache fişi, hata tekrarında kaynak/veri açılma aşamasını ayırmak için hazır. Genel cold-start onarımı sayılmaz. Claude runtime farklarını korumalı; yeni Git teslimi yok.
+
+# Kayıt / mod geçişi / iş sahipliği · 2026-11-13 08:10
+
+- 0755'te açık kalan sil→yeniden oluştur→eski yazı yarışı gerçek store testleriyle kapandı. Whisper/çeviri A/B/A nesil ve await sahipliği onarıldı; eski sonuç yeni medyaya uygulanmaz. [Dosyalar, kanıt ve sınırlar](docs/devir/2026-11-13-0810.md).
+- Kontrollü2500satır mod geçişi %38–50 hızlandı; senkron kart kurulum maliyeti ve gerçek kişisel uzun film kabulü kalır. Claude tasarımıyla birleşimde renderer/sahne/store runtime farkları korunmalı. Önceki TorBox12sn başlangıç hatası yeniden oluştuğunda aşama/cache karşılaştırması hâlâ gerekli; bu tur yeni canlı sağlayıcı denemesi yok. Yeni Git teslimi yok.
+
+# Kapanış ve ilk TorBox açılışı · 2026-11-13 07:55
+
+- Bekleyen A ilerlemesinin B güncelken hemen kapanışta kaybolması giderildi; gerçek izole Electron/main/preload kapanışında iki kaydın disk kalıcılığı geçti. [Kapsam ve kanıt](docs/devir/2026-11-13-0755.md).
+- Gerçek TorBox/mpv yeni süreç denemesi 3212 ms'de hazırdı; önceki 12 sn hata yeniden oluşmadı. Kalan: hata tekrarında aşama/cache olaylarını karşılaştırmak. Tek başarılı örnek genel cold-start onarımı sayılmaz. Yeni Git teslimi yok.
+- Ayrı kalan doğrulama: gerçek main'in kullandığı watch-library-store ile watch-library-state revision protokolü aynı değil. Silme ardından aynı anahtarla yeniden oluşturma + eski bekleyen yazı senaryosunu gerçek store üzerinden dar testle doğrula; mevcut concurrency testini runtime güvencesi sayma. [Kanıt/sınır](docs/devir/2026-11-13-0755.md).
+
+# Yüklü altyazıyla kaynak geçişi kapandı · 2026-11-13 07:44
+
+- Önceki0726 kaydındaki703cue yüklüykenBgeçiş takılması düzeltildi; gerçekTorBox A/B,eski audio/embedded/addon seçim izolasyonu veB oynatma ok:true. [Ölçüm,4/4hedefli davranıştesti ve sınırlar](docs/devir/2026-11-13-0744.md).
+- Eski açıkA/B ifadeleri tarihsel kaldı. Genelnetworkcoldstart kabulü tümkoşullarıyla kapanmış sayılmaz. Claude dönüşü mevcut runtime düzeltmeleri korunarak birleştirilecek; commit/push yok.
+
+# Native açılış fişi / gerçek TorBox kabulü · 2026-11-13 07:26
+
+- Güvenli başlangıç aşama/süre fişi ve manuel/otomatik eklenti altyazısı select:true sözleşmesi düzeltildi; gerçek703cue yükleme geçti. [Kanıt,18hedefli test ve sınırlar](docs/devir/2026-11-13-0726.md).
+- Altyazı yüklenmeden gerçekA/B seçim izolasyonu geçti. Altyazı yüklüyken Bgeçişi tamamlanmadı; sonraki teknikprobe sağlayıcı0kaynak döndürdüğü için ilerleyemedi. Tam sonrakiadım devirde; coldstartta media-ready12sn bekleme gözlendi, motor pencere/IPC hızlıydı. Sonuçlar topluca başarılı sayılmaz. Claude dönüşünde model/hide/native/iki subtitlecallsite korunmalı.
+
+# Servis geçişi / native başlangıç · 2026-11-13 07:15
+
+- Eski Browser hide işinin yeniden açılmış/yeni sekmeyi durdurması ve terminal mpv process sonrası gereksiz8snIPC beklemesi düzeltildi. [Kanıt ve hedefli testler](docs/devir/2026-11-13-0715.md).
+- Gerçek TorBox/Win32 kararsızlığı yeniden üretilemedi; açık kalır. İzole gerçek mpv local ve5,5sn gecikenHTTP açılışı geçti. Sonraki adım başarısız gerçek TorBox açılışında aşama/süre kaydıyla hata koşulunu ayırmak; aynı başarılı sentetik testi tekrar tekrar çalıştırmak değil.
+
+# Mod geçişi performansı · 2026-11-13 07:11
+
+- Kaynak bağlantısındaki N² tarama kaldırıldı; kontrollü geçiş ölçümleri iyileşti. [Kanıt ve sınırlar](docs/devir/2026-11-13-0711.md).
+- Kalan: uzun transkriptte senkron kart kurulum maliyeti ve gerçek kişisel tam film geçiş kabulü. Claude dönüşü güncel model optimizasyonunu ezmemeli; paketin tabanı bu düzeltmeden eski.
+
+# Ekran onarımları / anime-manga ayrıntısı · 2026-11-13 06:40
+
+- İstenen yerleşim onarımları ve ortak anime/manga/manhwa ayrıntı sayfası yerelde uygulandı. [İnceleme, plan, dosya sahipliği ve kabul](docs/devir/2026-11-13-0630.md).
+- Sonraki somut kullanıcı kabulü: kişisel arşivde bir anime ve manhwa kapağını açıp eksik bilgiler için AniList eylemini denemek. Canlı salt okuma AniList isteği izole kayıtta geçti; gerçek kişisel profile yazılmadı.
+- YouTube yüklenme simgesinden tek başına hata çıkarılmadı; belirli videoda yeniden üretim olmadan düzeldi denmez. Önceki TorBox/native kabulü ayrı açık kalır. Yeni Git teslimi yapılmadı; açık komut beklenir. Sıradaki işler dosyası korunur.
+
 # Git teslim kaydı · 2026-11-13 05:34
 
 - Açık kullanıcı komutuyla 40 ürün/test dosyası `a69fcbb76f7c2ba301014267cd65d46265068a0d` commit'ine, belgeler ayrı commit'e alındı. [PR #922](https://github.com/dorukakindev/whisper-browser/pull/922), [teslim ve sınırlar](docs/devir/2026-11-13-0534.md). Commit öncesi 80/80 hedefli kontrol geçti; başlıklar `[skip ci]`. Son master kimliği PR/Git üzerinden doğrulanır.

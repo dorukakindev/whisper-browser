@@ -1094,6 +1094,7 @@
     stageEpoch++;
     SS.set('cp-sahne-off','1');
     if (key.startsWith('browser:')) window.BrowserStudy?.close?.();
+    else if (key.startsWith('local:')) { localView='cinema'; PW()?.setPodcastMode(false); }
     unmount();
   },evaluate,get current(){return inst;}});
   evaluate();

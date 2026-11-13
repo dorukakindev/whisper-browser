@@ -118,8 +118,8 @@ function fakeButton() {
     state,
   });
   context.updateBrowserSubtitleSummary();
-  // Merkez etiketi sabit "Altyazı araçları"dır; iz sayısı panel düğmesinde ve durum satırında görünür.
-  assert.equal(label.textContent, 'Altyazı araçları');
+  // Merkez etiketi sabit "Çeviri ve dublaj"dır (altyazı, çeviri ve dublaj bu menüdedir); iz sayısı panel düğmesinde ve durum satırında görünür.
+  assert.equal(label.textContent, 'Çeviri ve dublaj');
   assert.equal(button.dataset.state, 'idle');
   assert.equal(hub.browserHubStatus.attrs['data-state'], 'idle');
   assert.equal(hub.browserHubStatusTitle.textContent, 'Örnek video', 'durum satırı işlenen kaynağı adlandırmıyor');
@@ -127,7 +127,7 @@ function fakeButton() {
   assert.equal(hub.browserSettingsTargetName.textContent, 'Örnek video', 'Ayarlar sayfası kaynağı göstermiyor');
   player.browserTracks.push({}, {});
   context.updateBrowserSubtitleSummary();
-  assert.equal(label.textContent, 'Altyazı araçları');
+  assert.equal(label.textContent, 'Çeviri ve dublaj');
   assert.equal(hub.browserHubStatus.attrs['data-state'], 'ready');
   assert(/2 altyazı izi/.test(hub.browserHubStatusText.textContent), 'iz sayısı durum satırında yok');
   assert.equal(button.dataset.state, 'ready');
@@ -209,7 +209,7 @@ function fakeButton() {
   const chatSend = renderer.slice(renderer.indexOf('async function aiChatSend'), renderer.indexOf('function aiChatCopyFromBubble'));
   assert.equal((chatSend.match(/aiChatContext\(\)/g) || []).length, 1,
     'AI gönderimi bağlamı birden çok kez üretiyor');
-  assert(/const chatContext = aiChatContext\(\)/.test(chatSend)
+  assert(/const chatContext = podcastPacket \?[\s\S]*: \(bounded[\s\S]*: aiChatContext\(\)\);/.test(chatSend)
     && /context: chatContext/.test(chatSend)
     && /kind: 'chat'[\s\S]*chatContext/.test(chatSend)
     && /renderAiChatContext\(chatContext, true\)/.test(chatSend),

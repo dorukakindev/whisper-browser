@@ -250,7 +250,7 @@ function fixturePython() {
     assert.doesNotMatch(codeBranchBody, /return true/,
       'done sonrası nonzero exit hâlâ erken dönüyor — çıktılar yüklenmez');
     assert.match(codeBranchBody, /hata koduyla kapandı/, 'nonzero exit uyarı günlüğü yok');
-    assert.match(branch, /continueWhenCurrent\(finishProgressiveJob\)/,
+    assert.match(branch, /const finishOutput = \(\) => continueWhenCurrent\(\(\) => \{\s*void finishProgressiveJob\(job\)\.catch/,
       'exit sonrası finish akışı korunmuyor');
     // done öncesi gelen nonzero exit davranışı değişmedi: o başka dalda.
     assert.match(renderer, /job\.failed = true;\s*job\.awaitingExit = true/);

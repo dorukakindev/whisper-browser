@@ -9,7 +9,7 @@ const { decodeDownloadedSubtitle } = require('../src/browser-subtitle-search');
 
 const json = (data) => new Response(JSON.stringify(data), { status: 200 });
 const MANIFESTS = {
-  'https://cinemeta.example/manifest.json': { id: 'c', name: 'Cinemeta', version: '1', types: ['movie', 'series'], resources: ['catalog', 'meta'], idPrefixes: ['tt'], catalogs: [{ type: 'series', id: 'top', name: 'Popüler', extra: [{ name: 'search' }] }] },
+  'https://cinemeta.example/manifest.json': { id: 'c', name: 'Cinemeta', version: '1', types: ['movie', 'series'], resources: ['catalog', 'meta'], idPrefixes: ['tt'], catalogs: [{ type: 'series', id: 'top', name: 'Popüler', extra: [{ name: 'search' }, { name: 'genre', options: ['Drama'] }] }] },
   'https://torr.example/manifest.json': { behaviorHints:{configurable:true}, id: 't', name: 'Torrentio', version: '1', types: ['series'], resources: ['stream'], catalogs: [] },
   'https://subs.example/manifest.json': { id: 's', name: 'Altyazı', version: '1', types: ['series'], resources: ['subtitles'], catalogs: [] },
 };
@@ -19,7 +19,7 @@ const fetch = async (url) => {
   resourceRequests.push(url);
   if(url==='https://torr.example/debrid-fixture/manifest.json')return json(MANIFESTS['https://torr.example/manifest.json']);
   if (MANIFESTS[url]) return json(MANIFESTS[url]);
-  if (url.startsWith('https://cinemeta.example/catalog/series/top')) return json({ metas: [{ id: 'tt1', type: 'series', name: 'Test Dizisi', releaseInfo: '2020', poster: 'https://img.example/p.jpg', background: 'https://img.example/b.jpg', description: 'Bir açıklama', imdbRating: '8.1', genres: ['Dram'] }] });
+  if (url.startsWith('https://cinemeta.example/catalog/series/top')) return json({ metas: [{ id: 'tt1', type: 'series', name: 'Test Dizisi', releaseInfo: '2020', poster: 'https://img.example/p.jpg', background: 'https://img.example/b.jpg', logo: 'https://img.example/black-transparent-logo.png', description: 'Bir açıklama', imdbRating: '8.1', genres: ['Drama'] }] });
   if (url === 'https://cinemeta.example/meta/series/tt1.json') return json({ meta: { id: 'tt1', type: 'series', name: 'Test Dizisi', releaseInfo: '2020', description: 'Açıklama', videos: [
     ...metadataExtras, { id: 'tt1:1:1', season: 1, episode: 1, title: 'Pilot' }, { id: 'tt1:1:2', season: 1, episode: 2, title: 'İkinci' }, { id: 'tt1:2:1', season: 2, episode: 1, title: 'Yeni sezon' }] } });
   if (url==='https://torr.example/stream/series/tt1:0:0.json')return json({streams:[{name:'Special source',url:'https://cdn.example/special.mp4'}]});
@@ -40,6 +40,7 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   window.HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute('open', ''); };
   window.HTMLDialogElement.prototype.close = function close() { if (!this.hasAttribute('open')) return; this.removeAttribute('open'); this.dispatchEvent(new window.Event('close')); };
   window.UiLocale = { get: () => 'tr' };
+  window.eval(fs.readFileSync(path.join(__dirname, '../src/renderer/media-visual.js'), 'utf8'));
   window.api = { stremio: (request) => service.handle({}, request).then((r) => ({ ok: true, ...r }), (e) => ({ ok: false, error: e.message, code: e.code })) };
   const opened = [];
   window.MediaHubUI = { playStream: async (result, seconds) => { opened.push({ result, seconds }); Object.assign(window.player,{mediaKey:result.key,workKey:result.workKey||'',subPath:'',sub2Path:'',cues:[],cues2:[],offset:0,offset2:0}); }, open: () => {} };
@@ -254,11 +255,20 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   const page2 = UI.mount(document.getElementById('mediaHome'));
   await until(() => document.querySelector('.sx-feature:not([hidden]) .sx-feature-title'), 'vitrin');
   assert.equal(document.querySelector('.sx-feature-title').textContent, 'Test Dizisi');
+  assert.equal(document.querySelector('.sx-feature-title').hidden, false, 'an addon logo never hides the readable title');
   assert.match(document.querySelector('.sx-feature-meta').textContent, /8\.1/);
+  assert.match(document.querySelector('.sx-feature-meta').textContent, /Dram/);
+  assert.doesNotMatch(document.querySelector('.sx-feature-meta').textContent, /Drama/);
   document.getElementById('sxMode-browse').click();
   await until(() => document.querySelector('.sx-browse .sx-card'), 'keşfet kataloğu');
   assert.equal(document.querySelector('.sx-home').hidden, true);
   const sels = document.querySelectorAll('.sx-browse-bar select');
+  const genre = [...sels].find(x => [...x.options].some(option => option.value === 'Drama'));
+  assert.equal(genre.querySelector('option[value="Drama"]').textContent, 'Dram');
+  genre.value = 'Drama'; genre.dispatchEvent(new window.Event('change'));
+  await until(() => resourceRequests.some(url => url.includes('genre=Drama')), 'raw addon genre filter');
+  await until(() => document.querySelector('.sx-browse .sx-card'), 'localized genre result');
+  assert.match(document.querySelector('.sx-active-filters')?.textContent || document.querySelector('.sx-browse').textContent, /Dram/);
   const rating = [...sels].find((x) => /puan/i.test(x.getAttribute('aria-label')));
   const year = [...sels].find((x) => /yıl/i.test(x.getAttribute('aria-label')));
   year.value = 'old'; year.dispatchEvent(new window.Event('change'));

@@ -14573,7 +14573,12 @@ function destroyBrowserTab(tab) {
   scheduleBrowserSessionSave();
 }
 
+let browserHideSequence = 0;
 async function hideBrowserView(pause = true) {
+  const ticket = ++browserHideSequence, view = browserView, tab = activeBrowserTab();
+  const context = { ...browserEventContext(tab), stateGeneration: browserStateGeneration };
+  const ownsHide = () => ticket === browserHideSequence && !browserVisible
+    && browserView === view && activeBrowserTab() === tab && isCurrentBrowserContext(context);
   browserVisible = false;
   stopBrowserPolling();
   for (const tab of browserTabs.values()) {
@@ -14583,11 +14588,13 @@ async function hideBrowserView(pause = true) {
   // Kuyruğu önce boşalt: toggle betiği sayfa içi __whisperCaptureQueue'yu
   // sıfırladığı için flush sonraya kalırsa işlenmemiş yanıtlar sessizce düşer.
   await flushBrowserCaptureQueue({ allowHidden: true, force: true, installHook: false }).catch(() => {});
-  await executeBrowserFrames(browserCaptureToggleScript(false)).catch(() => {});
+  if (!ownsHide()) return;
+  await executeBrowserViewFrames(view, browserCaptureToggleScript(false)).catch(() => {});
+  if (!ownsHide()) return;
   browserCaptureHookFrames = new WeakSet();
-  detachBrowserDebugger(browserView);
+  detachBrowserDebugger(view);
   browserDebuggerReady = false;
-  if (pause && !browserExtras?.mini.owns(activeBrowserTab())) executeBrowserFrames(`(() => {
+  if (pause && !browserExtras?.mini.owns(tab)) executeBrowserViewFrames(view, `(() => {
     const roots = [document];
     for (let i = 0; i < roots.length; i++) {
       for (const node of roots[i].querySelectorAll('*')) if (node.shadowRoot) roots.push(node.shadowRoot);
@@ -22599,6 +22606,7 @@ browserExtras = require('./browser-feature-services').registerBrowserFeatureServ
 const mediaTorrents = require('./media-torrents').registerMediaTorrents({app,ipcMain,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,protocol,grantMedia:file=>mediaFileAccess.grant(file),
   enginePath:()=>process.env.WHISPER_TORRENT_TEST==='1'&&process.env.WHISPER_RQBIT_PATH ? process.env.WHISPER_RQBIT_PATH : path.join(app.getPath('userData'),'media-engines','rqbit.exe')});
 let stremioHeadersFor=()=>[];
+let prepareStreamWhisperAudio;
 require('./native-player').registerNativePlayer({app,ipcMain,BrowserWindow,dialog,owner:()=>mainWindow,authorized:authorizedBrowserSender,authorizeMedia:authorizeMediaFile,torrents:mediaTorrents,sourceHeaders:url=>stremioHeadersFor(url)});
 // Stremio kayıt/ayar adresleri main sahibinde; renderer aktif oynatma URI’sini alır. Manifest ağı DNS-pinlidir.
 {
@@ -22607,7 +22615,7 @@ require('./native-player').registerNativePlayer({app,ipcMain,BrowserWindow,dialo
   const stremioFetch=async(url,init={})=>{if(isLoopbackAddon(url))return fetch(url,init);const pin=await assertPublicBrowserSubtitleUrl(url);return requestPinnedSubtitleBuffer(url,pin,{headers:init.headers,signal:init.signal,maxBytes:4_100_000});};
   const configureAddon=require('./stremio-config-window').createStremioConfigurator({BrowserWindow,owner:()=>mainWindow,title:()=>dt('Eklenti ayarları','Addon settings')});
   app.once('will-quit',()=>configureAddon.dispose());
-  const prepareAudio=require('./stremio-whisper-audio').createStreamAudioPreparer({directory:()=>path.join(app.getPath('userData'),'stream-whisper-audio'),ffmpeg:()=>resolveFfTool('ffmpeg'),grantMedia:file=>mediaFileAccess.grant(file),publicPin:require('./feed-service').publicPin});
+  const prepareAudio=prepareStreamWhisperAudio=require('./stremio-whisper-audio').createStreamAudioPreparer({directory:()=>path.join(app.getPath('userData'),'stream-whisper-audio'),ffmpeg:()=>resolveFfTool('ffmpeg'),grantMedia:file=>mediaFileAccess.grant(file),publicPin:require('./feed-service').publicPin});
   const stremioService=require('./stremio-service').registerStremio({ipcMain,authorized:authorizedBrowserSender,configureAddon,prepareAudio,root:()=>app.getPath('userData'),fetch:stremioFetch,
     assertUrl:async url=>{await assertPublicBrowserSubtitleUrl(url);},torrents:mediaTorrents,
     searchSubtitles:stremioSubtitles.searchSubtitles,downloadSubtitle:stremioSubtitles.downloadSubtitle,decodeSubtitle:stremioSubtitles.decodeDownloadedSubtitle,
@@ -22693,5 +22701,5 @@ require('./media-tools-service').registerMediaTools({app,ipcMain,grantSubtitle:f
     finally{reader.close();reviewSession.removeListener('will-download',denyDownload);}
   }
 });
-require('./media-hub-service').registerMediaHub({app,ipcMain,safeStorage,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),
+require('./media-hub-service').registerMediaHub({app,ipcMain,safeStorage,authorized:authorizedBrowserSender,dialog,owner:()=>mainWindow,inspectMedia:validateLocalMediaPath,authorizeMedia:authorizeMediaFile,grantMedia:file=>mediaFileAccess.grant(file),catalogStore:mediaCatalogService.store,ffmpeg:()=>resolveFfTool('ffmpeg'),ffprobe:()=>resolveFfTool('ffprobe'),prepareAudio:prepareStreamWhisperAudio,sourceHeaders:url=>stremioHeadersFor(url),
   relinkHistory:async(oldKey,file)=>{if(loadWatchLibraryAll().some(row=>row.key===oldKey))return (await relinkLibraryItem(oldKey,file,null,true)).undo;return null;}});

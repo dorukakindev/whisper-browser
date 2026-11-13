@@ -35,7 +35,29 @@ function nativeTrackCommand(tracks,type,value){
  return ['set_property',property,id];
 }
 function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,authorizeMedia,torrents,dialog,sourceHeaders}){
- let session=null,stopping=null,sequence=0,startEpoch=0;
+ let session=null,stopping=null,sequence=0,startEpoch=0,startup=null;
+ // Fixed-schema in-memory receipt: no source, title, path, key or error strings.
+ function startupTrace(){
+  const clock=()=>typeof performance!=='undefined'?performance.now():Date.now(),started=clock(),attemptId=randomUUID();let elapsed=0,outcome='pending',phase='authorize';const stages=[],mediaEvents=[],cache={};
+  const time=()=>elapsed=Math.max(elapsed,Math.round(clock()-started));
+  const snapshot=()=>({attemptId,outcome,phase,elapsedMs:outcome==='pending'?time():elapsed,stages:stages.map(row=>({...row})),media:{events:mediaEvents.map(row=>({...row})),cache:{...cache}}});
+  const publish=()=>{const win=owner();if(win&&!win.isDestroyed())try{win.webContents.send('native-player:event',{type:'startup',startup:snapshot()});}catch{}};
+  const mark=value=>{if(outcome!=='pending')return;phase=value;stages.push({phase:value,elapsedMs:time()});publish();};
+  const finish=value=>{if(outcome==='pending'){outcome=value;time();publish();}};
+  const observe=row=>{
+   if(outcome!=='pending')return;
+   if(['start-file','file-loaded','playback-restart'].includes(row.event)&&!mediaEvents.some(item=>item.event===row.event)){
+    mediaEvents.push({event:row.event,elapsedMs:time()});publish();
+   }
+   if(row.event!=='property-change')return;
+   if(row.name==='cache-speed'&&Number.isFinite(row.data)&&row.data>=0)cache.bytesPerSecond=row.data;
+   if(row.name==='demuxer-cache-state'&&row.data&&typeof row.data==='object'){
+    for(const [name,key]of [['raw-input-rate','inputBytesPerSecond'],['total-bytes','totalBytes'],['cache-duration','durationSeconds']])if(Number.isFinite(row.data[name])&&row.data[name]>=0)cache[key]=row.data[name];
+    for(const [name,key]of [['underrun','underrun'],['idle','idle']])if(typeof row.data[name]==='boolean')cache[key]=row.data[name];
+   }
+  };
+  mark('authorize');return {mark,finish,snapshot,observe};
+ }
  const configFile=()=>path.join(app.getPath('userData'),'native-player-engine.json');let configured='';
  try{if(fs.existsSync(configFile())&&fs.statSync(configFile()).size<8192)configured=JSON.parse(fs.readFileSync(configFile(),'utf8')).path||'';}catch{}
  const executable=()=>process.env.WHISPER_NATIVE_TEST==='1'&&process.env.WHISPER_MPV_PATH?process.env.WHISPER_MPV_PATH:configured||path.join(process.env.LOCALAPPDATA||'', 'Luna Player','mpv','mpv.exe');
@@ -69,28 +91,31 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
  }
  // External cancellation must also invalidate starts still awaiting file consent.
  // Internal session replacement uses stop() without invalidating its own epoch.
- function requestStop(){startEpoch++;return stop();}
+ function requestStop(){startEpoch++;startup?.finish('cancelled');return stop();}
  const handler=async(event,input={})=>{
   if(!authorized(event))return {ok:false,error:'Unauthorized request.'};
-  let opened;
+  let opened,trace;
   try{
-   if(input.action==='status')return {ok:true,available:fs.existsSync(executable()),active:!!session||!!stopping,stopping:!!stopping,platform:process.platform};
+   if(input.action==='startup-diagnostics')return {ok:true,startup:startup?.snapshot()||null};
+   if(input.action==='status')return {ok:true,available:fs.existsSync(executable()),active:!!session||!!stopping,stopping:!!stopping,platform:process.platform,startup:startup?.snapshot()||null};
    if(input.action==='choose'){const selected=await dialog.showOpenDialog(owner(),{properties:['openFile'],filters:[{name:'mpv.exe',extensions:['exe']}]});if(selected.canceled)return {ok:true,canceled:true};const file=fs.realpathSync(selected.filePaths[0]);if(path.basename(file).toLowerCase()!=='mpv.exe'||!fs.statSync(file).isFile())throw Error('Choose mpv.exe from your trusted mpv installation.');configured=file;require('./fsync-utils').atomicWriteFileSync(configFile(),JSON.stringify({path:file}));return {ok:true};}
    if(input.action==='stop'){await requestStop();return {ok:true};}
    if(input.action==='start'){
+    startup?.finish('cancelled');trace=startup=startupTrace();
     const epoch=++startEpoch;
     if(process.platform!=='win32')throw Error('Embedded native player currently targets Windows.');if(!fs.existsSync(executable()))throw Error('mpv.exe was not found. The normal player remains available.');
     let source,headers=[];if(String(input.source||'').startsWith('whisper-media:'))({url:source,headers}=torrents.nativeSource(input.source));else if(/^(?:https?|rtsp):\/\//.test(input.source||'')){const url=new URL(input.source);if(url.username||url.password)throw Error('Embedded URL credentials are not supported.');source=url.href;try{const extra=typeof sourceHeaders==='function'?sourceHeaders(source):[];headers=(Array.isArray(extra)?extra:[]).map(([name,value])=>name+': '+value);}catch{headers=[];}}else source=await authorizeMedia(input.path);
     if(epoch!==startEpoch)throw Error('Native playback was superseded.');
-    await stop();if(epoch!==startEpoch)throw Error('Native playback was superseded.');const host=new BrowserWindow({parent:owner(),show:false,frame:false,skipTaskbar:true,focusable:false,backgroundColor:'#000000',webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
+    trace.mark('previous-stop');await stop();if(epoch!==startEpoch)throw Error('Native playback was superseded.');trace.mark('host-create');const host=new BrowserWindow({parent:owner(),show:false,frame:false,skipTaskbar:true,focusable:false,backgroundColor:'#000000',webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
     const handle=host.getNativeWindowHandle(),wid=(handle.length>=8?handle.readBigUInt64LE():BigInt(handle.readUInt32LE())).toString(),pipe='\\\\.\\pipe\\whisper-mpv-'+randomUUID();
     const s={host,key:String(input.key||'').slice(0,2048),generation:input.generation,network:/^https?:\/\//i.test(source),pending:new Map(),state:{time:0,duration:0,paused:true,speed:1,volume:1,muted:false,buffering:false,tracks:[]}};session=s;opened=s;
     s.owner=owner();s.reposition=()=>layout(s,s.bounds||input.bounds||{});s.owner.on('move',s.reposition);s.owner.on('resize',s.reposition);
     const config=path.join(app.getPath('userData'),'native-player-input.conf');fs.writeFileSync(config,'MBTN_LEFT script-message whisper-toggle\nMBTN_LEFT_DBL script-message whisper-fullscreen\n');
     const args=['--no-config','--load-scripts=no','--idle=yes','--terminal=no','--osc=no','--input-default-bindings=no','--input-vo-keyboard=no','--input-conf='+config,'--wid='+wid,'--input-ipc-server='+pipe,'--hwdec=auto','--keep-open=yes','--sub-auto=no','--sid=no','--audio-file-auto=no','--ytdl=no','--osd-level=1','--osd-align-y=bottom','--osd-align-x=center','--osd-font-size=28'];
-    s.proc=spawn(executable(),args,{windowsHide:true,stdio:['ignore','pipe','pipe'],env:withoutSecretEnv(process.env)});s.proc.stdout.on('data',()=>{});let error='';s.proc.stderr.on('data',c=>{error=(error+c).slice(-1200);});s.proc.on('error',e=>{error=e.message;});s.proc.once('close',()=>{s.closed=true;if(session===s){send(s,'error',{error:'Native player closed. '+error});void stop().catch(()=>{});}});
-    const until=Date.now()+8000;while(Date.now()<until&&!s.socket&&session===s){try{s.socket=await new Promise((resolve,reject)=>{const socket=net.createConnection(pipe);socket.once('error',e=>{socket.destroy();reject(e);});socket.once('connect',()=>resolve(socket));});}catch{await new Promise(r=>setTimeout(r,100));}}
+    trace.mark('process-spawn');s.proc=spawn(executable(),args,{windowsHide:true,stdio:['ignore','pipe','pipe'],env:withoutSecretEnv(process.env)});s.proc.stdout.on('data',()=>{});let error='';s.proc.stderr.on('data',c=>{error=(error+c).slice(-1200);});s.proc.on('error',e=>{error=e.message;s.startError='Native player could not start. '+e.message;trace.finish('failed');});s.proc.once('exit',()=>{if(!s.ready){s.startError='Native player exited before media initialization.';trace.finish('failed');}});s.proc.once('close',()=>{s.closed=true;if(!s.ready)trace.finish('failed');if(session===s){send(s,'error',{error:'Native player closed. '+error});void stop().catch(()=>{});}});
+    trace.mark('ipc-connect');const until=Date.now()+8000;while(Date.now()<until&&!s.socket&&!s.startError&&session===s){try{s.socket=await new Promise((resolve,reject)=>{const socket=net.createConnection(pipe);socket.once('error',e=>{socket.destroy();reject(e);});socket.once('connect',()=>resolve(socket));});}catch{await new Promise(r=>setTimeout(r,100));}}
     if(session!==s){s.socket?.destroy();throw Error('Native playback was superseded.');}
+    if(s.startError)throw Error(s.startError);
     if(!s.socket){await stop();throw Error('Native player IPC startup timed out. '+error);}
     let buffer='';s.socket.on('error',()=>{});s.socket.on('close',()=>{if(session===s){send(s,'error',{error:'Native player connection closed.'});void stop().catch(()=>{});}});
     function failPlayback(){
@@ -107,6 +132,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
      s.endNotified=true;send(s,'ended');
     }
     s.socket.on('data',chunk=>{buffer+=chunk.toString();if(buffer.length>2_000_000){void stop().catch(()=>{});return;}let line;while((line=buffer.indexOf('\n'))>=0){const text=buffer.slice(0,line);buffer=buffer.slice(line+1);let row;try{row=JSON.parse(text);}catch{continue;}const pending=s.pending.get(row.request_id);if(pending){s.pending.delete(row.request_id);clearTimeout(pending.timer);row.error==='success'?pending.resolve(row.data):pending.reject(Error(pending.name+': '+row.error));}
+      if(session===s&&startup===trace)trace.observe(row);
       if(row.event==='file-loaded')s.loaded=true;
       // keep-open pauses on EOF without unloading the file; end-file need not fire.
       if(row.event==='property-change'&&row.name==='eof-reached'){
@@ -122,15 +148,18 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
       if(row.event==='end-file'&&row.reason==='error')failPlayback();
       if(row.event==='end-file'&&row.reason==='eof')notifyEnd();
     }});
+    trace.mark('configure');
     await command(s,['set_property','http-header-fields',headers]);
     for(const [i,name]of ['time-pos','duration','pause','speed','volume','mute','paused-for-cache','track-list','eof-reached','chapter-list'].entries())await command(s,['observe_property',i+1,name]);
-    await command(s,['loadfile',source]);await command(s,['set_property','pause',true]);
-    const readyDeadline=Date.now()+12000;while(!s.loaded&&!s.loadError&&Date.now()<readyDeadline&&session===s)await new Promise(r=>setTimeout(r,50));
+    // Optional read-only diagnostics never gate playback on mpv support/replies.
+    for(const [i,name]of ['cache-speed','demuxer-cache-state'].entries())void command(s,['observe_property',11+i,name]).catch(()=>{});
+    trace.mark('load');await command(s,['loadfile',source]);await command(s,['set_property','pause',true]);
+    trace.mark('media-ready');const readyDeadline=Date.now()+12000;while(!s.loaded&&!s.loadError&&Date.now()<readyDeadline&&session===s)await new Promise(r=>setTimeout(r,50));
     if(s.loadError)throw Error(s.loadError);
     if(session!==s||!s.loaded)throw Error('Native media did not become ready.');
-    if(Number(input.time)>0)await command(s,['seek',Number(input.time),'absolute']);
+    if(Number(input.time)>0){trace.mark('seek');await command(s,['seek',Number(input.time),'absolute']);}
     if(s.loadError)throw Error(s.loadError);
-    s.ready=true;if(layout(s,input.bounds||{})&&!host.isVisible())host.showInactive();s.pulse=setInterval(()=>send(s),200);send(s,'ready');return {ok:true};
+    trace.mark('present');s.ready=true;if(layout(s,input.bounds||{})&&!host.isVisible())host.showInactive();trace.mark('ready');trace.finish('ready');s.pulse=setInterval(()=>send(s),200);send(s,'ready');return {ok:true,startup:trace.snapshot()};
    }
    const s=session;if(!s||s.key!==input.key||s.generation!==input.generation)return {ok:false,error:'Native playback source changed.'};
    if(input.action==='diagnostics'){
@@ -168,7 +197,7 @@ function registerNativePlayer({app,ipcMain,BrowserWindow,owner,authorized,author
     const allowed={play:()=>['set_property','pause',false],pause:()=>['set_property','pause',true],seek:()=>['seek',Math.max(0,Math.min(s.state.duration||604800,Number(input.value)||0)),'absolute'],speed:()=>['set_property','speed',Math.max(.0625,Math.min(4,Number(input.value)||1))],volume:()=>['set_property','volume',Math.max(0,Math.min(100,Number(input.value)*100))],mute:()=>['set_property','mute',!!input.value],audio:()=>nativeTrackCommand(s.state.tracks,'audio',input.value),sub:()=>nativeTrackCommand(s.state.tracks,'sub',input.value),vprop:()=>{const value=input.value;if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid native property packet.');const spec={brightness:[-100,100],contrast:[-100,100],saturation:[-100,100],gamma:[-100,100],hue:[-100,100],'video-zoom':[-2,2],panscan:[0,1],'audio-delay':[-10,10],'sub-delay':[-30,30],'video-pan-x':[-1,1],'video-pan-y':[-1,1]};const name=String(value.name||'');if(name==='video-rotate')return ['set_property',name,[0,90,180,270].includes(Number(value.value))?Number(value.value):0];if(name==='video-aspect-override'){const v=Number(value.value);return ['set_property',name,Number.isFinite(v)&&v>=0.3&&v<=4?v:-1];}if(!Object.hasOwn(spec,name))throw Error('Unsupported native property.');const [lo,hi]=spec[name],v=Number(value.value);if(!Number.isFinite(v))throw Error('Invalid native property value.');return ['set_property',name,Math.max(lo,Math.min(hi,v))];}};if(!allowed[input.command])throw Error('Unsupported native command.');await command(s,allowed[input.command]());return {ok:true};
    }
    throw Error('Unsupported native player operation.');
-  }catch(error){if(opened&&session===opened){try{await stop();}catch(stopError){return {ok:false,error:stopError.message};}}return {ok:false,error:error.message};}
+  }catch(error){trace?.finish(startup!==trace||/superseded/.test(error.message)?'cancelled':'failed');if(opened&&session===opened){try{await stop();}catch(stopError){return {ok:false,error:stopError.message,...(trace?{startup:trace.snapshot()}:{})};}}return {ok:false,error:error.message,...(trace?{startup:trace.snapshot()}:{})};}
  };
  ipcMain.handle('native-player:request',handler);
  let quitting=false;

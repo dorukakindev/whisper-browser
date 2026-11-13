@@ -282,14 +282,14 @@ const scenarios = {
       const heading=rect(document.querySelector('.cv2-discover-section-heading')),firstCard=rect(document.querySelector('.cn-catalog-grid .cn-poster'));
       const row=[...document.querySelectorAll('.cn-catalog-grid .cn-poster')].slice(0,7);
       const metaTops=row.map(c=>Math.round(rect(c.querySelector('.cn-poster-meta')).top)),titleTops=row.map(c=>Math.round(rect(c.querySelector('.cn-poster-title')).top)),posterTops=row.map(c=>Math.round(rect(c.querySelector('.cn-poster-art')).top));
-      const head=document.querySelector('.cn-discover-feature-heading'),parts=[...head.children].map(n=>{const r=rect(n);return Math.round(r.top+r.height/2)});
+      const head=document.querySelector('.cn-discover-feature-heading'),parts=[...head.children].filter(n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden').map(n=>{const r=rect(n);return Math.round(r.top+r.height/2)});
       const hero=rect(document.querySelector('.cn-discover-hero'));
       return {vh,hero:Math.round(hero.height),headingTop:Math.round(heading.top),firstCardTop:Math.round(firstCard.top),metaTops,titleTops,posterTops,headRow:parts};})()`);
     const spread = a => Math.max(...a) - Math.min(...a);
     check('discover-layout', `1440×900: katalog başlığı ilk ekranda (üst ${layout.headingTop}px, ekran ${layout.vh}px) ve ilk kart satırı görünür başlıyor`, layout.headingTop < layout.vh - 140 && layout.firstCardTop < layout.vh - 40, JSON.stringify(layout));
     check('discover-layout', `hero yüksekliği sınırlı (${layout.hero}px ≤ 480)`, layout.hero <= 480, String(layout.hero));
     check('discover-layout', 'ilk satırda afiş, başlık ve yıl satırları aynı hizada (uzun başlık ve afişsiz kart dahil)', spread(layout.metaTops) <= 1 && spread(layout.titleTops) <= 1 && spread(layout.posterTops) <= 1, JSON.stringify({ meta: layout.metaTops, title: layout.titleTops }));
-    check('discover-layout', 'hero üst satırı (etiket · puan · gerekçe) tek ortak çizgide', spread(layout.headRow) <= 2, JSON.stringify(layout.headRow));
+    check('discover-layout', 'hero üst satırında en az iki görünür parça aynı çizgide', layout.headRow.length >= 2 && spread(layout.headRow) <= 2, JSON.stringify(layout.headRow));
     const tips = await browser.evaluate(`(c=>({tip:c.title,name:c.querySelector('.cn-poster-title').textContent}))([...document.querySelectorAll('.cn-poster')].find(c=>c.dataset.discoveryId==='tt1000003'))`);
     check('discover-layout', 'uzun başlıklı kartta tam başlık ipucu olarak erişilebilir', tips.tip.startsWith('Bir Deniz Fenerinin') && /Sessiz Kış Üzerine/.test(tips.tip) && tips.tip.includes('(2021)'), JSON.stringify(tips));
     await shot('discover-final');
@@ -376,6 +376,8 @@ const scenarios = {
   },
   async 'search-back-state'() {
     await fresh();
+    const catalogSearch=await browser.evaluate(`(()=>{const input=document.querySelector('.cn-filter-search input'),group=input.closest('.mv-search-group');return {visible:input.getClientRects().length>0,width:input.getBoundingClientRect().width,label:input.labels?.[0]?.querySelector('span')?.textContent,submit:group.querySelector('button').getAttribute('aria-label')};})()`);
+    check('search-back-state', 'katalog araması erişilebilir ve genel aramadan ayrı adlandırılır', catalogSearch.visible&&catalogSearch.width>0&&catalogSearch.label==='Katalogda ara'&&catalogSearch.submit==='Katalogda ara', JSON.stringify(catalogSearch));
     await browser.click(`document.querySelector('.cn-filter-search input')`);
     await browser.type('Sessiz'); await browser.key('Enter');
     await browser.until(`document.querySelectorAll('.cn-poster').length>0&&[...document.querySelectorAll('.cn-poster-title')].every(n=>/Sessiz/.test(n.textContent))`, 'arama sonucu');

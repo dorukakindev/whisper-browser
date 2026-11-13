@@ -289,7 +289,9 @@ test('main store bağlantısı boyut, tombstone ve açık geri yükleme sözleş
   assert(source.includes('watchLibraryStore().remove(key)'));
   assert(source.includes('saveWatchLibrary(previous, { restoreRemoved: true })'));
   assert(/createBackupPayload\([\s\S]*loadWatchLibraryAll\(\)/.test(source));
-  assert(source.includes('saveWatchLibrary(importedWatchLibrary, { restoreRemoved: true })'));
+  assert(source.includes("require('./settings-bundle-import').commitSettingsBundle({entries,watchStore:importedWatchLibrary?watchLibraryStore():null,watchLibrary:importedWatchLibrary"));
+  const bundleImport = fs.readFileSync(path.join(__dirname, '..', 'src', 'settings-bundle-import.js'), 'utf-8');
+  assert(bundleImport.includes('watchStore.prepareReplaceItems(watchLibrary,{restoreRemoved:true})'));
   assert(source.includes('renameCollection(loadWatchLibraryAll()'));
   assert(source.includes('previous = loadWatchLibraryAll().slice()'));
   assert(/async function searchWatchLibrary[\s\S]*const list = loadWatchLibraryAll\(\)/.test(source));

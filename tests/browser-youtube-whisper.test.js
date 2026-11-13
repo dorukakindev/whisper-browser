@@ -9,7 +9,7 @@ assert.equal(markup.getElementById('playerJobBar').parentElement.id, 'playerLaye
   'browser progress must remain outside the collapsible subtitle sidebar');
 const nodes = new Map();
 const node = id => {
-  if (!nodes.has(id)) nodes.set(id, { value: '', style: {}, classList: { add() {}, remove() {} }, click() { this.clicks = (this.clicks || 0) + 1; } });
+  if (!nodes.has(id)) nodes.set(id, { value: '', style: {}, classList: { add() {}, remove() {} }, querySelectorAll() { return []; }, querySelector() { return null; }, click() { this.clicks = (this.clicks || 0) + 1; } });
   return nodes.get(id);
 };
 const calls = [];

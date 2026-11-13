@@ -354,6 +354,10 @@
     host.dataset.page = value;
     host.scrollTop = 0;
     host.querySelectorAll('[data-home-page]').forEach(node => node.setAttribute('aria-current', node.dataset.homePage === value ? 'page' : 'false'));
+    // Üst çubukta yalnız Ana sayfa/Keşfet/Kütüphanem var; menüye taşınan sayfalar ait oldukları üst girişi (veya Daha fazla) işaretler: kullanıcı nerede olduğunu kaybetmesin.
+    const topOwner = { home: 'home', discover: 'discover', stremio: 'discover', films: 'discover', series: 'discover', recommend: 'discover', watched: 'watched', anime: 'watched', manga: 'watched', taste: 'watched', recall: 'more', feeds: 'more', radio: 'more', web: 'more', recent: 'more' }[value] || '';
+    host.querySelectorAll('.mh-nav > [data-home-page]').forEach(node => node.setAttribute('aria-current', node.dataset.homePage === topOwner ? 'page' : 'false'));
+    host.querySelector('.mh-nav > .mh-nav-more')?.setAttribute('aria-current', topOwner === 'more' ? 'page' : 'false');
     host.querySelectorAll('[data-home-mode]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.homeMode === (['music', 'radio'].includes(value) ? 'music' : value === 'books' ? 'books' : 'film'))));
     renderContent();
     if (changed) window.UiMotion?.reveal(document.getElementById('mhContent'), 'page');
@@ -393,7 +397,7 @@
       const toolbox=el('details','cn-accordion');toolbox.append(el('summary','',t('Subtitle & voice tools','Altyazı ve ses araçları')),tools());view.body.append(toolbox);
     } else if (state.page === 'recall' && window.RecallNetworkUI) {
       recallView=window.RecallNetworkUI.render({host:content,api:input=>window.api.recallRequest(input),locale:english()?'en':'tr',onOpen:async source=>{
-        if(source.kind==='collection')return window.PersonalLibraryUI.editCollection(source.id);if(source.kind==='catalog')return window.MediaTitleUI.open(source.id);
+        if(source.kind==='collection')return window.PersonalLibraryUI.openCollection(source.id);if(source.kind==='catalog')return window.MediaTitleUI.open(source.id);
         if(source.kind==='feed')return window.MediaHomeUI.openFeedEntry(source.id);
         if(source.kind==='book')return window.MediaShelfUI.openBook(source.id);
         if(source.kind==='podcast')return window.MediaShelfUI.openPodcast(source.locator?.podcastId,source.locator?.url);
