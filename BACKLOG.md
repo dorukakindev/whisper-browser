@@ -1,3 +1,7 @@
+# Kalıcı çalışma kararları güncellendi · 2026-11-13 19:49
+
+Koyu tema ve onaylı modern/sinematik tasarım çalışma yaklaşımı belgelerde birleştirildi. [Kapsam, doğrulama ve Git teslimi](docs/devir/2026-11-13-1949.md). Bu belge işi önceki yerel ürün entegrasyonlarından ayrıdır; yeni geliştirme maddesi yok.
+
 # Tasarım kuralı kilitleri kaldırıldı · 2026-11-13 19:03
 
 Sabit palet/sarı düğme, font/ölçü ve sadeleştirme dayatmaları kaldırıldı. Bu kural teslimi önceki yerel ürün çalışmasından ayrıdır. [Kapsam ve kanıt](docs/devir/2026-11-13-1903.md). Yeni ürün yeniden tasarımı başlatılmadı.

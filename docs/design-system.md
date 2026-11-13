@@ -4,6 +4,10 @@
 
 Güncel yetki [DESIGN.md](../DESIGN.md) içindedir. Sabit amber/sarı birincil düğme, grafit zemin, tek vurgu, font, 4px boşluk ölçeği veya köşe biçimi zorunlu değildir. Minimalizm/sakinlik ve gradyan, parıltı veya dekoratif hareket yasağı kaldırılmıştır. Tasarımcı kompozisyonu içeriğe ve kullanım akışına göre geliştirebilir.
 
+## Kullanıcının tema önceliği
+
+Koyu tema tasarım ve görsel kabulün esas ortamıdır. Kullanıcı istemedikçe açık/beyaz temada tasarım, ekran görüntüsü veya ek görsel doğrulama turu yapılmaz. Mevcut tema API/tercihi korunur; açık tema özelliği kaldırılmaz. Bu tercih sabit koyu palet veya tek vurgu rengi zorunluluğu değildir.
+
 ## Tema ve ortak roller
 
 `uiTheme` (`system`, `dark`, `light`) kalıcı tema seçimidir; `html[data-theme]` etkin temayı taşır. Mevcut `--bg-*`, `--text-*`, `--border-*`, `--accent*`, `--radius-*`, `--space-*` rolleri uyumluluk altyapısıdır; değerleri değişebilir ve yeni semantik roller eklenebilir. Birden fazla vurgu rengi kullanılabilir. Ortak rolü kullanan yüzeyler birlikte kontrol edilir; rastgele kopyalanan sabit değerler yerine anlamlı ortaklaştırma tercih edilir.

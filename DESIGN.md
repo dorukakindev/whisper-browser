@@ -1,5 +1,18 @@
 # Whisper Browser tasarım kaydı
 
+## Kalıcı tasarım ve çalışma kararı · 2026-11-13
+
+- **Koyu tema esas.** Kullanıcı sürekli dark theme kullanır. Kullanıcı istemedikçe açık/beyaz tema için tasarım incelemesi, ekran görüntüsü, ek cilalama veya görsel test turu yapma. Mevcut tema seçeneğini silme ve kişisel ayarı kendiliğinden değiştirme.
+- **Görsel kaliteyi basite indirgeme.** Özenli, modern, sinematik, etkileyici ve canlı bir medya deneyimi hedefle. Kompozisyonu, medya ölçeğini, tipografiyi, menü akışını, yüzeyleri ve ana/ikincil eylemleri birlikte çöz. Gerektiğinde yerleşimi yeniden kur; yalnız renk/gölge/köşe değişikliği veya test başarısı tamamlanmış tasarım sayılmaz.
+- **Özgür ve anlamlı görsel dil.** Renk, font, düğme, köşe veya yerleşim kilidi yoktur. Her yere sarı dolgu, aynı kapsül/kart veya aşırı büyük hero tekrarlama. Işık, atmosfer, geçiş, hover, yakınlaşma ve dekoratif efektler tasarımın parçası olabilir; okunabilirlik, erişim ve azaltılmış/off hareket tercihi korunur. Yeni bir sabit renk ya da zorunlu efekt reçetesi üretme.
+- **Önce göster, sonra uygula.** Kapsamlı görsel/yerleşim değişikliğinde mevcut ekran ile ayrı öneri taslağını aynı içerik ve ölçekte göster; kullanıcı onayı geldikten sonra ürüne uygula. Onaylanan kapsam içindeki rutin iyileştirmeler için tekrar tekrar onay isteme. Kullanıcının doğrudan uygulama yetkisi verdiği işte görevin kapsamını izleyip gereksiz yeni onay aşaması yaratma.
+- **Referanslardan düşünceyi öğren.** Claude örneklerini görüntü/kod üzerinden eleştirel incele; ölçek, hiyerarşi, hizalar, atmosfer ve kullanım sırasından yararlan, kusurlarını kopyalama. [Kendime çalışma promptu](docs/design/DESIGN_SELF_BRIEF.md) ve [görselli dersler](docs/design/2026-11-13-claude-design-lessons.md) güncel başvurudur. Claude'un açıklanmamış düşünce süreci hakkında iddia etme.
+- **Kısa ama tam doğrulama.** Koyu temada ilgili gerçek render'ı bütün olarak incele, görülen kusuru düzelt. Bir masaüstü ve gerekiyorsa bir dar alan kontrolü yap; geniş matris, gereksiz paket veya değişmemiş tam akışların tekrarı yok. Yeni hata veya değişikliğin etkilediği adımı doğrula; yalnız rapor/planla bırakma. Bu iş disiplini görsel tasarımı sadeleştirme gerekçesi değildir.
+- **Korunacak sahipler.** İleri özellikler, kişisel veriler/farklar, açık uygulama, kaynak/zaman/iş/onay/iptal sahipliği, klavye/odak ve güvenlik korunur. Yeni paralel medya/iş servisi üretme. Mevcut kullanıcı talimatı gereği agent/skill, Computer Use ve GitHub Actions kullanma. Git teslimi ayrıca açık komut gerektirir.
+
+Bu karar eski palet/font/yerleşim koruma, zorunlu sakinlik/minimalizm ve rutin iki-tema görsel kontrol talimatlarının yerine geçer. Tarihî devirler kanıttır; güncel çalışma kuralı değildir.
+
+
 ## Güncel tasarım yetkisi · 2026-11-13
 
 Renk, font, köşe, boşluk, düğme biçimi veya yerleşim için sabit bir estetik zorunluluk yoktur. Sarı/amber birincil düğme, tek vurgu rengi, mevcut paleti aynen sürdürme, minimalizm/sakinlik veya gradyan/parıltı yasağı uygulanmaz. Mevcut CSS değerleri değiştirilebilir uygulama ayrıntılarıdır; tasarım şartnamesi değildir.
