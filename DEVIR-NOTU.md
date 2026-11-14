@@ -1,6 +1,40 @@
+Güncel Git teslimi: [Gece Seansı V2, ürün334b2f56 ve PR927](docs/devir/2026-11-14-0445.md)
+
+Güncel yerel uygulama: [Gece Seansı V2 — üst barlar, film/dizi, Browser stüdyosu, oynatıcılar ve RSS](docs/devir/2026-11-14-0425.md)
+
+Güncel yerel birleşim: [Claude bugfix1.0.0, ek Stremio açıklaması ve podcast taşma düzeltmesi](docs/devir/2026-11-14-0200.md)
+
+Güncel danışmanlık paketi: [Claude/Fable için27 ekran, yerel kod ve ayrıntılı tasarım promptu](docs/devir/2026-11-13-2324.md)
+
+Güncel uygulama: [Diğer medya sayfaları, arşiv gezinmesi ve podcast masası](docs/devir/2026-11-13-2231.md)
+
+Güncel uygulama: [Onaylı ana sayfa/Browser üst barları ve canlı medya kimliği](docs/devir/2026-11-13-2120.md)
+
+Onaylanan taslak (ürüne uygulandı): [20:31](docs/devir/2026-11-13-2031.md)
+
+Onaylanmamış yerleşim önerisi (yeni kimlikte korunuyor): [20:28](docs/devir/2026-11-13-2028.md)
+
+Üçüncü üst bar taslağı (kabul edilmedi): [20:21](docs/devir/2026-11-13-2021.md)
+
+İkinci üst bar taslağı (yerini üçüncü öneri aldı): [20:13](docs/devir/2026-11-13-2013.md)
+
+İlk üst bar taslağı (yerini ikinci öneri aldı): [20:10](docs/devir/2026-11-13-2010.md)
+
 Güncel kalıcı çalışma kararı: [Koyu tema, tasarım anlayışı ve çalışma kuralları](docs/devir/2026-11-13-1949.md)
 
+Güncel uygulama: [Onaylı Stremio kaynak ve dizi tasarımı, efektler ve doğrulama](docs/devir/2026-11-13-1945.md)
+
+Güncel görsel onay: [Stremio kaynak ve dizi sayfası — önce/sonra taslak](docs/devir/2026-11-13-1925.md)
+
+Güncel tasarım çalışma brief'i: [Claude örneklerinden dersler, öz prompt ve referanslar](docs/devir/2026-11-13-1909.md)
+
 Güncel tasarım yetkisi: [Sabit palet/biçim dayatmalarının kaldırılması ve ayrı Git teslimi](docs/devir/2026-11-13-1903.md)
+
+Güncel kurtarma ve tamamlama: [Özgün 1.4 kodu, Stremio tasarımı, hata düzeltmeleri ve yedek](docs/devir/2026-11-13-1852.md)
+
+Güncel Claude kurtarma: [1.3 yerel entegrasyon, küçük yedek ve kodu bulunmayan1.4 işleri](docs/devir/2026-11-13-1818.md)
+
+Güncel canlı kısa kabul: [Whisper/çeviri/VoxCPM2, gerçek kaynak iptali ve kalan dublaj incelemesi](docs/devir/2026-11-13-1807.md)
 
 Güncel toplu Git teslimi: [Kapsam, doğrulama, korunan farklar ve Claude inceleme tabanı](docs/devir/2026-11-13-1705.md)
 
@@ -50,12 +84,20 @@ Güncel gerçek Stremio kabulü / yerel onarım: [Gerçek ses/gömülü iz seçi
 
 Güncel yerel Stremio geliştirmesi: [TorBox bulut kütüphanesi ve oynatıcı ses/altyazı seçimi](docs/devir/2026-11-13-0355.md)
 
+Güncel kişisel aktarım: [Sekmelerden türüne göre izleme/okuma/dinleme listeleri](docs/devir/2026-11-13-0322.md)
+
 Güncel yerel servis onarımları: [Claude Browser tasarımıyla paralel dört backend düzeltmesi](docs/devir/2026-11-13-0305.md)
 
 Güncel yerel düzeltme: [Çift dilli ve Podcast sabit altyazı şeridi](docs/devir/2026-11-13-0229.md)
 
 Güncel V6 inceleme ve entegrasyonu: [116 karar, görsel/davranış onarımları ve teslim sınırları](docs/devir/2026-11-13-0216.md)
 
+Güncel gerçek kabul: [Tam film Whisper, iki canlı tam sürüm geçişi ve kalan dublaj özel adı](docs/devir/2026-11-13-0138.md)
+Önceki gerçek kabul: [Tam film testinin ilk aşaması ve hedefli dublaj incelemesi](docs/devir/2026-11-11-1619.md)
+Güncel yerel deney: [Uzun film altyazısında Türkçe/anlam — iki DeepSeek ve Claude bakiye engeli](docs/devir/2026-11-11-1614.md)
+Önceki çeviri deneyi: [Programdaki DeepInfra DeepSeek V4.1 — aynı örnek ve birleştirme açıklaması](docs/devir/2026-11-11-1603.md)
+Önceki çeviri deneyi: [Üç bağlantıyla Türkçe çeviri — DeepSeek/Claude etiketi, kalite ve biçim](docs/devir/2026-11-11-1547.md)
+Güncel gerçek kısa zincir kabulü: [Torrentio/TorBox, CUDA Whisper, izinli çeviri, VoxCPM2 ve kaynak sahipliği](docs/devir/2026-11-11-1548.md)
 Güncel yerel geliştirme: [Stremio kaynak seçimi, Whisper uygunluğu, baştan oynatma ve panel okunurluğu](docs/devir/2026-11-11-1500.md)
 Güncel V4 entegrasyonu: [Paket incelemesi, ek yarış onarımları ve Windows doğrulaması](docs/devir/2026-11-11-1524.md)
 Güncel V3 teslim sonucu: [PR918 master — üst yapı, modal onarımı ve korunan asistan bağlamı](docs/devir/2026-11-11-1423.md)

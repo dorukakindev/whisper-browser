@@ -46,6 +46,7 @@
 #mediaHome.cn-scrolled .mh-header { background:#141518f5; box-shadow:0 8px 32px rgb(var(--media-scrim-rgb) / calc(68 / 255)),inset 0 -1px rgb(var(--media-highlight-rgb) / calc(13 / 255)); }
 .cn-discover-controls { transition:background var(--motion-control),box-shadow var(--motion-control),backdrop-filter var(--motion-control); }
 .cn-discover-controls.cn-stuck { background:#141518ed; backdrop-filter:blur(12px); box-shadow:0 8px 28px rgb(var(--media-scrim-rgb) / calc(68 / 255)); }
+html[data-theme="light"] .cn-discover-controls.cn-stuck{background:color-mix(in srgb,var(--cn-bg) 97%,transparent)}
 :is(.cn-home-content,.cn-discover-page,.cn-film-page) :is(.mv-overflow-panel,.mv-filter-panel) { animation:cn-menu-arrive var(--motion-enter) var(--ease-expo); }
 :is(.cn-home-content,.cn-discover-page,.cn-film-page) :is(.md-toast,.media-toast) { animation:cn-menu-arrive var(--motion-enter) var(--ease-expo); }
 :is(.cn-home-content,.cn-discover-page,.cn-film-page) :is(.md-toast,.media-toast)::after { content:''; display:block; height:2px; margin-top:8px; background:var(--cn-gold); transform-origin:left; animation:cn-toast-progress 2600ms linear forwards; }

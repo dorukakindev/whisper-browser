@@ -36,4 +36,21 @@ test('katalog diyaloğu showModal sonrası resync eder', () => {
   assert.match(catalog, /dialog\.addEventListener\('close',/);
 });
 
+
+
+// A docked studio must leave its narrowed native page visible. Other overlays
+// and the small-screen studio still occlude it through the original owner.
+test('studio docks on desktop but remains an overlay at narrow widths',()=>{
+  const vm=require('node:vm');const at=renderer.indexOf('function syncBrowserOcclusion()');
+  const source=renderer.slice(at,renderer.indexOf('\n}',at)+2);
+  let width=1280,modal=false,result;
+  const studio={open:true},workspace={classList:{contains:n=>n==='mc-studio-open'}};
+  const window={get innerWidth(){return width},api:{setAssistantModalBlocked(){},setBrowserOccluded(){}}};
+  const sync=vm.runInNewContext('('+source+')',{$:id=>({browserTranslateMenu:studio,browserWorkspace:workspace}[id]||null),window,document:{querySelector:()=>modal?{}:null},_activeModal:null,applyBrowserOcclusion:v=>{result=v;}});
+  sync();assert.equal(result,false);
+  width=900;sync();assert.equal(result,true);
+  width=1280;modal=true;sync();assert.equal(result,true);
+  modal=false;studio.open=false;sync();assert.equal(result,false);
+});
+
 console.log(`${passed} test geçti`);

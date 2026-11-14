@@ -1,5 +1,17 @@
 # Whisper Browser tasarım kaydı
 
+## Güncel onaylı uygulama · Gece Seansı V2 · 2026-11-14
+
+Kullanıcı CODEX-IMPLEMENTATION-BRIEF-V2, DESIGN-REVIEW-V2 ve sekiz hazır görselin doğrudan uygulanmasını istedi. Üst barlar, ana sayfa, film/dizi, Browser stüdyosu, çift dilli/Podcast ve RSS yerelde uygulandı. Eski çelik/mavi yüzey onayı artık önceki tasarım kaydıdır. Güncel yön nearblack sıcak nötr yüzeyler, sıcak beyaz içerik eylemi ve küçük fosfor dil/stüdyo vurgusu; içerik görselleri renklerini korur. Başka bir sabit marka rengine dönme. Mevcut kontroller ve sahipleri korundu. [Gerçek görüntüler ve kabul sınırları](docs/devir/2026-11-14-0425.md).
+
+## Onaylı üst barlar uygulandı · 2026-11-13 21:20
+
+Kullanıcı yeni yerleşim/kimliği onayladı; robotik/steril bir yönetim paneli değil, canlı ve ruhu olan bir medya browser/player istedi. Çelik/gümüş yüzeyler, kontrollü mavi ışık, hover/menü geçişleri ve komşu yüzeylerde renk uyumu uygulandı. Medya görselleri tasarımın merkezinde kendi renklerini korur. Bu onay diğer ekranları tek palete kilitlemez. [Görüntü ve doğrulama](docs/devir/2026-11-13-2120.md).
+
+## Son renk geri bildirimi · 2026-11-13 20:31
+
+Kullanıcı moru açıkça reddetti; ardından amber/bakırın geri önerilmesini de düzeltti. Amber/grafit kimliğini koruma veya sıcak bakır vurguya geri dönme artık güncel tercih değildir. Mor, pembe-mor yüzey/parıltı ve amber/bakır önerileri bu üst bar çalışmasında kullanılmayacak. Modern ve sinematik yeni bir kimlik isteniyor; önceki uygulama renkleri zorunlu referans değildir. Güncel görsel öneri siyah çelik/dumanlı nötr yüzeyler, gümüş metin ve kontrollü buz mavisi vurgudur; henüz onaylanmış ürün kimliği veya diğer ekranlara sabit reçete değildir. Yerleşim ile renk onayını ayrı takip et.
+
 ## Kalıcı tasarım ve çalışma kararı · 2026-11-13
 
 - **Koyu tema esas.** Kullanıcı sürekli dark theme kullanır. Kullanıcı istemedikçe açık/beyaz tema için tasarım incelemesi, ekran görüntüsü, ek cilalama veya görsel test turu yapma. Mevcut tema seçeneğini silme ve kişisel ayarı kendiliğinden değiştirme.
@@ -23,7 +35,15 @@ Ekranın içeriğine ve kullanımına uygun özgün kompozisyon kur. Renkleri, t
 
 Eski devirler, paket promptları ve aşağıdaki uygulama kayıtları geçmişin kanıtıdır; içlerindeki palet/font/yerleşim koruma ifadeleri güncel tasarım talimatı değildir. Güncel kullanıcı isteği önceliklidir. Kullanıcının mevcut talimatı doğrultusunda tasarım skill'i veya agent kullanılmaz.
 
+## Tasarım çalışma brief'i ve referans incelemesi · 2026-11-13
+
+Yetkilendirilmiş UI işinde [kendime tasarım promptunu](docs/design/DESIGN_SELF_BRIEF.md) uygula. [Claude çalışmalarından çıkarılan dersler ve gerçek referans görüntüler](docs/design/2026-11-13-claude-design-lessons.md) güçlü yanları ve aktarılmayacak kusurları birlikte gösterir. Beklenen sonuç özenli, modern ve sinematik bir medya deneyimidir; yalnız kozmetik değişiklik veya çalışan form yeterli kabul edilmez. Bu brief sabit palet/font/kolon reçetesi değildir.
+
 ## Tarihî uygulama kayıtları — stil zorunluluğu değildir
+
+## Onaylı Stremio kaynak / dizi tasarımı · 2026-11-13 19:45
+
+Kullanıcı önce/sonra taslaklarının ikisini onayladı. Mevcut kaynak ve ortak yapım ayrıntısı sahipleriyle uygulandı: ayrı öneri alanı, okunur kaynak listesi/filtre erişimi, dengeli hero, görünür sezonlar ve bölüm kartları. Arama ve izleme filtresi gerçek veriye bağlıdır. Vurgu/ışık ve hareket bu iki yüzeyde scoped; azaltılmış/off hareket ve açık tema korunur. [Uygulama ve gerçek görüntü kanıtı](docs/devir/2026-11-13-1945.md). Taslaktaki statik olaylar üretime taşınmadı. Bu seçim diğer sayfalara sabit estetik dayatması değildir.
 
 ## Browser etiket kademeleri, erişim ve gezinme konumu — 2026-11-13
 
@@ -433,3 +453,17 @@ Anime/manga/manhwa ayrı bir görsel sistem kurmaz; `CinemaUI.film` kompozisyonu
 Yapım hero kompozisyonu yeni tasarıma göre geliştirilebilir. Nedenler ve isteğe bağlı kısa sorular yapım eylemlerinden/profil havuzundan açılan merkezli, tek scroll sahibi modallardır. Kaydet/gönder eylemi ayırt edilir; görünür odak korunur. Yorum seçimi, gönderilecek örnek/kişisel bağlam ve onay ayrı adımlardır. Kaynak/yorum metinleri UI çevirisinden ayrıdır. Çeviri kararları scope/dil çifti, okunur karar satırları ve açık kuyruk snapshot açıklamasıyla sunulur. [Gerçek Electron kontrollü görünüm ve sınırlar](docs/devir/2026-11-13-1530.md).
 
 2026-11-13 cümle birleştirme: mevcut anahtar altında kaynak/çeviri satır sayımı, aday-yok/kapalı durumları ve amber okunur vurgu; yeni panel yok. Devir: docs/devir/2026-11-13-1611.md.
+
+## Kurtarılan Podcast ve koleksiyon yüzeyleri · 2026-11-13 18:18
+
+Podcast-studio katmanı mevcut DOM/araçları koruyarak kapak rafı ve seçili yayın başlığı sunar. Kütüphane rafı dialog içinde tembel yüklenir; bağlantı hatası boş abonelik olarak gösterilmez. Koleksiyon hero durum/puan/ilerleme şeridi mevcut sinematik yapıya eklenir. Native görüntüler ve sınırlar: docs/devir/2026-11-13-1818.md.
+
+
+## 2026-11-13 · Stremio kaynak ve sezon kompozisyonu
+
+Özgün Claude kaynak kartları ve sezon/bölüm düzeni kurtarıldı. Durum ve uyumluluk okunabilir ana bilgi, teknik ayrıntılar katlanır ikincil bilgi; sezon gezinmesi hero sonrasında liste araçlarından önce gelir. Açık tema yüzeyleri tema rengini izler. ASUS tam ekran sentetik kompozisyon ve erişim kontrolü: [devir](docs/devir/2026-11-13-1852.md).
+
+
+## Medya sayfaları · uygulama kaydı · 2026-11-13 22:31
+
+Onaylı üst barların ardından kullanıcı diğer kötü sayfaların doğrudan düzenlenmesini istedi. Karma arşiv kompakt kayıt listesi, anime/manga kapak oranlı raf; podcast yan yayın seçimi ile bölüm/kuyruk masası olarak ayrılır. Üç sık arşiv görünümü görünür, sekiz ileri görünüm kayıpsız menüdedir. Ana sayfa erişimleri ilk ekrana yaklaşır; Keşfet/Stremio katalog araçları içerikle dengelenir. Bunlar sabit gelecek şablonu değildir. [Gerçek görüntüler ve sınırlar](docs/devir/2026-11-13-2231.md).

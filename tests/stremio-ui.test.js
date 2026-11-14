@@ -97,6 +97,9 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   assert.equal(sharedDetailCalls.length,1,'Stremio uses the existing Discovery detail owner');assert.equal(sharedDetailCalls[0].row.providerId,'tt1');
   assert.equal(document.querySelectorAll('.md-detail .sx-episode').length, 2, 'ilk sezonun iki bölümü');
   assert.equal(document.querySelector('.sx-season').options.length, 2);
+  const episodeSearch=document.querySelector('.sx-episode-search');episodeSearch.value='Pilot';episodeSearch.dispatchEvent(new window.Event('input'));assert.equal(document.querySelectorAll('.sx-episode').length,1);assert.match(document.querySelector('.sx-episode').textContent,/Pilot/);
+  episodeSearch.value='ikinci';episodeSearch.dispatchEvent(new window.Event('input'));assert.equal(document.querySelectorAll('.sx-episode').length,1);assert.match(document.querySelector('.sx-episode').textContent,/İkinci/);
+  episodeSearch.value='not-a-real-episode';episodeSearch.dispatchEvent(new window.Event('input'));assert(document.querySelector('.sx-episodes-empty'));document.querySelector('.sx-episodes-empty button').click();await tick();assert.equal(document.querySelectorAll('.sx-episode').length,2);assert.equal(episodeSearch.value,'');
   assert.match(document.querySelector('.md-detail .sx-actions button').textContent, /Oynat/);
 
   // Bölüm 1 → kaynak seçici → en iyi kaynak
@@ -377,6 +380,26 @@ const until = async (fn, label) => { for (let i = 0; i < 80; i++) { if (fn()) re
   const stubSources=(rows,play)=>{window.api.stremio=q=>q.action==='streams'?Promise.resolve({ok:true,token:'t-'+rows[0].id,videoId:'tt1:1:1',groups:[{addonKey:'k',addonName:'Torrentio',count:rows.length,error:null}],streams:rows})
     :q.action==='play'?Promise.resolve({ok:true,workKey:'',whisperAudio:rows.find(r=>r.id===q.streamId).whisperAudio,meta:{type:'series',id:'tt1',season:1,episode:1},...play(q)})
     :q.action==='subtitles'?Promise.resolve({ok:true,token:'s',subtitles:[],groups:[]}):originalApi(q);};
+  // Pending debrid files remain visible, but must not win automatic playback over a ready source.
+  stubSources([fileRow('waiting',{addonName:'Waiting',availability:'download',score:99,whisperAudio:'pending'}),fileRow('ready',{addonName:'Ready',filename:'release.mkv',codec:'hevc',hdr:'DV',source:'webdl',audio:'atmos',tags:['hevc','dv','webdl','atmos','instant'],availability:'cached'})],()=>({url:'https://cdn.example/ready.mkv',key:'stream:'+'c'.repeat(64)}));
+  const recommendation=await UI.openStreams(UI._test.baseCtx(metaTt1,1,1));
+  assert.match(recommendation.querySelector('.sx-best-title').textContent,/Ready/);
+  assert.match(recommendation.querySelector('.sx-best-why').textContent,/native oynatıcı önerilir/);
+  assert.doesNotMatch(recommendation.querySelector('.sx-best-why').textContent,/yerleşik oynatıcıda açılır/);
+  assert.match(recommendation.querySelector('.sx-pill-wait').textContent,/hazırlıyor/);
+  const compactFacts=[...recommendation.querySelectorAll('.sx-stream')].find(row=>row.querySelector('.sx-stream-title').textContent==='release.mkv').querySelector('.sx-facts').textContent;
+  assert.equal((compactFacts.match(/HEVC/g)||[]).length,1);
+  const sourceSearch=recommendation.querySelector('.sx-search-controls input'),scopes=recommendation.querySelectorAll('[data-scope]');
+  scopes[1].click();await tick();assert.equal(recommendation.querySelectorAll('.sx-stream').length,1);assert.match(recommendation.querySelector('.sx-stream-title').textContent,/release.mkv/);
+  scopes[0].click();await tick();sourceSearch.value='Ready';sourceSearch.dispatchEvent(new window.Event('input'));assert.equal(recommendation.querySelectorAll('.sx-stream').length,1,'search includes addon names');
+  sourceSearch.value='not-a-source';sourceSearch.dispatchEvent(new window.Event('input'));assert(recommendation.querySelector('.sx-source-empty'));
+  [...recommendation.querySelectorAll('.sx-source-empty button')].find(b=>b.textContent==='Filtreleri temizle').click();await tick();assert.equal(recommendation.querySelectorAll('.sx-stream').length,2);assert.equal(sourceSearch.value,'');
+  assert(recommendation.querySelector('.sx-filter-drawer .sx-filters select'),'advanced filters remain reachable');recommendation.close();
+  const openedBeforePending=opened.length;
+  stubSources([fileRow('only-waiting',{availability:'download',whisperAudio:'pending'})],()=>({url:'https://cdn.example/wait.mkv',key:'stream:'+'c'.repeat(64)}));
+  const pendingOnly=await UI.openStreams({...UI._test.baseCtx(metaTt1,1,1),autoplayBest:true});await tick(40);
+  assert.equal(opened.length,openedBeforePending);assert.equal(pendingOnly.querySelector('.sx-best'),null);pendingOnly.close();
+
   // “From the beginning” must override the saved resume point; plain play still resumes.
   stubSources([fileRow('r1')],()=>({url:'https://cdn.example/a.mp4',key:'stream:'+'d'.repeat(64),resume:{position:1200,duration:3000}}));
   let picker=await UI.openStreams({...UI._test.baseCtx(metaTt1,1,1),resumeSeconds:0});

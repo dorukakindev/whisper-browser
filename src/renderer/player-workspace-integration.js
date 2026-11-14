@@ -351,7 +351,11 @@
   for (const event of ['timeupdate','play','pause','loadedmetadata','ratechange','volumechange','emptied']) video.addEventListener(event, () => refresh());
   new MutationObserver(() => refresh()).observe(layer, { attributes:true, attributeFilter:['class'] });
   const pulse = setInterval(() => { if (document.hidden) return; const now = performance.now(); if (now - lastRefresh >= 240) { lastRefresh = now; refresh();if(podcastMode)for(const listener of subscribers)listener(snapshot()); } }, 250);
-  window.addEventListener('resize', () => { if (mounted) {updatePanel();draw();} });
+  // The panel does not depend on the window size beyond the narrow/wide switch handled by updatePanel().
+  // Stage mount/restore dispatches synthetic resize events; rebuilding the whole transcript panel for
+  // each of them cost ~4 redundant full redraws per player/podcast/bilingual switch.
+  let lastNarrow = window.innerWidth < 1100;
+  window.addEventListener('resize', () => { if (!mounted) return; updatePanel(); const narrow = window.innerWidth < 1100; if (narrow !== lastNarrow) { lastNarrow = narrow; draw(); } });
   window.addEventListener('pagehide', () => { clearInterval(pulse); unmount(); }, {once:true});
   function freezeWatchQuestion(question) {
     if (!mounted || player.workspaceMode !== 'player') return null;

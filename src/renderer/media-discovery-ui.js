@@ -193,13 +193,17 @@
       const strip=el('section','md-status-strip');strip.setAttribute('aria-label',t('Library, progress and sources','Kütüphane, devam konumu ve kaynaklar'));
       const make=(cls,label)=>{const cell=el('div','md-strip-cell md-strip-'+cls),value=el('div','md-strip-value');cell.append(el('small','',label),value);strip.append(cell);return {cell,value};};
       const member=make('member',t('Library','Kütüphane')),resume=make('resume',t('Continue','Devam')),sources=make('sources',t('Sources','Kaynaklar'));
-      member.value.append(membership);actions.after(strip);
+      member.value.append(membership);
+      const heroGrid=dialog.querySelector('.cn-film-hero-content');
+      let statusCard=heroGrid?.querySelector('.ns-title-status');
+      if(heroGrid&&!statusCard){statusCard=el('aside','ns-title-status');statusCard.setAttribute('aria-label',t('Library and sources','Kütüphane ve kaynaklar'));heroGrid.append(statusCard);}
+      if(statusCard)statusCard.prepend(strip);else actions.after(strip);
       pulse=()=>{if(window.CinemaMotion?.mode==='off'||window.CinemaMotion?.mode==='reduced'||matchMedia('(prefers-reduced-motion: reduce)').matches)return;member.cell.animate([{background:'color-mix(in srgb, var(--cn-gold, #d8a657) 26%, transparent)'},{background:'transparent'}],{duration:900,easing:'ease-out'});};
       const clock=seconds=>{const s=Math.max(0,Math.round(seconds)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60,p=n=>String(n).padStart(2,'0');return h?h+':'+p(m)+':'+p(r):m+':'+p(r);};
       const chip=(kind,text)=>{const node=el('span','md-strip-chip',text);node.dataset.kind=kind;return node;};
       stripRefresh=async()=>{
         const ticket=++stripTicket,owned=result.catalogId,stale=()=>!dialog.open||ticket!==stripTicket||result.catalogId!==owned;
-        if(!owned){resume.cell.hidden=true;sources.cell.dataset.state='none';sources.value.replaceChildren(el('span','md-strip-note',t('Add it to your watchlist first, then link a video source.','Önce izleneceklere ekle, ardından video kaynağı bağla.')));return;}
+        if(!owned){resume.cell.hidden=true;sources.cell.dataset.state='none';sources.value.replaceChildren(el('span','md-strip-note',(typeof detailOptions.unlinkedSourceNote==='function'&&detailOptions.unlinkedSourceNote())||t('Add it to your watchlist first, then link a video source.','Önce izleneceklere ekle, ardından video kaynağı bağla.')));return;}
         resume.cell.hidden=false;
         const [libraryResult,overview]=await Promise.allSettled([Promise.resolve().then(()=>window.api.mediaCatalog?.({action:'list'})),Promise.resolve().then(()=>window.api.mediaTools?.({action:'film-watch-overview',itemId:owned}))]);
         if(stale())return;
@@ -326,6 +330,11 @@
         nodes.push(tile);
       }
     }
+    if (!state.busy && !state.rows.length && state.loadError) {
+      const empty = el('div', 'cn-discover-empty'); empty.setAttribute('role', 'note');
+      empty.append(el('span', 'cn-discover-empty-mark'), el('strong', '', t('The catalog is not reachable right now', 'Katalog şu an alınamıyor')), el('p', '', t('Your library and watch history are untouched. Check your connection and use Retry above.', 'Kütüphanen ve izleme geçmişin olduğu gibi duruyor. Bağlantını kontrol edip yukarıdaki Yeniden dene düğmesini kullan.')));
+      nodes.push(empty);
+    }
     personalActions?.toolbar(state.root.querySelector('.md-personal-slot'));
     for (const row of state.rows) {
       const key=row.kind+':'+row.providerId,signature=JSON.stringify([row,personalActions?.isSelecting(),personalActions?.isSelected(row)]),prior=existing.get(key);
@@ -383,7 +392,7 @@
     }
     const context=state.root.querySelector('.cn-discover-results');if(context)context.textContent=state.busy&&!state.rows.length?'':(state.scope==='saved-library-viewing'?t('Saved library','Kayıtlı kütüphane'):state.tab==='personal'?t('Based on your preferences','Tercihlerine göre'):state.tab==='preferences'?t('Discovery exclusions','Keşiften gizlenenler'):t('Cinemeta catalog','Cinemeta kataloğu'))+' · '+state.rows.length+' '+t('titles shown','yapım gösteriliyor');
     const more = state.root.querySelector('.md-more'); more.hidden = state.tab !== 'browse' || state.next === null || !state.rows.length || state.rows.length >= 300 || state.loadError; more.disabled = state.busy;
-    const retry=state.root.querySelector('.md-retry');if(retry){retry.hidden=!state.loadError;retry.disabled=state.busy;}
+    const retry=state.root.querySelector('.md-retry');if(retry){/* the discover page shows its own retry in the status banner */retry.hidden=!state.loadError||!!retry.closest('.cn-discover-page');retry.disabled=state.busy;}
     state.root.querySelectorAll('[data-discovery-control]').forEach(node => { node.disabled = state.busy; });
     if(!state.busy&&restoreControl){const control=[...state.root.querySelectorAll('[data-discovery-focus]')].find(n=>n.dataset.discoveryFocus===restoreControl);restoreControl='';control?.focus({preventScroll:true});}
   }

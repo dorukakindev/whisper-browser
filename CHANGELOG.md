@@ -1,3 +1,39 @@
+## 2026-11-14 · V2 Git teslimi
+
+Onaylı Gece Seansı V2 ve ilgili yerel arayüz düzeltmeleri ürün334b2f56 / [PR927](https://github.com/dorukakindev/whisper-browser/pull/927) olarak teslim edildi. [Kapsam, testler ve korunan yerel farklar](docs/devir/2026-11-14-0445.md).
+
+## 2026-11-14 · Gece Seansı V2 yerel uygulaması
+
+Ortak üst barlar, ana sayfa devam/sıradaki düzeni, Browser stüdyosu, film durum kartı, dizi sezon/bölüm listesi, çift dilli/Podcast çalışma yüzeyleri ve üç bölmeli RSS okuyucu uygulandı. Sessizlikte altyazı şeridi, asistan erişimi, mevcut düğme/komut sahipleri, RSS kayıt ve dar alan kontrolleri doğrulandı. [Dosyalar, görüntüler ve sınırlar](docs/devir/2026-11-14-0425.md).
+
+## 2026-11-14 · Claude bugfix yerel birleşimi
+
+- Alan etiketi, okumaya dönüş hizası, podcast sayı biçimleri, yapışkan çubuklar ve Stremio kaynak açıklaması/puan etiketi düzeltildi. Ek olarak yanlış ilerleme önkoşulu ve5px podcast dekoratif taşması giderildi. Hedefli testler ve izole Windows Electron görünüm kontrolleri geçti. [Dosyalar ve kabul sınırları](docs/devir/2026-11-14-0200.md).
+
+## 2026-11-13 · Görselli tasarım danışmanlığı paketi
+
+- 27 güncel izole Electron ekranı, yerel kaynak kopyası ve salt danışmanlık promptu içeren9,7MB paket hazırlandı; ZIP ve kaynak hashleri doğrulandı. [Teslim ve sınırlar](docs/devir/2026-11-13-2324.md). Ürün davranışı değişmedi.
+
+## 2026-11-13 · Medya sayfalarında yerleşim ve erişim
+
+Kompakt arşiv gezinmesi, kapak oranını koruyan anime/manga rafları, yan yayın seçicili podcast masası ve kuyruk; ana sayfa, Keşfet ve Stremio katalog düzenlemeleri uygulandı. Arşiv alanları kaldırılmadı. Hedefli testler ve kontrollü Electron görünüm/etkileşim kontrolleri geçti. [Kanıt ve sınırlar](docs/devir/2026-11-13-2231.md).
+
+## 2026-11-13 · Onaylı medya üst barları
+
+Ana sayfa/Browser gezinmesi, koleksiyon ve çalışma seçicileri, bölümlü medya stüdyosu ve çelik/gümüş kimlik uygulandı. Mevcut düğme/iş sahipleri korundu; odak ve native menü görünürlüğü düzeltildi. Hedefli testler ve izole Electron masaüstü/dar kontrol geçti. [Kanıt ve sınırlar](docs/devir/2026-11-13-2120.md).
+
+## 2026-11-13 · Onaylı Stremio kaynak ve dizi tasarımı
+
+Ayrı kaynak önerisi, gelişmiş filtreler, okunur liste; kompakt dizi hero'su, bölüm araması ve izleme filtresi uygulandı. Açık/koyu tema, hareket tercihi ve mevcut kaynak/altyazı sahipliği korundu. [Doğrulama](docs/devir/2026-11-13-1945.md).
+
+## 2026-11-13 · Stremio kaynak ve sezon akışı
+
+Kaynak durumları/teknik ayrıntılar ve sezon/bölüm gezinmesi düzenlendi. Bekleyen debrid otomatik seçimi, kamera etiketleri, native uyumluluk gerekçesi, açık tema, Podcast hizası ve yerel medya CSP hatası düzeltildi. [Doğrulama](docs/devir/2026-11-13-1852.md).
+
+## 2026-11-13 · Kurtarılan Podcast ve koleksiyon geliştirmeleri
+
+Podcast yayın sayfası, kütüphaneden yayın seçimi, kanal metadata bilgileri ve koleksiyon durum/ilerleme şeridi yerelde birleştirildi. Raf bağlantı hatası artık boş kütüphane sayılmaz; yeniden denenebilir. Koleksiyon servis uyarısı UI dilinde gösterilir. [Doğrulama ve sınırlar](docs/devir/2026-11-13-1818.md).
+
 ## 2026-11-13 · Altyazı, ses hazırlığı ve dublaj aktarım güvenilirliği
 
 Başarısız/iptal edilmiş altyazı çıktıları tamamlanmış sayılmaz. Akış WAV'ı tam veri/biçim kontrolünden geçer; iptalde izin verilmez. Bozuk ilk altyazı satırı dublaj dönüşümü ve planlayıcıda sessizce atılmaz. [Doğrulama ve sınırlar](docs/devir/2026-11-13-1657.md).

@@ -63,8 +63,30 @@
     const actions=h('div',{class:'pdl-actions'},lookup,apply,direct,saveSpotify);
     const form=h('form',{class:'pdl-form'},modes,lead,label,actions,status,source,results);
     const other=h('button',{type:'button',class:'pdl-button',text:text('Diğer medya kaynakları','Other media sources'),on:{click:()=>{dialog.close();window.MediaHubUI?.open();}}});
-    const footer=h('footer',{class:'pdl-footer'},h('span',{text:text('Aynı oynatıcı · ayrı kaynak kimliği','Same player · separate source identity')}),other);
-    dialog.append(head,h('div',{class:'pdl-scroll'},form),footer);
+    const library=h('button',{type:'button',class:'pdl-button pdl-library',text:text('Podcast kütüphanem','My podcast library'),on:{click:()=>{dialog.close();window.MediaHomeUI?.navigate('radio');}}});
+    const footer=h('footer',{class:'pdl-footer'},h('span',{text:text('Aynı oynatıcı · ayrı kaynak kimliği','Same player · separate source identity')}),h('div',{class:'pdl-footer-actions'},library,other));
+    // Shows already in the library: one click opens the show page instead of pasting a link again.
+    // Loaded only when the person opens it, so showing this dialog still issues no backend request.
+    const shelf=h('div',{class:'pdl-shelf-list'}),libraryShelf=h('details',{class:'pdl-library-shelf'},h('summary',{text:text('Kütüphanemden seç','Pick from my library')}),shelf);let shelfLoaded=false;
+    const loadShelf=()=>{
+      if(!libraryShelf.open||shelfLoaded||!dialog.open)return;shelfLoaded=true;
+      shelf.replaceChildren(h('p',{class:'pdl-status',text:text('Yayınlar yükleniyor…','Loading shows…')}));
+      Promise.resolve(window.api?.feedsRequest?.({action:'list',podcastLibrary:true})).then(result=>{
+        if(!dialog.isConnected||!dialog.open)return;
+        if(!result?.ok||!Array.isArray(result.feeds))throw Error('Library request failed');
+        const feeds=result.feeds.filter(feed=>feed&&feed.format!=='web-podcast'&&feed.enabled!==false).slice(0,12);shelf.replaceChildren();
+        if(!feeds.length){shelf.append(h('p',{class:'pdl-status',text:text('Henüz abone olduğun yayın yok. Yukarıya bir RSS adresi yapıştır.','No subscribed shows yet. Paste an RSS address above.')}));return;}
+        for(const feed of feeds){
+          const item=document.createElement('button');item.type='button';item.className='pdl-shelf-item';item.title=feed.title;
+          const cover=document.createElement('span');cover.className='pdl-shelf-cover';cover.textContent=Array.from(String(feed.title||'♪').trim())[0]?.toLocaleUpperCase()||'♪';
+          if(typeof feed.imageUrl==='string'&&/^https:\/\//i.test(feed.imageUrl)){const image=document.createElement('img');image.alt='';image.loading='lazy';image.referrerPolicy='no-referrer';image.src=feed.imageUrl;image.addEventListener('error',()=>image.remove(),{once:true});cover.append(image);}
+          const name=document.createElement('span');name.className='pdl-shelf-name';name.textContent=feed.title;item.append(cover,name);
+          item.addEventListener('click',()=>{window.PodcastLibraryUI?.select?.('feed:'+feed.id);dialog.close();window.MediaHomeUI?.navigate('radio');});shelf.append(item);
+        }
+      }).catch(()=>{shelfLoaded=false;if(!dialog.isConnected||!dialog.open)return;shelf.replaceChildren(h('p',{class:'pdl-status',text:text('Yayınlar alınamadı. Yeniden deneyebilirsin.','Could not load shows. You can retry.')}),h('button',{type:'button',class:'pdl-button',text:text('Yeniden dene','Retry'),on:{click:loadShelf}}));});
+    };
+    libraryShelf.addEventListener('toggle',loadShelf);
+    dialog.append(head,h('div',{class:'pdl-scroll'},form,libraryShelf),footer);
     const alive=mine=>dialog.isConnected&&dialog.open&&epoch===mine;
     const cancel=()=>{if(requestId)void window.api.feedsRequest({action:'cancel',requestId}).catch(()=>{});requestId='';};
     function sync(){

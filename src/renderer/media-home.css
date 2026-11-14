@@ -273,7 +273,7 @@ html[data-theme="light"] .media-home img { outline-color: rgb(var(--media-scrim-
 .mh-menu-modes .mh-modes{justify-content:space-between}
 @media(max-width:620px){.media-home .mh-header{padding:10px 14px;gap:7px;min-height:62px}.media-home .mh-header.is-compact{gap:7px}.media-home .mh-header .mh-actions{gap:2px}.media-home .mh-header .mh-actions>.mh-action{padding:9px;width:40px}.media-home .mh-header .mh-actions>.mh-action>span{display:none}.media-home .mh-header .mh-nav{gap:2px}.media-home .mh-header .mh-nav>button{padding:9px 7px;font-size:12px}}
 
-.mh-reading-return{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 0 20px;color:var(--text-dim);font-size:13px}.mh-reading-return button{flex:none}@media(max-width:600px){.mh-reading-return{flex-wrap:wrap;gap:8px}}
+.mh-reading-return{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 0 20px;color:var(--text-dim);font-size:13px;box-sizing:border-box;width:calc(100% - var(--cn-gutter,44px)*2);max-width:var(--cn-max,1352px);margin-inline:auto}.mh-reading-return>span{min-width:0;overflow-wrap:anywhere}.mh-reading-return button{flex:none}@media(max-width:600px){.mh-reading-return{flex-wrap:wrap;gap:8px}}
 
 /* Shared media-page scrollbars retain the graphite surfaces in both themes. */
 .media-home,.media-home :is(.pl-programs,.pl-queue,.whv-list,.rn-reader,.mt-profile){scrollbar-width:thin;scrollbar-color:var(--border-strong,var(--border)) transparent}

@@ -1,10 +1,82 @@
+# V2 Git teslimi · 2026-11-14
+
+Kullanıcı yetkisiyle ürün334b2f56 ve [PR927](https://github.com/dorukakindev/whisper-browser/pull/927) hazırlandı; [teslim kaydı](docs/devir/2026-11-14-0445.md). Yeni ürün işi eklenmedi. Önceki canlı dublaj dinleme kabulü ve canlı/GPU sınırları değişmedi. Aşağıdaki teslim yok notları önceki yerel aşamaya aittir.
+
+# Gece Seansı V2 uygulandı · 2026-11-14
+
+[Uygulama, gerçek görüntüler ve doğrulama](docs/devir/2026-11-14-0425.md). Hazır V2 yerelde uygulandı; kaynak/iş sahipliği korundu. Bu tur canlı model/TorBox/dublaj dinleme kabulü yapılmadı; önceki canlı kabul işleri değişmedi. Claude paketi kullanıcı isteğine kadar ertelendi. Git teslimi yok. Aşağıdaki V2 uygulanmadı ifadeleri tarihsel kayıtlardır.
+
+# Claude bugfix1.0.0 yerelde birleştirildi · 2026-11-14 02:00
+
+[Uygulama ve hedefli doğrulama](docs/devir/2026-11-14-0200.md) tamamlandı. İncelemedeki yanlış Stremio ilerleme cümlesi düzeltildi; gerçek izole Electron'da sticky/alan/şerit kontrolleri ve podcast taşması onarıldı. Bu birleşim kapsamındaki açık iş kalmadı. Tasarım V2 ayrı; önceki dublaj review/dinleme kabulü değişmedi. Git teslimi yok. Aşağıdaki uygulanmadı kayıtları tarihseldir.
+
+# Claude bugfix paketi incelendi · 2026-11-14
+
+[Nihai1.0.0 incelemesi](docs/raporlar/CLAUDE_BUGFIX_REVIEW_20261114.md):8 ürün tabanı yerelle eşleşiyor, patch kontrolü ve podcast11/11 geçti. Ürüne uygulanmadı. Birleştirme öncesi Stremio'nun yeni ilerleme açıklaması düzeltilmeli; sticky yığını gerçek izole Electron'da doğrulanmalı. Tasarım V2 ve önceki yerel farklar ayrı, Git yok.
+
+# Claude/Fable tasarım danışmanlığı paketi · 2026-11-13 23:24
+
+[27 güncel ekran, kaynak kod bağlamı ve yalnız danışmanlık isteyen prompt](docs/devir/2026-11-13-2324.md) hazır. Kullanıcı raporu döndürdüğünde renk/kompozisyon önerileri değerlendirilip görsel onay akışında uygulanacak; bu tur yeni tasarım uygulanmadı. Önceki dublaj dinleme kabulü değişmedi. Git teslimi yok.
+
+# Medya sayfaları uygulandı · 2026-11-13 22:31
+
+Ana sayfa, Kütüphanem, anime/manga rafları, Podcast, Keşfet ve Stremio katalog kompozisyonu toparlandı. 11 arşiv görünümü ve mevcut iş sahipleri korundu. [Görüntüler ve kabul sınırları](docs/devir/2026-11-13-2231.md). Bu kapsamda yeni açık hata yok; önceki dublaj dinleme kabulü değişmedi. Yerel değişiklik; Git teslimi yok.
+
+# İki üst bar onaylandı ve uygulandı · 2026-11-13 21:20
+
+Canlı/ruhu olan medya deneyimi talebiyle ürün entegrasyonu tamamlandı. [Görüntüler ve sınırlar](docs/devir/2026-11-13-2120.md). Kapsamda yeni açık hata yok; eski dublaj dinleme kabulü değişmedi. Git teslimi yok. Aşağıdaki onay bekleme kayıtları tarihîdir.
+
+# İki üst bar · yeni kimlik onay bekliyor · 2026-11-13 20:31
+
+Mor ve amber/bakır reddedildi. [Yeni siyah çelik/gümüş kimlik önerisi](exports/header-design-v5-20261113/index.html), [devir](docs/devir/2026-11-13-2031.md). v4 yerleşim önerisi korunuyor; hem yerleşim hem kimlik onay bekliyor. Ürüne uygulanmadı.
+
+# İki üst bar · yerleşim önerisi onay bekliyor · 2026-11-13 20:28
+
+İlk üç öneri kullanıcı tarafından kabul edilmedi. İşlev yerleşimini değiştiren [güncel taslak](exports/header-design-v4-20261113/index.html): tek gezinme, tek çalışma seçicisi ve ayrı medya paneli. [Devir](docs/devir/2026-11-13-2028.md). Ürüne uygulanmadı.
+
+# İki üst bar · üçüncü öneri onay bekliyor · 2026-11-13 20:21
+
+İkinci yön de kullanıcı geri bildirimiyle yeniden tasarlandı. [Güncel karşılaştırma ve menüler](exports/header-design-v3-20261113/index.html), [devir](docs/devir/2026-11-13-2021.md). Ürüne uygulanmadı; aşağıdaki önceki öneriler tarihsel kayıttır.
+
+# İki üst bar · ikinci tasarım onay bekliyor · 2026-11-13 20:13
+
+İlk öneri kullanıcı geri bildirimiyle yeniden tasarlandı. [Yeni karşılaştırma ve menüler](exports/header-design-v2-20261113/index.html), [devir](docs/devir/2026-11-13-2013.md). Henüz ürüne uygulanmadı; aşağıdaki ilk taslak tarihsel kayıttır.
+
+# İki üst bar tasarımı onay bekliyor · 2026-11-13 20:10
+
+[Önce/sonra ve menü taslağı](exports/header-design-review-20261113/index.html) hazır; ürüne uygulanmadı. [Devir](docs/devir/2026-11-13-2010.md). Görsel onay sonrası entegrasyon yapılacak.
+
 # Kalıcı çalışma kararları güncellendi · 2026-11-13 19:49
 
 Koyu tema ve onaylı modern/sinematik tasarım çalışma yaklaşımı belgelerde birleştirildi. [Kapsam, doğrulama ve Git teslimi](docs/devir/2026-11-13-1949.md). Bu belge işi önceki yerel ürün entegrasyonlarından ayrıdır; yeni geliştirme maddesi yok.
 
+# Onaylı iki Stremio tasarımı uygulandı · 2026-11-13 19:45
+
+Kaynak seçici ve dizi/bölüm düzeni çalışır ürüne uygulandı; arama, filtre ve efektler doğrulandı. [Dosyalar, görseller ve kabul sınırları](docs/devir/2026-11-13-1945.md). Önceki tasarım onayı bekleme notu tarihseldir. Kalan gerçek dublaj dinleme kabulü değişmedi; yeni Git teslimi yok.
+
+# Stremio tasarım onayı bekleniyor · 2026-11-13 19:25
+
+Kaynak seçici ve dizi sayfası için mevcut/öneri karşılaştırması hazır. [Görsel onay ve kapsam](docs/devir/2026-11-13-1925.md). Ürün kaynaklarına uygulanmadı; kullanıcı onayı gelmeden entegrasyon yapılmaz.
+
+# Tasarım çalışma anlayışı kaydedildi · 2026-11-13 19:09
+
+Kendime modern/sinematik tasarım promptu, Claude örneklerinin görsel/kod incelemesi ve üç referans görüntüsü kaydedildi. [Devir](docs/devir/2026-11-13-1909.md). Belge işi tamam; yeni ürün uygulaması veya Git teslimi yapılmadı.
+
 # Tasarım kuralı kilitleri kaldırıldı · 2026-11-13 19:03
 
 Sabit palet/sarı düğme, font/ölçü ve sadeleştirme dayatmaları kaldırıldı. Bu kural teslimi önceki yerel ürün çalışmasından ayrıdır. [Kapsam ve kanıt](docs/devir/2026-11-13-1903.md). Yeni ürün yeniden tasarımı başlatılmadı.
+
+# Claude 1.4 bulguları tamamlandı · 2026-11-13 18:52
+
+HTML içindeki özgün kod kurtarıldı; Stremio kaynak/sezon tasarımı ve doğrulanan hatalar düzeltildi. Önceki 18:18 kod eksikliği notu tarihseldir. Kalan: üçüncü dublaj grubunun dinleme kabulü ve normal gerçek kaynak UI kabulü. [Kanıt ve sınırlar](docs/devir/2026-11-13-1852.md). Git teslimi yok.
+
+# Claude 1.3 kurtarıldı · 2026-11-13 18:18
+
+- Elde olan29dosya güvenli biçimde yerelde birleştirildi; önceki asistan/Whisper/bağlam servisleri korundu. [Kanıt ve kalanların kesin ayrımı](docs/devir/2026-11-13-1818.md). Sonraya: kodu bulunmayan1.4 Stremio kaynak/bölüm tasarımı, açık tema ve rapordaki açık kabul koşulları. Yeni Git teslimi yok; Sıradaki işler dosyası değişmedi.
+
+# Gerçek kısa zincir ve iptal kabulü · 2026-11-13 18:07
+
+- Güncel kodda gerçek kaynak/Whisper/çeviri/dublaj ve iptal testleri tamamlandı; yeni sahiplik bug’ı doğrulanmadı. Kalan: üçüncü dublaj grubunun özel ad/tekrar uyarısını dinleyerek ayırmak. [Kanıt ve fixture/native/dinleme sınırları](docs/devir/2026-11-13-1807.md). Claude UI ve ürün dosyaları değişmedi; yeni Git teslimi yok.
 
 # Git teslimi yetkilendirildi · 2026-11-13 17:05
 
@@ -115,6 +187,11 @@ Sabit palet/sarı düğme, font/ölçü ve sadeleştirme dayatmaları kaldırıl
 - Bulut kütüphanesi, gerçek TorBox kataloğu/dosya çözümlemesi ve üç modda Ses/Altyazı erişimi yerelde tamamlandı. [Dosyalar, doğrulama ve sınırlar](docs/devir/2026-11-13-0355.md). Mevcut asistan/Whisper, Browser sahipliği ve kişisel farklar korundu; Git teslimi yapılmadı.
 - Kalan kabul: normal uygulamada gerçek çok sesli TorBox dosyasını açıp Ses menüsünden kanalı dinleyerek değiştirmek; gömülü altyazı ve eklenti altyazısı arasında geçişi, kaynak değişiminde eski seçimin uygulanmadığını görmek. Bu tur canlı hesapta yalnız katalog/meta okundu; film oynatılmadı. Yeni indirme başlatılmadı.
 
+# Türüne göre kişisel liste aktarımı · 2026-11-13 03:22
+
+- Sekme başlıklarından doğrulanmış kimliklerle kişisel izleme/okuma/dinleme planları kaydedildi; eski durum/puan/ilerleme korundu. YouTube yalnız 3 eksik video, podcast kuyruğu 94→103. Akış deposunun 4000 eski kaydı silinmedi. [Kapsam, yedek ve doğrulama](docs/devir/2026-11-13-0322.md).
+- Üç podcast tam ses yerine açıklamalı başlık planıdır; kaynak sağlanırsa yalnız bunlar bağlanabilir. Sonraki kabul normal açılışta tür havuzları/Sıradakiler, Podcast kuyruğu ve mevcut YouTube izleme listesi. Ürün/Git işi yok; önceki yerel düzeltmeler korunur.
+
 # Paralel backend/servis onarımları · 2026-11-13 03:05
 
 - Dört doğrulanmış yarış/izin hatası üç servis dosyasında düzeltildi. Son entegrasyon 10/10; 384 Browser/renderer/IPC/asistan/Whisper dosyası başlangıçla aynı. [Kapsam, kanıt ve sınırlar](docs/devir/2026-11-13-0305.md).
@@ -129,6 +206,34 @@ Sabit palet/sarı düğme, font/ölçü ve sadeleştirme dayatmaları kaldırıl
 - Kümülatif V6, mevcut asistan/Whisper ve kaynak sahipliği korunarak birleştirildi. [116 kararın kaydı](docs/raporlar/V6_BUG_AUDIT_20261113.md): 42 V6, 47 inceleme düzeltmesi; 24 doğrulanmayan iddia, 2 tekrar, 1 zaten doğru. [Devir/test sınırları](docs/devir/2026-11-13-0216.md).
 - Hedefli davranış, güvenlik, atomik rollback ve Chromium görünüm kontrolleri geçti. İzole gerçek rqbit smoke geçti. Hidden Electron ekran yakalama zaman aşımı yaşadı; Chromium görselleri native/mpv/OS PiP kabulü değildir. Bu teslimde yeni TorBox/GPU/sağlayıcı çağrısı yapılmadı.
 - Açık kalan önceki kabul: Samuels özel adının kısa satırını dinleyerek ASR/telaffuz ayrımı; gerekiyorsa yalnız o satırı yeniden üret. Önceki tam film Whisper/gerçek iki kaynak geçişi kabulü yeniden iş açılmadan korunur. Bu tur yeni ürün engeli yok; kişisel ve başka sohbet belgeleri teslim dışı korunur.
+
+# Gerçek tam film / kaynak geçişi kabulü · 2026-11-13 01:38
+
+- Gerçek Whisper düğmesiyle91dk filmde523 cue üretimi korunuyor; yeniden çalıştırılmadı. Yeni gerçek Electron/main/preload testinde iki ayrı5472s sürüm gerçekten oynadı. Eski altyazı B'de yok, gecikmiş A yüklemesi reddedildi; eski dublaj otomatik durup temizlendi, eski owner B'ye bağlanamadı. [Son kanıt ve sınırlar](docs/devir/2026-11-13-0138.md).
+- Geçişteki eski engel testin kapalı dialog seçmesiydi; yalnız açık dialoga bağlı gerçek düğme ile geçti. Ürün iptal koruması gevşetilmedi, ürün kodu/Git değişmedi.
+- Dublaj tekrar uyarısı giderildi, fakat Samuels özel adı hâlâ review; tamamlandı sayılmaz. Sonraki somut adım kısa satırı dinleyip ASR/telaffuz ayrımı ve gerekirse yalnız o satırın yeniden üretimi. Kişisel uygulama ve önceki farklar korundu.
+
+# Uzun film çevirisi · Claude bakiye engeli · 2026-11-11 16:14
+
+- `master` / `ca6ddd45ae02ab94b1207300583cae13e99ed7de`; 215 satır/1.831 kelimelik iki gerçek film sahnesi, aynı prompt. DeepInfra V4.1 HTTP200/21,788sn; resmî DeepSeek HTTP200/21,024sn. Ana/kör bağımsız incelemede belirgin kazanan yok; resmî küçük akıcılık avantajı, bazı anlam ayrımlarında DeepInfra iyi. Ortak bağlam/deyim kusurları var; blok düzeni puanlanmadı. [Rapor](docs/raporlar/film-translation-comparison-20261111/REPORT.md), [devir](docs/devir/2026-11-11-1614.md). Ürün/ayar/Git değişmedi.
+- **Engel ve kesin sonraki adım:** Claude bağlantısı HTTP403/yetersiz bakiye, tanılama retry'sında doğrulandı. Bakiye düzelirse aynı input.json/promptla tek Claude isteği alıp mevcut iki sabit çıktıyla kör anlam/doğallık kıyasına ekle; DeepSeek'leri gereksiz tekrarlama. Üçlü kıyas tamamlanmış değil, bakiye yükleme/yeni hesap yok.
+
+# DeepInfra V4.1 karşılaştırma eki · 2026-11-11 16:03
+
+- Aynı örnek programdaki kayıtlı DeepInfra anahtarıyla `deepseek-ai/DeepSeek-V4.1-Flash-1017` üzerinde tek canlı istekte HTTP200/2,638sn; SRT8/8/zamanlar aynı. Resmî DeepSeek ile kalite çok yakın; programı değiştirecek üstünlük kanıtı yok. [Rapor](docs/raporlar/translation-comparison-20261111-1544/REPORT.md), [devir](docs/devir/2026-11-11-1603.md). Ürün/ayar/Git değişmedi.
+- Birlikte çeviri/blok birleştirme tek başına kusur değil; önceki C'nin ham SRT ayraç/numara bozulması ayrı. Üretim JSON/batch hattı denenmiş sayılmaz. İlk bağlantının HTTP429/token kilidi hâlâ açık; erişim düzelirse aynı örnekle tek yeniden deneme yapılabilir. Kendiliğinden yeni API veya ürün işi açılmaz.
+
+# Türkçe çeviri karşılaştırması · 2026-11-11 15:47
+
+- `master` / `ca6ddd45ae02ab94b1207300583cae13e99ed7de`; yalnız canlı kısa deney/belge, ürün/ayar/Git değişikliği yok. [Rapor](docs/raporlar/translation-comparison-20261111-1544/REPORT.md), [devir](docs/devir/2026-11-11-1547.md).
+- Resmî DeepSeek düşünme kapalı HTTP200/2,768sn/SRT8/8; üçüncü bağlantı Claude etiketi HTTP200/9,861sn, blok biçimi bozuk. Küçük örnekte DeepSeek daha uygun; genel kalite veya program entegrasyonu kabulü değil. Varsayılan DeepSeek ilk isteği düşünme bütçesinde boş çıktı verdi; anahtarlar kalıcı kaydedilmedi.
+- **Engel/kalan:** ilk bağlantı süre sonrası tek retry dahil iki kez HTTP429/token girişimi kilidi; çeviri yok. Token/kilit durumu düzeldikten sonra aynı örnekle tek yeniden deneme üçlü karşılaştırmayı tamamlar. Otomatik retry/ücretli yeni kapsam yok; mevcut ürün işleri korunur.
+
+# Gerçek kısa zincir kabulü · 2026-11-11 15:48
+
+- Gerçek kayıtlı Torrentio/TorBox sürümünden 30s → CUDA Whisper 4 satır → açık izinli DeepInfra çeviri (2 HTTP200, 4 satır, zaman/boş/başarısız hata 0) → gerçek VoxCPM2 30s WAV tamamlandı. Dublajda 2 grup ready, 1 grup özel ad/tekrar nedeniyle review; genel ses kalitesi temiz denmez.
+- Gerçek çıktılar ve iki canlı kaynak kimliğiyle izole üretim renderer'ında kaynak değişimi/geciken yükleme 7/7: eski altyazı/çeviri/ses yeni kaynağa bağlanmadı. API/playback fixture, kişisel uygulamada canlı geçiş kabulü değil. [Kanıt, test fixture sınırı ve kalan kabul](docs/devir/2026-11-11-1548.md).
+- Kalan: review grubunu dinleme/özel ad düzeltmesi; kişisel tam film Whisper butonu ve doğru kaynak saatiyle yükleme; gerçek native/geçiş kabulü. Ürün kodu/Git değişmedi; durum belgeleri yerelde.
 
 # V4 entegrasyonu ve ek yarış onarımları · 2026-11-11 15:24
 

@@ -24,7 +24,9 @@
     const selectors=player.workspaceMode==='browser'?['.browser-toolbar','#browserTabStrip']:['.player-head'];
     return Math.max(0,...selectors.map(sel=>{const el=layer.querySelector(sel),r=el?.getBoundingClientRect();return r?.height>0?r.bottom-origin:0;}));
   };
-  const bounds = () => { try { if (typeof scheduleBrowserBounds === 'function') scheduleBrowserBounds(); } catch (_) { /* yok */ } requestAnimationFrame(() => window.dispatchEvent(new Event('resize'))); };
+  // Coalesce: several mount/restore steps in one frame need a single resize notification, not one each.
+  let boundsFrame = 0;
+  const bounds = () => { try { if (typeof scheduleBrowserBounds === 'function') scheduleBrowserBounds(); } catch (_) { /* yok */ } if (boundsFrame) return; boundsFrame = requestAnimationFrame(() => { boundsFrame = 0; window.dispatchEvent(new Event('resize')); }); };
   const adopt = (el) => { if (!el || parked.some((p) => p.el === el)) return el; parked.push({ el, parent: el.parentNode, next: el.nextSibling }); return el; };
   const restore = () => { for (const p of parked.reverse()) if (p.parent?.isConnected) p.parent.insertBefore(p.el, p.next && p.next.parentNode === p.parent ? p.next : null); parked = []; bounds(); };
   const norm = (r) => (r && typeof r.ok === 'boolean') ? r : { ok: true };

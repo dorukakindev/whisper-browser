@@ -1,6 +1,26 @@
+2026-11-14 Git teslimi: Kullanıcı açık komut verdi; V2 ve ilgili birikmiş arayüz düzeltmeleri ürün334b2f56, [PR927](https://github.com/dorukakindev/whisper-browser/pull/927) ile master hedefinde. [Kapsam/korunan farklar/testler](devir/2026-11-14-0445.md). Aşağıdaki Git teslimi yok ifadeleri önceki yerel aşamayı anlatır.
+
+2026-11-14: Kullanıcının hazır görselleri doğrudan uygula talimatıyla Gece Seansı V2 yerelde uygulandı. Nötr nearblack/sıcak beyaz ve küçük fosfor dil/stüdyo vurgusu; eski çelik/mavi kimlik güncel hedef değil. [Devir](devir/2026-11-14-0425.md). İzole Electron görsel/etkileşim ve hedefli testler geçti; canlı model/dublaj kabulü tekrarlanmadı. Git ve Claude paketi yok.
+
+2026-11-14 02:00: Kullanıcı yetkisiyle Claude bugfix1.0.0 yerelde birleştirildi; Stremio açıklaması düzeltildi, gerçek Electron'da alan/dil, sticky yığını, okuma şeridi ve podcast taşması kontrol edildi. [Devir](devir/2026-11-14-0200.md). Asistan/Whisper sahipleri korunur; Gece Seansı tasarım V2 ayrı, Git teslimi yok.
+
+2026-11-13 23:24: Kullanıcı Claude/Fable'dan ayrıntılı tasarım tavsiyesi istedi. [27 ekranlı9,7MB yerel inceleme paketi ve kod yazmadan danışmanlık promptu](devir/2026-11-13-2324.md) hazırlandı. Ürün kodu değişmedi; rapor henüz gelmedi. Git teslimi yok.
+
+2026-11-13 22:31: Kullanıcı diğer kötü sayfaların da uygulanmasını istedi; ana sayfa, Kütüphanem, anime/manga rafları, Podcast, Keşfet ve Stremio katalog düzenlendi. [Dosyalar ve gerçek görüntüler](devir/2026-11-13-2231.md). Mevcut asistan/Whisper ve son kaynak/sezon sahipleri korunur. Yerel değişiklik, Git teslimi yok.
+
+2026-11-13 21:20: Kullanıcı yeni üst bar yerleşimi/kimliğini onayladı; canlı ve ruhu olan medya deneyimi talebiyle uygulandı. [Dosyalar, gerçek görüntüler ve doğrulama](devir/2026-11-13-2120.md). Yerel değişiklik; Git teslimi yok. Önceki onay bekleme notları tarihtir.
+
 2026-11-13 19:49: Kalıcı tasarım/çalışma kararı güncellendi: koyu tema esas; gereksiz açık tema görsel turu yok; modern/sinematik/canlı kompozisyon, önce/öneri ve onaylı uygulama, kısa hedefli doğrulama. [Çalışma promptu](design/DESIGN_SELF_BRIEF.md), [görselli dersler](design/2026-11-13-claude-design-lessons.md), [devir](devir/2026-11-13-1949.md). Bu teslim belge/referans kapsamındadır; önceki yerel ürün farkları ayrıdır.
 
+2026-11-13 19:45: Kullanıcı iki Stremio taslağını onayladı; kaynak ve dizi/bölüm düzeni mevcut sahipler üzerinde uygulandı. Masaüstü/dar/açık tema ve kontrollü kaynak değişimi doğrulandı. [Devir](devir/2026-11-13-1945.md). Yerel değişiklik; Git teslimi yok.
+
 2026-11-13 19:03: Sabit palet, sarı düğme, font/ölçü ve mevcut yerleşim zorunlulukları kaldırıldı. Güncel tasarım yetkisi DESIGN.md; tarihî stil kısıtları uygulanmaz. [Devir](devir/2026-11-13-1903.md). Önceki yerel ürün çalışması bu kural tesliminden ayrıdır.
+
+2026-11-13 18:52: HTML araç kayıtlarından özgün Claude1.4 kodu kurtarıldı; kaynak/sezon tasarımı ve doğrulanan hatalar tamamlandı.1.3/asistan/Whisper korunur. [Devir ve kalan kabul](devir/2026-11-13-1852.md). Git teslimi yok.
+
+2026-11-13 18:18: Claude1.3 kaynakları eski tabanla üç yönlü karşılaştırılarak yerelde birleştirildi. Son asistan/Whisper/tercih ve backend düzeltmeleri korundu.1.4.x kodu yok; Stremio sonraki tasarımlar açık. [Devir](devir/2026-11-13-1818.md). Git teslimi yok.
+
+2026-11-13 18:07: Gerçek30sn kaynakta CUDA Whisper4cue, DeepInfra2HTTP200 ve VoxCPM2/30sn; gerçek servis iptal ve farklı kaynak kimliği kontrolü geçti. Bir dublaj grubu review/dinleme açık. Ürün/Claude UI değişmedi; yeni Git teslimi yok. [Devir](devir/2026-11-13-1807.md).
 
 2026-11-13 17:05: Kullanıcı birikmiş geliştirmelerin commit/push/master teslimini yetkilendirdi. [Teslim kaydı](devir/2026-11-13-1705.md). Son uzak HEAD Git üzerinden doğrulanır; önceki Git bekleme kayıtları tarihseldir.
 

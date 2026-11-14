@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; img-src 'self' data: https:; media-src 'self' file: blob: https: whisper-media:; connect-src 'self' https: whisper-pdf: whisper-media:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; img-src 'self' data: https:; media-src 'self' file: blob: https: whisper-media: http://127.0.0.1:* http://localhost:* http://[::1]:*; connect-src 'self' https: whisper-pdf: whisper-media:" />
   <title>Whisper Altyazı</title>
 <link rel="stylesheet" href="theme-palette.css">
   <link rel="stylesheet" href="styles.css" />
@@ -72,8 +72,13 @@
 <link rel="stylesheet" href="library-workspace.css">
 <link rel="stylesheet" href="sahne-cinema-header.css">
 <link rel="stylesheet" href="stremio-addons-refresh.css">
+<link rel="stylesheet" href="stremio-studio.css">
 <link rel="stylesheet" href="podcast-refresh.css">
+<link rel="stylesheet" href="podcast-studio.css">
 <link rel="stylesheet" href="browser-workbench.css">
+<link rel="stylesheet" href="media-chrome.css" />
+<link rel="stylesheet" href="media-pages.css" />
+<link rel="stylesheet" href="night-session.css" />
 </head>
 <body>
   <section id="mediaHome" class="media-home hidden" data-ui-untranslated aria-label="Media home"></section>
@@ -4248,6 +4253,7 @@
 <script src="collection-title-ui.js"></script>
 <script src="personal-library-ui.js"></script>
 <script src="recommendation-hub-ui.js"></script>
+<script src="media-chrome.js"></script>
 <script src="media-home.js"></script>
 <script src="../assistant-work-records.js"></script>
 <script src="assistant-workspace.js"></script>
