@@ -1,6 +1,10 @@
+Güncel uygulama · 2026-11-14: Gece Seansı V2 doğrudan uygulanmak üzere onaylandı ve yerelde tamamlandı. Nearblack/sıcak nötr, beyaz içerik eylemi ve küçük fosfor dil/stüdyo vurgusu kullanılıyor. Aşağıdaki çelik/mavi önerileri tarihseldir; güncel tasarım kararı DESIGN.md başındadır.
+
 # Whisper Browser · tasarım öncesi kendime görev
 
 Kullanıcı kararı: 2026-11-13. Bu, Codex'in yetkilendirilmiş arayüz işlerinde kullanacağı çalışma brief'idir; skill değildir. Sabit bir palet, font, kolon veya düğme şablonu tanımlamaz. Yeni bir ekran yeniden tasarımı ya da Git teslimi kendiliğinden başlatılmaz.
+
+Son düzeltme (20:31): Mor ve ardından amber/bakır yönleri reddedildi. Eski amber kimliğine geri dönme. Modern/sinematik yeni kimlik isteniyor; mevcut renkler estetik zorunluluk değildir. Siyah çelik/gümüş ve kontrollü buz mavisi güncel öneridir, kullanıcı tarafından henüz onaylanmamıştır. Yalnız renk değişikliği yerleşim sorununu çözmez.
 
 ## Koyu tema ve onay akışı · 2026-11-13
 
@@ -11,6 +15,8 @@ Kapsamlı görsel değişiklikte önce gerçek mevcut ekranı ve bağımsız ön
 Doğrulama koyu temada bir masaüstü kompozisyonu ve gerekli tek dar alan kontrolüne odaklanır. Hata ya da yeni değişiklik olmadıkça aynı tam akışı tekrar tekrar açma; etkilenen adımı kontrol et. Testlerin kısa olması tasarımın yüzeysel olması anlamına gelmez.
 
 ## Uygulanacak prompt
+
+Onaylı üst barlar (21:20): Bu ürün steril/robotik bir yönetim paneli değil, canlı ve ruhu olan bir medya browser/player'dır. İçerik, yüzey ışığı, hareket ve etkileşim birlikte tasarlanır. Çelik/gümüş yönü onaylanıp uygulandı; diğer ekranları aynı palete kilitlemez. Teknik test disiplini görsel canlılıktan kaçma gerekçesi değildir.
 
 Whisper Browser'ın ilgili ekranını güçlü, modern, sinematik ve özenle tasarlanmış bir medya deneyimi olarak çöz. İşlevleri taşıyan kutular ve düğmeler dizmekle yetinme. Kullanıcının istediği görsel kaliteyi kapsam içinde tamamla; basit bir çözümün yeterli olduğunu, çalışan bir düğmenin iyi tasarım sayıldığını varsayma.
 
