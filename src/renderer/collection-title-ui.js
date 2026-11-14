@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const t=(en,tr)=>window.UiLocale?.get?.()==='tr'?tr:en;
+  const part=value=>{const rows=String(value||'').split(' / ');return window.UiLocale?.get?.()==='tr'&&rows[1]?rows[1]:rows[0];};
   const node=(tag,cls='',text)=>{const n=document.createElement(tag);n.className=cls;if(text!==undefined)n.textContent=String(text);return n;};
   const states={planned:['Up next','Sırada'],watching:['In progress','Devam ediyorum'],completed:['Completed','Tamamladım'],paused:['On hold','Ara verdim'],dropped:['Dropped','Bıraktım']};
   const formats={TV:['TV series','TV dizisi'],TV_SHORT:['Short series','Kısa dizi'],MOVIE:['Film','Film'],SPECIAL:['Special','Özel bölüm'],OVA:['OVA','OVA'],ONA:['Web series','Web dizisi'],MUSIC:['Music video','Müzik videosu'],MANGA:['Manga','Manga'],NOVEL:['Novel','Roman'],ONE_SHOT:['One-shot','Tek bölüm']};
@@ -19,7 +20,7 @@
     document.addEventListener('collection-preferences-updated',()=>{if(busy)preferenceReload=true;else void enrich(false);},{signal:updates.signal});
     document.addEventListener('ui-locale-change',()=>paint(),{signal:updates.signal});
     document.addEventListener('media-metadata-updated',()=>{void reloadRecord();},{signal:updates.signal});
-    const button=(label,fn)=>{const b=node('button','mh-action',label);b.type='button';b.onclick=()=>Promise.resolve().then(fn).catch(error=>{if(page.open){message=error.message;const status=page.querySelector('[role=status]');if(status)status.textContent=message;}});return b;};
+    const button=(label,fn)=>{const b=node('button','mh-action',label);b.type='button';b.onclick=()=>Promise.resolve().then(fn).catch(error=>{if(page.open){message=part(error.message);const status=page.querySelector('[role=status]');if(status)status.textContent=message;}});return b;};
     function paint(){
       if(!page.open)return;
       for(const card of page.querySelectorAll('[data-review-id]')){if(card.open)openReviewIds.add(card.dataset.reviewId);else openReviewIds.delete(card.dataset.reviewId);}
@@ -37,8 +38,8 @@
       if(onSources)actions.append(button(t('Sources / refresh','Kaynaklar / yenile'),()=>onSources(row)));
       const retry=button(busy?t('Loading details…','Bilgiler yükleniyor…'):t('Get details from AniList','Bilgileri AniList’ten getir'),()=>enrich(true));
       retry.disabled=busy||!/^\d{1,10}$/.test(row.providerId||'')||Number(row.providerId)<1;actions.append(retry);
-      const title=node('h1','',row.title);title.id='mediaTitleHeading';copy.append(title,actions);hero.append(poster,copy);
-      const status=node('p','mtd-status',message);status.setAttribute('role','status');
+      const title=node('h1','',row.title);title.id='mediaTitleHeading';const heroState=node('div','mtd-state');{const known=states[row.status],heroTotal=row.total||metadata.total||0,heroProgress=Number(row.progress)||0,heroUnit=row.domain==='anime'?t('episodes','bölüm'):t('chapters','bölüm');heroState.append(node('span','mtd-chip mtd-chip-status',known?t(...known):t('No status','Durum yok')));if(row.rating!=null)heroState.append(node('span','mtd-chip mtd-chip-score','★ '+row.rating+'/10'));if(heroProgress||heroTotal)heroState.append(node('span','mtd-chip',`${heroProgress}${heroTotal?' / '+heroTotal:''} ${heroUnit}`));if(heroTotal){const heroBar=node('progress','mtd-hero-progress');heroBar.max=heroTotal;heroBar.value=Math.min(heroProgress,heroTotal);heroBar.setAttribute('aria-label',t('Your progress','İlerlemen'));heroState.append(heroBar);}}copy.append(title,heroState,actions);hero.append(poster,copy);
+      const status=node('p','mtd-status',part(message));status.setAttribute('role','status');
       const story=node('section','mtd-story'),heading=node('div');heading.append(node('h2','',t('Story','Hikâye')));story.append(heading,node('p','',metadata.description||t('Title information loads automatically when available.','Yapım bilgileri erişilebildiğinde otomatik yüklenir.')));
       const personal=node('section','mtd-personal'),personalFacts=node('div','plog-facts');
       personal.append(node('h2','cn-section-heading',t('Your record','Senin kaydın')));
@@ -58,6 +59,7 @@
       const item={title:row.title,originalTitle:(metadata.aliases||[]).find(title=>title!==row.title)||'',kind:row.domain,year:row.year||metadata.year,runtime:row.domain==='anime'?metadata.duration:0,genres:metadata.genres||[],tagline:kind};
       window.CinemaUI.film(page,item);
       page.classList.add('collection-title-page');
+      {const filmCopy=page.querySelector('.cn-film-copy');if(filmCopy){const before=filmCopy.querySelector('.mtd-actions');before?before.before(heroState):filmCopy.append(heroState);}}
       const facts=page.querySelector('[data-cinema-credits]'),grid=page.querySelector('.cn-story-grid');
       if(facts){
         const dl=node('dl'),add=(label,value)=>{if(value===undefined||value===null||value==='')return;const line=node('div');line.append(node('dt','',label),node('dd','',value));dl.append(line);};
@@ -97,13 +99,13 @@
     async function enrich(refresh){
       if(busy||!page.open)return;const ticket=++generation;busy=true;message=t('Loading public title information…','Yapım bilgileri yükleniyor…');paint();
       try{const result=await request(row.id,refresh);if(!page.open||ticket!==generation)return;row={...row,metadata:result.metadata||row.metadata};match=result.match||null;preferenceState=result.preferenceState||null;message=result.warning|| (refresh?t('Details updated. Your rating and progress are unchanged.','Bilgiler yenilendi. Puanın ve ilerlemen korundu.'):'');}
-      catch(error){if(page.open&&ticket===generation)message=error.message;}
+      catch(error){if(page.open&&ticket===generation)message=part(error.message);}
       finally{if(page.open&&ticket===generation){busy=false;paint();if(preferenceReload){preferenceReload=false;void enrich(false);}}}
     }
     async function reloadRecord(){
       if(!page.open)return;const ticket=++generation;busy=true;
       try{const result=await window.api.mediaShelf({action:'collection-list'});if(!page.open||ticket!==generation)return;if(!result?.ok)throw Error(result?.error||t('Details unavailable.','Bilgiler alınamadı.'));const current=result.rows.find(value=>value.id===row.id);if(!current){page.close();return;}row={...current};message='';}
-      catch(error){if(page.open&&ticket===generation)message=error.message;}
+      catch(error){if(page.open&&ticket===generation)message=part(error.message);}
       finally{if(page.open&&ticket===generation){busy=false;paint();void enrich(false);}}
     }
     paint();void enrich(false);page.restorePosition?.();requestAnimationFrame(()=>{if(page.open)page.focus({preventScroll:true});});return page;

@@ -148,7 +148,7 @@
         const actions=n('div','cn-hero-actions');actions.append(action(t('Add media folder','Medya klasörü ekle'),addFolder,'primary','folder'), action(t('Explore titles','Yapımları keşfet'),()=>page('discover'),'ghost'));
         copy.append(actions);
         const sculpture=n('div','cv2-first-composition');sculpture.setAttribute('aria-hidden','true');
-        for(const [index,label]of [t('Watch','İzle'),t('Listen','Dinle'),t('Discover','Keşfet')].entries()){const frame=n('div','cv2-first-frame',label);frame.style.setProperty('--frame',index);sculpture.append(frame);}
+        for(const [index,label]of [t('Watch','İzle'),t('Listen','Dinle'),t('Discover','Keşfet')].entries()){const frame=n('div','cv2-first-frame',label);frame.style.setProperty('--frame',index);const preview=n('span','cv2-first-art');preview.dataset.kind=['watch','listen','discover'][index];if(index===0)preview.append(n('i','cv2-first-play'),n('i','cv2-first-bar'));else if(index===1)for(let bar=0;bar<18;bar++){const wave=n('i');wave.style.setProperty('--h',String(22+((bar*37)%64)));preview.append(wave);}else for(let tile=0;tile<4;tile++)preview.append(n('i'));frame.append(preview);sculpture.append(frame);}
         stage.append(sculpture);return;
       }
       at=(at+candidates.length)%candidates.length;
@@ -170,12 +170,13 @@
       actions.append(action(t('Add media folder','Medya klasörü ekle'),addFolder,'ghost','folder'));copy.append(actions);
       const others=candidates.map((entry,index)=>({entry,index})).filter(row=>row.index!==at&&progress(row.entry).resume).slice(0,3);
       if(others.length){
-        const next=n('nav','cv2-home-next'),row=n('div','cv2-next-row');next.setAttribute('aria-label',t('Also in progress','Devam eden diğerleri'));next.append(n('small','',t('Also in progress','Devam eden diğerleri')),row);
+        const next=n('nav','cv2-home-next'),row=n('div','cv2-next-row');next.setAttribute('aria-label',t('Also in progress','Devam eden diğerleri'));next.append(n('h2','',t('Up next','Sırada')),row);
         for(const {entry} of others){const q=progress(entry),chip=action('',()=>entry.key||entry.source?play(entry):details(entry.id),'ghost');chip.replaceChildren();chip.className='cv2-next-chip';chip.title=titleOf(entry);chip.setAttribute('aria-label',titleOf(entry)+' · '+t('Left at ','Kaldığın yer ')+clock(q.position));chip.append(n('strong','',titleOf(entry)),n('small','',[clock(q.position),ago(entry.lastWatched)].filter(Boolean).join(' · ')),meter(q.percent));row.append(chip);}
-        copy.append(next);
+        for(const [index,chip]of [...row.children].entries()){const thumb=art(others[index].entry,'cv2-next-art');fallback(thumb,titleOf(others[index].entry));chip.prepend(thumb);}
+        stage.append(next);
       }
-      if(kind(item)==='web'){const bar=n('div','cv2-browser-chrome');bar.append(n('i'),n('i'),n('i'),n('span','',host||'Web'));stage.append(bar);}
-      const image=art(item,'cn-hero-art cv2-home-art');fallback(image,shown);stage.append(image);
+      const image=art(item,'cn-hero-art cv2-home-art');fallback(image,shown);copy.prepend(image);
+      if(!others.length)stage.append(n('h2','',t('Up next','Sırada')),action(t('Find your next story','Sıradaki hikâyeni bul'),()=>page('discover'),'ghost'));
       if(window.CinemaMotion&&candidates.length>1)carousel=window.CinemaMotion.carousel(hero,{count:candidates.length,getIndex:()=>at,goTo:index=>{at=index;draw();}});
     }
     draw();dispose.push(()=>carousel?.dispose());
@@ -344,6 +345,7 @@
     if (!isDiscovery) copy.append(n("span", "cn-eyebrow", t("In your library", "Kütüphanende")));
     if (item.originalTitle && item.originalTitle !== item.title) copy.append(n("p", "cn-original", item.originalTitle));
     const title = n("h1", "", clean(item.title));
+    title.title=clean(item.title);title.classList.add(Array.from(clean(item.title)).length<=28?'cn-title-short':Array.from(clean(item.title)).length>48?'cn-title-long':'cn-title-medium');
     if (!isDiscovery) {
       title.title = clean(item.title);
       if (Array.from(clean(item.title)).length > 36) title.classList.add("cn-title-long");
@@ -361,10 +363,10 @@
     copy.append(meta);
     const storyText = item.synopsisTr || item.synopsis;
     const description = isDiscovery
-      ? (item.tagline?.trim() !== storyText?.trim() ? item.tagline : '')
+      ? (item.tagline?.trim() !== storyText?.trim() ? item.tagline || storyText : storyText)
       : item.tagline || storyText;
     const synopsis = description ? n("p", "cn-hero-description", description) : null;
-    if (synopsis && !isDiscovery) copy.append(synopsis);
+    if (synopsis) copy.append(synopsis);
     const actions = n("div", "cn-hero-actions");
     if (primary) {
       rebutton(primary, "primary", isCollection ? "star" : isDiscovery ? "plus" : item.source || item.episodes?.some((e) => e.source) ? "play" : "folder");
@@ -410,7 +412,6 @@
     copy.append(actions);
     if (isDiscovery) {
       if (basis) copy.append(basis);
-      if (synopsis) copy.append(synopsis);
     }
     const copyPosition=page.querySelector(".cn-copy-position");if(copyPosition)copy.append(copyPosition);
     const resume = page.querySelector(".cn-library-resume");
@@ -470,6 +471,12 @@
       disposers.push(() => obs.disconnect());
     }
     inner.append(copy);
+    const statusCard=n('aside','ns-title-status');
+    statusCard.setAttribute('aria-label',t('Library and sources','Kütüphane ve kaynaklar'));
+    const strip=page.querySelector('.md-status-strip');
+    if(strip)statusCard.append(strip);
+    const watchState=copy.querySelector('.cn-watch-pill,.cn-library-watch');if(watchState)statusCard.append(watchState);
+    if(statusCard.childElementCount)inner.append(statusCard);
     hero.append(inner);
     const body = n("div", "cn-container cn-film-body"), overview = n("section", "cn-story-grid"), credits = n("aside", "cn-credits");
     credits.dataset.cinemaCredits = "";
@@ -490,7 +497,7 @@
       if(isDiscovery&&same&&p.textContent.trim().length<=95){
         p.className='cn-hero-description';copy.querySelector('.cn-hero-description')?.replaceWith(p);
         const storyActions=n('div','cn-inline-story-actions');for(const b of story.querySelectorAll('button'))storyActions.append(b);
-        if(storyActions.children.length)copy.append(storyActions);story.hidden=true;
+        if(storyActions.children.length)actions.append(storyActions);story.hidden=true;
       }
       overview.append(story);
     }
@@ -530,7 +537,8 @@
       const b = action(t(en, tr), () => {
         if (section === sources) advanced.open = true;
         const stickyHeader = document.querySelector(".media-home .mh-header");
-        if (stickyHeader) page.style.setProperty("--cv2-sticky-top", Math.ceil(stickyHeader.getBoundingClientRect().height) + "px");
+        // Bottom of the pinned stack (titlebar + header when both are sticky), measured from the scroll container's top.
+        if (stickyHeader) page.style.setProperty("--cv2-sticky-top", Math.ceil(stickyHeader.getBoundingClientRect().bottom - (stickyHeader.closest(".media-home")?.getBoundingClientRect().top || 0)) + "px");
         section.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       }, "ghost");
       b.dataset.filmSection = '';

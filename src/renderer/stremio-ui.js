@@ -68,6 +68,7 @@
     b.onclick = async (event) => { b.disabled = true; try { await run(event); } catch (e) { b.dispatchEvent(new CustomEvent('sx-error', { bubbles: true, detail: e })); } finally { if (b.isConnected) b.disabled = false; } };
     return b;
   }
+  function studioPlayIcon(){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS(svg.namespaceURI,'path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.classList.add('sx-play-icon');path.setAttribute('d','M8 5v14l12-7Z');svg.append(path);return svg;}
   const statusNode = () => { const n = el('p', 'sx-status'); n.setAttribute('role', 'status'); n.setAttribute('aria-live', 'polite'); return n; };
   const say = (node, message, error = false) => { node.textContent = message || ''; node.classList.toggle('is-error', !!error); };
   const hueOf = (text) => { let h = 0; for (const ch of String(text || '?')) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
@@ -278,7 +279,7 @@
   }
   // Sıradaki bölümde aynı kaynak grubunu/eklentiyi/kaliteyi tercih et (binge).
   function pickPreferred(streams, prefer) {
-    let ok = streams.filter((x) => x.playable); if (!ok.length) return null; if (!prefer) return ok[0];
+    let ok = streams.filter((x) => x.playable && x.availability !== 'download'); if (!ok.length) return null; if (!prefer) return ok[0];
     // Debrid/doğrudan izleyen kullanıcı otomatik geçişte ham torrente (IP açığa çıkar) düşürülmez.
     if (prefer.torrent === false) { ok = ok.filter((x) => x.kind !== 'torrent'); if (!ok.length) return null; }
     return (prefer.bingeGroup && ok.find((x) => x.bingeGroup === prefer.bingeGroup)) || ok.find((x) => x.addonKey === prefer.addonKey && x.resolution === prefer.resolution) || ok.find((x) => x.resolution === prefer.resolution) || ok[0];
@@ -351,55 +352,90 @@
 
   /* ================= Kaynak seçici ================= */
   const RES_ORDER = ['2160p', '1440p', '1080p', '720p', '576p', '480p', '360p'];
+  // Source state in plain words. Debrid cache is not "instant": the player still has to open the file.
+  const SOURCE_KIND = { remux: 'Remux', bluray: 'Blu-ray', webdl: 'WEB-DL', webrip: 'WEBRip', hdtv: 'HDTV', dvdrip: 'DVDRip', cam: 'CAM', telesync: 'TS' };
+  const AUDIO_KIND = { atmos: 'Atmos', truehd: 'TrueHD', dtshd: 'DTS-HD', dts: 'DTS', ddp: 'DD+', dd: 'DD', eac3: 'DD+', ac3: 'DD', aac: 'AAC', flac: 'FLAC', opus: 'Opus' };
+  const qualityLabel = (s) => s.resolution ? (s.resolution === '2160p' ? '4K' : s.resolution) : s.kind === 'torrent' ? 'P2P' : '—';
+  function sourceState(s) {
+    if (!s.playable) return { tone: 'off', label: ({ 'needs-headers': t('Unsafe headers', 'Güvensiz başlık'), youtube: 'YouTube', external: t('External site', 'Dış site') })[s.reason] || t('Not playable here', 'Burada oynatılamaz') };
+    if (s.availability === 'download') return { tone: 'wait', label: t('Debrid is preparing', 'Debrid hazırlıyor') };
+    if (s.kind === 'torrent') return { tone: 'torrent', label: t('Torrent', 'Torrent') };
+    if (s.availability === 'cached') return { tone: 'cached', label: t('In debrid cache', 'Debrid önbelleğinde') };
+    if (s.whisperAudio === 'adaptive') return { tone: 'ready', label: t('Adaptive stream', 'Uyarlamalı akış') };
+    return { tone: 'ready', label: t('Direct link', 'Doğrudan bağlantı') };
+  }
+  // One readable line of facts; the same fact never appears twice (hevc/HEVC, DV/Dolby Vision, atmos/ATMOS).
+  function sourceFacts(s) {
+    const facts = [], add = (value) => { const v = String(value || '').trim(); if (v && !facts.some((x) => x.toLowerCase() === v.toLowerCase())) facts.push(v); };
+    add(fmtSize(s.sizeBytes));
+    const hdr = String(s.hdr || '').toLowerCase(); add(hdr === 'dv' || hdr === 'dolby vision' ? 'Dolby Vision' : hdr ? String(s.hdr).toUpperCase() : '');
+    const codec = String(s.codec || '').toLowerCase(); add(/hevc|x265|h\.?265/.test(codec) ? 'HEVC' : /avc|x264|h\.?264/.test(codec) ? 'H.264' : codec === 'av1' ? 'AV1' : String(s.codec || '').toUpperCase());
+    add(SOURCE_KIND[String(s.source || '').toLowerCase()] || s.source);
+    add([AUDIO_KIND[String(s.audio || '').toLowerCase()] || String(s.audio || '').toUpperCase(), s.channels].filter(Boolean).join(' '));
+    if (s.multiAudio) add(t('Multi audio', 'Çoklu ses'));
+    if (s.embeddedSubtitles) add(t('Subtitles included', 'Altyazı dahil'));
+    if (s.seeders != null) add(t(`${s.seeders} seeders`, `${s.seeders} seeder`));
+    return facts;
+  }
   function streamRow(s, onPlay, current, compare) {
-    const row = el('article', 'sx-stream' + (s.playable ? '' : ' is-off') + (current ? ' is-current' : ''));
-    const left = el('div', 'sx-res sx-res-' + (s.resolution === '2160p' ? '4k' : s.resolution === '1080p' ? 'fhd' : s.resolution === '720p' ? 'hd' : 'other'), s.resolution ? (s.resolution === '2160p' ? '4K' : s.resolution) : s.kind === 'torrent' ? 'P2P' : '—');
-    const copy = el('div', 'sx-stream-copy');
-    copy.append(el('strong', '', s.filename || s.title || s.name));
-    if (s.playable) { const why = el('small', 'sx-why'); why.dataset.kind = s.kind === 'torrent' ? 'torrent' : s.whisperAudio || 'none'; why.append(el('span', 'sx-why-text', playabilityText(s))); if (s.whisperAudio === 'ready') why.append(el('span', 'sx-badge sx-whisper-ok', t('Whisper ready', 'Whisper uygun'))); copy.append(why); }
-    const meta = el('div', 'sx-meta');
-    if (s.score != null && s.playable) { const ring = el('span', 'sx-score ' + (s.score >= 75 ? 'is-great' : s.score >= 55 ? 'is-good' : 'is-fair'), String(s.score)); ring.style.setProperty('--p', s.score + '%'); ring.title = t('Source score (resolution, seeders, source type, compatibility)', 'Kaynak puanı (çözünürlük, seeder, kaynak türü, uyumluluk)'); ring.setAttribute('aria-label', t('Score ', 'Puan ') + s.score); meta.append(ring); }
-    for (const v of [s.addonName, s.provider, s.kind === 'torrent' ? 'Torrent' : s.kind === 'url' ? (s.host || t('Direct', 'Doğrudan')) : '', s.seeders != null ? '● ' + s.seeders : '', fmtSize(s.sizeBytes), s.codec, s.hdr, s.source]) if (v) meta.append(el('span', '', v));
-    for (const f of s.flags || []) meta.append(el('span', 'sx-flag', flagEmoji(f)));
+    const state = sourceState(s), row = el('article', 'sx-stream' + (s.playable ? '' : ' is-off') + (current ? ' is-current' : ''));
+    row.dataset.state = state.tone;
     if (s.seeders != null) row.dataset.health = s.seeders >= 100 ? 'great' : s.seeders >= 20 ? 'good' : s.seeders >= 5 ? 'low' : 'poor';
+    const left = el('div', 'sx-res sx-res-' + (s.resolution === '2160p' ? '4k' : s.resolution === '1080p' ? 'fhd' : s.resolution === '720p' ? 'hd' : 'other'));
+    left.append(el('b', '', qualityLabel(s)));
+    if (s.score != null && s.playable) { const score = el('small', 'sx-score-text', t('Score ', 'Puan ') + s.score); score.title = t('Source score (resolution, seeders, source type, compatibility)', 'Kaynak puanı (çözünürlük, seeder, kaynak türü, uyumluluk)'); score.setAttribute('aria-label', t('Score ', 'Puan ') + s.score); left.append(score); }
+    const copy = el('div', 'sx-stream-copy'), fullName = s.filename || s.title || s.name || '';
+    const name = el('strong', 'sx-stream-title', fullName); name.title = fullName; copy.append(name);
+    const line = el('div', 'sx-state'); line.append(el('span', 'sx-pill sx-pill-' + state.tone, state.label));
+    const addons = [s.addonName, ...(s.alsoFrom || []).map((a) => a.addonName)].filter(Boolean);
+    if (addons.length) line.append(el('span', 'sx-from', addons.join(' + ')));
+    if (s.whisperAudio === 'ready') line.append(el('span', 'sx-badge sx-whisper-ok', t('Whisper ready', 'Whisper uygun')));
+    copy.append(line);
+    const facts = sourceFacts(s); if (facts.length) copy.append(el('p', 'sx-facts', facts.join(' · ')));
+    const warns = [...(s.warns || []).filter((w) => WARN_LABEL[w]).map((w) => t(...WARN_LABEL[w])), ...(s.notWebReady ? [t('May need native player', 'Native oynatıcı gerekebilir')] : [])];
+    if (warns.length) { const box = el('div', 'sx-warns'); for (const w of warns) box.append(el('span', 'sx-badge is-warn', w)); copy.append(box); }
+    if (s.playable) { const why = el('small', 'sx-why'); why.dataset.kind = s.kind === 'torrent' ? 'torrent' : s.whisperAudio || 'none'; why.append(el('span', 'sx-why-text', playabilityText(s))); copy.append(why); }
+    else copy.append(el('small', 'sx-reason', ({ 'needs-headers': t('Needs request headers outside the safe list', 'Güvenli listede olmayan istek başlıkları gerektirir'), youtube: t('YouTube source (not playable here)', 'YouTube kaynağı (burada oynatılamaz)'), external: t('Opens on an external site', 'Dış bir sitede açılır') })[s.reason] || t('Not playable', 'Oynatılamaz')));
+    // Everything technical stays reachable, folded: provider, delivery, flags, raw tags, headers, comparison.
+    const more = el('details', 'sx-stream-more'); more.append(el('summary', '', t('Technical details', 'Teknik ayrıntılar')));
+    const meta = el('div', 'sx-meta');
+    for (const v of [s.provider, s.kind === 'torrent' ? 'Torrent' : s.kind === 'url' ? (s.host || t('Direct', 'Doğrudan')) : '', s.group]) if (v) meta.append(el('span', '', v));
+    for (const f of s.flags || []) meta.append(el('span', 'sx-flag', flagEmoji(f)));
     for (const tg of s.tags || []) if (TAG_LABEL[tg]) meta.append(el('span', 'sx-badge sx-tag-' + tg, t(...TAG_LABEL[tg])));
-    for (const w of s.warns || []) if (WARN_LABEL[w]) meta.append(el('span', 'sx-badge is-warn', t(...WARN_LABEL[w])));
-    if (s.audio) meta.append(el('span', 'sx-badge', [String(s.audio).toUpperCase(), s.channels].filter(Boolean).join(' ')));
-    if (s.multiAudio) meta.append(el('span', 'sx-badge', t('Multi audio', 'Çoklu ses')));
-    if (s.embeddedSubtitles) meta.append(el('span', 'sx-badge', t('Subtitles included', 'Altyazı dahil')));
-    if (s.notWebReady) meta.append(el('span', 'sx-badge is-warn', t('May need native player', 'Native oynatıcı gerekebilir')));
-    copy.append(meta);
-    if (compare) { const lab = el('label', 'sx-check sx-compare'), cb = el('input'); cb.type = 'checkbox'; cb.checked = compare.has(s.id); cb.onchange = () => compare.toggle(s, cb); lab.append(cb, el('span', '', t('Compare', 'Karşılaştır'))); copy.append(lab); }
     if (s.usesHeaders) meta.append(el('span', 'sx-badge', t('Sends addon headers', 'Eklenti başlıkları gönderir')));
-    if (!s.playable) copy.append(el('small', 'sx-reason', ({ 'needs-headers': t('Needs request headers outside the safe list', 'Güvenli listede olmayan istek başlıkları gerektirir'), youtube: t('YouTube source (not playable here)', 'YouTube kaynağı (burada oynatılamaz)'), external: t('Opens on an external site', 'Dış bir sitede açılır') })[s.reason] || t('Not playable', 'Oynatılamaz')));
+    if (meta.children.length) more.append(meta);
+    if (compare) { const lab = el('label', 'sx-check sx-compare'), cb = el('input'); cb.type = 'checkbox'; cb.checked = compare.has(s.id); cb.onchange = () => compare.toggle(s, cb); lab.append(cb, el('span', '', t('Compare', 'Karşılaştır'))); more.append(lab); if (cb.checked) more.open = true; }
+    if (more.children.length > 1) copy.append(more);
     const act = button(current ? t('Playing', 'Oynuyor') : t('Play', 'Oynat'), () => onPlay(s), 'mh-action' + (s.playable ? ' mh-primary' : '')); act.disabled = !s.playable || current;
-    row.append(left, copy, act); return row;
+    if(s.playable&&!current)act.prepend(studioPlayIcon());row.append(left, copy, act); return row;
   }
   // Plain-language reason a row can (or cannot directly) play; no URL or token is shown.
   function playabilityText(s) {
     if(s.availability==='download')return t('The addon reports a debrid download; readiness is not confirmed. Refresh after completion.','Eklenti debrid indirmesi bildiriyor; hazır olduğu doğrulanmadı. Tamamlanınca yenile.');
     if (s.kind === 'torrent') return t('Raw torrent · plays through the torrent engine; Whisper after the download finishes', 'Ham torrent · torrent motoruyla oynar; Whisper indirme bitince');
-    if (s.whisperAudio === 'adaptive') return t('Adaptive stream (HLS/DASH) · plays now; Whisper needs a direct file', 'Uyarlamalı akış (HLS/DASH) · hemen oynar; Whisper doğrudan dosya ister');
+    if (s.whisperAudio === 'adaptive') return t('Adaptive stream (HLS/DASH) · Whisper needs a direct file', 'Uyarlamalı akış (HLS/DASH) · Whisper doğrudan dosya ister');
     if (s.whisperAudio === 'insecure') return t('Local addon link · plays now; Whisper needs HTTPS', 'Yerel eklenti bağlantısı · hemen oynar; Whisper HTTPS ister');
-    const where = s.notWebReady || /\.(mkv|avi|wmv|ts|m2ts|flv)$/i.test(s.filename || '') ? t('native player recommended', 'native oynatıcı önerilir') : t('built-in player', 'yerleşik oynatıcı');
-    return t(`Direct link · plays now (${where})`, `Doğrudan bağlantı · hemen oynar (${where})`);
+    const where = needsNative(s) ? t('native player recommended', 'native oynatıcı önerilir') : t('built-in player', 'yerleşik oynatıcı');
+    return t(`Direct link · ${where}`, `Doğrudan bağlantı · ${where}`);
   }
   function streamSummary(streams) {
     const playable = streams.filter((s) => s.playable), direct = playable.filter((s) => s.kind === 'url').length, torrent = playable.filter((s) => s.kind === 'torrent').length, whisper = playable.filter((s) => s.whisperAudio === 'ready').length, off = streams.length - playable.length;
     return { playable: playable.length, direct, torrent, whisper, off };
   }
+  const searchText=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().replace(/ı/g,'i');
   function filterStreams(rows, f) {
     let out = rows.filter((s) => (!f.whisper || s.whisperAudio === 'ready') && (!f.res || (f.res === 'other' ? !RES_ORDER.slice(0, 4).includes(s.resolution) : s.resolution === f.res)) && (!f.addon || s.addonKey === f.addon || s.alsoFrom?.some((addon) => addon.addonKey === f.addon))
-      && (!f.q || (s.filename + ' ' + s.title + ' ' + s.name + ' ' + s.provider).toLowerCase().includes(f.q)) && (!f.playableOnly || s.playable) && (!f.multi || s.multiAudio) && (!f.subs || s.embeddedSubtitles > 0));
+      && (!f.q || searchText([s.filename,s.title,s.name,s.provider,s.addonName,...(s.alsoFrom||[]).map(a=>a.addonName)].join(' ')).includes(searchText(f.q))) && (!f.playableOnly || s.playable) && (!f.multi || s.multiAudio) && (!f.subs || s.embeddedSubtitles > 0)
+      && (!f.scope || f.scope === 'all' || (f.scope === 'cached' && s.availability === 'cached') || (f.scope === 'torrent' && s.kind === 'torrent')));
     if (f.sort === 'seeders') out = [...out].sort((a, b) => (b.seeders ?? -1) - (a.seeders ?? -1));
     if (f.sort === 'size') out = [...out].sort((a, b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0));
     if (f.sort === 'score') out = [...out].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     if (f.sort === 'small') out = [...out].sort((a, b) => (a.sizeBytes ?? Infinity) - (b.sizeBytes ?? Infinity));
     return out;
   }
-  function mountStreamList(host, data, { onPlay, currentId, status, onRetry, whisperOnly = false }) {
+  function mountStreamList(host, data, { onPlay, currentId, status, onRetry, whisperOnly = false, studio = false }) {
     const KEY = 'stremio.streamFilters'; let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (_) { saved = {}; }
-    const f = { res: ['2160p', '1080p', '720p', 'other'].includes(saved.res) ? saved.res : '', addon: '', q: '', sort: ['recommended', 'seeders', 'size', 'small', 'score'].includes(saved.sort) ? saved.sort : 'recommended', playableOnly: true, multi: !!saved.multi, subs: !!saved.subs, whisper: !!whisperOnly };
+    const f = { res: ['2160p', '1080p', '720p', 'other'].includes(saved.res) ? saved.res : '', addon: '', q: '', scope:'all', sort: ['recommended', 'seeders', 'size', 'small', 'score'].includes(saved.sort) ? saved.sort : 'recommended', playableOnly: true, multi: !!saved.multi, subs: !!saved.subs, whisper: !!whisperOnly };
     const remember = () => { try { localStorage.setItem(KEY, JSON.stringify({ res: f.res, sort: f.sort, multi: f.multi, subs: f.subs })); } catch (_) { /* saklanamazsa atla */ } };
     const bar = el('div', 'sx-filters'), list = el('div', 'sx-stream-list'), notes = el('div', 'sx-notes'), cmpBox = el('section', 'sx-compare-box'); cmpBox.hidden = true; cmpBox.setAttribute('aria-label', t('Source comparison', 'Kaynak karşılaştırma'));
     const picked = new Map();
@@ -417,7 +453,7 @@
         [t('Size', 'Boyut'), (s) => fmtSize(s.sizeBytes) || '—'], [t('Seeders', 'Seeder'), (s) => (s.seeders != null ? String(s.seeders) : '—'), (s) => s.seeders != null && s.seeders === topSeed],
         [t('Video', 'Video'), (s) => [s.codec, s.hdr].filter(Boolean).join(' ') || '—'], [t('Source', 'Kaynak'), (s) => s.source || '—'],
         [t('Audio', 'Ses'), (s) => (s.multiAudio ? t('Multi audio', 'Çoklu ses') : '—')], [t('Subtitles', 'Altyazı'), (s) => (s.embeddedSubtitles ? t(`${s.embeddedSubtitles} included`, `${s.embeddedSubtitles} dahil`) : '—')],
-        [t('Delivery', 'Teslimat'), (s) => (s.kind === 'torrent' ? 'Torrent' : s.host || t('Direct', 'Doğrudan'))], [t('Web player', 'Yerleşik oynatıcı'), (s) => (s.notWebReady ? t('Native recommended', 'Native önerilir') : t('Should work', 'Uygun görünür'))],
+        [t('Delivery', 'Teslimat'), (s) => (s.kind === 'torrent' ? 'Torrent' : s.host || t('Direct', 'Doğrudan'))], [t('Web player', 'Yerleşik oynatıcı'), (s) => (needsNative(s) ? t('Native recommended', 'Native önerilir') : t('Should work', 'Uygun görünür'))],
       ];
       for (const [label, get, mark] of spec) { const tr = el('tr'), th = el('th', '', label); th.scope = 'row'; tr.append(th); for (const s of rows) { const td = el('td', mark?.(s) ? 'is-best' : '', get(s)); tr.append(td); } tb.append(tr); }
       const play = el('tr'); play.append(el('th', '', '')); for (const s of rows) { const td = el('td'); td.append(button(s.id === currentId ? t('Playing', 'Oynuyor') : t('Play', 'Oynat'), () => onPlay(s), 'mh-action' + (s.playable ? ' mh-primary' : ''))); td.firstChild.disabled = !s.playable || s.id === currentId; play.append(td); } tb.append(play);
@@ -433,7 +469,7 @@
     resSel.value = f.res; sortSel.value = f.sort;
     const q = el('input'); q.type = 'search'; q.placeholder = t('Filter sources…', 'Kaynaklarda filtrele…'); q.setAttribute('aria-label', q.placeholder);
     const only = el('label', 'sx-check'), cb = el('input'); cb.type = 'checkbox'; cb.checked = true; only.append(cb, el('span', '', t('Playable only', 'Yalnız oynatılabilenler')));
-    const mkCheck = (label, key) => { const l = el('label', 'sx-check'), c = el('input'); c.type = 'checkbox'; c.checked = f[key]; c.onchange = () => { f[key] = c.checked; remember(); draw(); }; l.append(c, el('span', '', label)); return l; };
+    const mkCheck = (label, key) => { const l = el('label', 'sx-check'), c = el('input'); c.type = 'checkbox'; c.dataset.filter=key; c.checked = f[key]; c.onchange = () => { f[key] = c.checked; remember(); draw(); }; l.append(c, el('span', '', label)); return l; };
     const whisperCheck = mkCheck(t('Whisper ready', 'Whisper uygun'), 'whisper'); whisperCheck.title = t('Direct HTTPS files whose audio can be prepared for Whisper without downloading the whole film.', 'Filmin tamamı indirilmeden sesi Whisper için hazırlanabilen doğrudan HTTPS dosyaları.');
     bar.append(resSel, addonSel, sortSel, q, mkCheck(t('Multi audio', 'Çoklu ses'), 'multi'), mkCheck(t('Has subtitles', 'Altyazılı'), 'subs'), whisperCheck, only);
     const sum = streamSummary(data.streams), summary = el('p', 'sx-source-summary'); summary.setAttribute('role', 'note');
@@ -444,22 +480,37 @@
       parts.forEach(([kind, label], i) => { if (i) { const sep = el('span', 'sx-sum-sep', ' · '); sep.setAttribute('aria-hidden', 'true'); summary.append(sep); } const item = el('span', 'sx-sum-item', label); item.dataset.kind = kind; summary.append(item); });
     } else summary.hidden = true;
     const failed = data.groups.filter((g) => g.error);
+    const quick=el('div','sx-quick-filters'),count=el('span','sx-result-count'),filterCount=el('span','sx-filter-count');
+    const resetFilters=()=>{Object.assign(f,{res:'',addon:'',q:'',scope:'all',sort:'recommended',playableOnly:true,multi:false,subs:false,whisper:false});resSel.value='';addonSel.value='';sortSel.value='recommended';q.value='';cb.checked=true;for(const node of bar.querySelectorAll('[data-filter]'))node.checked=false;remember();draw();};
+    if(studio){quick.setAttribute('role','group');quick.setAttribute('aria-label',t('Source category','Kaynak kapsamı'));for(const [scope,en,tr]of [['all','All sources','Tüm kaynaklar'],['cached','In debrid cache','Debrid önbelleğinde'],['torrent','Torrent','Torrent']]){const b=button(t(en,tr),()=>{f.scope=scope;draw();},'sx-scope');b.dataset.scope=scope;quick.append(b);}}
     const emptyBox = (message) => { const box = el('div', 'sx-source-empty'); box.append(el('p', 'sx-empty', message)); const acts = el('div', 'sx-actions');
       if (f.playableOnly && data.streams.some((s) => !s.playable)) acts.append(button(t('Show sources that cannot play here', 'Burada oynatılamayanları göster'), () => { f.playableOnly = false; cb.checked = false; draw(); }));
       if (f.whisper) acts.append(button(t('Show all playable sources', 'Tüm oynatılabilirleri göster'), () => { f.whisper = false; whisperCheck.querySelector('input').checked = false; draw(); }));
       if (typeof onRetry === 'function' && (!data.streams.length || failed.length)) acts.append(button(t('Search sources again', 'Kaynakları yeniden ara'), onRetry, 'mh-action mh-primary sx-retry'));
+      if(studio&&data.streams.length&&(f.res||f.addon||f.q||f.scope!=='all'||f.multi||f.subs||f.whisper))acts.append(button(t('Clear filters','Filtreleri temizle'),resetFilters));
       if (acts.children.length) box.append(acts); return box; };
     const draw = () => {
       list.replaceChildren(); const rows = filterStreams(data.streams, f);
+      count.textContent=String(rows.length);count.setAttribute('aria-label',t(`${rows.length} matching sources`,`${rows.length} eşleşen kaynak`));
+      const activeFilters=[!!f.res,!!f.addon,f.sort!=='recommended',!f.playableOnly,f.multi,f.subs,f.whisper].filter(Boolean).length;filterCount.textContent=activeFilters?String(activeFilters):'';filterCount.hidden=!activeFilters;
+      for(const b of quick.children)b.setAttribute('aria-pressed',String(b.dataset.scope===f.scope));
       for (const s of rows.slice(0, 150)) list.append(streamRow(s, onPlay, s.id === currentId, compare));
       if (!rows.length) list.append(emptyBox(data.streams.length ? t('No source matches these filters.', 'Bu filtrelere uyan kaynak yok.') : failed.length && failed.length === data.groups.length ? t('No addon could return sources. Check your connection or addon settings, then search again.', 'Hiçbir eklenti kaynak döndüremedi. Bağlantını veya eklenti ayarlarını kontrol edip yeniden ara.') : t('No sources found. Try another addon or check again later.', 'Kaynak bulunamadı. Başka bir eklenti dene veya sonra yeniden bak.')));
       if (rows.length > 150) list.append(el('p', 'sx-hint', t(`Showing 150 of ${rows.length}. Filter to narrow the list.`, `${rows.length} kaynaktan 150'si gösteriliyor. Daralmak için filtrele.`)));
     };
     resSel.onchange = () => { f.res = resSel.value; remember(); draw(); }; addonSel.onchange = () => { f.addon = addonSel.value; draw(); }; sortSel.onchange = () => { f.sort = sortSel.value; remember(); draw(); };
-    q.oninput = () => { f.q = q.value.trim().toLowerCase(); draw(); }; cb.onchange = () => { f.playableOnly = cb.checked; draw(); };
+    q.oninput = () => { f.q = q.value.trim(); draw(); }; cb.onchange = () => { f.playableOnly = cb.checked; draw(); };
     for (const g of failed) notes.append(el('p', 'sx-note', `${g.addonName}: ${groupReason(g.error)}`));
     if (failed.length && data.streams.length && typeof onRetry === 'function') notes.append(button(t('Ask failed addons again', 'Başarısız eklentilere yeniden sor'), onRetry, 'mh-action sx-retry'));
-    host.append(bar, summary, notes, cmpBox, list); draw(); void status; return { draw };
+    if(studio){
+      const heading=el('div','sx-list-heading'),name=el('h2','',t('Sources','Kaynaklar')),tools=el('div','sx-list-tools');name.append(count);heading.append(name,tools);
+      if(onRetry)tools.append(button(t('Refresh','Yenile'),onRetry,'mh-action sx-refresh'));
+      tools.append(button(t('Addons','Eklentiler'),()=>{host.closest('dialog')?.close();openAddons();},'mh-action sx-addon-settings'));
+      const search=el('div','sx-search-controls'),drawer=el('details','sx-filter-drawer'),toggle=el('summary','',t('Filters','Filtreler'));toggle.append(filterCount);drawer.append(toggle,bar);drawer.open=!!(f.res||f.multi||f.subs||f.whisper);q.placeholder=t('Search file, addon or provider…','Dosya, eklenti veya sağlayıcı ara…');q.setAttribute('aria-label',q.placeholder);search.append(q,drawer);
+      const results=el('div','sx-results-scroll');results.tabIndex=0;results.setAttribute('aria-label',t('Source results and comparison','Kaynak sonuçları ve karşılaştırma'));results.append(notes,cmpBox,list);
+      host.append(heading,search,quick,results,summary);
+    }else host.append(bar,summary,notes,cmpBox,list);
+    draw(); void status; return { draw };
   }
   const SUBTITLE_LANGUAGE_KEY = 'stremio.subtitleLanguage';
   const subtitleLanguageCode = value => /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(String(value || '')) ? String(value).toLowerCase().split('-')[0] : '';
@@ -552,9 +603,9 @@
   async function openStreams(ctxLike) {
     let dialog;
     const status = statusNode(), body = el('main', 'sx-body');
-    dialog = dialogShell('sx-streams', t('Choose a source', 'Kaynak seç'), null);
+    dialog = dialogShell('sx-streams sx-source-studio', t('Choose a source', 'Kaynak seç'), null);
     const title = ctxLike.name + (ctxLike.season != null ? ` · ${epLabel(ctxLike.season, ctxLike.episode)}${ctxLike.episodeTitle ? ' ' + ctxLike.episodeTitle : ''}` : '');
-    dialog.append(header(title, t('Sources from your addons', 'Eklentilerinden gelen kaynaklar'), () => dialog.close()), status, body);
+    dialog.append(header(t('How would you like to watch?','Nasıl izlemek istersin?'),title, () => dialog.close()), status, body);
     let pendingRetry=null;
     const retryCurrent=()=>!!pendingRetry&&dialog.isConnected&&dialog.open&&player.mediaKey===pendingRetry.key&&player.generation===pendingRetry.generation&&playRequest===pendingRetry.request;
     dialog.addEventListener('sx-error',(e)=>{say(status,e.detail?.message,true);if(e.detail?.code==='NEEDS_TORRENT_ENGINE')showEngineHelp();});
@@ -587,14 +638,29 @@
       // An explicit start (e.g. “From the beginning”) overrides the saved resume point.
       const explicitStart = { isCancelled: () => !dialog.isConnected || !dialog.open, ...(Number.isFinite(ctxLike.resumeSeconds) && ctxLike.resumeSeconds >= 0 ? { seconds: ctxLike.resumeSeconds } : {}) };
       const onPlay = async (s) => { say(status, t('Opening source…', 'Kaynak açılıyor…')); try { if(await playStreamRow(ctxLike, data, s, explicitStart))dialog.close(); } catch (e) { say(status, e.message, true); if (e.code === 'NEEDS_TORRENT_ENGINE') showEngineHelp(()=>onPlay(s)); else offerRetry(body, e, retry); } };
-      const best = pickPreferred(data.streams, ctxLike.prefer) || (ctxLike.prefer?.torrent === false ? null : data.streams.find((s) => s.playable));
+      const best = pickPreferred(data.streams, ctxLike.prefer);
       if (best) {
-        const top = el('div', 'sx-best'); const label = [best.addonName, best.resolution, best.provider, best.seeders != null ? '👤 ' + best.seeders : ''].filter(Boolean).join(' · ');
-        top.append(button(t('Play best source', 'En iyi kaynakla oynat'), () => onPlay(best), 'mh-action mh-primary'), el('small', '', label + (best.score != null ? ' · ' + t('score ', 'puan ') + best.score : ''))); body.append(top);
+        const top = el('section', 'sx-best'), state = sourceState(best), why = [];
+        top.setAttribute('aria-label', t('Recommended source', 'Önerilen kaynak'));
+        if (best.resolution && best.resolution === (data.streams.filter((x) => x.playable && RES_ORDER.includes(x.resolution)).map((x) => x.resolution).sort((x, y) => RES_ORDER.indexOf(x) - RES_ORDER.indexOf(y))[0])) why.push(t('highest available quality', 'mevcut en yüksek kalite'));
+        if (best.availability === 'cached') why.push(t('in your debrid cache', 'debrid önbelleğinde'));
+        if (best.seeders != null && best.seeders >= 100) why.push(t('well seeded', 'çok seeder'));
+        if (best.kind === 'url' && best.availability !== 'download') why.push(needsNative(best) ? t('native player recommended', 'native oynatıcı önerilir') : t('suitable for the built-in player', 'yerleşik oynatıcıya uygun görünür'));
+        if (ctxLike.prefer && ((ctxLike.prefer.bingeGroup && best.bingeGroup === ctxLike.prefer.bingeGroup) || (ctxLike.prefer.addonKey && best.addonKey === ctxLike.prefer.addonKey && best.resolution === ctxLike.prefer.resolution))) why.unshift(t('matches the source you used before', 'önceki seçimine uyuyor'));
+        const art=el('div','sx-best-art'),quality=el('strong','sx-best-quality',qualityLabel(best));
+        const artUrl=ctxLike.meta?.background||ctxLike.poster;if(typeof artUrl==='string'&&/^https:\/\//i.test(artUrl)){const image=el('img');image.src=artUrl;image.alt='';image.referrerPolicy='no-referrer';image.onerror=()=>image.remove();art.append(image);}
+        art.append(el('span','sx-eyebrow',t('Recommended source','Önerilen kaynak')),quality);
+        const copy = el('div', 'sx-best-copy');
+        copy.append(el('strong', 'sx-best-title',best.addonName||t('Recommended source','Önerilen kaynak')));
+        const line = el('div', 'sx-state'); line.append(el('span', 'sx-pill sx-pill-' + state.tone, state.label)); const facts = sourceFacts(best); if (facts.length) line.append(el('span', 'sx-facts', facts.join(' · '))); copy.append(line);
+        const launch=button(t('Play this source','Bu kaynakla oynat'), () => onPlay(best), 'mh-action mh-primary sx-best-play');launch.prepend(studioPlayIcon());copy.append(launch,el('p','sx-best-compatibility',playabilityText(best)));
+        if (why.length){const reason=el('details','sx-best-reason');reason.append(el('summary','',t('Why this source?','Neden bu kaynak?')),el('small','sx-best-why',why.join(', ')));copy.append(reason);}
+        top.append(art,copy);body.append(top);
         // The user may have closed this picker while addons were answering; never start playback then.
         if (ctxLike.autoplayBest && dialog.isConnected && dialog.open) void onPlay(best);
       }
-      mountStreamList(body, data, { onPlay, status, onRetry: retry });
+      body.classList.toggle('sx-without-best',!best);const main=el('section','sx-source-main');body.append(main);
+      mountStreamList(main, data, { onPlay, status, onRetry: retry,studio:true });
     } catch (e) { skeleton.remove(); say(status, e.message, true); if (e.code === 'NO_ADDONS') { body.append(button(t('Add an addon', 'Eklenti ekle'), () => { dialog.close(); openAddons(); }, 'mh-action mh-primary')); } else if (dialog.isConnected) body.append(button(t('Search sources again', 'Kaynakları yeniden ara'), retry, 'mh-action mh-primary sx-retry')); }
     return dialog;
   }
@@ -611,11 +677,24 @@
     const fallbackDetail={item:{kind,providerId:meta.id,title:meta.name,year:meta.year,rating:meta.imdbRating,runtime:runtime?Number(runtime[1]):0,poster:meta.poster,backdrop:meta.background,synopsis:meta.description||'',genres:meta.genres||[],cast:meta.cast||[],castMembers:[],directors:meta.director||[],writers:meta.writer||[],director:(meta.director||[]).join(', '),writer:(meta.writer||[]).join(', '),country:meta.country||'',language:meta.language||'',awards:meta.awards||'',released:meta.released||''},catalogId:null};
     return window.MediaDiscoveryUI.openDetail({kind,providerId:meta.id,title:meta.name,year:meta.year,poster:meta.poster},{
       fallbackDetail,navigationPage:route==='stremio'?'stremio':undefined,backLabel:()=>route==='stremio'?t('← Back to Stremio','← Stremio’ya dön'):t('← Back','← Geri'),returnFocus:()=>trigger?.isConnected?trigger:null,
+      // This status strip describes library-linked files; Stremio titles can be played without a library record, so say that instead of "add first".
+      unlinkedSourceNote:()=>t('Not in your library. You can play from Stremio sources. Add it to your watchlist to create a library record or link local files.','Kütüphanende yok. Stremio kaynaklarından oynatabilirsin. Yerel dosya bağlamak veya kütüphane kaydı oluşturmak için izleneceklere ekleyebilirsin.'),
       ...options,onReady:({page,actions,sourceHost,status})=>{
         let disposed=false;
         const body=el('section','sx-source-tools'),sourceActions=el('div','sx-actions'),personal=el('details','sx-source-personal');
-        body.append(el('h2','',t('Stremio sources & episodes','Stremio kaynakları ve bölümler')),sourceActions);
+        body.append(el('h2','',meta.type==='series'?t('Episodes & sources','Bölümler ve kaynaklar'):t('Stremio sources & episodes','Stremio kaynakları ve bölümler')),sourceActions);
         personal.append(el('summary','',t('My Stremio list & review','Stremio listem ve değerlendirmem')),libraryButton(meta),ratingPanel(meta));body.append(personal);sourceHost.append(body);
+        if(meta.type==='series'){
+          page.classList.add('sx-series-studio');
+          const hero=page.querySelector('.cn-film-hero,.cn-hero');if(hero?.parentElement){hero.after(body);body.classList.add('sx-episodes-first');}
+          const copy=page.querySelector('.cn-film-copy');
+          if(copy){
+            const kicker=el('p','sx-title-kicker',t('Series','Dizi'));copy.prepend(kicker);
+            const strip=page.querySelector('.md-status-strip'),basis=copy.querySelector('.md-recommendation-basis'),watch=page.querySelector('.cn-watch-pill');
+            if(strip||basis){const tools=el('div','sx-title-meta-tools'),details=el('details','sx-title-status');details.append(el('summary','',t('Library, sources & recommendation','Kütüphane, kaynak ve öneri bilgileri')));if(strip)details.append(strip);if(basis)details.append(basis);if(watch)tools.append(watch);tools.append(details);copy.append(tools);}
+          }
+          const statusCard=page.querySelector('.ns-title-status');if(statusCard&&!statusCard.childElementCount)statusCard.remove();
+        }
         if(error)say(status,error,true);
         const current=()=>!disposed&&page.open&&request===titleRequest;
         void mountTitleSources(meta,page,actions,body,sourceActions,current,status).catch(e=>{if(current())say(status,e.message,true);});
@@ -629,7 +708,7 @@
     if(!current())return;
     const byKey = new Map(entries.map((e) => [e.season != null ? e.season + ':' + e.episode : 'movie', e]));
     const play = (season, episode, seconds) => openStreams({ ...baseCtx(meta, season, episode), resumeSeconds: seconds });
-    const heroPlay=(label,run)=>{for(const previous of heroActions.querySelectorAll('[data-kind="primary"]'))previous.dataset.kind='secondary';const control=button(label,run,'cn-button');control.dataset.kind='primary';const icon=window.MediaVisual?.icon?.('play');if(icon)control.prepend(icon);heroActions.prepend(control);};
+    const heroPlay=(label,run)=>{for(const previous of heroActions.querySelectorAll('[data-kind="primary"]'))previous.dataset.kind='secondary';const control=button(label,run,'cn-button');control.dataset.kind='primary';control.prepend(studioPlayIcon());heroActions.prepend(control);};
 
     if (meta.type === 'other' || (meta.videos || []).some(v=>v.hasInlineStreams)) {
       const files=el('section','sx-library-files');files.append(el('h3','sx-h3',t('Library files','Kütüphane dosyaları')));
@@ -665,36 +744,68 @@
       if (!last.completed) { primary = eps.find((v) => v.season === last.season && v.episode === last.episode) || primary; label = t(`Continue ${epLabel(last.season, last.episode)} · ${fmtTime(last.position)}`, `Devam et ${epLabel(last.season, last.episode)} · ${fmtTime(last.position)}`); }
       else { const n = last.next || nextOf(eps, last.season, last.episode); if (n) { primary = eps.find((v) => v.season === n.season && v.episode === n.episode) || primary; label = t(`Next ${epLabel(n.season, n.episode)}`, `Sıradaki ${epLabel(n.season, n.episode)}`); } else label = t('Watch again', 'Yeniden izle'); }
     }
+    if (primary && !last) label = t(`Play · ${epLabel(primary.season, primary.episode)}`, `Oynat · ${epLabel(primary.season, primary.episode)}`);
     if (primary) { actions.append(button(label, () => play(primary.season, primary.episode, seconds), 'mh-action mh-primary'));heroPlay(label,()=>play(primary.season,primary.episode,seconds)); }
-    const seasons = [...new Set(eps.map((v) => v.season))];
+    // Seasons and episodes: counts are derived from the addon's episode list only; nothing is invented.
+    const now = Date.now(), releasedAt = (v) => { const ms = Date.parse(v.released || ''); return Number.isFinite(ms) ? ms : null; }, upcoming = (v) => { const ms = releasedAt(v); return ms != null && ms > now; };
+    const seasons = [...new Set(eps.map((v) => v.season))].sort((x, y) => (x === 0) - (y === 0) || x - y);
+    const seasonName = (sn) => sn === 0 ? t('Specials', 'Özel bölümler') : t(`Season ${sn}`, `Sezon ${sn}`);
+    const stats = (sn) => { const rows = eps.filter((x) => x.season === sn); return { total: rows.length, done: rows.filter((x) => byKey.get(sn + ':' + x.episode)?.completed).length, soon: rows.filter(upcoming).length }; };
+    const fmtDate = (ms) => new Date(ms).toLocaleDateString(window.UiLocale?.get?.() === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' });
     const picker = el('select', 'sx-season'); picker.setAttribute('aria-label', t('Season', 'Sezon'));
-    for (const s of seasons) picker.append(new Option(s === 0 ? t('Specials', 'Özel bölümler') : t(`Season ${s}`, `Sezon ${s}`), String(s)));
+    for (const sn of seasons) picker.append(new Option(seasonName(sn), String(sn)));
     picker.value = String(primary?.season ?? seasons[0]);
-    const list = el('div', 'sx-episodes');
+    const pills = el('div', 'sx-seg sx-seasons'); pills.setAttribute('role', 'group'); pills.setAttribute('aria-label', t('Season', 'Sezon'));
+    const summary = el('p', 'sx-season-summary'), list = el('div', 'sx-episodes'); list.setAttribute('role', 'list');
+    const search=el('input','sx-episode-search');search.type='search';search.placeholder=t('Find an episode…','Bölüm ara…');search.setAttribute('aria-label',t('Find an episode in this season','Bu sezonda bölüm ara'));
+    const watchedFilter=el('select','sx-episode-filter');watchedFilter.setAttribute('aria-label',t('Episode watch status','Bölüm izleme durumu'));for(const [value,en,tr] of [['all','All episodes','Tüm bölümler'],['unwatched','Unwatched','İzlenmeyen'],['watched','Watched','İzlenen']])watchedFilter.append(new Option(t(en,tr),value));
     const draw = () => {
-      list.replaceChildren();
-      for (const v of eps.filter((x) => String(x.season) === picker.value)) {
-        const e = byKey.get(v.season + ':' + v.episode), row = el('article', 'sx-episode' + (e?.completed ? ' is-done' : ''));
-        const thumb = el('div', 'sx-thumb'), tag = el('span', 'sx-thumb-tag', epLabel(v.season, v.episode)); thumb.append(tag); if (v.thumbnail) { const img = el('img'); img.src = v.thumbnail; img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; img.onerror = () => img.remove(); img.onload = () => tag.remove(); thumb.append(img); }
-        const info = el('div', 'sx-ep-copy'); info.append(el('strong', '', `${v.episode}. ${v.title || t('Episode', 'Bölüm')}`), el('small', '', [v.released ? new Date(v.released).toLocaleDateString(window.UiLocale?.get?.() === 'tr' ? 'tr-TR' : 'en-US') : '', e?.completed ? t('Watched', 'İzlendi') : e ? t(`Stopped at ${fmtTime(e.position)}`, `${fmtTime(e.position)} noktasında kaldı`) : ''].filter(Boolean).join(' · ')));
-        if (v.overview) info.append(el('p', '', v.overview));
-        if (e && !e.completed) info.append(progressBar(e));
-        if (primary && v.season === primary.season && v.episode === primary.episode) info.prepend(el('span', 'sx-badge is-warn sx-next-badge', e && !e.completed ? t('Continue', 'Devam') : t('Up next', 'Sıradaki')));
+      list.replaceChildren(); const sn = Number(picker.value), st = stats(sn);
+      summary.textContent = [seasonName(sn), t(`${st.total} episodes`, `${st.total} bölüm`), st.done ? t(`${st.done} watched`, `${st.done} izlendi`) : '', st.soon ? t(`${st.soon} not yet released`, `${st.soon} henüz yayımlanmadı`) : ''].filter(Boolean).join(' · ');
+      const query=searchText(search.value.trim()),visible=eps.filter(x=>x.season===sn&&(!query||searchText([x.title,x.episode,x.overview].join(' ')).includes(query))&&(watchedFilter.value==='all'||(watchedFilter.value==='watched')===!!byKey.get(sn+':'+x.episode)?.completed));
+      if(query||watchedFilter.value!=='all')summary.append(el('span','sx-episode-result-count',t(` · ${visible.length} shown`,` · ${visible.length} gösteriliyor`)));
+      for (const v of visible) {
+        const e = byKey.get(v.season + ':' + v.episode), soon = upcoming(v), isNext = !!primary && v.season === primary.season && v.episode === primary.episode;
+        const row = el('article', 'sx-episode' + (e?.completed ? ' is-done' : '') + (soon ? ' is-upcoming' : '') + (isNext ? ' is-next' : '')); row.setAttribute('role', 'listitem');row.dataset.episode=`${v.season}:${v.episode}`;
+        const open = button('', () => play(v.season, v.episode), 'sx-ep-open'); open.setAttribute('aria-label', [epLabel(v.season, v.episode), v.title || ''].filter(Boolean).join(' · '));
+        const thumb = el('div', 'sx-thumb'), tag = el('span', 'sx-thumb-tag', epLabel(v.season, v.episode)); thumb.append(tag);
+        if (v.thumbnail) { const img = el('img'); img.src = v.thumbnail; img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; img.onerror = () => img.remove(); thumb.append(img); }
+        const overlay=el('span','sx-episode-play');overlay.setAttribute('aria-hidden','true');overlay.append(studioPlayIcon());thumb.append(overlay);
+        if (e && !e.completed) thumb.append(progressBar(e));
+        const info = el('div', 'sx-ep-copy');
+        if (isNext) info.append(el('span', 'sx-badge sx-next-badge', e && !e.completed ? t('Continue', 'Devam') : t('Up next', 'Sıradaki')));
+        info.append(el('strong', '', `${v.episode}. ${v.title || t('Episode', 'Bölüm')}`));
+        const ms = releasedAt(v), where = e?.completed ? t('Watched', 'İzlendi') : e ? t(`Stopped at ${fmtTime(e.position)}`, `${fmtTime(e.position)} noktasında kaldı`) : '';
+        const metaLine = [ms != null ? (soon ? t(`Airs ${fmtDate(ms)}`, `Yayın: ${fmtDate(ms)}`) : fmtDate(ms)) : '', where].filter(Boolean).join(' · ');
+        if (metaLine) info.append(el('small', 'sx-ep-meta', metaLine));
+        open.append(thumb, info);
         const mark = button(e?.completed ? '✓ ' + t('Watched', 'İzlendi') : t('Mark watched', 'İzlendi işaretle'), async () => {
+          if(!current())return;
           if (e?.completed) { await call('progress-clear', { type: meta.type, id: meta.id, season: v.season, episode: v.episode }); byKey.delete(v.season + ':' + v.episode); toast(t('Marked as not watched', 'İzlenmedi olarak işaretlendi')); }
           else { const r = await call('progress-save', { type: meta.type, id: meta.id, season: v.season, episode: v.episode, name: meta.name, poster: meta.poster, episodeTitle: v.title || '', next: nextOf(eps, v.season, v.episode), position: 3600, duration: 3600, completed: true, manualCompletion: true }); byKey.set(v.season + ':' + v.episode, r.saved); toast(t('Marked as watched', 'İzlendi olarak işaretlendi')); }
-          draw(); document.dispatchEvent(new CustomEvent('stremio-progress-changed'));
+          if(current()){draw();const updated=[...list.querySelectorAll('[data-episode]')].find(n=>n.dataset.episode===`${v.season}:${v.episode}`);updated?.querySelector('.sx-mark')?.focus({preventScroll:true});}document.dispatchEvent(new CustomEvent('stremio-progress-changed'));
         }, 'mh-action sx-mark'); mark.setAttribute('aria-pressed', String(!!e?.completed)); mark.setAttribute('aria-label', `${mark.textContent}: ${v.episode}. ${v.title || ''}`);
-        const acts = el('div', 'sx-ep-actions'); if(e&&!e.completed)acts.append(button(t('From the beginning','Baştan oynat'),()=>play(v.season,v.episode,0),'mh-action')); acts.append(button(e && !e.completed ? t('Continue', 'Devam et') : t('Play', 'Oynat'), () => play(v.season, v.episode), 'mh-action mh-primary'), mark);
-        row.append(thumb, info, acts);
-        list.append(row);
+        mark.title=mark.getAttribute('aria-label');const markIcon=el('span','','✓');markIcon.setAttribute('aria-hidden','true');mark.replaceChildren(markIcon);
+        const acts = el('div', 'sx-ep-actions');
+        acts.append(button(soon ? t('Find sources', 'Kaynak ara') : e && !e.completed ? t('Continue', 'Devam et') : t('Play', 'Oynat'), () => play(v.season, v.episode), 'mh-action' + (soon ? '' : ' mh-primary')));
+        if (e && !e.completed) acts.append(button(t('From the beginning', 'Baştan oynat'), () => play(v.season, v.episode, 0), 'mh-action'));
+        acts.append(mark); row.append(open);
+        if(v.overview){const overview=el('details','sx-episode-info');overview.append(el('summary','',t('Episode details','Bölüm bilgisi')),el('p','sx-ep-overview',v.overview));row.append(overview);}
+        row.append(acts); list.append(row);
       }
+      if(!visible.length){const empty=el('div','sx-episodes-empty');empty.append(el('p','',t('No episodes match this search and watch status.','Bu arama ve izleme durumuna uyan bölüm yok.')),button(t('Clear episode filters','Bölüm filtrelerini temizle'),()=>{search.value='';watchedFilter.value='all';draw();search.focus();}));list.append(empty);}
+      for (const b of pills.children) { const on = b.dataset.s === picker.value, s2 = stats(Number(b.dataset.s)); b.setAttribute('aria-pressed', String(on)); const count = b.querySelector('.sx-seg-count'); if (count) count.textContent = s2.done ? `${s2.done}/${s2.total}` : t(`${s2.total} ep.`, `${s2.total} bölüm`); }
     };
-    picker.onchange = () => { draw(); for (const b of pills.children) b.setAttribute('aria-pressed', String(b.dataset.s === picker.value)); };
-    const pills = el('div', 'sx-seg sx-seasons'); pills.setAttribute('role', 'group'); pills.setAttribute('aria-label', t('Season', 'Sezon'));
-    if (seasons.length > 1 && seasons.length <= 8) { for (const sn of seasons) { const b = el('button', 'sx-seg-btn', sn === 0 ? t('Specials', 'Özel') : t(`S${sn}`, `S${sn}`)); b.type = 'button'; b.dataset.s = String(sn); b.onclick = () => { picker.value = String(sn); picker.onchange(); }; pills.append(b); } picker.hidden = true; }
-    for (const b of pills.children) { const sn = Number(b.dataset.s), total = eps.filter((x) => x.season === sn).length, done = eps.filter((x) => x.season === sn && byKey.get(sn + ':' + x.episode)?.completed).length; b.textContent = (sn === 0 ? t('Specials', 'Özel') : `S${sn}`) + (done ? ` · ${done}/${total}` : ''); }
-    picker.onchange(); body.append(...(pills.children.length ? [pills] : []), picker, list);
+    picker.onchange = draw;search.oninput=draw;watchedFilter.onchange=draw;
+    if (seasons.length > 1) {
+      for (const sn of seasons) { const b = el('button', 'sx-seg-btn'); b.type = 'button'; b.dataset.s = String(sn); b.append(el('span', 'sx-seg-name', seasonName(sn)), el('small', 'sx-seg-count', '')); b.onclick = () => { picker.value = String(sn); picker.onchange(); }; pills.append(b); }
+      picker.hidden = true;
+    }
+    const head = el('div', 'sx-season-head'), titleRow = el('div', 'sx-season-title');
+    const episodeTools=el('div','sx-episode-tools');episodeTools.append(search,watchedFilter);
+    titleRow.append(el('h3', 'sx-h3', t('Episodes', 'Bölümler')), summary,episodeTools); head.append(titleRow,picker);
+    const episodeLayout=el('div','ns-episode-layout');pills.classList.add('sx-season-rail');episodeLayout.append(pills,list);
+    draw(); body.insertBefore(head, actions); body.insertBefore(episodeLayout, actions);
 
     page.addEventListener('sx-error', (ev) => { if (status) say(status, ev.detail?.message, true); });
   }
@@ -754,7 +865,7 @@
 
   /* ---- Puan, durum ve kaynak etiketleri ---- */
   const STATUS_LABEL = { '': () => t('No status', 'Durum yok'), planned: () => t('Plan to watch', 'İzlemeyi planlıyorum'), watching: () => t('Watching', 'İzliyorum'), watched: () => t('Watched', 'İzledim'), dropped: () => t('Dropped', 'Bıraktım') };
-  const TAG_LABEL = { remux: ['Remux', 'Remux'], bluray: ['Blu-ray', 'Blu-ray'], webdl: ['WEB-DL', 'WEB-DL'], dv: ['Dolby Vision', 'Dolby Vision'], hdr: ['HDR', 'HDR'], atmos: ['Atmos', 'Atmos'], hdaudio: ['HD audio', 'HD ses'], '10bit': ['10-bit', '10-bit'], hevc: ['HEVC', 'HEVC'], av1: ['AV1', 'AV1'], fast: ['Well seeded', 'Çok seeder'], instant: ['Instant', 'Anında'] };
+  const TAG_LABEL = { remux: ['Remux', 'Remux'], bluray: ['Blu-ray', 'Blu-ray'], webdl: ['WEB-DL', 'WEB-DL'], dv: ['Dolby Vision', 'Dolby Vision'], hdr: ['HDR', 'HDR'], atmos: ['Atmos', 'Atmos'], hdaudio: ['HD audio', 'HD ses'], '10bit': ['10-bit', '10-bit'], hevc: ['HEVC', 'HEVC'], av1: ['AV1', 'AV1'], fast: ['Well seeded', 'Çok seeder'], instant: ['In debrid cache', 'Debrid önbelleğinde'] };
   const WARN_LABEL = { lowseed: ['Few seeders', 'Az seeder'], cam: ['Camera recording', 'Kamera kaydı'], huge: ['Very large', 'Çok büyük'] };
   const starText = (n) => '★'.repeat(n) + '☆'.repeat(10 - n);
   const dayLabel = (ts) => { const d = new Date(ts), n = new Date(), a = new Date(d.getFullYear(), d.getMonth(), d.getDate()), b = new Date(n.getFullYear(), n.getMonth(), n.getDate()), diff = Math.round((b - a) / 86400000); return diff <= 0 ? t('Today', 'Bugün') : diff === 1 ? t('Yesterday', 'Dün') : diff < 7 ? t('This week', 'Bu hafta') : diff < 31 ? t('This month', 'Bu ay') : t('Earlier', 'Daha önce'); };

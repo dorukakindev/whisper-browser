@@ -2,6 +2,15 @@
    Component styles alias these roles; video overlays and TV keep their explicit
    contrast exceptions. Load before styles.css / assistant-overlay.css. */
 :root {
+  --wb-ink-0:#0b0b0d; --wb-ink-1:#141417; --wb-ink-2:#1c1c20;
+  --wb-ink-3:#25252a; --wb-ink-4:#2f2f35; --wb-line:#34343b;
+  --wb-line-2:#4a4a52; --wb-line-control:#6b6b74;
+  --wb-paper:#f3efe8; --wb-paper-2:#c9c4bc; --wb-paper-3:#9a958e;
+  --wb-perde:#f3efe8; --wb-on-perde:#121214; --wb-fosfor:#c6ee6a;
+  --wb-translation:#ddf2a9; --wb-fosfor-dim:#8fae45; --wb-salon:#5a1e2a;
+  --wb-ok:#5ccfc4; --wb-warn:#f2b65a; --wb-err:#ff6f7a;
+  --wb-ui:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --wb-display:'Sora','Segoe UI',system-ui,sans-serif;
   /* Artwork and video retain a dark contrast plane in both UI themes. */
   --media-scrim-rgb: 0 0 0;
   --media-highlight-rgb: 255 255 255;
@@ -19,18 +28,18 @@
   --media-action-ink: #151619;
   --media-poster-surface: #18181b;
   --media-poster-muted: #a5a5af;
-  --theme-bg-0: #111215;
-  --theme-bg-1: #191b1f;
-  --theme-bg-2: #24272d;
-  --theme-bg-3: #2d3037;
-  --theme-border: #383c43;
-  --theme-border-strong: #636a75;
-  --theme-text: #f1f0ed;
-  --theme-text-dim: #c1c4cb;
-  --theme-text-muted: #b0b4bd;
-  --theme-accent: #e2ab5b;
-  --theme-accent-hover: #f2c681;
-  --theme-accent-contrast: #21170c;
+  --theme-bg-0: var(--wb-ink-0);
+  --theme-bg-1: var(--wb-ink-1);
+  --theme-bg-2: var(--wb-ink-2);
+  --theme-bg-3: var(--wb-ink-3);
+  --theme-border: var(--wb-line);
+  --theme-border-strong: var(--wb-line-control);
+  --theme-text: var(--wb-paper);
+  --theme-text-dim: var(--wb-paper-2);
+  --theme-text-muted: var(--wb-paper-3);
+  --theme-accent: var(--wb-perde);
+  --theme-accent-hover: #ffffff;
+  --theme-accent-contrast: var(--wb-on-perde);
   --theme-scrollbar-track: var(--theme-bg-1);
   --theme-scrollbar-thumb: var(--theme-border-strong);
   --theme-scrollbar-thumb-hover: var(--theme-text-muted);

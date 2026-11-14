@@ -139,3 +139,10 @@ html:not([data-motion=off]):not([data-motion=reduce]) .plog-card:hover{transform
 @media(max-width:650px){.ct-preference-dialog,.ct-analysis-dialog{width:calc(100vw - 24px);padding:18px}.ct-decision-row{grid-template-columns:minmax(0,1fr)}}
 dialog.ct-preference-dialog.media-surface[open],dialog.ct-analysis-dialog.media-surface[open]{position:fixed;inset:0;margin:auto;height:fit-content;box-sizing:border-box}
 :is(.ct-preference-dialog,.ct-analysis-dialog) .ct-primary{background:var(--cn-gold,#e2ab5b);color:#1b160e;border-color:var(--cn-gold,#e2ab5b)}
+
+/* Library polish: the hero shares the content column (it stuck out 36px on both sides) and the selection checkbox is a usable target. */
+.plog-hero { margin-inline: 36px; }
+html:root body .plog-card > .plog-record-check { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--accent); }
+@media (max-width: 700px) { .plog-hero { margin-inline: 0; } }
+html:root body .plog-card:has(> .plog-record-check) { grid-template-columns: 24px 96px minmax(0, 1fr); }
+.plog-title { display: inline-flex; align-items: center; min-height: 30px; }

@@ -1,0 +1,134 @@
+/* Podcast studio — the authoritative look of the podcast library.
+   Loaded after podcast-library.css and podcast-refresh.css; it only restyles the existing DOM
+   (plus the .pl-show header) and keeps every hook the scripts and tests rely on. */
+.pl-v2 { isolation: isolate; }
+
+/* Full-bleed cinematic backdrop: the cover of the current show, blurred, fading into the page.
+   Before this the glow was clipped to the content column and ended in hard vertical edges. */
+.pl-v2:before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  inset: -96px calc(50% - 50vw) auto; height: 640px;
+  background: var(--pl-cover, none) center 28% / cover no-repeat;
+  filter: blur(64px) saturate(1.35); opacity: .42;
+  -webkit-mask-image: linear-gradient(180deg, #000 30%, transparent 96%); mask-image: linear-gradient(180deg, #000 30%, transparent 96%);
+}
+.pl-v2:after {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  inset: -96px calc(50% - 50vw) auto; height: 560px;
+  background: radial-gradient(60% 70% at 18% 0, color-mix(in srgb, var(--accent) 24%, transparent), transparent 72%),
+    linear-gradient(180deg, transparent 55%, var(--bg-0));
+}
+
+/* Heading */
+.pl-v2 .pl-heading { align-items: flex-end; gap: 24px; padding-top: 34px; }
+.pl-v2 .pl-heading h1 { font-size: clamp(44px, 5vw, 72px); line-height: .98; letter-spacing: -.035em; font-weight: 800; margin: 0 0 10px; }
+.pl-v2 .pl-heading-note { font-size: 16px; color: var(--text-muted); margin: 0 0 14px; }
+.pl-v2 .pl-counts { display: inline-flex; flex-wrap: wrap; gap: 6px 8px; align-items: baseline; padding: 7px 14px; border-radius: 999px; font-size: 13px; color: var(--text-muted); background: color-mix(in srgb, var(--text) 6%, transparent); border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); backdrop-filter: blur(10px); }
+.pl-v2 .pl-counts b { color: var(--text); font-weight: 700; }
+
+/* Shelf of shows: cover art first, like a streaming library */
+.pl-v2 .pl-programs { display: flex; gap: 22px; overflow-x: auto; padding: 10px 6px 18px; margin: 6px -6px 0; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.pl-v2 .pl-programs .pl-program {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px; flex: none; width: 160px; padding: 0;
+  background: none; border: 0; border-radius: 0; box-shadow: none; text-align: left; scroll-snap-align: start; cursor: pointer;
+}
+.pl-v2 .pl-programs .pl-program .pl-art, .pl-v2 .pl-programs .pl-program .pl-all-art {
+  position: relative; display: grid; place-items: center; width: 160px; height: 160px; margin: 0; overflow: hidden; border-radius: 22px;
+  font-size: 46px; font-weight: 700; color: color-mix(in srgb, var(--accent) 80%, white);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 22%, var(--bg-2)), var(--bg-1));
+  box-shadow: 0 18px 34px -22px #000, inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent);
+}
+.pl-v2 .pl-programs .pl-program .pl-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pl-v2 .pl-programs .pl-all .pl-all-art { font-size: 54px; background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 60%), linear-gradient(150deg, var(--bg-2), var(--bg-1)); }
+.pl-v2 .pl-programs .pl-program-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; font-size: 14.5px; font-weight: 650; line-height: 1.25; color: var(--text); }
+.pl-v2 .pl-programs .pl-program small { font-size: 12px; color: var(--text-dim); margin-top: -4px; }
+.pl-v2 .pl-programs .pl-program[aria-pressed=true] .pl-art, .pl-v2 .pl-programs .pl-program[aria-pressed=true] .pl-all-art { box-shadow: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--accent), 0 22px 40px -22px var(--accent); }
+.pl-v2 .pl-programs .pl-program[aria-pressed=true] .pl-program-name { color: var(--accent); }
+.pl-v2 .pl-full-program { margin: 0 0 6px; font-size: 12.5px; color: var(--text-dim); letter-spacing: .02em; }
+@media (prefers-reduced-motion: no-preference) {
+  .pl-v2 .pl-programs .pl-program .pl-art, .pl-v2 .pl-programs .pl-program .pl-all-art { transition: transform .25s cubic-bezier(.2,.7,.2,1), box-shadow .25s; }
+  .pl-v2 .pl-programs .pl-program:hover .pl-art, .pl-v2 .pl-programs .pl-program:focus-visible .pl-art, .pl-v2 .pl-programs .pl-program:hover .pl-all-art { transform: translateY(-5px) scale(1.02); }
+}
+.pl-v2 .pl-programs .pl-program:focus-visible { outline: none; }
+/* Flex children must not shrink: the cover tile was squashed to 90px and the name wrapped at 86px. */
+.pl-v2 .pl-programs { align-items: flex-start; }
+.pl-v2 .pl-programs .pl-program > * { flex: none; }
+.pl-v2 .pl-programs .pl-program { min-width: 0; max-width: none; }
+.pl-v2 .pl-programs .pl-program-name { align-self: stretch; }
+/* The full-bleed backdrop is 100vw wide; keep it from creating a horizontal scrollbar on the page host. */
+#mediaHome:has(.pl-v2) { overflow-x: hidden; }
+.pl-v2 .pl-programs .pl-program:focus-visible .pl-art, .pl-v2 .pl-programs .pl-program:focus-visible .pl-all-art { box-shadow: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--text); }
+
+/* Show page header (appears when a show is selected) */
+.pl-v2 .pl-show { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 34px; align-items: end; padding: 30px; margin: 0 0 24px; border-radius: 30px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--bg-1)), var(--bg-1) 62%);
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); box-shadow: 0 30px 60px -44px #000; }
+.pl-v2 .pl-show .pl-show-cover { position: relative; display: grid; place-items: center; width: 230px; height: 230px; overflow: hidden; border-radius: 26px; font-size: 72px; font-weight: 800; color: color-mix(in srgb, var(--accent) 80%, white);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 25%, var(--bg-2)), var(--bg-1)); box-shadow: 0 30px 50px -26px #000, inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent); }
+.pl-v2 .pl-show .pl-show-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pl-v2 .pl-show-copy { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.pl-v2 .pl-show-title { margin: 0; font-size: clamp(30px, 3.6vw, 52px); line-height: 1.02; letter-spacing: -.03em; font-weight: 800; overflow-wrap: anywhere; }
+.pl-v2 .pl-show-facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.pl-v2 .pl-show-facts li { padding: 5px 12px; border-radius: 999px; font-size: 12.5px; color: var(--text-muted); background: color-mix(in srgb, var(--text) 7%, transparent); border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
+.pl-v2 .pl-show-blurb { margin: 0; max-width: 68ch; font-size: 15px; line-height: 1.55; color: var(--text-muted); }
+.pl-v2 .pl-show-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 4px; }
+
+@media (max-width: 860px) {
+  .pl-v2 .pl-heading { align-items: flex-start; }
+  .pl-v2 .pl-programs .pl-program, .pl-v2 .pl-programs .pl-program .pl-art, .pl-v2 .pl-programs .pl-program .pl-all-art { width: 128px; }
+  .pl-v2 .pl-programs .pl-program .pl-art, .pl-v2 .pl-programs .pl-program .pl-all-art { height: 128px; font-size: 38px; }
+  .pl-v2 .pl-show { grid-template-columns: 1fr; padding: 22px; gap: 22px; }
+  .pl-v2 .pl-show .pl-show-cover { width: 150px; height: 150px; font-size: 48px; border-radius: 20px; }
+}
+
+/* A show is open: the show header is the hero, so the page heading and shelf step back. */
+.pl-v2.pl-has-show .pl-heading { padding-top: 20px; }
+.pl-v2.pl-has-show .pl-heading h1 { font-size: 30px; margin: 0; }
+.pl-v2.pl-has-show .pl-heading-note, .pl-v2.pl-has-show .pl-counts { display: none; }
+.pl-v2.pl-has-show .pl-programs { gap: 14px; padding-bottom: 8px; }
+.pl-v2.pl-has-show .pl-programs .pl-program { width: 92px; gap: 6px; }
+.pl-v2.pl-has-show .pl-programs .pl-program .pl-art, .pl-v2.pl-has-show .pl-programs .pl-program .pl-all-art { width: 92px; height: 92px; font-size: 28px; border-radius: 16px; }
+.pl-v2.pl-has-show .pl-programs .pl-program-name { font-size: 12px; -webkit-line-clamp: 1; }
+.pl-v2.pl-has-show .pl-programs .pl-program small, .pl-v2.pl-has-show .pl-full-program { display: none; }
+
+/* Episode rows: one clear primary action, quiet secondary ones, no repeated show name. */
+.pl-v2 .pl-episodes > .pl-episode { padding: 12px 16px; border-radius: 18px; background: color-mix(in srgb, var(--bg-1) 90%, transparent); }
+.pl-v2 .pl-episodes > .pl-episode .pl-art { border-radius: 14px; }
+.pl-v2 .pl-episodes .pl-episode-actions { align-items: center; gap: 4px; }
+@media (min-width: 1001px) {
+  .pl-v2 .pl-episodes .pl-episode-copy > .pl-episode-actions { grid-row: 1 / 5; align-self: center; justify-content: flex-end; margin: 0; }
+}
+.pl-v2 .pl-episodes .pl-episode-actions .mh-action { background: var(--accent); border-color: transparent; color: var(--accent-contrast, #1a1206); font-weight: 700; }
+.pl-v2 .pl-episodes .pl-episode-actions .mh-text-button { border: 0; background: transparent; color: var(--text-muted); padding: 7px 10px; border-radius: 999px; }
+.pl-v2 .pl-episodes .pl-episode-actions .mh-text-button:hover, .pl-v2 .pl-episodes .pl-episode-actions .mh-text-button:focus-visible { color: var(--text); background: color-mix(in srgb, var(--text) 9%, transparent); }
+.pl-v2.pl-has-show .pl-episodes .pl-eyebrow { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .pl-v2 .pl-episodes > .pl-episode { transition: border-color .2s, background .2s, transform .2s; }
+  .pl-v2 .pl-episodes > .pl-episode:hover { transform: translateY(-1px); }
+}
+
+/* Podcast link dialog: library shortcut next to the other-sources action. */
+.pdl-footer-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+
+/* Narrow windows: the featured episode stacks instead of squeezing the title; text links get a usable hit area. */
+@media (max-width: 560px) {
+  .pl-v2 .pl-stage { grid-template-columns: 1fr; padding: 20px; gap: 18px; }
+  .pl-v2 .pl-hero { grid-template-columns: 1fr; gap: 18px; min-height: 0; }
+  .pl-v2 .pl-hero h2 { font-size: 26px; }
+  .pl-v2 .pl-hero .pl-record { max-width: 220px; }
+}
+.pl-v2 .pl-episode-select { display: inline-flex; align-items: center; min-height: 32px; }
+.pl-v2 .pl-episode-extras > summary, .pl-v2 .pl-episodes .pl-episode-extras > summary { min-height: 32px; display: flex; align-items: center; }
+
+/* Podcast link dialog: subscribed shows as a cover shelf. */
+.pdl-library-shelf { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+.pdl-library-shelf > summary { min-height: 32px; display: flex; align-items: center; cursor: pointer; font-size: 13px; font-weight: 650; color: var(--accent); }
+.pdl-library-shelf[open] > summary { margin-bottom: 10px; }
+.pdl-shelf-list { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; }
+.pdl-shelf-item { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; flex: none; width: 92px; padding: 0; border: 0; background: none; color: var(--text); text-align: left; cursor: pointer; }
+.pdl-shelf-cover { position: relative; display: grid; place-items: center; width: 92px; height: 92px; overflow: hidden; border-radius: 16px; font-size: 28px; font-weight: 700; color: color-mix(in srgb, var(--accent) 80%, white); background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 22%, var(--bg-2)), var(--bg-1)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); }
+.pdl-shelf-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pdl-shelf-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; font-size: 12.5px; font-weight: 600; line-height: 1.25; }
+.pdl-shelf-item:hover .pdl-shelf-name, .pdl-shelf-item:focus-visible .pdl-shelf-name { color: var(--accent); }
+.pdl-shelf-item:focus-visible { outline: none; }
+.pdl-shelf-item:focus-visible .pdl-shelf-cover { box-shadow: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--text); }

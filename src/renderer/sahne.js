@@ -196,6 +196,14 @@
       this.root.classList.toggle('sh-web-video', !!this.a.info().webVideo);
       this.root.classList.toggle('sh-web-source', !!this.a.info().webSource);
       this.host.append(this.root);
+      if(!this.a.info().audio){
+        const identity=this.q('.browser-study-identity'),lead=this.q('.sh-top>div');
+        if(identity&&lead){lead.append(identity);lead.classList.add('ns-stage-identity');}
+      }
+      if(this.o.mode==='podcast'&&this.caps.queue){
+        const queue=this.el(`<section class="ns-stage-queue" aria-label="${T('Sırada','Up next')}"><header><strong>${T('Sırada','Up next')}</strong><button class="sh-btn" type="button" data-a="listeningQueue">${T('Kuyruğu yönet','Manage queue')}</button></header><div data-r="queuePreview"></div></section>`);
+        this.q('.browser-study-panel .bp-footer').before(queue);
+      }
       // Üst araçlar her modda aynı: simge + erişilebilir ad/tooltip (metin etiketi yok).
       for (const control of this.root.querySelectorAll('.sh-top-r .sh-btn')) { const label = control.querySelector('span')?.textContent?.trim(); if (label && !control.getAttribute('aria-label')) control.setAttribute('aria-label', label); if (label && !control.title) control.title = label; }
       // Metin boyutu/odak/kısayollar sıkışık alt çubukta değil, panel başlığındaki "Aa" görünüm menüsünde.
@@ -1786,6 +1794,8 @@
       if(chaptersKey!==this.chaptersKey){this.chaptersKey=chaptersKey;this.drawChapters(info.chapters||[]);this.drawWaveMarks(st.duration,info.chapters||[]);}
       const queueButton=this.q('[data-a=listeningQueue]');if(queueButton){const q=info.listeningQueue;const text=T('Dinleme kuyruğu','Listening queue')+(q?.rows?.length?' · '+q.rows.length:'');const label=queueButton.querySelector('span');if(label&&label.textContent!==text){label.textContent=text;queueButton.setAttribute('aria-label',text);queueButton.title=text;}}
       const upNext = this.q('[data-r=upnext]');
+      const queuePreview=this.q('[data-r=queuePreview]');
+      if(queuePreview){const list=(info.queue||[]).slice(0,3),signature=JSON.stringify(list);if(signature!==this.previewQueueSig){this.previewQueueSig=signature;queuePreview.replaceChildren();for(const entry of list){const b=this.el(`<button class="sh-next-item" type="button" data-a="queue" data-index="${Number(entry.index)}" data-queue-key="${esc(entry.queueKey)}"><strong>${esc(entry.title)}</strong></button>`);queuePreview.append(b);}if(!list.length)queuePreview.append(this.el(`<p>${T('Sırada başka bir kayıt yok.','No other items queued.')}</p>`));}}
       if (upNext) { const next = (info.queue || [])[0], sig = next ? JSON.stringify([next.index,next.title,next.queueKey]) : ''; if (sig !== this.metaQueueSig) { const restoreFocus=upNext.contains(document.activeElement);this.metaQueueSig = sig; upNext.replaceChildren(); upNext.hidden = !next; if (next) upNext.append(this.el(`<button class="sh-next-item sh-next-inline" type="button" data-a="queue" data-index="${Number(next.index)}" data-queue-key="${esc(next.queueKey)}"><small>${T('SIRADAKİ', 'UP NEXT')}</small><strong>${esc(next.title)}</strong></button>`));if(restoreFocus)(upNext.querySelector('button')||this.q('[data-a=toggle]'))?.focus({preventScroll:true}); } }
       const dur = Number(st.duration) || 0, observedTime = Number(st.time) || 0;
       const time = Number.isFinite(st.displayTime) ? st.displayTime : observedTime;

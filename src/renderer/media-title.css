@@ -419,3 +419,13 @@ html[data-theme="light"] .media-title-page .md-detail-poster,html[data-theme="li
 
 /* R854 G56/G65–G68: copy identity and exact recorded position stay beside Play. */
 .cn-copy-position{font-size:13px;line-height:1.6;max-width:72ch;padding:12px 16px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--bg-1));border-radius:8px;overflow-wrap:anywhere}.mc-episode-target{outline:2px solid var(--accent);outline-offset:3px}.pm-resume-provenance{font-size:13px;line-height:1.6;margin:10px 0}.pm-resume-provenance summary{cursor:pointer;color:var(--accent)}.pm-resume-provenance p{max-width:72ch;overflow-wrap:anywhere}
+
+/* The user's own state belongs in the hero: status, rating and progress at a glance. */
+.mtd-state { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 4px 0 2px; }
+.mtd-state .mtd-chip { padding: 5px 13px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); backdrop-filter: blur(8px); }
+.mtd-state .mtd-chip-status { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.mtd-state .mtd-chip-score { color: color-mix(in srgb, var(--accent) 70%, white); }
+.mtd-state .mtd-hero-progress { appearance: none; width: min(260px, 100%); height: 6px; border: 0; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--text) 16%, transparent); }
+.mtd-state .mtd-hero-progress::-webkit-progress-bar { background: transparent; }
+.mtd-state .mtd-hero-progress::-webkit-progress-value { background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, white)); border-radius: 6px; }
+.cn-film-copy .mtd-state { margin-top: 16px; }

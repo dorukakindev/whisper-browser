@@ -287,7 +287,9 @@ function parseStreamText(...fragments) {
   const provider = /⚙️?\s*([^\n]{1,60})/u.exec(joined); if (provider) info.provider = provider[1].trim();
   const codec = /\b(hevc|x265|h\.?265|av1|x264|h\.?264)\b/i.exec(joined); if (codec) info.codec = codec[1].toLowerCase().replace('.', '');
   const hdr = /\b(dolby[ .-]?vision|dv|hdr10\+?|hdr)\b/i.exec(joined); if (hdr) info.hdr = /dolby|dv/i.test(hdr[1]) ? 'DV' : hdr[1].toUpperCase();
-  const source = /\b(blu-?ray|remux|web-?dl|web-?rip|hdtv|dvdrip|cam|telesync)\b/i.exec(joined); if (source) info.source = source[1].toLowerCase().replace('-', '');
+  // Bare TS/TC also denote container extensions; only explicit camera release names qualify.
+  const source = /\b(blu-?ray|remux|web-?dl|web-?rip|hdtv|dvdrip|(?:hd-?)?cam(?:-?rip)?|hd-?ts|telesync|hd-?tc|telecine)\b/i.exec(joined);
+  if (source) { const name = source[1].toLowerCase().replace(/-/g, ''); info.source = /cam/.test(name) ? 'cam' : /^(hdts|telesync|hdtc|telecine)$/.test(name) ? 'telesync' : name; }
   const flags = [...joined.matchAll(/[\u{1F1E6}-\u{1F1FF}]{2}/gu)].map((m) => String.fromCodePoint(...[...m[0]].map((ch) => ch.codePointAt(0) - 0x1F1E6 + 97)));
   if (flags.length) info.flags = [...new Set(flags)].slice(0, 8);
   if (/\b(multi|dual)[ -]?(audio)?\b/i.test(joined)) info.multiAudio = true;

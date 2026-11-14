@@ -24,3 +24,18 @@
 .pdl-episode-preview img{display:block;width:96px;height:54px;object-fit:cover;border-radius:7px;flex:none}
 .pdl-episode-preview>div{min-width:0}
 .pdl-source .pdl-episode-preview h3{margin:0 0 4px}
+
+/* Narrow header. The rule above pins the two study buttons to max-content with a specific selector, so the generic icon-only
+   rule at 620px in media-home.css never reached them and the header actions ran off-screen ("Medya aç" ended at x=656 in a
+   640px window). The override lives next to the rule it overrides, so load order cannot undo it. */
+@media (max-width: 860px) {
+  .media-home .mh-header .mh-actions > button.mh-action.mh-study-entry { min-width: 0; width: 40px; padding: 9px; }
+  .media-home .mh-header .mh-actions > button.mh-action.mh-study-entry > span { display: none; }
+}
+@media (max-width: 700px) {
+  #mediaHome .mh-header .mh-actions > .mh-primary { width: 40px; padding: 9px; }
+  #mediaHome .mh-header .mh-actions > .mh-primary > span { display: none; }
+}
+@media (max-width: 480px) {
+  .media-home .mh-header .mh-actions > .mh-action, .media-home .mh-header .mh-actions > button.mh-action.mh-study-entry, #mediaHome .mh-header .mh-actions > .mh-primary { width: 36px; min-height: 36px; padding: 8px; }
+}

@@ -1,12 +1,12 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],sections=[],timingNotice='',save=false,processing=false,intro=false,configure}={}){
+function mount(t,{prefs,identity='same-source',untimed=false,cinema=false,audio=false,empty=false,study=false,actions=[],sections=[],timingNotice='',save=false,processing=false,intro=false,queue=false,configure}={}){
  const dom=new JSDOM('<div id="host"></div>',{url:'https://test.invalid',pretendToBeVisual:true,runScripts:'outside-only'}),w=dom.window;
  w.UiLocale={get:()=> 'tr'};w.matchMedia=()=>({matches:true});w.Element.prototype.scrollTo=function(value){this.scrollTop=value.top;};
  configure?.(w);
  let time=2,revision="r1",canSeek=true;const commands=[];const rows=untimed?[{id:'text',start:0,end:0,timed:false,src:'Yayıncı metni',trs:[],unc:[],words:null}]:[{id:'a',start:0,end:10,timed:true,src:'A source sentence',trs:['Birinci çeviri','İkinci çeviri'],unc:[],words:null},{id:'b',start:10,end:20,timed:true,src:'The next sentence',trs:[],unc:[],words:null}];
- const adapter={processing:processing?()=>({duration:30}):null,caps:{loop:true,cinema,study:true,save},identity:()=>identity,actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections,job:{state:'idle'}})};
+ const adapter={processing:processing?()=>({duration:30}):null,caps:{loop:true,cinema,study:true,save,queue},identity:()=>identity,actions:()=>actions,info:()=>({audio,title:'Bölüm',langs:{src:'en',tr:'tr'},chapters:[{t:0,label:'Giriş'},{t:10,label:'İkinci bölüm'}],queue:[{index:1,title:'Sıradaki gerçek kayıt'}]}),state:()=>({time,duration:30,paused:true,rate:1,volume:.42,rows:empty?[]:rows,rev:revision,untimed,timingNotice,canSeek}),cmd:(...args)=>{commands.push(args);return Promise.resolve(args[0]==='wordInfo'?{ok:true,word:args[1].word,source:rows[args[1].row].src,translations:rows[args[1].row].trs,canSave:true,saved:false}:{ok:args[0]!=='loop',code:'busy'});},panel:()=>({sections,job:{state:'idle'}})};
  w.eval(fs.readFileSync(require.resolve('../src/renderer/browser-study-view.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/podcast-task-scope.js'),'utf8'));
  w.eval(fs.readFileSync(require.resolve('../src/renderer/sahne.js'),'utf8'));
@@ -2110,4 +2110,15 @@ test('hidden chapter refresh avoids layout reads and writes while visible filter
  assert.equal(list.querySelectorAll('.sh-chap').length,1);
  Object.defineProperty(list,'scrollTop',{configurable:true,value:123,writable:true});list.hidden=false;f.sh.filterChapters();
  assert.equal(list.scrollTop,0);
+});
+
+test('podcast queue preview retains adapter command ownership',t=>{
+ const f=mount(t,{audio:true,queue:true});
+ const preview=f.sh.root.querySelector('.ns-stage-queue');
+ assert.ok(preview);assert.match(preview.textContent,/Sıradaki gerçek kayıt/);
+ preview.querySelector('[data-a=queue]').click();
+ assert.deepEqual(f.commands.at(-1),['openQueued',1,'r1']);
+ preview.querySelector('[data-a=listeningQueue]').click();
+ assert.equal(f.commands.at(-1)[0],'listeningQueue');
+ assert.ok(f.sh.root.querySelector('.browser-study-panel'));
 });

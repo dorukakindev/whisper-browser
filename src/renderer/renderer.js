@@ -992,9 +992,9 @@ function syncBrowserOcclusion() {
   const occluded = !!_activeModal || tabMenuOpen || !!(places && !places.classList.contains('hidden'))
     || !!(downloads && !downloads.classList.contains('hidden'))
     || !!(qrPanel && !qrPanel.classList.contains('hidden'))
-    || !!moreMenu?.open || !!translateMenu?.open || !!pageQuickMenu?.open || !!splitMenu?.open
+    || !!moreMenu?.open || !!(translateMenu?.open && !(window.innerWidth >= 1100 && $('browserWorkspace')?.classList.contains('mc-studio-open'))) || !!pageQuickMenu?.open || !!splitMenu?.open
     || !!siteChipDetails?.open || !!$('browserSignalMenu')?.open
-    || !!$('appModeMenu')?.open || !!$('appMenu')?.open
+    || !!$('appModeMenu')?.open || !!$('appMenu')?.open || !!$('browserWorkspaceMenu')?.open
     || !!(taskCenter && !taskCenter.classList.contains('hidden'))
     || !!(addressResults && !addressResults.classList.contains('hidden'))
     || !!(permissionPrompt && !permissionPrompt.classList.contains('hidden'))
@@ -10447,7 +10447,7 @@ function updateBrowserSubtitleSummary() {
     translateMenu.dataset.idle = idle ? 'true' : 'false';
   }
   const en = globalThis.UiLocale?.get?.() === 'en';
-  label.textContent = globalThis.UiLocale?.t?.('Çeviri ve dublaj') || 'Çeviri ve dublaj';
+  label.textContent = en ? 'Media studio' : 'Medya stüdyosu';
   renderBrowserHubStatus({ tab, count, busy, idle, en });
   button.dataset.state = stateName;
   button.setAttribute('aria-busy', busy ? 'true' : 'false');
@@ -20133,7 +20133,8 @@ async function flushWatchState(completed = false, refresh = false) {
       if(receipt.closeAttempted&&!watchItemByKey(receipt.request.key))return response;
       const res=applyWatchMutationResult(response);
       saveResult=res;
-      if (res && res.ok && res.item && refresh) renderPlayerLibrary();
+      // A hidden library list is rebuilt when it is shown; rebuilding it on every mode switch cost 70-120 ms.
+      if (res && res.ok && res.item && refresh) { if ($('playerLibraryPanel')?.classList.contains('hidden')) playerLibraryDirty = true; else renderPlayerLibrary(); }
     } catch (_) {if(receipt.closed)return receipt.result;saveResult={ok:false,error:'watch-save-failed'};}
     // Dizi düzeyinde tercihler: medya anahtarına bağlı kütüphane kaydı yanında
     // seri anahtarına da altyazı/yazı/hız altkümesi yazılır; yeni bölüm açılınca
@@ -20715,6 +20716,7 @@ function restoreLibraryUiState(list) {
   if (candidate) candidate.focus();
 }
 
+var playerLibraryDirty = false;
 function renderPlayerLibrary() {
   const panel = $('playerLibraryPanel');
   const list = $('playerLibraryList');
@@ -21782,6 +21784,7 @@ function setSideTab(tab, { focusContent = false } = {}) {
   $('playerSide').classList.toggle('library-mode', library);
   $('aiChat').classList.toggle('hidden', !ai);
   if ($('playerLibraryPanel')) $('playerLibraryPanel').classList.toggle('hidden', !library);
+  if (library && playerLibraryDirty) { playerLibraryDirty = false; renderPlayerLibrary(); }
   $$('.side-tab').forEach((b) => {
     const on = b.dataset.stab === tab;
     b.classList.toggle('active', on);
@@ -26063,7 +26066,7 @@ if ($('browserSubtitleSettingsMenu')) {
   });
 }
 
-const browserToolbarMenuIds = ['browserTranslateMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails', 'browserSignalMenu', 'appModeMenu', 'appMenu'];
+const browserToolbarMenuIds = ['browserTranslateMenu', 'browserWorkspaceMenu', 'browserPageQuickMenu', 'browserMoreMenu', 'browserSplitMenu', 'browserSiteChipDetails', 'browserSignalMenu', 'appModeMenu', 'appMenu'];
 function closeBrowserToolbarMenus(exceptId = '', restoreFocus = false) {
   let focusTarget = null;
   for (const id of browserToolbarMenuIds) {
@@ -26089,7 +26092,7 @@ for (const id of browserToolbarMenuIds) {
   wireDetailsMenuNav(menu);
 }
 document.addEventListener('pointerdown', (event) => {
-  if (event.target.closest?.('#browserTranslateMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails, #browserSignalMenu, #appModeMenu, #appMenu')) return;
+  if (event.target.closest?.('#browserTranslateMenu, #browserWorkspaceMenu, #browserPageQuickMenu, #browserMoreMenu, #browserSplitMenu, #browserSiteChipDetails, #browserSignalMenu, #appModeMenu, #appMenu')) return;
   closeBrowserToolbarMenus();
 }, true);
 // Yer imleri / İndirmeler / QR / komut paleti açıkken sayfa donmuş bir

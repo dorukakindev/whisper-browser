@@ -140,6 +140,7 @@
   let wasPlayerOpen = !layer?.classList.contains('hidden');
   function syncLayer() {
     const open = !!layer && !layer.classList.contains('hidden');
+    if ((!state.active || open) && host.contains(document.activeElement)) document.activeElement.blur();
     host.inert = !state.active || open;
     host.setAttribute('aria-hidden', String(!state.active || open));
     if (wasPlayerOpen && !open && state.active) {
@@ -355,10 +356,12 @@
     host.scrollTop = 0;
     host.querySelectorAll('[data-home-page]').forEach(node => node.setAttribute('aria-current', node.dataset.homePage === value ? 'page' : 'false'));
     // Üst çubukta yalnız Ana sayfa/Keşfet/Kütüphanem var; menüye taşınan sayfalar ait oldukları üst girişi (veya Daha fazla) işaretler: kullanıcı nerede olduğunu kaybetmesin.
-    const topOwner = { home: 'home', discover: 'discover', stremio: 'discover', films: 'discover', series: 'discover', recommend: 'discover', watched: 'watched', anime: 'watched', manga: 'watched', taste: 'watched', recall: 'more', feeds: 'more', radio: 'more', web: 'more', recent: 'more' }[value] || '';
+    const directTop = [...host.querySelectorAll('.mh-nav > [data-home-page]')].some(node => node.dataset.homePage === value);
+    const topOwner = directTop ? value : ({ home: 'home', discover: 'discover', stremio: 'discover', films: 'discover', series: 'discover', recommend: 'discover', watched: 'watched', anime: 'watched', manga: 'watched', taste: 'watched', recall: 'more', feeds: 'more', radio: 'more', web: 'more', recent: 'more' }[value] || '');
     host.querySelectorAll('.mh-nav > [data-home-page]').forEach(node => node.setAttribute('aria-current', node.dataset.homePage === topOwner ? 'page' : 'false'));
     host.querySelector('.mh-nav > .mh-nav-more')?.setAttribute('aria-current', topOwner === 'more' ? 'page' : 'false');
     host.querySelectorAll('[data-home-mode]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.homeMode === (['music', 'radio'].includes(value) ? 'music' : value === 'books' ? 'books' : 'film'))));
+    window.MediaChrome?.syncKind?.();
     renderContent();
     if (changed) window.UiMotion?.reveal(document.getElementById('mhContent'), 'page');
   }
@@ -619,6 +622,7 @@
     const content = el('main', 'mh-content'); content.id = 'mhContent';
     header.append(launcher, modes, nav, actions);
     function fitHeader() {
+      if (window.MediaChrome?.ownsHome(header)) return;
       cancelAnimationFrame(resizeFrame);
       resizeFrame = requestAnimationFrame(() => {
         if (!header.isConnected) return;
@@ -637,7 +641,9 @@
     const resize = new ResizeObserver(fitHeader); resize.observe(header);
     document.fonts?.ready.then(() => { if (header.isConnected) fitHeader(); });
     disposeShell = () => { lifetime.abort(); resize.disconnect(); cancelAnimationFrame(resizeFrame); clearTimeout(openTimer); clearTimeout(closeTimer); };
-    const metadata=el('div','mh-metadata');metadata.id='mhMetadataStatus';host.append(header,metadata, content);fitHeader();drawMetadata(metadata);renderContent();
+    const metadata=el('div','mh-metadata');metadata.id='mhMetadataStatus';host.append(header,metadata, content);
+    window.MediaChrome?.mountHome({header,launcher,modes,nav,actions,settings,browser,menu,setMenu,signal:lifetime.signal});
+    fitHeader();drawMetadata(metadata);renderContent();
     if (focused && host.querySelector(`#${focused}`)) document.getElementById(focused).focus();
   }
   async function refresh({metadata=true,preserveDiscovery=false}={}) {

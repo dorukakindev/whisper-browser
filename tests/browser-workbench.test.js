@@ -110,6 +110,17 @@ assert.equal(pageMenu.querySelectorAll('[data-page-view]').length, 3, 'sayfa gö
 
 // 10) "İşler" göstergesi: Görev merkezi toplayıcısından beslenir; çalışma → tamamlandı → hata geçişleri doğru işlenir.
 const vm = require('vm');
+// A workspace picker over a native page must hide that native view, then restore it.
+{
+  const code=renderer.slice(renderer.indexOf('function syncBrowserOcclusion()'),renderer.indexOf('// Native dialogs may be opened'));
+  const workspace={open:false},calls=[];
+  const context={$:id=>id==='browserWorkspaceMenu'?workspace:null,_activeModal:false,
+    window:{api:{setBrowserOccluded(){},setAssistantModalBlocked(){}}},document:{querySelector:()=>null},
+    player:{},applyBrowserOcclusion:on=>{calls.push(on);return Promise.resolve(null);}};
+  vm.createContext(context);vm.runInContext(code,context);
+  context.syncBrowserOcclusion();workspace.open=true;context.syncBrowserOcclusion();workspace.open=false;context.syncBrowserOcclusion();
+  assert.deepEqual(calls,[false,true,false],'workspace menu must participate in native view occlusion');
+}
 assert(byId('browserJobsChip')?.closest('.tb-end'), 'İşler göstergesi yok');
 assert.equal(byId('browserJobsChip').dataset.browserProxy, 'playerTaskCenterToggle', 'İşler göstergesi mevcut Görev merkezini açmalı');
 assert(/renderBrowserJobsDock\(rows\);\s*const list = listTarget/.test(renderer), 'gösterge Görev merkezi toplayıcısından beslenmiyor');
@@ -228,6 +239,70 @@ assert(/prefers-reduced-motion/.test(css) && /\[data-motion=off\]/.test(css), 'i
 }
 
 console.log('browser-workbench: gruplar, Altyazı merkezi, Asistan/Ayarlar, kaynak bandı ve şerit sabitliği doğrulandı.');
+
+// The studio moves real controls, retaining existing handlers and unique IDs.
+const live=new JSDOM(html,{runScripts:'outside-only'});
+live.window.ResizeObserver=class {observe(){}};
+live.window.UiLocale={get:()=> 'tr'};
+const liveDoc=live.window.document;
+const preservedIds=['browserPanelMain','browserWhisperSubtitlesMenu','browserWhisperTranslateMenu','browserVoiceReferenceOpen','browserStudyOpen','browserPodcastOpen','browserPageQuickMenu','browserPageTranslate'];
+const originals=new Map(preservedIds.map(id=>[id,liveDoc.getElementById(id)]));
+let whisperClicks=0;originals.get('browserWhisperSubtitlesMenu').addEventListener('click',()=>whisperClicks++);
+live.window.eval(read('src/renderer/media-chrome.js'));
+for(const [id,node] of originals){assert.strictEqual(liveDoc.getElementById(id),node,`${id} must keep its owner`);assert.equal(liveDoc.querySelectorAll('#'+id).length,1);}
+assert(liveDoc.querySelector('#browserWorkspaceMenu #browserStudyOpen'));
+assert(liveDoc.querySelector('#browserPageQuickMenu #browserPageTranslate'),'page translation uses its original control in the page menu');
+assert(liveDoc.querySelector('.mc-studio-pane[data-chrome-pane="subtitles"] #browserWhisperSubtitlesMenu'));
+assert(liveDoc.querySelector('.mc-studio-pane[data-chrome-pane="dubbing"] #browserVoiceReferenceOpen'));
+liveDoc.querySelector('.mc-studio-nav [data-chrome-pane="translation"]').click();
+assert(liveDoc.querySelector('.mc-studio-pane[data-chrome-pane="subtitles"]').hidden);
+assert(!liveDoc.querySelector('.mc-studio-pane[data-chrome-pane="translation"]').hidden);
+originals.get('browserWhisperSubtitlesMenu').click();assert.equal(whisperClicks,1);
+liveDoc.getElementById('browserTranslateMenu').open=true;
+liveDoc.dispatchEvent(new live.window.KeyboardEvent('keydown',{key:'Escape'}));
+assert(!liveDoc.getElementById('browserTranslateMenu').open);
+assert.strictEqual(liveDoc.activeElement,liveDoc.getElementById('browserSubtitleSettingsToggle'));
+// The home selector follows the existing pressed buttons; locale updates cannot reset it to Film.
+{
+  const home=liveDoc.getElementById('mediaHome');
+  home.innerHTML='<div class="mh-titlebar"></div><header class="mh-header"></header>';
+  const header=home.querySelector('header'), launcher=liveDoc.createElement('div'), modes=liveDoc.createElement('div'), nav=liveDoc.createElement('nav'), actions=liveDoc.createElement('div'), settings=liveDoc.createElement('button'), browser=liveDoc.createElement('button');
+  launcher.innerHTML='<button class="mh-brand"></button>';nav.innerHTML='<button class="mh-nav-more"></button>';
+  modes.innerHTML='<button data-home-mode="film" aria-pressed="true">Film</button><button data-home-mode="music" aria-pressed="false">Müzik</button><button data-home-mode="books" aria-pressed="false">Kitaplar</button>';
+  const originals=[...modes.children];
+  const menu=liveDoc.createElement('div');menu.hidden=true;launcher.append(menu);
+  live.window.MediaChrome.mountHome({header,launcher,modes,nav,actions,settings,browser,menu,setMenu(){}});
+  assert(header.contains(launcher),'brand and navigation share the same bar');
+  assert(header.contains(settings),'settings stays reachable in the single bar');
+  assert(!home.querySelector('.mh-titlebar').childElementCount,'no duplicate titlebar controls');
+  const label=()=>home.querySelector('#mhKindMenu > summary > span').textContent;
+  for(const mode of ['music','books','film']){
+    originals.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.homeMode===mode)));
+    live.window.MediaChrome.syncKind();assert.equal(label(),originals.find(b=>b.dataset.homeMode===mode).textContent);
+  }
+  originals.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.homeMode==='music')));
+  originals[1].textContent='Music';live.window.UiLocale.get=()=> 'en';
+  liveDoc.dispatchEvent(new live.window.Event('ui-locale-change'));assert.equal(label(),'Music');
+  originals[1].textContent='Müzik';live.window.UiLocale.get=()=> 'tr';
+  liveDoc.dispatchEvent(new live.window.Event('ui-locale-change'));assert.equal(label(),'Müzik');
+  originals.forEach(b=>assert.strictEqual(home.querySelector(`[data-home-mode="${b.dataset.homeMode}"]`),b));
+}
+// Exercise the real route after the feeds control moves between navigation and overflow.
+{
+  const source=read('src/renderer/media-home.js');
+  const route=source.slice(source.indexOf('  function page(value) {'),source.indexOf('  function renderContent() {'));
+  live.window.eval(`{
+    const host=document.getElementById('mediaHome');
+    host.innerHTML='<nav class="mh-nav"><button data-home-page="feeds"></button><button class="mh-nav-more"></button></nav><div id="overflow"></div>';
+    const state={page:'home'};function retainPage(){}function renderContent(){}
+    ${route}
+    page('feeds');window.__directFeed=host.querySelector('[data-home-page=feeds]').getAttribute('aria-current');
+    host.querySelector('#overflow').append(host.querySelector('[data-home-page=feeds]'));
+    page('feeds');window.__overflowFeed=host.querySelector('.mh-nav-more').getAttribute('aria-current');
+  }`);
+  assert.equal(live.window.__directFeed,'page');assert.equal(live.window.__overflowFeed,'page');
+}
+live.window.close();console.log('media-chrome: control identity, studio sections, existing click owner, Escape focus and live media-kind locale passed.');
 
 // 11) Etiket kademeleri, hub'da "Sayfayı çevir" vekili, ayrı Ayarlar simgesi ve Whisper boş-durum/neden sahipliği.
 {

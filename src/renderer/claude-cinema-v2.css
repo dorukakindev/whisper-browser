@@ -361,3 +361,19 @@ html:not([data-motion=off]):not([data-motion=reduce]) .cv2-home-door:hover,html:
 .md-personal-toolbar .mh-action{font-size:13px;min-height:34px;padding:0 14px}
 .cn-discover-page .cn-discover-filters .mv-search-group{display:flex!important}
 .cn-discover-page .cn-feature-basis{display:none!important}
+
+/* First-use composition: each frame previews what it stands for instead of being a blank card. */
+.cv2-first-frame { overflow: hidden; }
+.cv2-first-art { position: absolute; inset: 22px 22px 76px; display: flex; pointer-events: none; }
+.cv2-first-art[data-kind=watch] { align-items: center; justify-content: center; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--cn-gold) 40%, var(--cn-bg)), color-mix(in srgb, var(--cn-bg) 55%, #000)); box-shadow: inset 0 0 0 1px var(--cn-line); }
+.cv2-first-play { width: 0; height: 0; margin-left: 8px; border-left: 26px solid color-mix(in srgb, var(--cn-gold) 85%, #fff); border-block: 16px solid transparent; filter: drop-shadow(0 4px 10px rgb(0 0 0 / .5)); }
+.cv2-first-bar { position: absolute; left: 14px; right: 14px; bottom: 12px; height: 5px; border-radius: 5px; background: linear-gradient(90deg, var(--cn-gold) 38%, color-mix(in srgb, var(--text, #fff) 18%, transparent) 38%); }
+.cv2-first-art[data-kind=listen] { align-items: center; justify-content: space-between; gap: 5px; }
+.cv2-first-art[data-kind=listen] i { flex: 1; height: calc(var(--h) * 1%); border-radius: 4px; background: linear-gradient(180deg, color-mix(in srgb, var(--cn-gold) 85%, #fff), color-mix(in srgb, var(--cn-gold) 30%, transparent)); }
+.cv2-first-art[data-kind=discover] { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cv2-first-art[data-kind=discover] i { border-radius: 8px; box-shadow: inset 0 0 0 1px var(--cn-line); background: linear-gradient(150deg, color-mix(in srgb, var(--cn-gold) 32%, var(--cn-surface)), var(--cn-bg)); }
+.cv2-first-art[data-kind=discover] i:nth-child(2) { background: linear-gradient(150deg, color-mix(in srgb, #7f8cff 32%, var(--cn-surface)), var(--cn-bg)); }
+.cv2-first-art[data-kind=discover] i:nth-child(3) { background: linear-gradient(150deg, color-mix(in srgb, #4fb6a8 32%, var(--cn-surface)), var(--cn-bg)); }
+.cv2-first-art[data-kind=discover] i:nth-child(4) { background: linear-gradient(150deg, color-mix(in srgb, #ff7a90 30%, var(--cn-surface)), var(--cn-bg)); }
+/* The next frame overlaps the right half of the first two, so their previews live in the visible left half. */
+.cv2-first-art[data-kind=watch], .cv2-first-art[data-kind=listen] { right: 50%; }
